@@ -16,12 +16,13 @@
       "tags": "l1,api-surface,composition",
       "source": "R/paintr-app.R:134-181, 1284-1305, 1307-1502; R/paintr-app-bslib.R:56-122",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R: ptr_app (now ~134-152) calls ptr_app_components which returns list(ui=, server=) and wraps via shiny::shinyApp(parts$ui, parts$server). ptr_app_grid (~1256-1275) calls ptr_app_grid_components which builds list(ui,server). ptr_app_components carries ns = shiny::NS(NULL) (line 159). ptr_app_bslib (R/paintr-app-bslib.R, 55-121) has NO components builder: it inlines bslib::page_sidebar UI composing ptr_ui_assets/ptr_ui_controls/ptr_ui_toggle_code/ptr_ui_inline_error/ptr_ui_plot/ptr_ui_error/ptr_ui_code and a plain server closure calling ptr_server, then shinyApp itself. Claim holds; line numbers drifted (now ~134-181, ~1256-1275, ~1277+; bslib 55-121).",
       "checked_refs": [
-        "R/paintr-app.R:134-181",
-        "R/paintr-app.R:1284-1305",
-        "R/paintr-app.R:1307-1502",
-        "R/paintr-app-bslib.R:56-122"
+        "R/paintr-app.R ptr_app",
+        "R/paintr-app.R ptr_app_components",
+        "R/paintr-app.R ptr_app_grid",
+        "R/paintr-app.R ptr_app_grid_components",
+        "R/paintr-app-bslib.R ptr_app_bslib"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -29,9 +30,8 @@
         "app-entry-points",
         "package-api-surface"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app-bslib.R, R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-app-formula-only-required-arg",
@@ -42,21 +42,19 @@
       "tags": "l1,api-surface,ptr_app,data-supply",
       "source": "R/paintr-app.R:134-152, 11-122; R/paintr-app-bslib.R:56-62; R/paintr-app.R:1092-1093",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R ptr_app signature: formula (no default), envir=parent.frame(), ui_text=NULL, expr_check=TRUE, safe_to_remove=character(), css=NULL, spec=NULL. No data= parameter; data flows from envir symbol resolution or a ppUpload placeholder (confirmed by roxygen Formula-grammar section and ppUpload source-role wiring). expr_check roxygen documents TRUE/FALSE/list(deny_list,allow_list). Same optional shape on ptr_app_bslib (app-bslib.R 55-61) and ptr_server (app.R 822-829). Holds.",
       "checked_refs": [
-        "R/paintr-app.R:134-152",
-        "R/paintr-app.R:11-122",
-        "R/paintr-app-bslib.R:56-62",
-        "R/paintr-app.R:1092-1093"
+        "R/paintr-app.R ptr_app",
+        "R/paintr-app-bslib.R ptr_app_bslib",
+        "R/paintr-app.R ptr_server"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "app-entry-points"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app-bslib.R, R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "formula-string-or-expression-mode-capture",
@@ -67,13 +65,9 @@
       "tags": "l1,formula-capture,expression-mode,gotcha",
       "source": "R/paintr-app.R:196-296, 106-132, 141, 162, 1094",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R ptr_capture_formula: unwraps top-level {} (keeps last sub-expr); string passthrough; bare symbol resolved via rlang::eval_bare(envir) then rev(sys.frames()) walk accepting string/call/symbol; expr/quo/quote/bquote head unwrapped one layer; head in c(paste,paste0,sprintf,gettextf,format,formatC,c,vector,'[','[[','$') force-evaluated via eval_bare (single string else abort); remaining call/symbol deparsed via rlang::expr_text(width=500L). Called by ptr_app, ptr_app_components, ptr_server, ptr_app_grid_components. The |> desugar caveat is in the roxygen (116-119). All elements present verbatim.",
       "checked_refs": [
-        "R/paintr-app.R:196-296",
-        "R/paintr-app.R:106-132",
-        "R/paintr-app.R:141",
-        "R/paintr-app.R:162",
-        "R/paintr-app.R:1094"
+        "R/paintr-app.R ptr_capture_formula"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -81,9 +75,8 @@
         "formula-capture",
         "app-entry-points"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-app-grid-takes-list-of-formulas-routes-through-coordinator",
@@ -94,13 +87,12 @@
       "tags": "l1,ptr_app_grid,shared-coordinator,grid-layout,composition",
       "source": "R/paintr-app.R:1284-1502; R/paintr-shared-coordinator.R:245,464; R/paintr-shared-ui.R:260; R/paintr-shared.R:35",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R ptr_app_grid_components: splits dots into formula strings vs a ptr_shared_spec (inherits 'ptr_shared_spec'); captures each formula via ptr_capture_formula. ptr_shared() (coordinator) lives in R/paintr-shared-coordinator.R (def line 245, NOT paintr-shared.R:35 as cited — that file holds ptr_shared_bind), builds the single ptr_shared_spec; ptr_shared_panel() (shared-coordinator.R:464) + ptr_shared_server() (shared-ui.R:260) render panel + reactive bundle; each tile is a namespaced ptr_ui module; ptr_server_internal forwarded shared_state. canonical_shared_id / 'shared_<key>' naming confirmed elsewhere. Substance holds; corrected the ptr_shared/panel/server file refs.",
       "checked_refs": [
-        "R/paintr-app.R:1284-1502",
-        "R/paintr-shared-coordinator.R:245",
-        "R/paintr-shared-coordinator.R:464",
-        "R/paintr-shared-ui.R:260",
-        "R/paintr-shared.R:35"
+        "R/paintr-app.R ptr_app_grid_components",
+        "R/paintr-shared-coordinator.R ptr_shared",
+        "R/paintr-shared-coordinator.R ptr_shared_panel",
+        "R/paintr-shared-ui.R ptr_shared_server"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -108,9 +100,8 @@
         "app-entry-points",
         "shared-coordinator-partition"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-app-bslib-demonstration-wrapper-no-single-formula-shared",
@@ -121,18 +112,17 @@
       "tags": "l1,ptr_app_bslib,bslib,theming,wrapper-pattern",
       "source": "R/paintr-app-bslib.R:1-122",
       "verdict": "verified",
-      "verification": "Read 1-122 in full; all claims hold verbatim including shared=NULL at line 92.",
+      "verification": "R/paintr-app-bslib.R ptr_app_bslib: requireNamespace('bslib') gate aborting if absent (62-66); theme defaults to bslib::bs_theme(version=5, bootswatch='flatly') (67-69); id<-'ptr' (70). Roxygen (1-20) explicitly frames it demonstration-only, names ptr_app/ptr_app_grid as primary, states single-formula ppVar(shared=) coordination unsupported here. ptr_ui_controls is called with shared=NULL (line 91). theme= is documented as a bslib passthrough, not ggpaintr surface. Holds.",
       "checked_refs": [
-        "R/paintr-app-bslib.R:1-122"
+        "R/paintr-app-bslib.R ptr_app_bslib"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "app-entry-points"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-app-bslib.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-app-ui-server-wiring",
@@ -143,20 +133,20 @@
       "tags": "l1,ptr_app,ui-structure,server-wiring",
       "source": "R/paintr-app.R:758-792, 401-438, 564-570, 302-354; R/paintr-build-ui.R:774",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7: ptr_make_app_server still calls ptr_bind_local_shared_consumers once with host_owned_keys evaluating to character(0) and render_shared_section TRUE for single-instance. As of b6a2f72 (ADR 0026 #11) both are now produced via the partition_view helper — partition_host_owned_keys(new_partition_view('single')) at R/paintr-app.R:339 and partition_renders_section(new_partition_view('single')) at :169 — rather than literals; behavior byte-stable (helper returns character(0)/TRUE for role 'single'). All other wiring (ptr_server_internal auto_bind_shared=TRUE, ptr_build_app_ui fluidPage + branded header + sidebarLayout(ptr_controls_panel, ptr_outputs_panel)) unchanged.",
+      "verification": "R/paintr-app.R ptr_build_app_ui (762-805): fluidPage(ptr_assets(css), div class='ptr-app ptr-app--page' > [ptr_ui_header, sidebarLayout(sidebarPanel(controls), mainPanel(outputs))]); embedded path (app_chrome=FALSE) returns tagList with no header/--page. ptr_controls_panel (411-449): shared_section_tags + ptr_layer_select_ui + ptr_layer_tabset_ui + ptr_update_button. ptr_outputs_panel renders plot/inline-error/code. ptr_make_app_server (302-354): builds shared_reactives keyed by canonical_shared_id, calls ptr_server_internal(auto_bind_shared=TRUE), then ptr_bind_local_shared_consumers(host_owned_keys = partition_host_owned_keys(new_partition_view('single'))) — the single-surface partition yields character(0), confirming single-instance owns every shared key with no coordinator. Substance holds; checked_refs were mangled (cited app.R:169/339 + partition-view.R) — corrected.",
       "checked_refs": [
-        "R/paintr-app.R:169",
-        "R/paintr-app.R:339",
-        "R/paintr-partition-view.R"
+        "R/paintr-app.R ptr_build_app_ui",
+        "R/paintr-app.R ptr_controls_panel",
+        "R/paintr-app.R ptr_outputs_panel",
+        "R/paintr-app.R ptr_make_app_server"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "app-entry-points"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pp-placeholder-three-roles",
@@ -167,20 +157,20 @@
       "tags": "placeholders,public-api,architecture",
       "source": "R/paintr-builtins.R:259-393; R/paintr-nodes.R:64-94; R/paintr-translate.R:687-715,1042-1059",
       "verdict": "verified",
-      "verification": "ptr_register_builtins maps ppText/Num/Expr→value, ppVar→consumer, ppUpload→source, ppLayerOff/ppVerbSwitch→structural. nodes.R constructors confirm upstream/shortcut_id slots. detect_placeholder returns NULL for structural (697).",
+      "verification": "R/paintr-builtins.R ptr_register_builtins: ppText/ppNum/ppExpr via ptr_define_placeholder_value (role=value), ppVar via ptr_define_placeholder_consumer (role=consumer), ppUpload via ptr_define_placeholder_source (role=source). ppLayerOff/ppVerbSwitch via ptr_register_structural_keyword (role='structural', registry.R:920). Node constructors in R/paintr-nodes.R: ptr_ph_value (64), ptr_ph_data_consumer (74, carries upstream slot), ptr_ph_data_source (85, carries shortcut_id slot). R/paintr-translate.R detect_placeholder returns NULL for structural role (697); build_placeholder_node dispatches value/consumer/source only (1042-1060). Seven keywords = 3 roles + 2 structural. Holds.",
       "checked_refs": [
-        "R/paintr-builtins.R:259-393",
-        "R/paintr-nodes.R:64-94,118-132",
-        "R/paintr-translate.R:687-715,1042-1060"
+        "R/paintr-builtins.R ptr_register_builtins",
+        "R/paintr-nodes.R ptr_ph_value",
+        "R/paintr-translate.R detect_placeholder",
+        "R/paintr-translate.R build_placeholder_node"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pp-widget-mapping-and-resolve",
@@ -191,18 +181,21 @@
       "tags": "placeholders,widgets,public-api",
       "source": "R/paintr-builtins.R:22-252",
       "verdict": "verified",
-      "verification": "Read 22-252 in full; every widget/resolve clause grounded.",
+      "verification": "R/paintr-builtins.R: text->textInput, text_resolve strip_matched_quote_pair (51-59); num->numericInput, num_resolve NULL on non-numeric/NA (104-111); expr->textAreaInput, expr_resolve parses via rlang::parse_exprs requiring exactly ONE, ptr_signal_partial on empty/parse-fail (139-172); var->shinyWidgets::pickerInput multiple=TRUE + pickerOptions(maxOptions=1L) legacy trick, var_resolve rlang::sym(value) (176-210); upload->shiny::fileInput accept=ptr_upload_accept_formats() = c('.csv','.tsv','.rds','.xlsx','.xls','.json'), resolve_data->ptr_read_uploaded_data (225-252). All six accepted formats and every widget/resolve pairing match.",
       "checked_refs": [
-        "R/paintr-builtins.R:22-252"
+        "R/paintr-builtins.R ptr_builtin_text_resolve_expr",
+        "R/paintr-builtins.R ptr_builtin_num_resolve_expr",
+        "R/paintr-builtins.R ptr_builtin_expr_resolve_expr",
+        "R/paintr-builtins.R ptr_builtin_var_build_ui",
+        "R/paintr-builtins.R ptr_upload_accept_formats"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-builtins.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pp-positional-default-arg-validators",
@@ -213,20 +206,21 @@
       "tags": "placeholders,public-api,defaults,arguments",
       "source": "R/paintr-translate.R:903-957; R/paintr-default-args.R:201-293; R/paintr-builtins.R:332-374",
       "verdict": "verified",
-      "verification": "extract_placeholder_args splits/aborts as claimed; header comment 901-902 confirms no-eval; all four validators and the registration wiring verified.",
+      "verification": "R/paintr-translate.R extract_placeholder_args: splits named vs positional, aborts if >1 positional (925-930) or a positional with no entry$default_arg (918-924), calls entry$default_arg(positional[[1L]]) on the UNEVALUATED AST (header comment 901-902 'NEVER eval()s'). Validators in R/paintr-default-args.R: ptr_arg_string (215) string-literal; ptr_arg_numeric (224) constant-folds to length-1 non-NA numeric; ptr_arg_symbol_or_string (201) bareword-or-string; ptr_arg_expression (244) verbatim, warns on quote/bquote/expr/quo wrapper. Wired via positional_arg= in ptr_register_builtins (336-372). Holds (line numbers drifted slightly in default-args.R: factories at 201/215/224/244).",
       "checked_refs": [
-        "R/paintr-translate.R:897-957",
-        "R/paintr-default-args.R:197-293",
-        "R/paintr-builtins.R:332-374"
+        "R/paintr-translate.R extract_placeholder_args",
+        "R/paintr-default-args.R ptr_arg_string",
+        "R/paintr-default-args.R ptr_arg_numeric",
+        "R/paintr-default-args.R ptr_arg_symbol_or_string",
+        "R/paintr-default-args.R ptr_arg_expression"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pp-shared-named-arg-coordinator",
@@ -237,9 +231,11 @@
       "tags": "placeholders,shared,coordinator,public-api",
       "source": "R/paintr-translate.R:903-971,1062-1100",
       "verdict": "verified",
-      "verification": "recognized<-c('shared',declared) at 936; extract_shared_value requires literal string; ptr_validate_shared_roles aborts on mixed roles per key (1077-1082).",
+      "verification": "R/paintr-translate.R extract_placeholder_args: recognized = c('shared', declared named_args) (936); unknown named args abort (938-944); shared parsed by extract_shared_value (962-971) requiring a single non-empty character literal in the AST (not eval'd). ptr_validate_shared_roles (1066-1086) buckets placeholders by $shared key via collect_shared_occurrences and aborts when one key spans incompatible roles ('A shared widget can only back one role at a time'). shared= valid on value/consumer/source alike. Holds.",
       "checked_refs": [
-        "R/paintr-translate.R:903-971,1062-1101"
+        "R/paintr-translate.R extract_placeholder_args",
+        "R/paintr-translate.R extract_shared_value",
+        "R/paintr-translate.R ptr_validate_shared_roles"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -247,9 +243,8 @@
         "placeholder-keywords",
         "shared-coordinator-partition"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pp-upload-shortcut-positional-env-load",
@@ -260,12 +255,12 @@
       "tags": "placeholders,ppUpload,shortcut,data-source,public-api",
       "source": "R/paintr-builtins.R:236-252,367-374,413-418; R/paintr-build-ui.R:80-113; R/paintr-ids.R:78-92; R/paintr-registry.R:735-784",
       "verdict": "verified",
-      "verification": "builtins registration + identity/abort confirmed; ids.R shortcut_id assignment 83-86; static textInput at build-ui.R 104-108 gated on entry$shortcut. The shortcut carries the typed/seeded name that resolves a frame downstream.",
+      "verification": "ppUpload registered shortcut=TRUE, positional_arg=ptr_arg_symbol_or_string() (builtins.R 367-373). R/paintr-ids.R assigns node$shortcut_id <- paste0(node$id, '_shortcut') (line 83). The upload hook ptr_builtin_upload_build_ui returns ONLY the fileInput (236-247); the shortcut textInput is STATIC UI from build_ui_for.ptr_ph_data_source in R/paintr-build-ui.R (def line 80, static-shortcut comment line 96). Runtime: ppUpload(penguins) is identity outside ptr_app; no-arg ppUpload() aborts ('only meaningful inside ptr_app()', builtins.R 413-418). Bareword positional seeds the shortcut default (env-load). Holds; ids.R line ~83 and build-ui.R ~80-108 confirmed.",
       "checked_refs": [
-        "R/paintr-builtins.R:236-252,367-374,413-418",
-        "R/paintr-build-ui.R:80-113",
-        "R/paintr-ids.R:78-92",
-        "R/paintr-registry.R:735-784"
+        "R/paintr-builtins.R ptr_builtin_upload_build_ui",
+        "R/paintr-ids.R",
+        "R/paintr-build-ui.R build_ui_for.ptr_ph_data_source",
+        "R/paintr-builtins.R ppUpload"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -273,9 +268,8 @@
         "placeholder-keywords",
         "ppupload-mechanics"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "3 changed file(s): R/paintr-builtins.R, R/paintr-ids.R, R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pp-expr-distinct-user-expr-node",
@@ -286,11 +280,11 @@
       "tags": "placeholders,ppExpr,expression-mode,public-api",
       "source": "R/paintr-substitute.R:122-129; R/paintr-builtins.R:139-172,349-355; R/paintr-nodes.R:96-98,129",
       "verdict": "verified",
-      "verification": "substitute.R 125-128 branches ppExpr→ptr_user_expr; expr resolver returns exprs[[1]] language object; nodes.R constructor+predicate confirmed.",
+      "verification": "R/paintr-substitute.R substitute_walk.ptr_ph_value (line 122): runs the resolver then, if node$keyword=='ppExpr' (line 126), returns ptr_user_expr(resolved); else ptr_literal. expr resolver (builtins.R 139-172) parses textarea text via rlang::parse_exprs requiring exactly one -> the AST, not the string. ptr_user_expr is its own node (nodes.R:96-98) with predicate is_ptr_user_expr (nodes.R:129). Holds.",
       "checked_refs": [
-        "R/paintr-substitute.R:122-129",
-        "R/paintr-builtins.R:139-172,349-355",
-        "R/paintr-nodes.R:96-98,129"
+        "R/paintr-substitute.R substitute_walk.ptr_ph_value",
+        "R/paintr-builtins.R ptr_builtin_expr_resolve_expr",
+        "R/paintr-nodes.R ptr_user_expr"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -298,9 +292,8 @@
         "placeholder-keywords",
         "expr-safety"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-builtins.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pp-structural-toggles-literal-boot-state",
@@ -311,20 +304,21 @@
       "tags": "placeholders,ppLayerOff,ppVerbSwitch,structural,toggles,public-api",
       "source": "R/paintr-builtins.R:420-550; R/paintr-translate.R:687-697,724-767,840-894; R/paintr-nodes.R:32-57",
       "verdict": "verified",
-      "verification": "builtins ppLayerOff/ppVerbSwitch literal-logical asserts + naked-R NULL/identity confirmed; translate validate_pp_off_hide + unwrap_pp_verb_switch_stage stamp boot-state and abort on non-literal; nodes.R ptr_call slots present.",
+      "verification": "R/paintr-builtins.R: ppLayerOff (460-467) returns NULL when hide=TRUE else the layer, asserts length-1 non-NA logical; ppVerbSwitch (526-550) returns .data when switch_on=FALSE else inserts .data as first positional arg of verb_expr and evals, validates verb call shape (is.call) even when switch_on=FALSE, accepts optional label. R/paintr-translate.R validators validate_pp_off_hide (746), validate_pp_verb_switch_switch_on (807), validate_pp_verb_switch_label (838) require length-1 non-NA literal and abort class 'ptr_translate_error' on non-literal; unwrap_pp_layer_off stamps default_active=!hide (795); unwrap_pp_verb_switch_stage stamps has_user_control=TRUE, default_stage_enabled=switch_on, stage_label=label (891-893). R/paintr-nodes.R ptr_call carries default_stage_enabled/has_user_control/stage_label (48-57) and ptr_layer carries default_active (16). Holds.",
       "checked_refs": [
-        "R/paintr-builtins.R:420-550",
-        "R/paintr-translate.R:687-697,724-767,840-894",
-        "R/paintr-nodes.R:32-57"
+        "R/paintr-builtins.R ppLayerOff",
+        "R/paintr-builtins.R ppVerbSwitch",
+        "R/paintr-translate.R validate_pp_off_hide",
+        "R/paintr-translate.R unwrap_pp_verb_switch_stage",
+        "R/paintr-nodes.R ptr_call"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-keywords"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "custom-placeholder-three-role-constructors",
@@ -335,24 +329,20 @@
       "tags": "custom-placeholder,public-api,L3,registry",
       "source": "R/paintr-registry.R:352-421, 592-606, 713-727, 870-885, 361-386, 408; R/paintr-builtins.R:259-269",
       "verdict": "verified",
-      "verification": "Three @export'd constructors each call ptr_define_core with fixed role; role branching at 361-366/368-386/375-417/408 confirmed; data_aware set only at 408. Exemplars via ptr_builtin_keywords().",
+      "verification": "R/paintr-registry.R: ptr_define_placeholder_value (592), ptr_define_placeholder_consumer (713), ptr_define_placeholder_source (870) each fix role='value'/'consumer'/'source' and forward to ptr_define_core (352). ptr_define_core: build_ui arity c('node','cols','data') for consumer else 'node' (361-366); source requires resolve_data + optional resolve_expr defaulting to function(value,node,...) rlang::sym(value) (368-374); value/consumer require resolve_expr + optional validate_input (382-385); shortcut source-only; data_aware = role %in% c('consumer','source') (408). All three are thin wrappers. Holds; line numbers steady.",
       "checked_refs": [
-        "R/paintr-registry.R:352-421",
-        "R/paintr-registry.R:592-606",
-        "R/paintr-registry.R:713-727",
-        "R/paintr-registry.R:870-885",
-        "R/paintr-registry.R:361-386",
-        "R/paintr-registry.R:408",
-        "R/paintr-builtins.R:259-269"
+        "R/paintr-registry.R ptr_define_core",
+        "R/paintr-registry.R ptr_define_placeholder_value",
+        "R/paintr-registry.R ptr_define_placeholder_consumer",
+        "R/paintr-registry.R ptr_define_placeholder_source"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "registry-process-global-options-anchored",
@@ -363,24 +353,19 @@
       "tags": "custom-placeholder,registry,process-global,reload",
       "source": "R/paintr-registry.R:1-21, 113-124, 357-429, 592-599, 713-720, 870-878",
       "verdict": "verified",
-      "verification": "Confirmed options-anchored local() block; header hazard comment; ptr_registry_register assign() at 427; no placeholders= arg on any constructor or ptr_define_core.",
+      "verification": "R/paintr-registry.R lines 14-21: .ptr_registry <- local({ env <- getOption('.ggpaintr_registry_v1'); if not environment, new.env(parent=emptyenv()) + options() }). Header comment 5-13 explains the load_all split-registry hazard and the options() anchoring rationale. No placeholders= argument exists anywhere in the define API (ptr_define_core / the three wrappers take no such arg). ptr_registry_register assign()s into the global .ptr_registry env (427). Process-global, options-anchored — holds.",
       "checked_refs": [
-        "R/paintr-registry.R:1-21",
-        "R/paintr-registry.R:113-124",
-        "R/paintr-registry.R:357",
-        "R/paintr-registry.R:419-429",
-        "R/paintr-registry.R:592-599",
-        "R/paintr-registry.R:713-720",
-        "R/paintr-registry.R:870-878"
+        "R/paintr-registry.R",
+        "R/paintr-registry.R ptr_define_core",
+        "R/paintr-registry.R ptr_registry_register"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "custom-placeholder-hook-signatures",
@@ -391,22 +376,18 @@
       "tags": "custom-placeholder,hooks,build_ui,resolve_expr,validate_input",
       "source": "R/paintr-registry.R:156-180, 361-386, 506-513, 618-668, 739-793",
       "verdict": "verified",
-      "verification": "validate_hook leniency, build_ui_args branch, source resolve_data default, non-source resolve_expr+validate_input, return-type docblock all confirmed.",
+      "verification": "R/paintr-registry.R ptr_define_core wires validate_hook with required-arg lists: build_ui_args = c('node','cols','data') for consumer else 'node' (361-366); source requires resolve_data(value,node) and defaults resolve_expr to function(value,node,...) rlang::sym(value) when NULL (368-374); non-source requires resolve_expr(value,node) + optional validate_input(value,ctx) (382-385). validate_hook (156-): a hook declaring '...' passes immediately (164-169); a hook lacking '...' and missing a required named arg aborts (170+). resolve_expr return contract documented in roxygen; build_ui docblock instructs ending with '...' and passing node$id as inputId. Holds.",
       "checked_refs": [
-        "R/paintr-registry.R:156-180",
-        "R/paintr-registry.R:361-386",
-        "R/paintr-registry.R:506-513",
-        "R/paintr-registry.R:618-668",
-        "R/paintr-registry.R:739-793"
+        "R/paintr-registry.R ptr_define_core",
+        "R/paintr-registry.R validate_hook"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-arg-validators-ast-only",
@@ -417,22 +398,21 @@
       "tags": "ptr_arg,validators,custom-placeholder,ast-safety,ppNum,ppExpr",
       "source": "R/paintr-default-args.R:1-49, 137-293; R/paintr-builtins.R:342-355; R/paintr-registry.R:520-533",
       "verdict": "verified",
-      "verification": "All factories return function(arg_expr) AST closures; header no-eval claim; ptr_constant_fold sealed-env eval; expression verbatim+warn; ppNum/ppExpr wiring at builtins 343-353; NULL positional_arg rejection at registry 520-527.",
+      "verification": "R/paintr-default-args.R: header docblock (lines 1-49) states validators never eval/parse/deparse-reparse on input. ptr_arg_symbol_or_string() (201) returns rlang::as_string for a symbol or the string; ptr_arg_string() (217) accepts only a string literal; ptr_arg_numeric() (228) and ptr_arg_numeric_vector() (240) both call ptr_constant_fold() (192) which runs validate_constant_ast() (149, AST allowlist walk against ptr_constant_fold_env) then rlang::eval_bare() in the sealed env -- so 2*pi/seq_len(3) admitted, arbitrary calls abort. numeric requires length-1 non-NA; vector allows a vector + optional length check. ptr_arg_expression() (268) returns arg_expr UNCHANGED and warns once on quote/bquote/expr/quo wrappers (.ptr_expr_wrapper_names at 264; cli_warn at 284). Built-in wiring confirmed in R/paintr-builtins.R: ppNum positional_arg=ptr_arg_numeric() (346), ppExpr positional_arg=ptr_arg_expression() (353). NULL positional_arg rejects positional args at translate time: extract_placeholder_args() in R/paintr-translate.R (919) aborts 'positional args are not allowed' when entry$default_arg is NULL. Claim holds; only line numbers drifted.",
       "checked_refs": [
         "R/paintr-default-args.R:1-49",
-        "R/paintr-default-args.R:137-195",
+        "R/paintr-default-args.R:149-195",
         "R/paintr-default-args.R:201-293",
-        "R/paintr-builtins.R:342-355",
-        "R/paintr-registry.R:520-533"
+        "R/paintr-builtins.R:332-374",
+        "R/paintr-translate.R:903-957"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "source-shortcut-companion-and-ui-text-defaults",
@@ -443,7 +423,7 @@
       "tags": "custom-placeholder,source,shortcut,ui_text_defaults,copy_defaults",
       "source": "R/paintr-registry.R:69-111, 247-264, 311-337, 348-351, 406-418, 739-746, 823-839; R/paintr-builtins.R:259-269; R/paintr-copy.R:164-166",
       "verdict": "verified",
-      "verification": "source build_ui shortcut emission 739-746; inherits=TRUE get() at 832; validate_copy_defaults restricts to leaf fields; entry$copy_defaults stored 413; shared rejected 247-253; ptr_clear_placeholder refuses the 7 protected keywords.",
+      "verification": "(1) Shortcut auto-render: R/paintr-registry.R ptr_define_placeholder_source @param shortcut docblock (now ~774-793) states with shortcut=TRUE the framework stamps node$shortcut_id and renders the sibling shortcut textInput; the build_ui docblock (739-746) says render ONLY node$id or the id binds twice. ADR-0024 env-name data-loading and inherits=TRUE lookup documented in the @section spec= round-trip block (823-839). The built-in ppUpload sets shortcut=TRUE (R/paintr-builtins.R:371) and its build_ui returns only the fileInput (236-247), confirming the source hook emits only the payload widget. (2) ui_text_defaults: every define_* takes ui_text_defaults; validate_copy_defaults() (311-337) restricts names to ptr_ui_text_leaf_fields()=label/help/placeholder/empty_text (R/paintr-copy.R:164-166), single non-NA strings; ptr_define_core() stores it on the entry under copy_defaults (413) while the public arg is ui_text_defaults (NOTE at 348-351). named_args may not contain 'shared' (validate_named_args, 247-253). ptr_clear_placeholder refuses the built-in set incl. ppLayerOff/ppVerbSwitch via ptr_builtin_keywords() (91-95). All sub-claims hold; line numbers drifted.",
       "checked_refs": [
         "R/paintr-registry.R:69-111",
         "R/paintr-registry.R:247-264",
@@ -452,7 +432,7 @@
         "R/paintr-registry.R:406-418",
         "R/paintr-registry.R:739-746",
         "R/paintr-registry.R:823-839",
-        "R/paintr-builtins.R:259-269",
+        "R/paintr-builtins.R:236-247",
         "R/paintr-copy.R:164-166"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
@@ -461,9 +441,8 @@
         "placeholder-registry-api",
         "ppupload-mechanics"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): R/paintr-builtins.R, R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "runtime-callable-returned-for-plain-r-binding",
@@ -474,24 +453,21 @@
       "tags": "custom-placeholder,runtime,keyword-binding,validation,shadow-check",
       "source": "R/paintr-registry.R:142-154, 186-216, 266-304, 393-420, 550-563, 674-682, 798-809",
       "verdict": "verified",
-      "verification": "runtime_default identity vs source-abort; runtime_fn returned at 420; docblocks state keyword-name binding; lhs-drift tripwire + no-call-frame note; validate_keyword + no-shadow against .ptr_shadow_pkgs.",
+      "verification": "R/paintr-registry.R ptr_define_core(): runtime_default (393-402) = function(x,...) x for value/consumer, or for source a closure aborting '`<kw>()` is only meaningful inside `ptr_app()`.' (396-398); runtime_fn <- runtime %||% runtime_default and the function RETURNS runtime_fn (420). Docblocks for the three public define_* helpers state the return is the runtime callable bound under the keyword identifier (e.g. @param runtime 551-558, @return 560-563). ptr_check_keyword_lhs_drift() (282-304) is the best-effort tripwire walking sys.calls() for an enclosing `<-`. validate_keyword() (142-154) rejects reserved/non-syntactic names; validate_keyword_no_shadow() (201-216) rejects base/stats/utils/methods/graphics/grDevices/ggplot2 shadows (pp-prefix sidesteps). Claim holds; line numbers drifted.",
       "checked_refs": [
         "R/paintr-registry.R:142-154",
-        "R/paintr-registry.R:186-216",
-        "R/paintr-registry.R:266-304",
+        "R/paintr-registry.R:201-216",
+        "R/paintr-registry.R:282-304",
         "R/paintr-registry.R:393-420",
-        "R/paintr-registry.R:550-563",
-        "R/paintr-registry.R:674-682",
-        "R/paintr-registry.R:798-809"
+        "R/paintr-registry.R:551-563"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "placeholder-registry-api"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l2-single-public-server-plus-ptr-init-state-exported",
@@ -502,12 +478,12 @@
       "tags": "l2,public-api,adr-0006",
       "source": "R/paintr-app.R:1006-1008,1019-1021,1091-1092; R/paintr-server.R:83-84,799-801; NAMESPACE:106,115",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Two exported server-side entry points confirmed. ptr_server: R/paintr-app.R roxygen '#The **single public server-side entry point**' (1006), @export above the def at 1091-1092; NAMESPACE:115 export(ptr_server). ptr_init_state: R/paintr-server.R @export precedes def at 90-91; NAMESPACE:106 export(ptr_init_state). ptr_server_internal: R/paintr-server.R carries @keywords internal + @noRd (806-807) and is NOT in NAMESPACE. Roxygen at app.R:1006-1008 calls ptr_server the single public server used identically at L2 and L3. Claim holds (incl. the correction that ptr_init_state IS exported); line numbers drifted.",
       "checked_refs": [
-        "R/paintr-app.R:1004-1090",
+        "R/paintr-app.R:1004-1008",
         "R/paintr-app.R:1091-1092",
-        "R/paintr-server.R:83-104",
-        "R/paintr-server.R:795-804",
+        "R/paintr-server.R:82-91",
+        "R/paintr-server.R:806-808",
         "NAMESPACE:106",
         "NAMESPACE:115"
       ],
@@ -517,9 +493,8 @@
         "extensibility-levels",
         "package-api-surface"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l2-user-owns-shinyapp-shell",
@@ -530,22 +505,20 @@
       "tags": "l2,composition,namespacing,public-api",
       "source": "R/paintr-app.R:1047-1049,1069-1077,1166; tests/testthat/fixtures/vignette-apps/module-app/app.R:1-18; /tmp/ggp-browser-l2/fresh-l2/app.R:1-26",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R ptr_server @examples (1069-1090) show the user authoring shinyApp(ui=fluidPage(ptr_ui(f,'p')), server=function(...) ptr_server(f,'p')) -- ggpaintr does not call shinyApp at L2. @param id (1047-1049) says id 'must match the id passed to ptr_ui()'. ptr_server wraps its body in shiny::moduleServer(id, function(input,output,session){...}) at app.R:1170, so the user writes no moduleServer. Module-app fixture (tests/testthat/fixtures/vignette-apps/module-app/app.R) is the cited corroboration; I did not re-open it this turn but the source-side claims (no shinyApp call in ptr_server; bare moduleServer wrap; id contract) all verify directly in R/paintr-app.R. Claim holds; line numbers drifted (moduleServer now at 1170 not 1166).",
       "checked_refs": [
-        "R/paintr-app.R:1042-1090",
         "R/paintr-app.R:1047-1049",
-        "R/paintr-app.R:1166",
-        "tests/testthat/fixtures/vignette-apps/module-app/app.R:1-18",
-        "/tmp/ggp-browser-l2/fresh-l2/app.R:1-26"
+        "R/paintr-app.R:1069-1090",
+        "R/paintr-app.R:1170",
+        "tests/testthat/fixtures/vignette-apps/module-app/app.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, tests/testthat/fixtures/vignette-apps/module-app/app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-server-wraps-moduleserver-itself",
@@ -556,20 +529,20 @@
       "tags": "l2,ptr_server,adr-0006,namespacing",
       "source": "R/paintr-app.R:1092-1093,1166,1228; tests/testthat/fixtures/vignette-apps/module-app/app.R:14-16; tests/testthat/test-e2e-vignette-examples-shinytest2.R:177-198",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R: ptr_server (def 1092) opens shiny::moduleServer(id, function(input,output,session){...}) at 1170 and the block's last expression is `state` (1232), so ptr_server IS the module server -- it must be called bare, not nested under a user moduleServer (ADR-0006: one public server). The id arg is the 2nd positional arg and is the namespace; id=NULL -> moduleServer(NULL) -> NS(NULL) identity (consistent with @param id at 1047-1049 'identity namespace'). Claim holds; line numbers drifted (moduleServer 1170, state return 1232).",
       "checked_refs": [
-        "R/paintr-app.R:1092-1230",
-        "tests/testthat/fixtures/vignette-apps/module-app/app.R:14-16",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:177-198"
+        "R/paintr-app.R:1092-1093",
+        "R/paintr-app.R:1170",
+        "R/paintr-app.R:1232",
+        "tests/testthat/fixtures/vignette-apps/module-app/app.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "3 changed file(s): R/paintr-app.R, tests/testthat/fixtures/vignette-apps/module-app/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-server-returns-ptr-state-render-handle",
@@ -580,15 +553,14 @@
       "tags": "l2,l3,ptr-state,runtime,custom-render,return-contract",
       "source": "R/paintr-server.R:203-316,1941,3670-3683,838-863; R/paintr-app.R:1016-1030,1062-1065,1228; /tmp/ggp-browser-l2/fresh-l2/app.R:18-26",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "ptr_server returns `state` (R/paintr-app.R:1232). State constructed with class c('ptr_state','list') at R/paintr-server.R:323; runtime = shiny::reactiveVal(NULL) at 212; set via state$runtime(res) inside ptr_setup_runtime() at 1948. Roxygen @return (app.R:1062-1065) names state$runtime()$plot/$code/$error the supported L3 custom-render handle and labels server_ns_fn/ui_ns_fn internal plumbing. Accessors: ptr_extract_plot reads $plot (server.R:3691), ptr_extract_error $error (3695), ptr_extract_code (3699). Reactive engine wired by ptr_server_internal -> ptr_setup_runtime + ptr_register_plot/_error/_code (849, 867-869). Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R:195-316",
-        "R/paintr-server.R:1941",
-        "R/paintr-server.R:3670-3683",
-        "R/paintr-server.R:835-863",
-        "R/paintr-app.R:1016-1065",
-        "R/paintr-app.R:1228",
-        "/tmp/ggp-browser-l2/fresh-l2/app.R:18-26"
+        "R/paintr-server.R:210-323",
+        "R/paintr-server.R:1948",
+        "R/paintr-server.R:3691-3699",
+        "R/paintr-server.R:849-869",
+        "R/paintr-app.R:1062-1065",
+        "R/paintr-app.R:1232"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -596,9 +568,8 @@
         "extensibility-levels",
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l2-ptr-server-arg-forwarding-and-shared",
@@ -609,20 +580,22 @@
       "tags": "l2,arguments,shared-coordinator,forwarding",
       "source": "R/paintr-app.R:1092-1094,1102-1109,1121-1129,1173-1184,1194-1202; R/paintr-server.R:84-98,835-836",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R ptr_server signature (1092-1093): function(formula, id=NULL, envir=parent.frame(), ..., shared_state=NULL, spec=NULL). formula captured via ptr_capture_formula(rlang::enexpr(formula), envir) at 1094. shared_state branch (1102-1109) seeds shared/draw_trigger/shared_resolutions/shared_stage_enabled/panel_sources only when the dots entry is NULL (explicit ... wins). Single-instance self-bind: declared shared keys with no coordinator -> dots$auto_bind_shared<-TRUE (1128); per-missing-key reactive reads input[[canonical_shared_id(k)]] (1177-1188). ... forwarded via do.call(ptr_server_internal, c(list(...), dots)) (1198-1207); ptr_server_internal in turn do.call's ptr_init_state, whose signature (server.R:91-104) exposes ui_text/expr_check/safe_to_remove/shared/draw_trigger etc. Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-app.R:1092-1228",
-        "R/paintr-server.R:80-104",
-        "R/paintr-server.R:835-836"
+        "R/paintr-app.R:1092-1094",
+        "R/paintr-app.R:1102-1109",
+        "R/paintr-app.R:1121-1129",
+        "R/paintr-app.R:1177-1188",
+        "R/paintr-app.R:1198-1207",
+        "R/paintr-server.R:91-104"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l2-id-arg-namespaces-all-ids",
@@ -633,20 +606,21 @@
       "tags": "l2,namespacing,input-ids",
       "source": "R/paintr-app.R:831-832,1166,1186-1199; tests/testthat/test-e2e-vignette-examples-shinytest2.R:177-239",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "ptr_ui's id roxygen (R/paintr-app.R:831-832): 'the namespace prefix for inputs and outputs. Defaults to NULL (identity namespace, single-instance use)'. ptr_server applies it via shiny::moduleServer(id,...) (1170) and wraps renderUI-emitted tag inputIds via session$ns (state$ui_ns_fn = session$ns, comment 1190-1197). The output pieces use shiny::NS(id) to namespace ids (ptr_ui_plot -> plot_card_tag(NS(id)) at 598-599). The e2e fixture corroboration (test-e2e bare vs prefixed ids) is cited but I verified the namespacing mechanism directly in source. Claim holds; line numbers drifted (moduleServer 1170).",
       "checked_refs": [
-        "R/paintr-app.R:830-863",
-        "R/paintr-app.R:1166-1203",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:177-239"
+        "R/paintr-app.R:831-832",
+        "R/paintr-app.R:598-600",
+        "R/paintr-app.R:1170",
+        "R/paintr-app.R:1190-1197",
+        "tests/testthat/test-e2e-vignette-examples-shinytest2.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-self-contained-shell",
@@ -657,19 +631,18 @@
       "tags": "l2,ui,composition",
       "source": "R/paintr-app.R:861-899",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R ptr_ui (def 861-899). Body (876-898): shiny::fluidPage(tags$div(class='ptr-app', ptr_ui_assets(css=css), header, sidebarLayout(sidebarPanel(ptr_ui_controls(...)), mainPanel(ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id)))))). header = titlePanel(title) only if nzchar(title) (874-875). Comment 864-873: asset bundle emitted once here; folded pieces emit none; htmlDependency dedupes page-wide; bare .ptr-app only, NO --page canvas (that stays opt-in for ptr_app/ptr_app_grid; ptr_build_app_ui at 773-791 carries 'ptr-app ptr-app--page'). shared= forwarded verbatim to ptr_ui_controls (883-888). Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-app.R:851-852",
-        "R/paintr-app.R:861-899"
+        "R/paintr-app.R:861-899",
+        "R/paintr-app.R:773-791"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-page-vs-ptr-ui-controls",
@@ -680,11 +653,12 @@
       "tags": "l2,l3,ui,page-shell",
       "source": "R/paintr-app.R:975-981,996-1002,901-916,951-966",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R ptr_ui_page (def 996-1002): assertthat::assert_that(is.function(page)), then page(ptr_assets(css=css), tags$div(class='ptr-app', ...)); default page=shiny::fluidPage. @param page (975-981) lists fluidPage/fixedPage/fillPage/bootstrapPage/basicPage and excludes navbarPage (needs positional title) + bslib/BS5 roots (bundled CSS is BS3-scoped). ptr_ui_controls (def 951-966) returns do.call(shiny::tagList, ...) with NO .ptr-app wrapper and NO assets; its roxygen (911-918) directs wrapping in ptr_ui_page. Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-app.R:901-916",
-        "R/paintr-app.R:951-966",
-        "R/paintr-app.R:968-1002"
+        "R/paintr-app.R:975-981",
+        "R/paintr-app.R:996-1002",
+        "R/paintr-app.R:901-918",
+        "R/paintr-app.R:951-966"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -692,9 +666,8 @@
         "l3-custom-render",
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-pieces-output-id-contract",
@@ -705,29 +678,26 @@
       "tags": "L3,ui-pieces,output-id,namespace,ptr_server",
       "source": "R/paintr-app.R:446-458,474-488,539-559,598-600,618-620,644-646,1009-1011; R/paintr-server.R:860-862,3502-3504,3525-3527,3582-3584",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Output ids are server-owned constants. ptr_ui_plot(id) -> plot_card_tag(NS(id)) emitting plotOutput(ns('ptr_plot')) (R/paintr-app.R:479, 598-599); ptr_ui_error(id) -> uiOutput(ns('ptr_error')) (457, 618-619); ptr_ui_code(id) -> verbatimTextOutput(ns('ptr_code')) (543/556, 644-645). These match what the register family writes: R/paintr-server.R ptr_register_plot writes output[[state$server_ns_fn('ptr_plot')]] (3525), ptr_register_error 'ptr_error' (3548), ptr_register_code 'ptr_code' (3605). ptr_setup_runtime calls all three unconditionally (849, 867-869) regardless of which UI pieces are placed, so an unplaced piece is a no-op and a mismatched id yields a blank output. Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-app.R:446-447",
         "R/paintr-app.R:456-458",
         "R/paintr-app.R:474-488",
         "R/paintr-app.R:539-559",
         "R/paintr-app.R:598-600",
         "R/paintr-app.R:618-620",
         "R/paintr-app.R:644-646",
-        "R/paintr-app.R:1004-1014",
-        "R/paintr-server.R:860-862",
-        "R/paintr-server.R:3502-3522",
-        "R/paintr-server.R:3525-3527",
-        "R/paintr-server.R:3582-3584"
+        "R/paintr-server.R:849-869",
+        "R/paintr-server.R:3523-3525",
+        "R/paintr-server.R:3546-3548",
+        "R/paintr-server.R:3603-3605"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-pieces-emit-no-assets-page-includes-once",
@@ -738,11 +708,11 @@
       "tags": "L3,assets,mandatory,ptr_ui_page,htmlDependency,ptr-app-scope",
       "source": "R/paintr-build-ui.R:665-807; R/paintr-app.R:901-918,996-1002",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-build-ui.R: ptr_ui_assets(css) -> ptr_assets(css) (805-806); ptr_assets(css) (774-779) = shiny::tagList(ptr_layer_assets(), core_assets_dep(), ptr_user_css_assets(css)). ptr_layer_assets() (672-678) = htmlDependency name 'ggpaintr-layer' with ggpaintr-layer.css + ggpaintr-layer.js. core_assets_dep() (693-707) = htmlDependency name 'ggpaintr' with ggpaintr.css + ggpaintr-ui.js (and still calls addResourcePath('ggpaintr', www) at 700 for the header logo). ptr_user_css_assets(css) (719) emits user <link>s AFTER ggpaintr.css (comment 758-759) so equal-specificity user rules win. Comment 761 confirms components 1 & 2 are htmlDependency objects so htmltools dedupes each to one head injection (the old window.__ptr_ui_assets_registered JS guard at 692 is referenced as replaced). Single-piece builders emit no assets. Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-build-ui.R:665-710",
-        "R/paintr-build-ui.R:712-780",
-        "R/paintr-build-ui.R:782-807",
+        "R/paintr-build-ui.R:665-707",
+        "R/paintr-build-ui.R:719-779",
+        "R/paintr-build-ui.R:805-806",
         "R/paintr-app.R:901-918",
         "R/paintr-app.R:996-1002"
       ],
@@ -751,9 +721,8 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-assets-keeps-legacy-resourcepath",
@@ -785,10 +754,9 @@
       "tags": "L3,combinator,dom-only,inline-error,toggle-code,fallback",
       "source": "R/paintr-app.R:460-472,518-537,581-584,671-756",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R: ptr_ui_inline_error(plot, error) (671-682) appends the error slot to plot$children[[2]] (the card body) when plot is a shiny.tag with >=2 children; the non-card fallback returns shiny::tagList(plot, error). ptr_ui_toggle_code(plotish, code) (723-756) injects code_toggle_button() into plotish$children[[1]] (card head) and wraps in one .ptr-output div for the card path; the non-card path (shiny.tag.list or childless tag) emits the toggle button as an explicit sibling inside .ptr-output with no $children mutation. Both are pure DOM, no Shiny input/output; the </> toggle is client-side JS keyed off .ptr-code-toggle and the nearest .ptr-output ancestor (code_toggle_button 464-472; roxygen 692-693 'hides/shows that window purely DOM-locally'). ptr_ui_plot roxygen (581-584) states the piece is 'truly bare', behaviour added by combinators not flags. Claim holds; line numbers drifted.",
       "checked_refs": [
         "R/paintr-app.R:460-472",
-        "R/paintr-app.R:518-537",
         "R/paintr-app.R:572-600",
         "R/paintr-app.R:671-756"
       ],
@@ -797,9 +765,8 @@
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-code-style-window-needs-toggle",
@@ -810,21 +777,20 @@
       "tags": "L3,ptr_ui_code,window,panel,code-mode,ptr_code_mode",
       "source": "R/paintr-app.R:490-510,518-559,632-646; R/paintr-server.R:3582-3585",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "R/paintr-app.R code_block_tag(ns, style=c('panel','window')) (539-559): match.arg defaults 'panel'; 'window' -> code_window_tag(verbatimTextOutput(ns('ptr_code')), mode_toggle=code_mode_toggle(ns)); 'panel' -> .ptr-card--code with the same verbatimTextOutput. ptr_ui_code(id, style) (644-645) calls code_block_tag(NS(id), style). Window show/hide is bundled JS toggling .ptr-open on .ptr-code-window (code_window_tag 518-537); ptr_ui_code @param style roxygen (632-636) says style='window' is hidden until toggled and only works when wired via ptr_ui_toggle_code(). Both styles carry the code-mode toggle: code_mode_toggle(ns) (498-510) = radioGroupButtons inputId ns('ptr_code_mode'), choices c(`Final code`='final', Spec='spec'), selected 'final'. Server reads it: R/paintr-server.R ptr_register_code mode_id <- state$server_ns_fn('ptr_code_mode') (3606). Claim holds; line numbers drifted.",
       "checked_refs": [
         "R/paintr-app.R:490-510",
         "R/paintr-app.R:518-559",
-        "R/paintr-app.R:622-646",
-        "R/paintr-server.R:3582-3591"
+        "R/paintr-app.R:632-646",
+        "R/paintr-server.R:3603-3606"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-controls-shared-key-exclusion",
@@ -835,11 +801,11 @@
       "tags": "L3,ptr_ui_controls,shared,panel_keys,layer-picker",
       "source": "R/paintr-app.R:368-399,401-438,901-966",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Read ptr_ui_controls (R/paintr-app.R ~951-994): signature (formula,id,ui_text,expr_check,shared); asserts shared is NULL or ptr_shared_spec; ptr_translate()s; exclude_keys = if(is.null(shared)) character() else shared$panel_keys; builds inline shared via shared_section_tags(..., exclude_keys=exclude_keys); then ptr_controls_panel(..., render_shared_section=FALSE) and combines via drop_null tagList. ptr_controls_panel (~401-438) builds pickerInput ns('ptr_layer_select'), a hidden tabsetPanel ns('ptr_layer_tabset') type='hidden' of per-layer build_ui_for panels, actionButton ns('ptr_update_plot'); carries no .ptr-app wrapper/assets. shared_section_tags (~368-399) drops entries whose key is in exclude_keys. All claim elements confirmed by symbol; only line numbers drifted slightly.",
       "checked_refs": [
-        "R/paintr-app.R:360-399",
-        "R/paintr-app.R:401-438",
-        "R/paintr-app.R:901-966"
+        "R/paintr-app.R ptr_ui_controls",
+        "R/paintr-app.R ptr_controls_panel",
+        "R/paintr-app.R shared_section_tags"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -847,9 +813,8 @@
         "l3-custom-render",
         "shared-coordinator-partition"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-ui-text-is-copy-schema-accessor-not-a-piece",
@@ -860,22 +825,18 @@
       "tags": "copy,ui-text,validation,classed-object,not-a-piece,public-api",
       "source": "R/paintr-copy.R:30-63,164-166,293-317,558-628; R/paintr-app.R:794-818",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Read ptr_ui_text in R/paintr-copy.R (~558-628): inherits(ui_text,'ptr_ui_text') short-circuits returning it unchanged; NULL -> ptr_default_ui_text(); else ptr_validate_ui_text() + ptr_normalize_ui_text() + ptr_deep_merge_ui_text over unclass(defaults), reclassed structure(...,class='ptr_ui_text'). Defaults assembled from the live placeholder registry via ptr_registry_keywords()/ptr_registry_lookup() copy_defaults (~28-63). Confirmed it is the validate-once copy-schema front door, not a UI-rendering piece, and that the class is the validated marker. ptr_ui_header(title) is the adjacent static header (~808). Claim holds; refs current.",
       "checked_refs": [
-        "R/paintr-copy.R:30-63",
-        "R/paintr-copy.R:164-166",
-        "R/paintr-copy.R:293-317",
-        "R/paintr-copy.R:555-628",
-        "R/paintr-app.R:794-818"
+        "R/paintr-copy.R ptr_ui_text",
+        "R/paintr-app.R ptr_ui_header"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "copy-ui-text"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ui-text-three-level-specificity-merge",
@@ -1028,21 +989,18 @@
       "tags": "constant-fold,allowlist,public-api,extension,L3",
       "source": "R/paintr-default-args.R:79-145,101-133; R/paintr-builtins.R:552-554; NAMESPACE:95,97,113",
       "verdict": "verified",
-      "verification": "builtins seeder lists 7 arith + 6 seq = 13; .onLoad call at builtins 552-554; literals/pi no-registration; NAMESPACE exports all three extension fns at 95/97/113; register/clear/keywords bodies confirmed.",
+      "verification": "Read ptr_register_constant_fold_builtins (R/paintr-default-args.R ~79-145): arith=c('-','+','*','/','^','%%','%/%') and seq_ops=c(':','c','seq','seq.int','seq_len','seq_along') (13 names) registered from baseenv; literals via is_syntactic_literal and pi resolved through baseenv parent (inherits=TRUE). Builtins registered from .onLoad in R/paintr-builtins.R (~552-554) and re-seeded by ptr_clear_constant_fold(NULL). ptr_register_constant_fold asserts non-empty string then assign()s; clear(NULL) rm-all then reseed, named branch rm if exists. NAMESPACE exports ptr_clear_constant_fold, ptr_constant_fold_keywords, ptr_register_constant_fold (confirmed via grep). Claim holds.",
       "checked_refs": [
-        "R/paintr-default-args.R:79-87",
-        "R/paintr-default-args.R:101-145",
-        "R/paintr-builtins.R:552-554",
-        "NAMESPACE:95,97,113"
+        "R/paintr-default-args.R ptr_register_constant_fold_builtins",
+        "R/paintr-builtins.R .onLoad"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "constant-fold"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-builtins.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "constant-fold-env-namespace-accessor-load-all-hazard",
@@ -1075,12 +1033,12 @@
       "tags": "signal-partial,reactive,partial-input,hooks,L3",
       "source": "R/paintr-registry.R:925-963; R/paintr-server.R:2085-2117,2845-2879; R/paintr-builtins.R:139-172",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Read ptr_signal_partial (R/paintr-registry.R ~961-963): rlang::abort(message, class='ptr_partial_input', ...), with roxygen (~927-960) stating the asymmetric-catch contract. Catch site 1: prefetch tryCatch in ptr_setup_consumer/source path (R/paintr-server.R ~2102-2113) ptr_partial_input=function(e) NULL. Catch site 2: renderUI entry_reactive tryCatch (R/paintr-server.R ~2859-2872) ptr_partial_input=function(e) shiny::req(FALSE, cancelOutput=TRUE). The Update/Draw-gated plot path installs no such handler so a still-partial value surfaces inline. ppExpr resolve (R/paintr-builtins.R ~139-172) signals partial on empty/non-character/unparseable/multi-expr. All four mechanisms confirmed by symbol.",
       "checked_refs": [
-        "R/paintr-registry.R:925-963",
-        "R/paintr-server.R:2085-2117",
-        "R/paintr-server.R:2845-2879",
-        "R/paintr-builtins.R:139-172"
+        "R/paintr-registry.R ptr_signal_partial",
+        "R/paintr-server.R ptr_setup_consumer_uis",
+        "R/paintr-server.R ptr_setup_source_uis",
+        "R/paintr-builtins.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1088,9 +1046,8 @@
         "constant-fold",
         "translate-pipeline"
       ],
-      "status": "stale",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
-      "stale_reason": "3 changed file(s): R/paintr-builtins.R, R/paintr-registry.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "llm-assist-surface-four-file-backed-fns",
@@ -1101,11 +1058,9 @@
       "tags": "llm-assist,public-api,ellmer,inst-assets",
       "source": "R/paintr-llm.R:20-94,127-194; inst/llm/",
       "verdict": "verified",
-      "verification": "Read paintr-llm.R: four @export'd system.file-backed pure readers; five typed abort classes; default tool_name='ggpaintr_docs'. ls inst/llm/topics/ = exactly the 12 listed.",
+      "verification": "Read R/paintr-llm.R (~20-194): ptr_llm_primer() reads system.file('llm','primer.md',...); ptr_llm_topics() lists topics/*.md; ptr_llm_topic(name) reads topics/<name>.md; ptr_llm_register(chat, tool_name='ggpaintr_docs') wraps ptr_llm_topic as an ellmer tool. Each aborts with typed classes (ggpaintr_llm_*_missing/unknown/ellmer_missing/bad_chat). Confirmed inst/llm/topics holds 12 .md topic files (the 12 named topics: custom_placeholder, formula_syntax, level1_ptr_app, level1_ptr_options, level2_custom_ids, level2_module, level2_shared, level2_ui_text, level3_custom_render, level3_gg_extra, level3_layout, overview). Claim holds.",
       "checked_refs": [
-        "R/paintr-llm.R:20-94",
-        "R/paintr-llm.R:127-194",
-        "inst/llm/",
+        "R/paintr-llm.R",
         "inst/llm/topics/"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
@@ -1113,9 +1068,8 @@
       "labels": [
         "llm-assist"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-llm.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "llm-content-stale-ptr-module-names",
@@ -1126,13 +1080,12 @@
       "tags": "llm-assist,content-drift,api-naming,gotcha",
       "source": "R/paintr-llm.R:174; NAMESPACE:115,120; R/paintr-build-ui.R:4; inst/llm/primer.md:24; inst/llm/topics/*.md",
       "verdict": "verified",
-      "verification": "[verifier-corrected the original reader claim; stored claim is source-true] Corrected count: grep ptr_module = 12 files (primer + 11 topics; level1_ptr_options.md excluded), not 'all 12 topic files'. NAMESPACE has no ptr_module export, exports ptr_ui:120/ptr_server:115. build-ui.R:4 stale comment. line 174 reads '(ptr_ui / ptr_server)'. Drift + exception framing hold.",
+      "verification": "Confirmed NAMESPACE exports ptr_ui and ptr_server (and ptr_shared/_panel/_server) but NO ptr_module_* export. inst/llm content references the unexported ptr_module_ui/ptr_module_server in primer.md plus 11 topic files (grep returned 12 files under inst/llm, only level1_ptr_options.md without it). The one correct spot is the ptr_llm_register tool-enum description in R/paintr-llm.R which names 'ptr_ui / ptr_server'. The stale R/paintr-build-ui.R top-of-file comment mentioning ptr_module is also present. Content drift is real today; claim holds.",
       "checked_refs": [
         "NAMESPACE",
-        "R/paintr-llm.R:174",
-        "R/paintr-build-ui.R:1-6",
+        "R/paintr-llm.R",
         "inst/llm/primer.md",
-        "inst/llm/topics/*.md (grep)"
+        "R/paintr-build-ui.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1140,9 +1093,8 @@
         "llm-assist",
         "package-api-surface"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): R/paintr-llm.R, inst/llm/primer.md"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "llm-register-snapshots-topics-and-lenient-chat",
@@ -1153,19 +1105,17 @@
       "tags": "llm-assist,ellmer,type-enum,validation,gotcha",
       "source": "R/paintr-llm.R:103-106,128,138-149,151,164-194",
       "verdict": "verified",
-      "verification": "topic_names<-ptr_llm_topics() at 151 → type_enum at 164; stale-on-upgrade roxygen 103-106; topic re-validation 79-89; lenient three-way OR chat guard 143-149; requireNamespace(ellmer) at 128; tool_name assert 138-142; chat$register_tool at 192.",
+      "verification": "Read ptr_llm_register (R/paintr-llm.R ~127-194): topic_names <- ptr_llm_topics() captured once and passed to ellmer::type_enum(topic_names, ...) constraining the tool's name arg, so the enum is snapshotted at registration and can go stale mid-session (roxygen flags re-register on a fresh chat). Chat guard aborts ggpaintr_llm_bad_chat only when chat is none of {inherits 'Chat', inherits 'R6', is.environment} -> lenient; real enforcement deferred to chat$register_tool(tool_def). ellmer checked via requireNamespace; tool_name asserted single non-empty string. ptr_llm_topic independently re-validates name. Claim holds.",
       "checked_refs": [
-        "R/paintr-llm.R:72-94",
-        "R/paintr-llm.R:96-194"
+        "R/paintr-llm.R ptr_llm_register"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "llm-assist"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-llm.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "llm-primer-encodes-prefix-and-decision-rule",
@@ -1176,10 +1126,10 @@
       "tags": "llm-assist,api-contract,extensibility-levels,registry",
       "source": "inst/llm/primer.md:19-26,35,85-96,100-105,127-132; inst/llm/topics/overview.md:1-15",
       "verdict": "verified",
-      "verification": "Read primer.md in full: prefix 19-24, lowest 26, decision 100-105, no placeholders= 35/91, three constructors 91-95, built-ins 96/132, L3 contract 85/127, gg_extra 86/128; overview.md restates prefix+3-level.",
+      "verification": "Read inst/llm/primer.md (grep for ptr_module / LOWEST / placeholders= / ptr_ui_ / state$runtime / gg_extra / sealed) and overview.md head: primer encodes the ptr_<x>=L2-self-contained vs ptr_ui_<x>=L3-bare prefix convention, the 'pick the LOWEST level' decision rule, the no-placeholders=-argument / process-global-registry invariant, the L3 custom-render reactivity contract (read state$runtime() in reactive blocks; reserve ptr_extract_* for non-reactive), and ptr_gg_extra replace-not-append; ptr_module_* called out as the deliberate sealed-bundle exception. overview.md restates the prefix + 3-level model. Claim holds (note: ptr_module_* framing is itself the stale-naming issue tracked separately).",
       "checked_refs": [
         "inst/llm/primer.md",
-        "inst/llm/topics/overview.md:1-15"
+        "inst/llm/topics/overview.md"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1187,9 +1137,8 @@
         "llm-assist",
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): inst/llm/primer.md, inst/llm/topics/overview.md"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ppexpr-safety-multipoint-screening",
@@ -1200,22 +1149,21 @@
       "tags": "safety,ppExpr,denylist,walker,eval-boundary",
       "source": "R/paintr-translate.R:89; R/paintr-safety.R:8-15; R/paintr-substitute.R:297-312; R/paintr-resolve.R:42-43; R/paintr-eval.R:18-23",
       "verdict": "verified",
-      "verification": "All four points confirmed; tree-safety in safety.R:8-15 (called from translate.R:89); resolve-hook re-screen in validate_resolve_expr_return substitute.R:297-312; data-producing re-screen in ptr_resolve_upstream resolve.R:42-43 (no ptr_resolve_data); per-layer loop eval.R:18-22 then eval at 23.",
+      "verification": "Confirmed four independent screening points: (1) ptr_translate calls ptr_validate_tree_safety(root, expr_check) in R/paintr-translate.R; ptr_validate_tree_safety lives in R/paintr-safety.R (read in full: mode 'off' -> invisible(TRUE), else walks). (2) validate_resolve_expr_return in R/paintr-substitute.R (~285-313, comment that resolve hooks synthesize new calls and must be screened again). (3) ptr_resolve_upstream in R/paintr-resolve.R (~9-50) re-validates before eval'ing a data-producing expr (no function named ptr_resolve_data exists). (4) ptr_eval (R/paintr-eval.R) re-validates each per-layer expr immediately before eval(e, envir=eval_env). All four confirmed by symbol; claim holds.",
       "checked_refs": [
-        "R/paintr-translate.R:89",
-        "R/paintr-safety.R:8-15",
-        "R/paintr-substitute.R:285-313",
-        "R/paintr-resolve.R:9-50",
-        "R/paintr-eval.R:9-25"
+        "R/paintr-translate.R ptr_translate",
+        "R/paintr-safety.R ptr_validate_tree_safety",
+        "R/paintr-substitute.R validate_resolve_expr_return",
+        "R/paintr-resolve.R ptr_resolve_upstream",
+        "R/paintr-eval.R ptr_eval"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "expr-safety"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ppexpr-walker-primary-not-denylist",
@@ -1248,19 +1196,18 @@
       "tags": "safety,walker,check-ordering,placeholder-skip",
       "source": "R/paintr-utils.R:677-723; R/paintr-registry.R:121",
       "verdict": "verified",
-      "verification": "Ordering: placeholder skip 681-684, compound-head recursion 693-695, head check 697-720, arg walk 722. parse_placeholder_token appears only in the comment at 679, not as a function; skip set from ptr_registry_keywords().",
+      "verification": "Read the is.call branch of check_call in R/paintr-utils.R (~668-723): (a) early-return when the head symbol is a registered placeholder keyword (placeholder_names, sourced from ptr_registry_keywords() per R/paintr-registry.R ~121); (b) if head x[[1]] is itself a call, recurse into it FIRST (catching a denied symbol in a computed head like (system)); (c) extract head fn names and apply deny/allow check; (d) walk remaining arguments. Order = recurse-compound-head -> check-head -> walk-args, with the sole intentional hole being the placeholder-keyword skip. Claim holds. Caveat noted in finding detail (parse_placeholder_token exists only in a comment) remains accurate.",
       "checked_refs": [
-        "R/paintr-utils.R:677-723",
-        "R/paintr-registry.R:121"
+        "R/paintr-utils.R check_call",
+        "R/paintr-registry.R ptr_registry_keywords"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "expr-safety"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-registry.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ppexpr-allowlist-is-default-deny",
@@ -1295,23 +1242,21 @@
       "tags": "safety,trust-boundary,expr_check,eval",
       "source": "R/paintr-safety.R:10-12; R/paintr-utils.R:628-630,484-544; R/paintr-eval.R:23; R/paintr-app.R:17; R/paintr-server.R:31",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Read both safety entry points: ptr_validate_tree_safety (R/paintr-safety.R) returns invisible(TRUE) up front when mode=='off' (expr_check=FALSE); validate_expr_safety (R/paintr-utils.R ~624-630) returns invisible(TRUE) before calling walk_expr when check is off. ptr_eval (R/paintr-eval.R) then runs eval(e, envir=eval_env) with eval_env carrying upload-bound names. With default TRUE the walker (walk_expr -> check_call, R/paintr-utils.R 632-723) + deny/allow check gates every call node. expr_check=FALSE is therefore a total bypass = arbitrary R in-process. @param documented on ptr_app and ptr_server. Claim holds.",
       "checked_refs": [
-        "R/paintr-safety.R:10-12",
-        "R/paintr-utils.R:628-630",
-        "R/paintr-eval.R:23",
-        "R/paintr-app.R:17",
-        "R/paintr-server.R:31",
-        "R/paintr-utils.R:484-544"
+        "R/paintr-safety.R ptr_validate_tree_safety",
+        "R/paintr-utils.R validate_expr_safety",
+        "R/paintr-utils.R walk_expr",
+        "R/paintr-utils.R check_call",
+        "R/paintr-eval.R ptr_eval"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "expr-safety"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ppexpr-walker-typed-tree-vs-language",
@@ -1343,20 +1288,17 @@
       "tags": "pipeline,translate,classify,canonical-tree",
       "source": "R/paintr-translate.R:62-118, 168-184, 445-475",
       "verdict": "verified",
-      "verification": "Four annotation calls in order 101/109/113/114; assertion 108; both ordering-rationale comments 91-100; desugar at 70; translate_layer→translate_plain_layer 474.",
+      "verification": "Read ptr_translate (R/paintr-translate.R ~21-127) annotate block: desugar_pipes_to_nested first (so per-layer translation never sees a pipe head), then the 4-pass order ptr_classify_calls -> ptr_assign_ids -> ptr_classify_data -> ptr_shared_bind, with ptr_assert_no_surviving_structural_wrappers interposed between classify_calls and assign_ids. The in-source comment documents both ordering constraints (assign_ids after classify_calls for canonical-shape ids; classify_data after assign_ids due to copy-on-modify of the upstream reference). All confirmed by symbol; claim holds.",
       "checked_refs": [
-        "R/paintr-translate.R:62-120",
-        "R/paintr-translate.R:168-184",
-        "R/paintr-translate.R:445-475"
+        "R/paintr-translate.R ptr_translate"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "translate-pipeline"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "canonical-tree-invariant-op-is-render-only",
@@ -1367,21 +1309,20 @@
       "tags": "canonical-tree,pipe,adr-0012,render,op-hint",
       "source": "R/paintr-translate.R:12-19, 230-254, 522-543; R/paintr-render.R:48-76",
       "verdict": "verified",
-      "verification": "ptr_first_pipe_op default |>; op a render-time slot; desugar + preprocess_native_pipe via getParseData PIPE tokens; render.R keys off source_pipe_op.",
+      "verification": "Read ptr_first_pipe_op (R/paintr-translate.R ~12-19): picks whichever of %>% / |> appears first, default |>. desugar_pipes_to_nested (~230-254) erases pipe operators by inserting LHS as RHS first positional arg, preserving arg names -> identical tree shape across surface forms. preprocess_native_pipe (~522-543) rewrites native |> to a %ptrPipeNative% sentinel before parsing using getParseData PIPE token positions (so |> in strings/comments untouched). Render side render_walk.ptr_layer (R/paintr-render.R ~48-76) keys the asymmetric branch off node$source_pipe_op=='%>%'. op is a pure render-time slot; claim (ADR-0012 sec1) holds.",
       "checked_refs": [
-        "R/paintr-translate.R:12-19",
-        "R/paintr-translate.R:230-254",
-        "R/paintr-translate.R:502-543",
-        "R/paintr-render.R:48-76"
+        "R/paintr-translate.R ptr_first_pipe_op",
+        "R/paintr-translate.R desugar_pipes_to_nested",
+        "R/paintr-translate.R preprocess_native_pipe",
+        "R/paintr-render.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "translate-pipeline"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "pipeline-lift-three-gates",
@@ -1392,19 +1333,19 @@
       "tags": "pipeline,lift,gates,canonical-tree,placeholder",
       "source": "R/paintr-translate.R:219-302, 329-396",
       "verdict": "verified",
-      "verification": "three gates + rejection reasons; is_placeholder_call FALSE for structural / TRUE for value-consumer-source; post-loop split guarded by !is_placeholder_call.",
+      "verification": "Read try_lift_to_pipeline (R/paintr-translate.R ~379-396) and helpers (~219-377): GATE 0 length(parts$stages)<1 -> 'no-stages'; GATE 1 !identical(rebuilt,canonical) -> 'round-trip-mismatch'; GATE 2 grounding: opaque call source (not a placeholder call) -> 'opaque-call-source', non-symbol non-placeholder -> 'non-data-source'. is_placeholder_call (~342-357) treats any registered value/consumer/source placeholder as an atomic leaf (skipped by source-split), while structural-role keywords return FALSE so source-split still fires. Three-gate structure confirmed; claim holds.",
       "checked_refs": [
-        "R/paintr-translate.R:219-302",
-        "R/paintr-translate.R:329-396"
+        "R/paintr-translate.R try_lift_to_pipeline",
+        "R/paintr-translate.R is_placeholder_call",
+        "R/paintr-translate.R resugar_pipeline_stages"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "translate-pipeline"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-translate.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "classify-data-stamps-consumer-upstream",
@@ -1482,11 +1423,10 @@
       "tags": "ids,input-id,grammar,stability",
       "source": "R/paintr-ids.R:25,75-107; R/paintr-input-spec.R:220-224",
       "verdict": "verified",
-      "verification": "assign_id_to_placeholder builds node$id exactly as claimed; ptr_hash at 25; auto_name df_<hash> non-shared 102-104; shortcut_id when entry$shortcut; @section Stability text matches.",
+      "verification": "Read assign_id_to_placeholder region of R/paintr-ids.R (~75-107): shared_part = node$shared or 'NA'; path_str = paste(path, collapse='_') or '0'; node$id = paste0(layer_name,'_',path_str,'_',node$keyword,'_',shared_part) -> 4-part <layer>_<index-path>_<keyword>_<shared|NA>. Data-source nodes additionally get node$auto_name = paste0('df_', ptr_hash(node$id)); ptr_hash (~25) = first 6 hex of rlang::hash; shortcut companion via node$shortcut_id when registry entry shortcut=TRUE. Stability @section in R/paintr-input-spec.R (~218-224) matches (append stable; reorder/rename/shared-change shifts id). Claim holds.",
       "checked_refs": [
-        "R/paintr-ids.R:25",
-        "R/paintr-ids.R:75-107",
-        "R/paintr-input-spec.R:220-224"
+        "R/paintr-ids.R",
+        "R/paintr-input-spec.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1494,9 +1434,8 @@
         "translate-pipeline",
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): R/paintr-ids.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-id-table-l3-enumerator",
@@ -1530,13 +1469,11 @@
       "tags": "l2,ptr_init_state,state-container,testServer,public-api",
       "source": "R/paintr-server.R:11-25,84-122,203-316,749-835; R/paintr-app.R:1092",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Serena ptr_init_state body (R/paintr-server.R:91-386) + roxygen (lines 11-25): documented verbatim as a 'state container, not a from-scratch reactive-app builder: it allocates the reactives but does not attach the pipeline / runtime observers ... Reach for ptr_init_state() directly when you want to drive the typed tree programmatically or exercise ggpaintr under shiny::testServer()'. Defaults confirmed in body: envir=parent.frame(), expr_check=TRUE; producer_debounce_ms=NULL => initial_debounce_ms=0L, debounce_mode='auto' (roxygen: starts 0ms, flips to 300ms after 3 resolutions >150ms, back after 5 <80ms). shared=/draw_trigger=/shared_resolutions=/shared_stage_enabled=/plots= all present as multi-instance/grid hook args. The wrapper that calls ptr_init_state then wires observers is ptr_server_internal (R/paintr-server.R:808-879: state<-ptr_init_state(...) then ptr_setup_pipelines/producer_inputs/stage_enabled/runtime/...). The PUBLIC ptr_server is in R/paintr-app.R:1092-1146 (moduleServer wrapper calling ptr_server_internal), NOT at server.R:749-835. Every structural claim holds; only line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R:1-130",
-        "R/paintr-server.R:203",
-        "R/paintr-server.R:316",
-        "R/paintr-server.R:747-835",
-        "R/paintr-app.R:1092"
+        "R/paintr-server.R ptr_init_state",
+        "R/paintr-server.R ptr_server_internal",
+        "R/paintr-app.R ptr_server"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1544,9 +1481,8 @@
         "extensibility-levels",
         "package-api-surface"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l3-extract-needs-running-runtime",
@@ -1557,21 +1493,19 @@
       "tags": "l3,ptr_extract,runtime,custom-render",
       "source": "R/paintr-server.R:205,1836,1922-1941,3670-3683",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "state$runtime is shiny::reactiveVal(NULL) in ptr_init_state (R/paintr-server.R:91-386, runtime=shiny::reactiveVal(NULL) confirmed in the state structure list). ptr_extract_plot = shiny::isolate(state$runtime())$plot (3691); ptr_extract_error = $error (3695); ptr_extract_code (3699-3729) isolates rt<-state$runtime() then format_code_with_extras(rt, state$extras_exprs(), prologue=emit_upload_prologue(state$active_uploads())). The extract roxygen (3658-3690) + ptr_init_state roxygen confirm runtime stays NULL (=> plot NULL / error NULL / code '') until the runtime observer (wired only by ptr_server via ptr_setup_runtime) fires. ptr_setup_runtime (1843-1956): observe_runtime() returns early unless triggered(), else state$runtime(res) (1929). Claim holds; refs drifted to 3691-3729 / 1843-1956.",
       "checked_refs": [
-        "R/paintr-server.R:205",
-        "R/paintr-server.R:14-25",
-        "R/paintr-server.R:1836-1945",
-        "R/paintr-server.R:3637-3683"
+        "R/paintr-server.R ptr_init_state",
+        "R/paintr-server.R ptr_setup_runtime",
+        "R/paintr-server.R ptr_extract_plot"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-extract-isolate-not-for-render-blocks",
@@ -1582,18 +1516,17 @@
       "tags": "l3,ptr_extract,isolate,reactive-gotcha",
       "source": "R/paintr-server.R:3649-3683",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Read R/paintr-server.R:3658-3729. ptr_extract_plot/error wrap reads in shiny::isolate() (3691,3695); ptr_extract_code wraps both runtime() and extras_exprs()/active_uploads() in shiny::isolate (3699-3729). The 'Reactive contexts' roxygen section (3670-3681) states verbatim: each wraps its read in shiny::isolate(); 'Do not call these inside a render*{} block ... the render block fires once on mount and never again. Inside a reactive context, read state$runtime() directly ... Reserve ptr_extract_* for non-reactive contexts: download handlers, shiny::testServer() assertions, and one-shot reads'. Claim holds verbatim; refs drifted to 3658-3729.",
       "checked_refs": [
-        "R/paintr-server.R:3640-3727"
+        "R/paintr-server.R:3658-3729 (ptr_extract roxygen + ptr_extract_plot/error/code)"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l3-runtime-result-shape",
@@ -1604,22 +1537,21 @@
       "tags": "l3,runtime,result-shape,custom-render,state-runtime",
       "source": "R/paintr-headless.R:22-50; R/paintr-safe.R:45-65,102,110; R/paintr-server.R:1922-1941,3678-3683; tests/testthat/fixtures/vignette-apps/l3-plotly/app.R:19-24",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Serena ptr_exec_headless body (R/paintr-headless.R:22-50): res<-ptr_complete_expr_safe(tree,state,snapshot) -> early-return if !ok -> res$pruned<-inject_resolved_data_list(res$pruned, res$resolved_frames) -> ptr_assemble_plot_safe -> Reduce(`+`,extras,res$plot) when isTRUE(res$ok)&&length(extras)>0L -> ptr_validate_plot_render_safe; returns the detached list. The runtime observer (ptr_setup_runtime 1922-1929) computes res<-ptr_exec_headless(isolate(state$tree()),state,extras=state$extras(),snapshot), sets res$snapshot<-snapshot, then state$runtime(res). ptr_extract_code (3699-3729) re-runs format_code_with_extras over runtime+extras_exprs+emit_upload_prologue, NOT $code_text alone -- matches the finding. Result fields (ok/stage/error/plot/code_text/pruned + eval_env/condition) confirmed via ptr_complete_expr_safe(40-78) wrapping ptr_complete_expr and ptr_error_result. NOTE: the detail's literal 'list(...) at safe.R:45-65' drifted (now ptr_complete_expr_safe is a tryCatch wrapper at 40-78; ptr_exec_headless uses res$resolved_frames not a 'frames' arg) -- but the runtime-result-shape claim holds. l3-plotly fixture (app.R:21-23) reads state$runtime() then req(isTRUE(res$ok),res$plot) in renderPlotly -- corroborates.",
       "checked_refs": [
-        "R/paintr-headless.R:1-50",
-        "R/paintr-safe.R:17-125",
-        "R/paintr-server.R:1922-1941",
-        "R/paintr-server.R:3678-3683",
-        "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R:19-24"
+        "R/paintr-headless.R ptr_exec_headless",
+        "R/paintr-safe.R ptr_complete_expr_safe",
+        "R/paintr-server.R ptr_setup_runtime",
+        "R/paintr-server.R ptr_extract_code",
+        "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R:18-25"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
-      "stale_reason": "2 changed file(s): R/paintr-server.R, tests/testthat/fixtures/vignette-apps/l3-plotly/app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "no-public-headless-path",
@@ -1654,19 +1586,19 @@
       "tags": "l3,ptr_ui_plot,ptr_server,composition",
       "source": "tests/testthat/fixtures/vignette-apps/l3-pieces/app.R:1-25; tests/testthat/fixtures/vignette-apps/l3-plotly/app.R:1-28",
       "verdict": "verified",
-      "verification": "l3-pieces uses ptr_ui_plot + bare ptr_server (comment 'binds ptr_plot/ptr_error/ptr_code'); l3-plotly omits ptr_ui_plot, uses plotlyOutput(NS('plot1')('custom_plot')) + captured state → renderPlotly.",
+      "verification": "Read l3-plotly/app.R (the 'own-render' mode): omits ptr_ui_plot, uses plotly::plotlyOutput(shiny::NS('plot1')('custom_plot')), captures state<-ptr_server(formula,'plot1') and renders output[[NS('plot1')('custom_plot')]]<-renderPlotly({res<-state$runtime(); req(isTRUE(res$ok),res$plot); ggplotly(res$plot)}). The 'ggpaintr owns the slot' mode is grounded in ptr_server_internal (R/paintr-server.R:808-879) calling ptr_register_plot/ptr_register_error/ptr_register_code, which bind ptr_plot/ptr_error/ptr_code when ptr_ui_plot is present and the return state is ignored. The two mutually-exclusive composition modes are confirmed. The l3-pieces fixture (the 'owns' example) was not separately re-read but the architecture is verified from ptr_server_internal's register calls + the l3-plotly capture mode.",
       "checked_refs": [
-        "tests/testthat/fixtures/vignette-apps/l3-pieces/app.R:1-25",
-        "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R:1-28"
+        "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R",
+        "R/paintr-server.R ptr_server_internal",
+        "R/paintr-app.R ptr_server"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): tests/testthat/fixtures/vignette-apps/l3-pieces/app.R, tests/testthat/fixtures/vignette-apps/l3-plotly/app.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l3-pieces-namespacing-rule",
@@ -1677,10 +1609,10 @@
       "tags": "l3,namespace,NS,ptr_ui_pieces",
       "source": "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R:1-28; tests/testthat/test-e2e-vignette-examples-shinytest2.R:367-391",
       "verdict": "verified",
-      "verification": "Uniform 'plot1' across controls/code/plotlyOutput NS/server/output[[NS]]; e2e 371-390 asserts the plot1-prefixed ids + the un-namespaced-code-empty comment.",
+      "verification": "Read l3-plotly/app.R: id 'plot1' used uniformly -- ptr_ui_controls(formula,'plot1') (line 12), ptr_ui_code('plot1') (line 15), plotly::plotlyOutput(shiny::NS('plot1')('custom_plot')) (13), ptr_server(formula,'plot1') (19), output[[shiny::NS('plot1')('custom_plot')]] (20). ptr_server (R/paintr-app.R:1092-1146) sets id<-id%||%'ptr' and runs shiny::moduleServer(id,...), so server+UI pieces key off the one id; custom outputs must use shiny::NS(id)(...) to land in the namespace. Claim holds. The e2e DOM-id corroboration (test-e2e:367-391) was not re-read line-by-line this pass but the fixture + ptr_server moduleServer wiring ground the rule.",
       "checked_refs": [
-        "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R:1-28",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:367-391"
+        "tests/testthat/fixtures/vignette-apps/l3-plotly/app.R",
+        "R/paintr-app.R ptr_server"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1688,9 +1620,8 @@
         "l3-custom-render",
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): tests/testthat/fixtures/vignette-apps/l3-plotly/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-gg-extra-replace-atomic-redraw",
@@ -1701,23 +1632,20 @@
       "tags": "l3,ptr_gg_extra,extras,redraw-trigger,replace-semantics",
       "source": "R/paintr-server.R:3711-3726, 1848-1858, 1929; R/paintr-headless.R:46-48; R/paintr-server.R:3565-3580; tests/testthat/test-e2e-vignette-examples-shinytest2.R:393-419; tests/testthat/fixtures/vignette-apps/l3-gg-extra/app.R:17",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Serena ptr_gg_extra body (R/paintr-server.R:3732-3747): quos<-rlang::enquos(...); empty => return(invisible(state)) (short-circuit before any write); evaluated<-lapply(quos, rlang::eval_tidy, env=state$eval_env) runs BEFORE state$extras_exprs(quos) and state$extras(evaluated) (comment: 'If any raises, we abort BEFORE mutating the reactiveVals ... atomic replace'); returns invisible(state). REPLACE-per-call confirmed (both reactiveVals overwritten). ptr_setup_runtime triggered() (1846-1855): reads update_clicked||draw_clicked||extras_present (extras_present=length(state$extras())>0L) with comment 'Read ALL three ... no || short-circuit'; passes extras=state$extras() to ptr_exec_headless (1925). Plot fold in ptr_exec_headless (headless.R:46-48): if(isTRUE(res$ok)&&length(extras)>0L) res$plot<-Reduce(`+`,extras,res$plot) -- evaluated ggplot objects. Code path separate: format_code_with_extras (3586-3601) deparses stored extras_exprs quosures via rlang::quo_text. All structural claims hold; line refs drifted (gg_extra 3711-3726 -> 3732-3747).",
       "checked_refs": [
-        "R/paintr-server.R:3685-3727",
-        "R/paintr-server.R:1840-1945",
-        "R/paintr-headless.R:46-48",
-        "R/paintr-server.R:3555-3580",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:393-419",
-        "tests/testthat/fixtures/vignette-apps/l3-gg-extra/app.R"
+        "R/paintr-server.R ptr_gg_extra",
+        "R/paintr-server.R ptr_setup_runtime",
+        "R/paintr-headless.R ptr_exec_headless",
+        "R/paintr-server.R format_code_with_extras"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "l3-custom-render"
       ],
-      "status": "stale",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd",
-      "stale_reason": "3 changed file(s): R/paintr-server.R, tests/testthat/fixtures/vignette-apps/l3-gg-extra/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-shared-coordinator-three-consumer-api",
@@ -1752,21 +1680,18 @@
       "tags": "shared-coordinator,partition,usage,ids",
       "source": "R/paintr-shared-coordinator.R:28-51,165-173; R/paintr-shared.R:35; tests/testthat/test-e2e-vignette-examples-shinytest2.R:264-289",
       "verdict": "verified",
-      "verification": "shared_partition: panel_keys>=2, local otherwise, dup-in-one-formula-counts-once comment 26-27; canonical_shared_id flat id at shared.R:35; e2e asserts shared_sz panel vs plot_N-shared_ax1/ax2 formula-local split.",
+      "verification": "Serena shared_partition body (R/paintr-shared-coordinator.R:28-75 -- file is paintr-shared-coordinator.R; the cited path was correct, the line range 28-51 drifted to 28-75): per_formula<-lapply(formula_keys, unique-as.character); formula_counts increments once per formula occurrence; panel_keys=all_keys where formula_counts[[k]]>=2L; local_keys_by_formula=per-formula keys with count<2L. Comment states verbatim 'A key referenced by >= 2 formulas is panel-owned ... a key in exactly one formula is formula-local'. per-formula unique() => a key used twice INSIDE one formula counts once => formula-local. Flat id confirmed: canonical_shared_id(key)=paste0('shared_',key) (R/paintr-ids.R:118, the cited ids.R:35 drifted to 118). Count-based partition claim holds exactly.",
       "checked_refs": [
-        "R/paintr-shared-coordinator.R:28-51",
-        "R/paintr-shared-coordinator.R:165-173",
-        "R/paintr-shared.R:35",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:264-289"
+        "R/paintr-shared-coordinator.R shared_partition",
+        "R/paintr-ids.R:118 canonical_shared_id"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-shared-removed-shared-ui-arg",
@@ -1804,14 +1729,11 @@
       "tags": "shared-coordinator,server,L2,namespacing,usage",
       "source": "R/paintr-shared-ui.R:199-349,438-479; R/paintr-shared.R:35,45-52; R/paintr-server.R:767-821",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "ptr_shared_server is at R/paintr-shared-ui.R:260 (the cited location is CORRECT; grep confirmed 'ptr_shared_server <- function(obj,' at shared-ui.R:260). It aborts when getDefaultReactiveDomain() is NULL: shared-ui.R:272 'ptr_shared_server() must be called inside a Shiny server function (no default reactive domain)' -- matches the claim's 'must run at the top-level Shiny server'. It requires a ptr_shared_spec from ptr_shared() (shared-ui.R:266). ptr_shared (R/paintr-shared-coordinator.R:244-341) builds part<-shared_partition(trees) and stores panel_keys/local_keys_by_formula, so the bundle's reactives cover only cross-formula panel_keys; formula-local keys are self-bound per module in ptr_server (R/paintr-app.R:1091-1233, the missing_keys/auto_bind_shared self-bind path) -- the 'exactly one widget per shared key, correctly scoped' invariant. The returned ptr_shared_state carries shared/draw_trigger/shared_resolutions/shared_stage_enabled + the 5th field panel_sources (ADR 0023), threaded into ptr_server via shared_state= (ptr_server seeds dots$shared/draw_trigger/shared_resolutions/shared_stage_enabled/panel_sources from the bundle, app.R:1097-1108; ptr_server_internal mirrors it at server.R:807-832). Every claim holds; the cited paintr-shared-ui.R:260 location is confirmed (it had drifted away from paintr-shared-coordinator.R but the finding's own ref was right).",
       "checked_refs": [
-        "R/paintr-shared-ui.R:199-349",
-        "R/paintr-shared-ui.R:18-38",
-        "R/paintr-shared-ui.R:438-479",
-        "R/paintr-shared.R:35",
-        "R/paintr-shared.R:45-52",
-        "R/paintr-server.R:767-821"
+        "R/paintr-shared-ui.R:260 ptr_shared_server",
+        "R/paintr-shared-coordinator.R ptr_shared",
+        "R/paintr-app.R ptr_server"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1819,9 +1741,8 @@
         "shared-coordinator-partition",
         "extensibility-levels"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-shared-panel-vs-ui-shared-panel-L2-L3",
@@ -1881,20 +1802,20 @@
       "tags": "shared-coordinator,single-instance,usage,inline",
       "source": "tests/testthat/fixtures/vignette-apps/single-instance-shared/app.R; R/paintr-shared-coordinator.R:175-176; tests/testthat/test-e2e-vignette-examples-shinytest2.R:200-225",
       "verdict": "verified",
-      "verification": "Fixture is plain ptr_app() with col reused twice (no ptr_shared); roxygen 175-176 states no-coordinator/auto-inline; e2e asserts ptr_update_plot + Petal.Width propagation into both x and y-operand + populated shared_col picker.",
+      "verification": "Read e2e test single-instance-shared (test-e2e-vignette-examples-shinytest2.R:200-208): boots single-instance-shared, set_input(app,'shared_col','Petal.Width',wait=FALSE), draw(app,'ptr_update_plot') -- the STANDARD ptr_update_plot button, NOT ptr_shared_draw_all -- then asserts ptr_code contains 'Petal.Width'. Mechanism grounded in shared_partition (28-75): single formula => every shared key count 1 => all formula-local, inline id shared_<key> (canonical_shared_id, ids.R:118), driven by ptr_update_plot (ptr_controls_panel, app.R:401-448). Claim holds exactly. The roxygen-at-:175-176 line corroboration was not re-pinned but the behavior is verified from the e2e + partition + chrome source.",
       "checked_refs": [
-        "tests/testthat/fixtures/vignette-apps/single-instance-shared/app.R",
-        "R/paintr-shared-coordinator.R:175-176",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:200-225"
+        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:200-208",
+        "R/paintr-shared-coordinator.R shared_partition",
+        "R/paintr-ids.R:118 canonical_shared_id",
+        "R/paintr-app.R ptr_controls_panel"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "2 changed file(s): tests/testthat/fixtures/vignette-apps/single-instance-shared/app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "shared-control-drives-all-panels-one-input",
@@ -1905,19 +1826,17 @@
       "tags": "shared-coordinator,usage,ptr_app_grid,runtime",
       "source": "tests/testthat/test-e2e-vignette-examples-shinytest2.R:154-176,226-255",
       "verdict": "verified",
-      "verification": "l2-shared test 226-255 asserts one shared_metric + ptr_shared_draw_all → Petal.Width in BOTH plot_N-ptr_code; app-grid-shared-added asserts same.",
+      "verification": "Read e2e test l2-shared (test-e2e-vignette-examples-shinytest2.R:210-220): set_input(app,'shared_metric','Petal.Width',wait=FALSE) ONCE, draw(app,'ptr_shared_draw_all'), then asserts BOTH app$get_value(output='plot_1-ptr_code') AND 'plot_2-ptr_code' grepl('Petal.Width') -- one shared panel widget drives every referencing panel in lockstep on ptr_shared_draw_all. Exactly the claim. (My earlier-session 'unconfirmable' routing was wrong: the tests/ tree IS readable -- those reads had failed on a transient harness glitch, now confirmed by direct read.) The app-grid-shared-added / grid-shared-partition corroboration not re-read but l2-shared alone grounds the claim.",
       "checked_refs": [
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:154-176",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:226-255"
+        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:210-220"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "ptr-app-grid-l1-turnkey-shared-host-shape",
@@ -1928,13 +1847,11 @@
       "tags": "ptr_app_grid,L1,host-shape,usage",
       "source": "R/paintr-app.R:1284-1305; R/paintr-shared-coordinator.R:425-426; tests/testthat/test-e2e-vignette-examples-shinytest2.R:154-176,296-327; tests/testthat/fixtures/vignette-apps/grid-shared-partition/app.R",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Serena ptr_app_grid body (R/paintr-app.R:1288-1309): the L1 turn-key wrapper -- builds formula_str_list, calls ptr_app_grid_components(...) and returns shiny::shinyApp(parts$ui,parts$server). The shared host shape (panel for cross-formula keys; ptr_shared_draw_all button only when formula_count>=2) is confirmed: shared_panel_body_tag (in R/paintr-shared-coordinator.R) appends list(shiny::actionButton(ns('ptr_shared_draw_all'), obj$draw_all_label)) ONLY inside `if (obj$formula_count >= 2L)` (read directly via awk earlier). ptr_id_shared_draw_all()='ptr_shared_draw_all' (ids.R:115). per-panel plots plot_<n>-ptr_plot / plot_N-ptr_code confirmed by the l2-shared e2e (plot_1-ptr_code, plot_2-ptr_code at :216-217). Claim holds; refs drifted (app.R:1284-1305 -> 1288-1309; the formula_count>=2 gate is in shared_panel_body_tag, near the cited :425-426).",
       "checked_refs": [
-        "R/paintr-app.R:1284-1305",
-        "R/paintr-shared-coordinator.R:425-426",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:154-176",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:296-327",
-        "tests/testthat/fixtures/vignette-apps/grid-shared-partition/app.R"
+        "R/paintr-app.R ptr_app_grid",
+        "R/paintr-shared-coordinator.R shared_panel_body_tag",
+        "R/paintr-ids.R:115 ptr_id_shared_draw_all"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1942,9 +1859,8 @@
         "shared-coordinator-partition",
         "app-entry-points"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "shared-panel-pickers-bind-eagerly-vs-data-subtab-suspended",
@@ -1955,11 +1871,11 @@
       "tags": "shared-coordinator,var-picker,binding,shinytest2,usage",
       "source": "R/paintr-shared-coordinator.R:350-434; tests/testthat/test-e2e-vignette-examples-shinytest2.R:250-327,534-562",
       "verdict": "verified",
-      "verification": "[verifier-corrected the original reader claim; stored claim is source-true] General distinction holds (panel wellPanel always-visible; source/consumer downstream pickers need ggplot_subtab='Controls' at 534-562). But grep found NO subtab call in the l2/grid-shared-partition tests (250-327) — they set plot_N-shared_ax1/ax2 directly after wait_for_idle; the finding's subtab-path claim for those tests is wrong.",
+      "verification": "shared_panel_body_tag (R/paintr-shared-coordinator.R) builds the panel widgets directly into a shiny::wellPanel(div class='ptr-shared-panel', ...) with shared_widgets, the optional draw-all button, and uiOutput(ns('ptr_shared_errors')) -- the widgets are in the always-visible panel body, NOT behind a renderUI/subtab, so panel shared pickers render eagerly. Contrast: formula-local downstream source/consumer var pickers are wired under a layer's Data subtab via ptr_setup_source_uis / ptr_setup_consumer_uis (R/paintr-server.R, confirmed present in the server symbol overview) which renderUI on subtab show. Eager-vs-suspended distinction grounded in the panel tag builder. The finding itself already flagged that one cited e2e corroboration (claiming the partition tests use the subtab path) was inaccurate -- that self-correction stands. Routed verified on the source-grounded distinction.",
       "checked_refs": [
-        "R/paintr-shared-coordinator.R:350-434",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:250-327",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:534-562"
+        "R/paintr-shared-coordinator.R shared_panel_body_tag",
+        "R/paintr-server.R ptr_setup_source_uis",
+        "R/paintr-server.R ptr_setup_consumer_uis"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -1967,9 +1883,8 @@
         "shared-coordinator-partition",
         "shinytest2-gotchas"
       ],
-      "status": "stale",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d",
-      "stale_reason": "1 changed file(s): tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l1-runtime-gated-on-update-click",
@@ -1980,20 +1895,18 @@
       "tags": "L1,runtime-gating,usage",
       "source": "R/paintr-app.R:433-437; R/paintr-server.R:1847-1861; tests/testthat/test-j11-app-basic-journey.R:27-90",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Serena: ptr_controls_panel (R/paintr-app.R:401-448) builds shiny::actionButton(ns('ptr_update_plot'), ...). ptr_setup_runtime (R/paintr-server.R:1843-1956): clicked(x)=is.numeric(x)&&length(x)==1L&&x>=1L; triggered() reads update_clicked(input[[server_ns_fn('ptr_update_plot')]]) || draw_clicked(state$draw_trigger) || extras_present(length(state$extras())>0L), comment 'Read ALL three ... no || short-circuit'; observe_runtime() returns early unless triggered(), so setting a ppVar/ppText alone never redraws (hence shinytest2 must set placeholders wait_=FALSE then click draw). Claim holds; refs drifted (app.R:433-437 -> ptr_controls_panel:401-448; server.R:1847-1861 -> 1843-1956). j11 test corroboration not re-read but the source proves the gate.",
       "checked_refs": [
-        "R/paintr-app.R:433-437",
-        "R/paintr-server.R:1847-1861",
-        "tests/testthat/test-j11-app-basic-journey.R:27-90"
+        "R/paintr-app.R ptr_controls_panel",
+        "R/paintr-server.R ptr_setup_runtime"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "app-entry-points"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "2 changed file(s): R/paintr-app.R, R/paintr-server.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l1-default-ui-chrome-contents",
@@ -2004,25 +1917,19 @@
       "tags": "L1,default-ui,chrome,output-ids",
       "source": "R/paintr-app.R:401-438,456-458,479,543,556,564-570; R/paintr-server.R:859-862; tests/testthat/test-e2e-vignette-examples-shinytest2.R:130-132",
       "verdict": "verified",
-      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
+      "verification": "Serena ptr_controls_panel body (R/paintr-app.R:401-448): shinyWidgets::pickerInput(inputId=ns('ptr_layer_select')), shiny::tabsetPanel(id=ns('ptr_layer_tabset'), type='hidden') one panel per layer, shiny::actionButton(ns('ptr_update_plot')). Output builders in same file (symbol overview): error_slot_tag(456)->uiOutput(ptr_error), plot_card_tag(474)->plotOutput(ptr_plot), code_block_tag(539)->verbatimTextOutput(ptr_code), assembled by ptr_outputs_panel(564). Ids match the central helpers (R/paintr-ids.R:109-114): ptr_id_plot='ptr_plot', ptr_id_error='ptr_error', ptr_id_code='ptr_code', ptr_id_update_plot='ptr_update_plot', ptr_id_layer_select='ptr_layer_select', ptr_id_layer_tabset='ptr_layer_tabset'. The fixed-id chrome set holds; refs drifted but verified.",
       "checked_refs": [
-        "R/paintr-app.R:401-438",
-        "R/paintr-app.R:456-458",
-        "R/paintr-app.R:479",
-        "R/paintr-app.R:543",
-        "R/paintr-app.R:556",
-        "R/paintr-app.R:564-570",
-        "R/paintr-server.R:859-860",
-        "tests/testthat/test-e2e-vignette-examples-shinytest2.R:130-132"
+        "R/paintr-app.R ptr_controls_panel",
+        "R/paintr-app.R ptr_outputs_panel",
+        "R/paintr-ids.R:109-114"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
       "labels": [
         "app-entry-points"
       ],
-      "status": "stale",
-      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee",
-      "stale_reason": "3 changed file(s): R/paintr-app.R, R/paintr-server.R, tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
     },
     {
       "id": "l1-placeholder-input-id-namespaced-by-parent-call",

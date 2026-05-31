@@ -15,22 +15,20 @@
       "feature": "",
       "source": "R/paintr-server.R:consumer_upstream_source_state (2575-2640)",
       "verdict": "verified",
-      "verification": "Read the function: dp = paste(fv$datapath,...) else \"\" (env shortcut has no fileInput datapath → \"\"); bn reads state$bound_names[[sid]] which is NULL when state is NULL. sc computed at 2616-2619 was the only per-source value reflecting the typed name. Confirmed.",
+      "verification": "Read consumer_upstream_source_state (R/paintr-server.R:2582-2648). dp is \"\" unless fv$datapath present (2600-2602) -> empty for env shortcut. bn reads state$bound_names[[sid]] (2604), which is NULL at host scope (state=NULL) -> \"\" (2621). The id_str branch on is.null(state) appends sc only at host scope: paste0(sid,\"#\",dp,\"#\",bn,\"#\",sc) (2637-2638). So at host scope sc is the only rename-sensitive signal, exactly as claimed. Cited range 2575-2640 drifted slightly to 2582-2648.",
       "checked_refs": [
-        "R/paintr-server.R:2575",
-        "R/paintr-server.R:2596-2619",
-        "R/paintr-server.R:2630-2635"
+        "R/paintr-server.R:2582-2648 (consumer_upstream_source_state)",
+        "R/paintr-server.R:2637-2641 (id_str host-scope branch)"
       ],
-      "verified_at_commit": "aee7fd3a9ebd6c9280d4985c80f71fb03f277d39",
-      "status": "stale",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding",
         "shared-coordinator-partition",
         "ppupload-mechanics"
-      ],
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      ]
     },
     {
       "id": "consumer-clear-s3b-guards-are-upstream-of-identity",
@@ -40,19 +38,18 @@
       "feature": "",
       "source": "R/paintr-server.R:consumer_upstream_source_state user_supplied (2637); consumer_clear_for_new_source (2665-2671)",
       "verdict": "verified",
-      "verification": "Read both: line 2637 supplied <- nzchar(dp) || (nzchar(sc) && !identical(sc,def)); line 2667 changed_since_last <- src_seen && !identical(...) && isTRUE(user_supplied). Both gates sit outside the identity string. Corroborated empirically by the spec-seed e2e staying green under the fix.",
+      "verification": "Read consumer_clear_for_new_source (R/paintr-server.R:2672-2678): changed_since_last = src_seen && !identical(identity,last_identity) && isTRUE(user_supplied) (2674-2675); first_render_on_upload = !src_seen && is.null(seed) && isTRUE(uploaded) (2676). First render has src_seen=FALSE so changed_since_last cannot fire regardless of identity. user_supplied is computed in consumer_upstream_source_state as nzchar(dp) || (nzchar(sc) && !identical(sc,def)) (2644). So the §3b contracts ride on src_seen and user_supplied, not the identity string -- adding sc to identity cannot regress them. Claim holds. Cited 2637 (user_supplied) -> now 2644; 2665-2671 (clear fn) -> 2672-2678.",
       "checked_refs": [
-        "R/paintr-server.R:2637",
-        "R/paintr-server.R:2665-2671"
+        "R/paintr-server.R:2644 (user_supplied = supplied)",
+        "R/paintr-server.R:2672-2678 (consumer_clear_for_new_source)"
       ],
-      "verified_at_commit": "aee7fd3a9ebd6c9280d4985c80f71fb03f277d39",
-      "status": "stale",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding"
-      ],
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      ]
     },
     {
       "id": "host-consumer-latch-only-fights-upload-double-render",
@@ -62,21 +59,20 @@
       "feature": "",
       "source": "R/paintr-server.R:ptr_bind_shared_consumer_uis held_clear block (3314); tests/testthat/test-adr26-host-env-rename-clear.R re-pick assertion",
       "verdict": "verified",
-      "verification": "held_clear latch block confirmed at server.R:3314 (gated under is.null(state)). The new e2e's explicit get_value=='trt' assertion after the clear passed (FAIL 0/PASS 12), proving the latch does not re-fire on the env-rename single-beat path.",
+      "verification": "Read the host-scope held_clear block in ptr_bind_shared_consumer_uis (R/paintr-server.R:3318-3334), gated on is.null(state). held_clear re-asserts the clear on the one render after a base clear edge while current still carries the stale pick (3321-3323); cleared_for_identity is armed on a clear edge then consumed/released next render (3326-3330). The comment (3309-3317) states the purpose is the upload's trailing double-render; a single-beat env rename trips once and a later re-pick is not re-clobbered. test-adr26-host-env-rename-clear.R has the explicit re-pick-survives assertion (line 69-71: get_value(shared_col)=='trt', label 'host latch does not re-clobber'). Matches claim. Cited line 3314 -> block at 3318-3334.",
       "checked_refs": [
-        "R/paintr-server.R:3314",
-        "tests/testthat/test-adr26-host-env-rename-clear.R"
+        "R/paintr-server.R:3318-3334 (held_clear / cleared_for_identity block)",
+        "tests/testthat/test-adr26-host-env-rename-clear.R:69-71 (re-pick assertion)"
       ],
-      "verified_at_commit": "aee7fd3a9ebd6c9280d4985c80f71fb03f277d39",
-      "status": "stale",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding",
         "shared-coordinator-partition",
         "ppupload-mechanics"
-      ],
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      ]
     },
     {
       "id": "layer-name-fallback-also-null-at-host-scope",
@@ -86,20 +82,19 @@
       "feature": "",
       "source": "R/paintr-server.R:consumer_upstream_source_state bn derivation layer_name fallback (2596-2615)",
       "verdict": "verified",
-      "verification": "Read 2596-2615: the fallback condition is `is.null(r) && !is.null(layer_name) && layer_name %in% names(state$bound_names)`. With state=NULL, names(state$bound_names) is NULL, so `layer_name %in% NULL` is FALSE — fallback never fires, bn stays \"\". Its own comment even names the ChickWeight→PlantGrowth symptom but only addresses the single-instance (state-present) path.",
+      "verification": "Read the bn derivation in consumer_upstream_source_state (R/paintr-server.R:2603-2622). The layer_name fallback: if (is.null(r) && !is.null(layer_name) && layer_name %in% names(state$bound_names)) r <- state$bound_names[[layer_name]] (2617-2620). At host scope state=NULL so names(state$bound_names) is NULL, the guard is FALSE, and bn stays \"\" -- the fallback does nothing for the host env-rename case, exactly as claimed. Cited 2596-2615 drifted to ~2603-2622.",
       "checked_refs": [
-        "R/paintr-server.R:2596-2615"
+        "R/paintr-server.R:2603-2622 (bn derivation + layer_name fallback)"
       ],
-      "verified_at_commit": "aee7fd3a9ebd6c9280d4985c80f71fb03f277d39",
-      "status": "stale",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding",
         "shared-coordinator-partition",
         "source-binding-runtime"
-      ],
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      ]
     },
     {
       "id": "adr26-fix2-gated-host-scope-byte-identical",
@@ -109,21 +104,20 @@
       "feature": "",
       "source": "R/paintr-server.R:consumer_upstream_source_state id_str (2630-2635); dev/adr/0026-fix-host-env-rename-never-clears.html",
       "verdict": "verified",
-      "verification": "Read the committed id_str at server.R:2630-2635: `if (is.null(state)) paste0(sid,\"#\",dp,\"#\",bn,\"#\",sc) else paste0(sid,\"#\",dp,\"#\",bn)`. Single-instance else-branch is the original string verbatim. ADR 0026 status flipped to FIXED with this rationale. Landed in commit aee7fd3.",
+      "verification": "Read id_str (R/paintr-server.R:2637-2641): if (is.null(state)) paste0(sid,'#',dp,'#',bn,'#',sc) else paste0(sid,'#',dp,'#',bn). This is candidate #2 (append sc), gated on is.null(state); the single-instance else-branch keeps the original byte-identical paste0(sid,'#',dp,'#',bn). The comment (2628-2636) documents this is ADR 0026's chosen fix over the host-aware bound name (#1). dev/adr/0026-fix-host-env-rename-never-clears.html exists. Matches claim. Cited 2630-2635 -> 2637-2641.",
       "checked_refs": [
-        "R/paintr-server.R:2630-2635",
+        "R/paintr-server.R:2637-2641 (id_str host-gated branch)",
         "dev/adr/0026-fix-host-env-rename-never-clears.html"
       ],
-      "verified_at_commit": "aee7fd3a9ebd6c9280d4985c80f71fb03f277d39",
-      "status": "stale",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding",
         "shared-coordinator-partition",
         "refactor-discipline"
-      ],
-      "stale_reason": "1 changed file(s): R/paintr-server.R"
+      ]
     },
     {
       "id": "non-shared-spec-seed-derived-flakes-parallel-green-serial",

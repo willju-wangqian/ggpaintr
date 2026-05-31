@@ -23,7 +23,10 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs"
+      ]
     },
     {
       "id": "percent-or-vector-default-needs-rlang",
@@ -43,7 +46,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs",
+        "r-language-gotchas"
+      ]
     },
     {
       "id": "final-vignette-set-three",
@@ -62,7 +69,10 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs"
+      ]
     },
     {
       "id": "build-ui-injection-contract",
@@ -81,7 +91,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "ui-widget-construction"
+      ]
     },
     {
       "id": "custom-source-capture-env-not-parent-frame",
@@ -100,7 +114,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "source-binding-runtime"
+      ]
     },
     {
       "id": "define-core-role-branching",
@@ -120,7 +138,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "placeholder-registry-api"
+      ]
     },
     {
       "id": "denylist-exact-151-walker-depth-100",
@@ -139,7 +161,10 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "expr-safety"
+      ]
     },
     {
       "id": "fixtures-orphaned-from-live-vignettes",
@@ -158,7 +183,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs",
+        "shinytest2-gotchas"
+      ]
     },
     {
       "id": "named-args-validator-list-shared-reserved",
@@ -178,7 +207,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "placeholder-registry-api"
+      ]
     },
     {
       "id": "ptr-app-no-data-arg",
@@ -196,7 +229,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "package-api-surface",
+        "app-entry-points"
+      ]
     },
     {
       "id": "ptr-shared-panel-keys-by-formula-count",
@@ -215,7 +252,10 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition"
+      ]
     },
     {
       "id": "ptr-signal-partial-exported",
@@ -234,7 +274,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "expr-safety"
+      ]
     },
     {
       "id": "resolve-expr-check-replace-vs-floor",
@@ -253,7 +297,10 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "expr-safety"
+      ]
     },
     {
       "id": "shortcut-true-companion-build-ui-renders-only-node-id",
@@ -271,7 +318,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "ppupload-mechanics"
+      ]
     },
     {
       "id": "source-runtime-default-abort-guard",
@@ -291,7 +342,11 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "source-binding-runtime"
+      ]
     },
     {
       "id": "tutorial-examples-eval-interactive",
@@ -310,7 +365,10 @@
       "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs"
+      ]
     }
   ]
 }
