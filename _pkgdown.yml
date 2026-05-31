@@ -10,6 +10,12 @@ reference:
     contents:
       - ptr_app
       - ptr_app_grid
+  - title: Formula placeholders
+    desc: The `pp*` tokens you write inside a formula — the value/consumer/source controls plus the structural toggles.
+    contents:
+      - pp_placeholders
+      - ppLayerOff
+      - ppVerbSwitch
   - title: Session configuration
     desc: Process-wide defaults, column-name normalisation, and UI copy overrides.
     contents:
@@ -50,6 +56,7 @@ reference:
       - ptr_extract_code
       - ptr_gg_extra
       - ptr_resolve_ui_text
+      - ptr_id_table
   - title: Placeholder authors
     desc: Register supported custom placeholder types and their UI hooks without editing package internals.
     contents:
@@ -58,6 +65,9 @@ reference:
       - ptr_define_placeholder_source
       - ptr_clear_placeholder
       - build_ui_for
+      - ptr_arg_validators
+      - ptr_constant_fold_registry
+      - ptr_signal_partial
   - title: LLM tooling
     desc: Expose ggpaintr's documentation bundle to ellmer-backed coding assistants.
     contents:

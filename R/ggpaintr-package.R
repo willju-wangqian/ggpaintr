@@ -10,3 +10,8 @@
 #' @import ggplot2
 #' @keywords internal
 "_PACKAGE"
+
+# `:=` is used unqualified for dynamic argument names in desugar_pipe_to_call()
+# (`rlang::call2(rhs, !!nm := lhs)`, R/paintr-eval.R). Register it so R CMD check's
+# codetools does not flag it as an undefined global (no behaviour change).
+utils::globalVariables(":=")
