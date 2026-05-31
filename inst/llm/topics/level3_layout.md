@@ -51,7 +51,7 @@ server <- function(input, output, session) {
 shiny::shinyApp(ui, server)
 ```
 
-Swap the page builder with `page =` for a different Bootstrap-3 root — `ptr_ui_page(…, page = shiny::fillPage)` for edge-to-edge, for instance. The contract is *any* BS3 page builder whose `…` are tag children (`fluidPage` (default), `fixedPage`, `fillPage`, `bootstrapPage`, `basicPage`). It is **not** `navbarPage` and **not** a bslib/BS5 page (the bundled CSS is Bootstrap-3-scoped — that is `ptr_app_bslib()`'s domain). All three panes are empty until the first *Update plot* click, exactly as in the bundled app. Do not bury `ptr_ui_code()` inside a collapsed `tags$details()`, or only the disclosure summary shows.
+Swap the page builder with `page =` for a different Bootstrap-3 root — `ptr_ui_page(…, page = shiny::fillPage)` for edge-to-edge, for instance. The contract is *any* BS3 page builder whose `…` are tag children (`fluidPage` (default), `fixedPage`, `fillPage`, `bootstrapPage`, `basicPage`). It is **not** `navbarPage` and **not** a bslib/BS5 page (the bundled CSS is Bootstrap-3-scoped, a bslib/BS5 concern). All three panes are empty until the first *Update plot* click, exactly as in the bundled app. Do not bury `ptr_ui_code()` inside a collapsed `tags$details()`, or only the disclosure summary shows.
 
 ## The familiar slide-out code window — the combinator recipe
 
@@ -77,7 +77,7 @@ ui <- ptr_ui_page(
 
 ## Custom or `navbarPage` roots — decompose by hand
 
-`ptr_ui_page()` deliberately does **not** cover `navbarPage()` (positional `title` then `tabPanel()` children, not free tags) or bslib/BS5 pages (use `ptr_app_bslib()` for a bslib theme). For those, hand-build what `ptr_ui_page()` expands to — a Bootstrap page, `ptr_ui_assets()` **once** (its only sanctioned use — the navbar/bslib escape hatch, never part of normal L2/L3 composition), and one `div(class = "ptr-app")` around the pieces:
+`ptr_ui_page()` deliberately does **not** cover `navbarPage()` (positional `title` then `tabPanel()` children, not free tags) or bslib/BS5 pages (hand-build a bslib page yourself). For those, hand-build what `ptr_ui_page()` expands to — a Bootstrap page, `ptr_ui_assets()` **once** (its only sanctioned use — the navbar/bslib escape hatch, never part of normal L2/L3 composition), and one `div(class = "ptr-app")` around the pieces:
 
 ```r
 ui <- shiny::navbarPage(

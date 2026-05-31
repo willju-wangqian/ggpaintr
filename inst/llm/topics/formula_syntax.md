@@ -67,9 +67,9 @@ This produces a hard split by instance count:
                   color = Species)) + geom_point()"
 ```
 
-- **Multiple instances** (`ptr_app_grid()` plots, or several `ptr_ui()` / `ptr_server()` blocks): you build `obj <- ptr_shared(formulas = list(…))` once; cross-formula keys (≥2 formulas) go to the one `ptr_shared_panel(obj)`, formula-local keys still render inline in each instance.
+- **Multiple instances** (several `ptr_ui()` / `ptr_server()` blocks): you build `obj <- ptr_shared(formulas = list(…))` once; cross-formula keys (≥2 formulas) go to the one `ptr_shared_panel(obj)`, formula-local keys still render inline in each instance.
 
-See `level1_ptr_app` for the grid usage and `level2_shared` for the multi-instance coordinator trio.
+See `level2_shared` for the multi-instance coordinator trio.
 
 ## Rules
 

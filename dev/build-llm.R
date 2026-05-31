@@ -258,7 +258,7 @@ render_token_table <- function() {
 TOPIC_DESC <- c(
   overview            = "the 3-level L1/L2/L3 integration model",
   formula_syntax      = "the 5 `pp*` placeholder keywords, pipelines, `shared = \"...\"` + the partition rule",
-  level1_ptr_app      = "minimal turn-key app + `ptr_app_grid()` for multiple plots",
+  level1_ptr_app      = "minimal turn-key app",
   level1_ptr_options  = "session-wide settings via `ptr_options()`",
   level2_module       = "embed in your own Shiny app with the default layout (`ptr_ui` / `ptr_server`), single vs. multi instance",
   level2_shared       = "multiple linked instances + the shared coordinator trio (`ptr_shared` -> `ptr_shared_panel` / `ptr_shared_server`)",

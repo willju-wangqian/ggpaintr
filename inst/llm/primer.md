@@ -33,8 +33,6 @@ The distinction is the suffix: bare **`ptr_ui`** / **`ptr_server`** are the L2 a
 One call, no Shiny code. For demos, teaching, quick exploration.
 
 - `ptr_app(formula, envir = parent.frame(), ui_text = NULL, expr_check = TRUE, safe_to_remove = character(), css = NULL, spec = NULL)` — single formula.
-- `ptr_app_bslib(formula, ..., theme = NULL)` — same API minus `css`, plus a bslib-themed shell.
-- `ptr_app_grid(plots, envir = parent.frame(), ui_text = NULL, draw_all_label = "Draw all", expr_check = TRUE, css = NULL, ncol = NULL, nrow = NULL, spec = NULL)` — N formulas, one tile each, with a "Draw all" button. Internally builds the same shared coordinator the L2 trio exposes, hidden behind `plots =`.
 
 There is no `placeholders =` argument. Custom widget keywords live in a process-global registry (see "Custom widgets" below).
 
@@ -131,7 +129,7 @@ Call `ggpaintr_docs(topic)` (the ellmer tool wrapping this package) to fetch the
 <!-- @ptr-gen:topic-index -->
 - `custom_placeholder` — the value / consumer / source constructors, end-to-end examples
 - `formula_syntax` — the 5 `pp*` placeholder keywords, pipelines, `shared = "..."` + the partition rule
-- `level1_ptr_app` — minimal turn-key app + `ptr_app_grid()` for multiple plots
+- `level1_ptr_app` — minimal turn-key app
 - `level1_ptr_options` — session-wide settings via `ptr_options()`
 - `level2_custom_ids` — id collisions, the reserved `ptr_` prefix, the generated input-id grammar
 - `level2_module` — embed in your own Shiny app with the default layout (`ptr_ui` / `ptr_server`), single vs. multi instance
