@@ -1,7 +1,7 @@
 # Normalize Dataset Column Names for `ggpaintr`
 
-Normalize incoming column names so `var` placeholders can require exact,
-syntactic, unique column-name matches at runtime.
+Normalize incoming column names so `ppVar` placeholders can require
+exact, syntactic, unique column-name matches at runtime.
 
 ## Usage
 
@@ -27,7 +27,7 @@ inputs return the `data.frame` created by
 ## Details
 
 Uploaded data is normalized automatically by the runtime — every
-successful `upload` placeholder passes through this function (or its
+successful `ppUpload` placeholder passes through this function (or its
 `data.frame`-coercing sibling for non-`data.frame` returns from
 `readRDS` / `readxl` / `jsonlite`). Call `ptr_normalize_column_names()`
 yourself only for **in-session** data frames you reference by name from

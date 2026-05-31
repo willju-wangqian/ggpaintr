@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -43,10 +43,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul>
 </li>
@@ -74,7 +72,7 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>ggpaintr turns a ggplot-like formula string into a running Shiny app. You write a single <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> call as text, drop placeholder keywords (<code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, <code>upload</code>) anywhere a value would normally go, and ggpaintr does the rest: each keyword becomes an input widget, the same parsed object drives the UI, the plot, and a live code pane, and editing any widget re-renders the plot.</p>
+<p>ggpaintr turns a ggplot-like formula string into a running Shiny app. You write a single <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> call as text, drop placeholder keywords (<code>ppVar</code>, <code>ppText</code>, <code>ppNum</code>, <code>ppExpr</code>, <code>ppUpload</code>) anywhere a value would normally go, and ggpaintr does the rest: each keyword becomes an input widget, the same parsed object drives the UI, the plot, and a live code pane, and editing any widget re-renders the plot.</p>
 <p>No Shiny UI or server code required. If you can write a ggplot call, you can ship an interactive version of it.</p>
 </div>
 <div class="section level2">
@@ -92,31 +90,29 @@
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
-<span><span class="st">ggplot(data = iris, aes(x = var, y = var)) +</span></span>
-<span><span class="st">  geom_point(aes(color = var), size = num) +</span></span>
-<span><span class="st">  labs(title = text) +</span></span>
-<span><span class="st">  facet_wrap(expr)</span></span>
+<span><span class="st">ggplot(data = iris, aes(x = ppVar, y = ppVar)) +</span></span>
+<span><span class="st">  geom_point(aes(color = ppVar), size = ppNum) +</span></span>
+<span><span class="st">  labs(title = ppText) +</span></span>
+<span><span class="st">  facet_wrap(ppExpr)</span></span>
 <span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
 <p>That single call returns a running Shiny app. Each placeholder in the formula becomes one widget:</p>
 <ul>
-<li>the three <code>var</code> tokens → column pickers populated from <code>iris</code>,</li>
+<li>the three <code>ppVar</code> tokens → column pickers populated from <code>iris</code>,</li>
 <li>
-<code>num</code> → a numeric input (point size),</li>
+<code>ppNum</code> → a numeric input (point size),</li>
 <li>
-<code>text</code> → a text input (plot title),</li>
+<code>ppText</code> → a text input (plot title),</li>
 <li>
-<code>expr</code> → a code box for the facet spec (e.g. <code>vars(Species)</code>).</li>
+<code>ppExpr</code> → a code box for the facet spec (e.g. <code>vars(Species)</code>).</li>
 </ul>
-<p><code><a href="https://willju-wangqian.github.io/ggpaintr/">library(ggpaintr)</a></code> also attaches <code>ggplot2</code>, so bare <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> / <code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code> / <code>geom_*()</code> calls work directly inside formula strings. For a grid layout, use <code><a href="reference/ptr_app_grid.html">ptr_app_grid()</a></code>. To swap in a custom page shell or theme, write a thin wrapper on top of the public primitives — see <code><a href="articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code> § “Writing your own wrapper”.</p>
+<p><code><a href="https://willju-wangqian.github.io/ggpaintr/">library(ggpaintr)</a></code> also attaches <code>ggplot2</code>, so bare <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> / <code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code> / <code>geom_*()</code> calls work directly inside formula strings. For a grid layout, use <code><a href="reference/ptr_app_grid.html">ptr_app_grid()</a></code>. To swap in a custom page shell or theme, write a thin wrapper on top of the public primitives.</p>
 </div>
 <div class="section level2">
 <h2 id="more-topics">More topics<a class="anchor" aria-label="anchor" href="#more-topics"></a>
 </h2>
 <ul>
-<li><p><strong><code><a href="articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code> — <em>Use cases</em>.</strong> The three-level ladder for how to use ggpaintr: L1 all-in-one (<code><a href="reference/ptr_app.html">ptr_app()</a></code> / <code><a href="reference/ptr_app_grid.html">ptr_app_grid()</a></code>), L2 embed in your own Shiny app with the self-contained pair (<code><a href="reference/ptr_ui.html">ptr_ui()</a></code> / <code><a href="reference/ptr_server.html">ptr_server()</a></code>) plus the shared-coordinator trio (<code><a href="reference/ptr_shared.html">ptr_shared()</a></code> / <code><a href="reference/ptr_shared_panel.html">ptr_shared_panel()</a></code> / <code><a href="reference/ptr_shared_server.html">ptr_shared_server()</a></code>) for cross-plot widgets, and L3 own every piece of the UI — bare builders (<code><a href="reference/ptr_ui_header.html">ptr_ui_header()</a></code> / <code><a href="reference/ptr_ui_controls.html">ptr_ui_controls()</a></code> / <code><a href="reference/ptr_ui_plot.html">ptr_ui_plot()</a></code> / <code><a href="reference/ptr_ui_error.html">ptr_ui_error()</a></code> / <code><a href="reference/ptr_ui_code.html">ptr_ui_code()</a></code> / <code><a href="reference/ptr_ui_assets.html">ptr_ui_assets()</a></code>) plus the nestable combinators (<code><a href="reference/ptr_ui_inline_error.html">ptr_ui_inline_error()</a></code> / <code><a href="reference/ptr_ui_toggle_code.html">ptr_ui_toggle_code()</a></code>) and the optional <code><a href="reference/ptr_ui_page.html">ptr_ui_page()</a></code> shell, including custom rendering off the returned <code>state</code> via <code><a href="reference/ptr_extract.html">ptr_extract_plot()</a></code> / <code>_code()</code> / <code>_error()</code>. Opens with a compact tour of the 5 placeholder keywords.</p></li>
-<li><p><strong><code><a href="articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code> — <em>Customization</em>.</strong> Rewrite ggpaintr’s built-in copy with <code>ui_text</code>, register your own widget types with the three placeholder constructors (<code><a href="reference/ptr_define_placeholder_value.html">ptr_define_placeholder_value()</a></code> / <code>_consumer()</code> / <code>_source()</code>), and share one widget across multiple plots.</p></li>
-<li><p><strong><code><a href="articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code> — <em>Safety</em>.</strong> What <code>expr_check</code> does and when (never) to turn it off, the denylist + AST-walker safety model, the upload trust boundary, and a public-deployment checklist for shinyapps.io / Posit Connect.</p></li>
-<li><p><strong><code><a href="articles/ggpaintr-gallery.html">vignette("ggpaintr-gallery")</a></code> — <em>ggpaintr in the Wild</em>.</strong> A gallery of complete ggplot2 and extension-package graphics, each paired with the ggpaintr formula that turns it into a Shiny app. Also the canonical worked-example reference for plugging interactive output packages (plotly, ggiraph) into your own app.</p></li>
+<li><p><strong><code><a href="articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code> — <em>Tutorial</em>.</strong> A guided walk from a one-line <code><a href="reference/ptr_app.html">ptr_app()</a></code> formula, through defining your own placeholders (every argument of the three constructors <code><a href="reference/ptr_define_placeholder_value.html">ptr_define_placeholder_value()</a></code> / <code>_consumer()</code> / <code>_source()</code>), to embedding several plots in your own Shiny app with <code><a href="reference/ptr_ui.html">ptr_ui()</a></code> / <code><a href="reference/ptr_server.html">ptr_server()</a></code> and sharing one control across them via <code><a href="reference/ptr_shared.html">ptr_shared()</a></code> / <code><a href="reference/ptr_shared_panel.html">ptr_shared_panel()</a></code> / <code><a href="reference/ptr_shared_server.html">ptr_shared_server()</a></code>. Opens with a tour of the five built-in placeholder keywords.</p></li>
+<li><p><strong><code><a href="articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code> — <em>Safety</em>.</strong> What <code>expr_check</code> does and when (never) to turn it off, the denylist + AST-walker safety model, and the upload trust boundary.</p></li>
 <li><p><strong><code><a href="articles/ggpaintr-llm.html">vignette("ggpaintr-llm")</a></code> — <em>Using ggpaintr from an LLM with ellmer</em>.</strong> Wire ggpaintr up as an LLM-callable tool with ellmer: register the primer and the topic-lookup tool, inspect what the model sees, swap providers/models, and test without spending tokens.</p></li>
 </ul>
 <p>The <a href="https://willju-wangqian.github.io/ggpaintr/">pkgdown reference</a> lists every exported function. A longer, book-length introduction to ggpaintr is planned.</p>

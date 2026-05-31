@@ -25,6 +25,11 @@ ptr_ui_shared_panel(obj)
 A `shiny.tag` wellPanel with no wrapper and no injected assets, or
 `NULL` when no panel keys exist.
 
+## Details
+
+Namespacing is inherited from `obj$id`; supply it to
+[`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md).
+
 ## See also
 
 [`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md),
@@ -35,8 +40,8 @@ A `shiny.tag` wellPanel with no wrapper and no injected assets, or
 
 ``` r
 obj <- ptr_shared(c(
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 ptr_ui_shared_panel(obj)
 #> <div class="well">

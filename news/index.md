@@ -1,8 +1,181 @@
 # Changelog
 
-## ggpaintr (development version)
+## ggpaintr 0.10.0
 
 ### New features
+
+- **[`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+  now accepts quoted ggplot expressions as `formulas` elements,
+  alongside strings.** Each element of `formulas` may be a formula
+  string (as before) or a quoted expression built with
+  [`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html) /
+  [`quote()`](https://rdrr.io/r/base/substitute.html); quoted
+  expressions are deparsed to their source and the two forms are
+  interchangeable, including in a single mixed list. This brings the
+  multi-formula coordinator in line with the string-or-expression input
+  already accepted by
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md).
+  A built ggplot object (whose source text is unrecoverable) is rejected
+  with a message pointing at
+  [`expr()`](https://rlang.r-lib.org/reference/expr.html). Additive and
+  fully backward-compatible — existing all-string call sites are
+  unchanged. (As with the single-formula entries, a native pipe `|>`
+  inside a quoted expression is desugared by R before capture and so
+  does not survive into the generated code panel.)
+
+### Breaking changes
+
+- **Source surface rename + auto-name + UI mutex + code prologue (ADR
+  0025).**
+  [`ptr_define_placeholder_source()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_source.md)
+  no longer accepts a `companion_id_fn = function(id) -> string`
+  callback; pass `shortcut = TRUE` (single logical, default `FALSE`) to
+  opt into the env-shortcut sibling input. The framework stamps
+  `node$shortcut_id <- paste0(node$id, "_shortcut")` on every translated
+  source node (the old `node$companion_id` slot and the `"_name"` suffix
+  are gone). Built-in `ppUpload` migrates verbatim. The reserved shared
+  key `"shortcut"` aborts translation with a named-conflict error. Hard
+  rename, no
+  [`lifecycle::deprecate_warn()`](https://lifecycle.r-lib.org/reference/deprecate_soft.html)
+  shim. The same surface ships four further behaviours:
+  - **Auto-name (§2).** Every source node now carries `node$auto_name`,
+    stamped at translate time for non-shared sources
+    (`node$default %||% node$id`) and at runtime for shared sources
+    (`paste0(obj$id, "_", key)`). When the shortcut textbox is empty,
+    `substitute_pass` splices `as.name(node$auto_name)` so the rendered
+    call always references a real binding.
+  - **UI mutex (§3).** For `ppUpload`, picking a file synchronously
+    clears the shortcut textbox (the auto-name takes over as the binding
+    name); typing into the textbox synchronously clears any pending
+    file. Typing always means “look up this object in the caller env”,
+    never “rename the uploaded payload”.
+  - **Code-panel prologue (§4).** Every active upload emits a one-line
+    prologue at the top of the code panel —
+    `<auto-name> <- read.csv("<filename>")` (or `read.delim`,
+    [`readxl::read_excel`](https://readxl.tidyverse.org/reference/read_excel.html),
+    [`jsonlite::fromJSON`](https://jeroen.r-universe.dev/jsonlite/reference/fromJSON.html),
+    … per extension) — so the rendered snippet reads top-to-bottom as a
+    self-contained script.
+  - **Vacate-on-empty + spec round-trip (§5, §7 A1).** Clearing the
+    shortcut textbox with no file present synchronously vacates
+    `state$bound_names[[key]]`, `state$eval_env[[key]]`, and
+    `state$active_uploads[[key]]`. `ptr_spec()` dumps `node$auto_name`
+    (not `""`) as the bound name whenever the textbox is empty, so
+    reloading a spec re-establishes the same binding the running app
+    saw.
+
+#### Bug fixes — ADR 0025 follow-ups
+
+- **Two `ptr_shared(..., id = ...)` coordinators on one page sharing a
+  panel-owned source key no longer collide on bare DOM ids.** When a
+  panel-shared `ppUpload(shared = '<key>')` was rendered under a
+  coordinator with a non-`NULL` `id`, the inner `fileInput` + shortcut
+  `textInput` still bound at the bare `shared_<key>` /
+  `shared_<key>_shortcut` ids — so a second coordinator (`id = "right"`)
+  on the same page emitted duplicate ids and silently failed to bind one
+  of the two uploads. The rendered widget now binds at the
+  coordinator-namespaced ids (`left-shared_<key>` /
+  `right-shared_<key>`), matching the sibling render paths in
+  `invoke_build_ui()` and `ptr_setup_source_uis()`. Single-coordinator
+  apps (no `id =` supplied) are byte-for-byte unchanged.
+
+#### Known limitation — ADR 0025 §7 A2 deferred (400 ms shortcut debounce)
+
+`ptr_define_placeholder_source(shortcut = TRUE)` reads the shortcut
+textbox at every keystroke. Two implementation attempts at the ADR’s
+proposed 400 ms debounce
+([`shiny::debounce()`](https://rdrr.io/pkg/shiny/man/debounce.html) on
+the shortcut input read) both broke unrelated test contracts — the
+bind-path delay broke `test-rewrite-pipeline-data-source.R` (6 FAIL) and
+the mutex-file-reset race in `test-shared-source-panel-multi-instance.R`
+(2 FAIL). The debounce is therefore not shipped in this release.
+**User-visible impact:** typing a partial, unresolvable name into the
+shortcut textbox may briefly surface a transient
+`Object 'm' not found`-style error in the inline error pane during the
+typing burst; the bind settles once the user finishes typing. A
+debounce-with-race-preservation variant is tracked as a follow-up; A1
+(vacate-on-empty) is unaffected and ships in this release. -
+**`validate_input` hook signature unified across value and consumer
+placeholders.** Both
+[`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md)
+and
+[`ptr_define_placeholder_consumer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_consumer.md)
+now accept `validate_input = function(value, ctx)`. The consumer’s
+previous `function(value, upstream_cols)` signature is gone —
+registrations that still use it fail loudly via `validate_hook()` (“must
+accept argument(s): ctx”). `ctx` is a plain list with named fields:
+`node` (the placeholder AST node), `keyword` (alias for `node$keyword`),
+`upstream_cols` (character vector or `NULL`), and `data` (the upstream
+data frame or `NULL`). For *value* placeholders, `ctx$upstream_cols` and
+`ctx$data` are always `NULL` (value placeholders have no upstream column
+scope by definition); for *consumer* placeholders, both fields are
+populated when the upstream resolves, letting data-aware validators
+inspect column types / ranges / levels and not just column names.
+Migration: rename the second formal from `upstream_cols` to `ctx` and
+read `ctx$upstream_cols` in the body. Value placeholders that previously
+had no validator gain the option to declare one.
+
+### Breaking changes (ADR 0009)
+
+- **Placeholder keywords renamed from `var` / `num` / `text` / `expr` /
+  `upload` to `ppVar` / `ppNum` / `ppText` / `ppExpr` / `ppUpload`.**
+  Every formula passed to
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+  / `ptr_translate()` must use the new vocabulary. The `pp`-prefix
+  avoids shadowing base R / ggplot2 names
+  ([`stats::var()`](https://rdrr.io/r/stats/cor.html),
+  [`graphics::text()`](https://rdrr.io/r/graphics/text.html),
+  [`base::expression`](https://rdrr.io/r/base/expression.html), etc.)
+  and lets the same symbols double as identity / guard plain-R functions
+  exported from the package — so `ggplot(mtcars, aes(x = ppVar(mpg)))`
+  works both inside
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  (as a placeholder) and as a standalone ggplot call (`ppVar` is
+  identity, so `aes(x = ppVar(mpg))` evaluates to `aes(x = mpg)`). See
+  ADR 0009 for the full rationale. Migration: rename every placeholder
+  call inside your formula strings or unquoted-expression formulas.
+- **Old keyword names are no longer reserved.** The names `var`, `num`,
+  `text`, `expr`, `upload` are no longer registered by ggpaintr and no
+  longer trigger the shadow-check guard, so users who previously had
+  custom placeholders blocked by built-ins of these names can now
+  register them without conflict.
+- **Shiny input ids changed.** ggpaintr’s internal Shiny input ids are
+  not part of the public API; the keyword rename has shifted them
+  (e.g. `ggplot_1_1_var_NA` is now `ggplot_1_1_ppVar_NA`). Bookmarked
+  URLs / `setBookmarkExclude` allow-lists / `setInputs()` test fixtures
+  from previous versions will need to be updated.
+
+### New features
+
+- **Default-value arguments and code-mode toggle (ADR 0009).** Built-in
+  placeholders now accept a positional argument that seeds the widget’s
+  initial value: `ppVar(mpg)` opens the column picker pre-selected on
+  `mpg`, `ppNum(5)` seeds the numeric input at 5, `ppText("hello")`
+  pre-fills the text input, and `ppExpr(factor(cyl))` pre-fills the
+  expression box. Defaults survive the rename round-trip:
+  `ptr_render(root, preserve_placeholders = TRUE)` re-emits the original
+  `ppX(default)` call rather than the substituted value. The
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  code panel gained a “Final code” / “Show placeholders” toggle that
+  switches between the two render modes.
+
+- **Custom placeholders can opt in to the default/named-args schema.**
+  [`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md)
+  /
+  [`ptr_define_placeholder_consumer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_consumer.md)
+  /
+  [`ptr_define_placeholder_source()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_source.md)
+  now accept `default_arg = <validator>` and
+  `named_args = list(<name> = <validator>, ...)`. Use the bundled
+  validator factories — `ptr_default_symbol_or_string()`,
+  `ptr_default_numeric()`, `ptr_default_numeric_vector()`,
+  `ptr_default_string()`, `ptr_default_expression()` — or pass a custom
+  closure. See
+  [`?ptr_define_placeholder_value`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md).
 
 - **L3 — own every piece of the UI.** Every piece of ggpaintr’s public
   UI now has its own exported builder:
@@ -28,9 +201,9 @@
   user has to remember. Swap the page builder with `page =` (`fluidPage`
   default, also `fixedPage`/`fillPage`/`bootstrapPage`/`basicPage`); for
   a `navbarPage` or bslib root use the documented decomposition recipe.
-  See
-  [`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
-  § “L3 — Own every piece of the UI”.
+  See `vignette("ggpaintr-use-cases")` § “L3 — Own every piece of the
+  UI”.
+
 - [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
   now accepts a
   [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
@@ -38,9 +211,10 @@
   Wiring a page-level `ptr_shared_ui()` panel to a single embedded or
   custom-rendered plot no longer requires spreading the four bundle
   slots through `...`.
+
 - The custom-renderer pattern (reading `state$runtime()` for your own
-  [`renderPlotly()`](https://rdrr.io/pkg/plotly/man/plotly-shiny.html) /
-  `renderGirafe()`) is now documented as an L2 capability — both
+  `renderPlotly()` / `renderGirafe()`) is now documented as an L2
+  capability — both
   [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
   and `ptr_module_server()` return the `ptr_state`, so it needs nothing
   beyond embedding.
@@ -76,16 +250,18 @@
   [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md),
   `ptr_module_ui()`, `ptr_module_server()`,
   [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
-  `ptr_translate()`, `ptr_render()`). Custom placeholders are now
-  defined once per R session via
+  `ptr_translate()`,
+  [`ptr_render()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_render.md)).
+  Custom placeholders are now defined once per R session via
   `ptr_define_placeholder_value() / _consumer() / _source()`, which
   write directly into an internal global registry. All instances in that
   session see the same registry.
   - The hook signatures changed too: `build_ui(node, label = NULL, ...)`
     for value/source,
     `build_ui(node, cols, label = NULL, selected = character(0), ...)`
-    for consumer. The id is on `node$id` (and the source companion id on
-    `node$companion_id`); there is no separate `id` argument.
+    for consumer. The id is on `node$id` (and, for sources registered
+    with `shortcut = TRUE`, the sibling-input id on `node$shortcut_id` —
+    see ADR 0025); there is no separate `id` argument.
     `resolve_expr(value, node, ...)` returning `NULL` is the new “drop
     this argument” signal (replacing `ptr_missing_expr()`).
   - Distribution: package authors should ship a setup function that

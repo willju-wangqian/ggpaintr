@@ -13,7 +13,7 @@ empty-call cleanup rule used by every public entry point."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,10 +26,8 @@ empty-call cleanup rule used by every public entry point."><meta property="og:im
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -61,10 +59,10 @@ empty-call cleanup rule used by every public entry point.</p>
 <span>  <span class="va">formula</span>,</span>
 <span>  envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  css <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  css <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  spec <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -73,8 +71,20 @@ empty-call cleanup rule used by every public entry point.</p>
 
 
 <dl><dt id="arg-formula">formula<a class="anchor" aria-label="anchor" href="#arg-formula"></a></dt>
-<dd><p>A single formula string with <code>ggpaintr</code> placeholders. See
-<strong>Formula grammar</strong> below.</p></dd>
+<dd><p>Either a single character scalar containing a ggplot
+expression with <code>ggpaintr</code> placeholders, or an unquoted ggplot
+expression supplied directly. Expression-mode is captured with
+<code><a href="https://rlang.r-lib.org/reference/defusing-advanced.html" class="external-link">rlang::enexpr()</a></code> at the public boundary, then deparsed to a string
+before reaching the shared translate pipeline; both modes produce
+equivalent apps. A bare symbol bound to a string in the calling frame
+(e.g. <code>f &lt;- "..."; ptr_app(f)</code>) is resolved and treated as string
+mode. Pre-quoted wrappers (<code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">rlang::expr()</a></code>, <code><a href="https://rlang.r-lib.org/reference/defusing-advanced.html" class="external-link">rlang::quo()</a></code>,
+<code><a href="https://rdrr.io/r/base/substitute.html" class="external-link">base::quote()</a></code>, <code><a href="https://rdrr.io/r/base/bquote.html" class="external-link">base::bquote()</a></code>) at the captured root are unwrapped
+one level. <code>!!</code> splicing inside the captured expression is honoured
+via <code><a href="https://rlang.r-lib.org/reference/defusing-advanced.html" class="external-link">rlang::enexpr()</a></code>. <strong>Native pipe (<code>|&gt;</code>) caveat:</strong> in expression
+mode, R's parser desugars <code>|&gt;</code> before capture, so the rendered code
+shows the desugared nested-call form. Stay in string mode (or use
+<code>%&gt;%</code>) if you need <code>|&gt;</code> preserved.</p></dd>
 
 
 <dt id="arg-envir">envir<a class="anchor" aria-label="anchor" href="#arg-envir"></a></dt>
@@ -86,13 +96,8 @@ empty-call cleanup rule used by every public entry point.</p>
 for the full schema and current defaults.</p></dd>
 
 
-<dt id="arg-checkbox-defaults">checkbox_defaults<a class="anchor" aria-label="anchor" href="#arg-checkbox-defaults"></a></dt>
-<dd><p>Optional named list of initial checked states for
-layer checkboxes.</p></dd>
-
-
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
-<dd><p>Controls <code>expr</code> placeholder validation. Three modes:
+<dd><p>Controls <code>ppExpr</code> placeholder validation. Three modes:
 <code>TRUE</code> (default) applies the built-in denylist + AST walker;
 <code>FALSE</code> disables all validation (for local prototyping with trusted
 input only); a <code>list</code> with <code>deny_list</code> and/or <code>allow_list</code> entries
@@ -104,8 +109,8 @@ input only); a <code>list</code> with <code>deny_list</code> and/or <code>allow_
 <dd><p>Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
 leaves them empty. Defaults to <code><a href="https://rdrr.io/r/base/character.html" class="external-link">character()</a></code>. See <strong>Empty-call cleanup</strong>
-below. A user-typed <code>expr</code> always wins — whatever the user enters into
-an <code>expr</code> box is honoured verbatim, even if its top-level name is in
+below. A user-typed <code>ppExpr</code> always wins — whatever the user enters into
+an <code>ppExpr</code> box is honoured verbatim, even if its top-level name is in
 <code>safe_to_remove</code>.</p></dd>
 
 
@@ -115,6 +120,12 @@ is served as a static resource and linked after <code>ggpaintr</code>'s bundled
 stylesheet, so its rules override the default <code>.ptr-*</code> styling. Relative
 <code>url(...)</code> references inside a file resolve against that file's own
 directory. Defaults to <code>NULL</code> (no extra stylesheet).</p></dd>
+
+
+<dt id="arg-spec">spec<a class="anchor" aria-label="anchor" href="#arg-spec"></a></dt>
+<dd><p>An optional named list of fully-qualified Shiny input id -&gt;
+value, used to override widget defaults at session boot. See
+<a href="dev/adr/0012-role-based-tree-and-ptr-spec.html">ADR 0012</a>.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -129,43 +140,43 @@ directory. Defaults to <code>NULL</code> (no extra stylesheet).</p></dd>
 one of five placeholder keywords anywhere a value would normally go, and
 the runtime substitutes the user's input back into the expression at
 render time.</p>
-<dl><dt><code>var</code></dt>
+<dl><dt><code>ppVar</code></dt>
 <dd><p>Column picker, data-aware. Renders as a <code>selectInput</code>
 populated with the upstream data's column-name vector. Example:
-<code>aes(x = var)</code>.</p></dd>
+<code>aes(x = ppVar)</code>.</p></dd>
 
-<dt><code>text</code></dt>
+<dt><code>ppText</code></dt>
 <dd><p>Free-text input. Renders as a <code>textInput</code>. Example:
 <code>labs(title = text)</code>.</p></dd>
 
-<dt><code>num</code></dt>
+<dt><code>ppNum</code></dt>
 <dd><p>Numeric input. Renders as a <code>numericInput</code>. Example:
-<code>geom_point(size = num)</code>.</p></dd>
+<code>geom_point(size = ppNum)</code>.</p></dd>
 
-<dt><code>expr</code></dt>
+<dt><code>ppExpr</code></dt>
 <dd><p>Code editor, validated by <code>expr_check</code>. The only keyword
 that accepts arbitrary R code; see <code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code> for
-the model. Example: <code>facet_wrap(expr)</code>.</p></dd>
+the model. Example: <code>facet_wrap(ppExpr)</code>.</p></dd>
 
-<dt><code>upload</code></dt>
+<dt><code>ppUpload</code></dt>
 <dd><p>File picker, returns a data frame. Renders as a
 <code>fileInput</code> plus an optional dataset-name textbox. Accepted formats:
 <code>.csv</code>, <code>.tsv</code>, <code>.rds</code>, <code>.xlsx</code>, <code>.xls</code>, <code>.json</code>. Uploaded data is
 normalized via <code><a href="ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> automatically. Example:
-<code>ggplot(upload, ...)</code>.</p></dd>
+<code>ggplot(ppUpload, ...)</code>.</p></dd>
 
 
 </dl><p>Any keyword occurrence may carry <code>shared = "&lt;id&gt;"</code> to lift the widget out
 of its per-layer panel into a top-level shared section. Used by
 <code><a href="ptr_app_grid.html">ptr_app_grid()</a></code> to drive multiple plots from one control. See
-<code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code> for worked examples of each keyword.</p>
+<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code> for worked examples of each keyword.</p>
     </div>
     <div class="section level2">
     <h2 id="empty-call-cleanup">Empty-call cleanup<a class="anchor" aria-label="anchor" href="#empty-call-cleanup"></a></h2>
 
 
-<p>When a placeholder resolves to "missing" (an empty <code>var</code> pick, a blank
-<code>text</code>, a cleared <code>num</code>, an unchecked layer checkbox), its argument is
+<p>When a placeholder resolves to "missing" (an empty <code>ppVar</code> pick, a blank
+<code>ppText</code>, a cleared <code>ppNum</code>, an unchecked layer checkbox), its argument is
 dropped from the generated code. If the surrounding call is left empty
 and its bare name is in the curated cleanup list, the whole call
 disappears too. This rule applies to both placeholder-driven empties and
@@ -199,13 +210,19 @@ Use <code>safe_to_remove = c("pcp_theme")</code> to opt a specific name in.</p>
 <code><a href="ptr_define_placeholder_value.html">ptr_define_placeholder_value()</a></code> et al. for registering custom
 keywords; <code><a href="ptr_ui_text.html">ptr_ui_text()</a></code> for copy overrides; <code><a href="ptr_css.html">ptr_css()</a></code> for the
 <code>css =</code> argument and themable CSS custom properties;
-<code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code> for tutorial examples.</p></div>
+<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code> for tutorial examples.</p></div>
     </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="st">"ggplot(mtcars, aes(x = var, y = var)) + geom_point()"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># String mode (existing).</span></span></span>
+<span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="st">"ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># Expression mode (new): pass the unquoted ggplot expression.</span></span></span>
+<span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">ppVar</span>, y <span class="op">=</span> <span class="va">ppVar</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># !! splicing into expression mode.</span></span></span>
+<span class="r-in"><span>  <span class="va">col</span> <span class="op">&lt;-</span> <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">sym</a></span><span class="op">(</span><span class="st">"mpg"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="op">!</span><span class="op">!</span><span class="va">col</span>, y <span class="op">=</span> <span class="va">ppVar</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>

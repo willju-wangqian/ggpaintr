@@ -15,7 +15,6 @@ ptr_ui(
   formula,
   id = NULL,
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   css = NULL,
   shared = NULL
@@ -39,13 +38,9 @@ ptr_ui(
   [`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md)
   for the full schema and current defaults.
 
-- checkbox_defaults:
-
-  Optional named list of initial checked states.
-
 - expr_check:
 
-  Controls `expr` placeholder validation: `TRUE` (default) applies the
+  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
   built-in denylist + AST walker; `FALSE` disables all validation; a
   `list` with `deny_list`/`allow_list` entries customises the policy.
   See
@@ -88,7 +83,7 @@ for the `css =` argument and themable CSS custom properties.
 
 ``` r
 ui <- ptr_ui(
-  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
   "plot1"
 )
 ```

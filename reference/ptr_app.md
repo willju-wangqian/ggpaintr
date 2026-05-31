@@ -12,10 +12,10 @@ ptr_app(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  css = NULL
+  css = NULL,
+  spec = NULL
 )
 ```
 
@@ -23,8 +23,26 @@ ptr_app(
 
 - formula:
 
-  A single formula string with `ggpaintr` placeholders. See **Formula
-  grammar** below.
+  Either a single character scalar containing a ggplot expression with
+  `ggpaintr` placeholders, or an unquoted ggplot expression supplied
+  directly. Expression-mode is captured with
+  [`rlang::enexpr()`](https://rlang.r-lib.org/reference/defusing-advanced.html)
+  at the public boundary, then deparsed to a string before reaching the
+  shared translate pipeline; both modes produce equivalent apps. A bare
+  symbol bound to a string in the calling frame (e.g.
+  `f <- "..."; ptr_app(f)`) is resolved and treated as string mode.
+  Pre-quoted wrappers
+  ([`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html),
+  [`rlang::quo()`](https://rlang.r-lib.org/reference/defusing-advanced.html),
+  [`base::quote()`](https://rdrr.io/r/base/substitute.html),
+  [`base::bquote()`](https://rdrr.io/r/base/bquote.html)) at the
+  captured root are unwrapped one level. `!!` splicing inside the
+  captured expression is honoured via
+  [`rlang::enexpr()`](https://rlang.r-lib.org/reference/defusing-advanced.html).
+  **Native pipe (`|>`) caveat:** in expression mode, R's parser desugars
+  `|>` before capture, so the rendered code shows the desugared
+  nested-call form. Stay in string mode (or use `%>%`) if you need `|>`
+  preserved.
 
 - envir:
 
@@ -36,17 +54,13 @@ ptr_app(
   [`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md)
   for the full schema and current defaults.
 
-- checkbox_defaults:
-
-  Optional named list of initial checked states for layer checkboxes.
-
 - expr_check:
 
-  Controls `expr` placeholder validation. Three modes: `TRUE` (default)
-  applies the built-in denylist + AST walker; `FALSE` disables all
-  validation (for local prototyping with trusted input only); a `list`
-  with `deny_list` and/or `allow_list` entries (character vectors)
-  customises the policy without disabling it. See
+  Controls `ppExpr` placeholder validation. Three modes: `TRUE`
+  (default) applies the built-in denylist + AST walker; `FALSE` disables
+  all validation (for local prototyping with trusted input only); a
+  `list` with `deny_list` and/or `allow_list` entries (character
+  vectors) customises the policy without disabling it. See
   [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)
   for the walker model.
 
@@ -56,9 +70,9 @@ ptr_app(
   calls should be dropped after placeholder substitution leaves them
   empty. Defaults to
   [`character()`](https://rdrr.io/r/base/character.html). See
-  **Empty-call cleanup** below. A user-typed `expr` always wins —
-  whatever the user enters into an `expr` box is honoured verbatim, even
-  if its top-level name is in `safe_to_remove`.
+  **Empty-call cleanup** below. A user-typed `ppExpr` always wins —
+  whatever the user enters into an `ppExpr` box is honoured verbatim,
+  even if its top-level name is in `safe_to_remove`.
 
 - css:
 
@@ -67,6 +81,12 @@ ptr_app(
   stylesheet, so its rules override the default `.ptr-*` styling.
   Relative `url(...)` references inside a file resolve against that
   file's own directory. Defaults to `NULL` (no extra stylesheet).
+
+- spec:
+
+  An optional named list of fully-qualified Shiny input id -\> value,
+  used to override widget defaults at session boot. See [ADR
+  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
 
 ## Value
 
@@ -80,49 +100,49 @@ written as a string. Drop one of five placeholder keywords anywhere a
 value would normally go, and the runtime substitutes the user's input
 back into the expression at render time.
 
-- `var`:
+- `ppVar`:
 
   Column picker, data-aware. Renders as a `selectInput` populated with
-  the upstream data's column-name vector. Example: `aes(x = var)`.
+  the upstream data's column-name vector. Example: `aes(x = ppVar)`.
 
-- `text`:
+- `ppText`:
 
   Free-text input. Renders as a `textInput`. Example:
   `labs(title = text)`.
 
-- `num`:
+- `ppNum`:
 
   Numeric input. Renders as a `numericInput`. Example:
-  `geom_point(size = num)`.
+  `geom_point(size = ppNum)`.
 
-- `expr`:
+- `ppExpr`:
 
   Code editor, validated by `expr_check`. The only keyword that accepts
   arbitrary R code; see
   [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)
-  for the model. Example: `facet_wrap(expr)`.
+  for the model. Example: `facet_wrap(ppExpr)`.
 
-- `upload`:
+- `ppUpload`:
 
   File picker, returns a data frame. Renders as a `fileInput` plus an
   optional dataset-name textbox. Accepted formats: `.csv`, `.tsv`,
   `.rds`, `.xlsx`, `.xls`, `.json`. Uploaded data is normalized via
   [`ptr_normalize_column_names()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_normalize_column_names.md)
-  automatically. Example: `ggplot(upload, ...)`.
+  automatically. Example: `ggplot(ppUpload, ...)`.
 
 Any keyword occurrence may carry `shared = "<id>"` to lift the widget
 out of its per-layer panel into a top-level shared section. Used by
 [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
 to drive multiple plots from one control. See
-[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
+[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md)
 for worked examples of each keyword.
 
 ## Empty-call cleanup
 
-When a placeholder resolves to "missing" (an empty `var` pick, a blank
-`text`, a cleared `num`, an unchecked layer checkbox), its argument is
-dropped from the generated code. If the surrounding call is left empty
-and its bare name is in the curated cleanup list, the whole call
+When a placeholder resolves to "missing" (an empty `ppVar` pick, a blank
+`ppText`, a cleared `ppNum`, an unchecked layer checkbox), its argument
+is dropped from the generated code. If the surrounding call is left
+empty and its bare name is in the curated cleanup list, the whole call
 disappears too. This rule applies to both placeholder-driven empties and
 user-authored literal empty calls like `+ labs()`.
 
@@ -166,13 +186,19 @@ et al. for registering custom keywords;
 for copy overrides;
 [`ptr_css()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_css.md)
 for the `css =` argument and themable CSS custom properties;
-[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
+[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md)
 for tutorial examples.
 
 ## Examples
 
 ``` r
 if (interactive()) {
-  ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+  # String mode (existing).
+  ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
+  # Expression mode (new): pass the unquoted ggplot expression.
+  ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
+  # !! splicing into expression mode.
+  col <- rlang::sym("mpg")
+  ptr_app(ggplot(mtcars, aes(x = !!col, y = ppVar)) + geom_point())
 }
 ```

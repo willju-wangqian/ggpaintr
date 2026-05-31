@@ -19,7 +19,7 @@ never disagree about the partition."><meta property="og:image" content="https://
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,10 +32,8 @@ never disagree about the partition."><meta property="og:image" content="https://
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -68,7 +66,7 @@ never disagree about the partition.</p>
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ptr_shared</span><span class="op">(</span></span>
 <span>  <span class="va">formulas</span>,</span>
-<span>  shared_ui <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  draw_all_label <span class="op">=</span> <span class="st">"Draw all"</span></span>
@@ -80,14 +78,31 @@ never disagree about the partition.</p>
 
 
 <dl><dt id="arg-formulas">formulas<a class="anchor" aria-label="anchor" href="#arg-formulas"></a></dt>
-<dd><p>A character vector or list of formula strings, one per
-embedded <code><a href="ptr_ui.html">ptr_ui()</a></code> instance.</p></dd>
+<dd><p>A non-empty character vector or list, one element per
+embedded <code><a href="ptr_ui.html">ptr_ui()</a></code> instance. Each element is either a formula
+<strong>string</strong> or a <strong>quoted ggplot expression</strong> (<code>rlang::expr(...)</code> /
+<code>quote(...)</code>); quoted expressions are deparsed to their source string,
+and the two forms are interchangeable (mixed lists are allowed). A built
+ggplot object (e.g. <code>g &lt;- ggplot(...) + geom_point()</code> then passing <code>g</code>)
+is <strong>not</strong> accepted – its source is unrecoverable, so quote it with
+<code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr()</a></code> instead. Note: a native pipe <code>|&gt;</code> inside a quoted expression is
+desugared by R's parser before capture, so it does not survive into the
+generated code panel (use <code>%&gt;%</code> or a formula string to preserve it).</p></dd>
 
 
-<dt id="arg-shared-ui">shared_ui<a class="anchor" aria-label="anchor" href="#arg-shared-ui"></a></dt>
-<dd><p>Named list of <code>function(id) -&gt; shiny.tag</code> builders, one
-per shared key the embedder wants to customise. Unsupplied keys are
-auto-rendered from the first formula that mentions them.</p></dd>
+<dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
+<dd><p>Optional character scalar that namespaces every id this
+coordinator emits, so two or more coordinators can coexist in one
+Shiny session without colliding on shared <code>input</code> slots. When
+non-<code>NULL</code>, every id (<code>shared_&lt;key&gt;</code>, <code>shared_&lt;key&gt;_stage_enabled</code>,
+<code>ptr_shared_draw_all</code>, <code>ptr_shared_errors</code>, the stage-block DOM id,
+and each consumer <code>renderUI</code> container) is prefixed <code>&lt;id&gt;-</code> using
+Shiny <code>NS()</code>'s separator. The default <code>NULL</code> preserves today's flat
+ids byte-for-byte – single-panel apps need no change. Must be <code>NULL</code>
+or a non-empty string matching <code>^[A-Za-z][A-Za-z0-9_]*$</code>;
+<code><a href="ptr_shared_panel.html">ptr_shared_panel()</a></code>, <code><a href="ptr_ui_shared_panel.html">ptr_ui_shared_panel()</a></code>, and
+<code><a href="ptr_shared_server.html">ptr_shared_server()</a></code> all read it off <code>obj$id</code> – their signatures
+do not change.</p></dd>
 
 
 <dt id="arg-ui-text">ui_text<a class="anchor" aria-label="anchor" href="#arg-ui-text"></a></dt>
@@ -96,7 +111,7 @@ widgets (see <code><a href="ptr_app.html">ptr_app()</a></code>'s <code>ui_text</
 
 
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
-<dd><p>Whether to validate <code>expr</code> placeholders during formula
+<dd><p>Whether to validate <code>ppExpr</code> placeholders during formula
 translation. Default <code>TRUE</code>.</p></dd>
 
 
@@ -122,6 +137,23 @@ object: <code><a href="ptr_shared_panel.html">ptr_shared_panel()</a></code>, <co
 the coordinator is a declaration of intent.</p>
     </div>
     <div class="section level2">
+    <h2 id="removed-shared-ui">Removed <code>shared_ui</code><a class="anchor" aria-label="anchor" href="#removed-shared-ui"></a></h2>
+
+
+<p><code>shared_ui</code> (a named list of <code>function(id) -&gt; shiny.tag</code> builders) is no
+longer supported. Its original intent was to let two placeholders that
+share a key share the same UI settings. But each placeholder already
+carries its own <code>build_ui</code> rule, and two <code>shared=</code> placeholders simply
+reuse that one rule when their widget collapses to the panel. The
+customisation therefore comes from the placeholder's <code>build_ui</code>
+(<code>ptr_define_placeholder_*(build_ui = ...)</code>), not from a separate
+<code>shared_ui</code> override — so the override was redundant, and for <code>var</code>
+consumers it actively dropped the formula default and froze the column
+list. To customise a shared widget, define a custom placeholder with the
+<code>build_ui</code> you want and use it in the formula. Label-only divergence for
+the shared widget still has its own channel (<code>node$shared_label</code>).</p>
+    </div>
+    <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="ptr_shared_panel.html">ptr_shared_panel()</a></code>, <code><a href="ptr_ui_shared_panel.html">ptr_ui_shared_panel()</a></code>,
 <code><a href="ptr_shared_server.html">ptr_shared_server()</a></code>, <code><a href="ptr_ui.html">ptr_ui()</a></code>.</p></div>
@@ -130,10 +162,18 @@ the coordinator is a declaration of intent.</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu">ptr_shared</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()"</span>,</span></span>
-<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"</span></span></span>
+<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"</span></span></span>
 <span class="r-in"><span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">obj</span><span class="op">$</span><span class="va">panel_keys</span>   <span class="co"># "x" — shared by both formulas</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] "x"</span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Quoted expressions work too, and may be mixed with strings:</span></span></span>
+<span class="r-in"><span><span class="va">obj2</span> <span class="op">&lt;-</span> <span class="fu">ptr_shared</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="pp_placeholders.html">ppVar</a></span><span class="op">(</span>shared <span class="op">=</span> <span class="st">"x"</span><span class="op">)</span>, y <span class="op">=</span> <span class="va">mpg</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = ppVar(shared = 'x'), y = hp)) + geom_line()"</span></span></span>
+<span class="r-in"><span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">obj2</span><span class="op">$</span><span class="va">panel_keys</span>  <span class="co"># "x"</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] "x"</span>
 </code></pre></div>
     </div>

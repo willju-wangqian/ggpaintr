@@ -5,8 +5,8 @@ Unregisters placeholders added with
 [`ptr_define_placeholder_consumer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_consumer.md),
 or
 [`ptr_define_placeholder_source()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_source.md).
-The five built-in placeholders (`var`, `text`, `num`, `expr`, `upload`)
-are never removed.
+The five built-in placeholders (`ppVar`, `ppText`, `ppNum`, `ppExpr`,
+`ppUpload`) are never removed.
 
 ## Usage
 
@@ -34,6 +34,10 @@ ptr_define_placeholder_value(
   build_ui = function(node, ...) shiny::textInput(node$id, "demo"),
   resolve_expr = function(value, node, ...) value
 )
+#> function (x, ...) 
+#> x
+#> <bytecode: 0x56055beba288>
+#> <environment: 0x560557bbd108>
 ptr_clear_placeholder("demo_kw")
 #> ✔ Cleared placeholder: "demo_kw".
 ```

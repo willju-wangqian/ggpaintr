@@ -17,7 +17,7 @@ already-merged ptr_ui_text, so the overrides are validated once."><meta property
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,10 +30,8 @@ already-merged ptr_ui_text, so the overrides are validated once."><meta property
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -100,8 +98,8 @@ or leaf fields.</p>
 <li><p><code>upload$file$&lt;leaf&gt;</code></p></li>
 <li><p><code>upload$name$&lt;leaf&gt;</code></p></li>
 <li><p><code>layer_checkbox$&lt;leaf&gt;</code></p></li>
-<li><p><code>defaults$&lt;keyword&gt;$&lt;leaf&gt;</code> — per placeholder keyword (<code>var</code>, <code>text</code>,
-<code>num</code>, <code>expr</code>, <code>upload</code>, ...)</p></li>
+<li><p><code>defaults$&lt;keyword&gt;$&lt;leaf&gt;</code> — per placeholder keyword (<code>ppVar</code>, <code>ppText</code>,
+<code>ppNum</code>, <code>ppExpr</code>, <code>ppUpload</code>, ...)</p></li>
 <li><p><code>params$&lt;param&gt;$&lt;keyword&gt;$&lt;leaf&gt;</code> — per aesthetic/argument name
 (<code>x</code>, <code>y</code>, <code>color</code>, ...); aliases (<code>colour</code>, <code>size</code>) are normalized</p></li>
 <li><p><code>layers$&lt;layer_name&gt;$&lt;keyword&gt;$&lt;param&gt;$&lt;leaf&gt;</code> — per layer override

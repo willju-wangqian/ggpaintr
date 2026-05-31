@@ -15,7 +15,7 @@ them with the same ptr_server()."><meta property="og:image" content="https://wil
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -28,10 +28,8 @@ them with the same ptr_server()."><meta property="og:image" content="https://wil
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -64,7 +62,6 @@ them with the same <code><a href="ptr_server.html">ptr_server()</a></code>.</p>
 <span>  <span class="va">formula</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  css <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  shared <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -89,12 +86,8 @@ Defaults to <code>NULL</code> (identity namespace, single-instance use).</p></dd
 for the full schema and current defaults.</p></dd>
 
 
-<dt id="arg-checkbox-defaults">checkbox_defaults<a class="anchor" aria-label="anchor" href="#arg-checkbox-defaults"></a></dt>
-<dd><p>Optional named list of initial checked states.</p></dd>
-
-
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
-<dd><p>Controls <code>expr</code> placeholder validation: <code>TRUE</code> (default)
+<dd><p>Controls <code>ppExpr</code> placeholder validation: <code>TRUE</code> (default)
 applies the built-in denylist + AST walker; <code>FALSE</code> disables all
 validation; a <code>list</code> with <code>deny_list</code>/<code>allow_list</code> entries customises
 the policy. See <code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code>.</p></dd>
@@ -131,7 +124,7 @@ themable CSS custom properties.</p></div>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">ptr_ui</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = var, y = var)) + geom_point()"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"</span>,</span></span>
 <span class="r-in"><span>  <span class="st">"plot1"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 </code></pre></div>

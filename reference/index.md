@@ -17,6 +17,22 @@ several linked plots →
 
   Grid App: Multiple `ggpaintr` Plots With Shared Controls
 
+## Formula placeholders
+
+The `pp*` tokens you write inside a formula — the value/consumer/source
+controls plus the structural toggles.
+
+- [`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+  [`ppNum()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+  [`ppText()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+  [`ppExpr()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+  [`ppUpload()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+  : Placeholder Identity Helpers
+- [`ppLayerOff()`](https://willju-wangqian.github.io/ggpaintr/reference/ppLayerOff.md)
+  : Off-by-default layer wrapper
+- [`ppVerbSwitch()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVerbSwitch.md)
+  : Switchable pipeline-stage wrapper
+
 ## Session configuration
 
 Process-wide defaults, column-name normalisation, and UI copy overrides.
@@ -36,8 +52,7 @@ Process-wide defaults, column-name normalisation, and UI copy overrides.
 
 Worked examples of writing custom wrappers on top of the public ggpaintr
 primitives. See
-[`vignette("ggpaintr-customization")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-customization.md)
-§ “Writing your own wrapper”.
+[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md).
 
 - [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
   : Bslib-Themed App: A Demonstration Wrapper
@@ -51,8 +66,8 @@ layout. The module pair is the L2 entry; the shared coordinator
 [`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md) +
 [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md))
 links a cross-formula key across plots. See
-[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
-§ “L2”.
+[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md)
+§ “Multiple plots, and writing your own Shiny app”.
 
 - [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md)
   :
@@ -82,8 +97,7 @@ flags) plus nestable combinators. Compose freely under your own Shiny
 and wire with
 [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md).
 See
-[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md)
-§ “L3”.
+[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md).
 
 - [`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md)
   : Page shell for hand-composed ggpaintr UIs
@@ -152,6 +166,9 @@ returned state.
 - [`ptr_resolve_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_resolve_ui_text.md)
   : Resolve copy for one ggpaintr control or app element
 
+- [`ptr_id_table()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_id_table.md)
+  : Enumerate every Shiny id a ggpaintr formula produces
+
 ## Placeholder authors
 
 Register supported custom placeholder types and their UI hooks without
@@ -159,14 +176,35 @@ editing package internals.
 
 - [`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md)
   : Define a value placeholder
+
 - [`ptr_define_placeholder_consumer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_consumer.md)
   : Define a data-consumer placeholder (e.g. column picker)
+
 - [`ptr_define_placeholder_source()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_source.md)
   : Define a data-source placeholder (e.g. upload, database table)
+
 - [`ptr_clear_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_clear_placeholder.md)
   : Remove user-registered placeholders
+
 - [`build_ui_for()`](https://willju-wangqian.github.io/ggpaintr/reference/build_ui_for.md)
   : Build a Shiny UI Widget for a Typed-Tree Node
+
+- [`ptr_arg_symbol_or_string()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
+  [`ptr_arg_string()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
+  [`ptr_arg_numeric()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
+  [`ptr_arg_numeric_vector()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
+  [`ptr_arg_expression()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
+  :
+
+  Argument validators for placeholder definitions (`ptr_arg_*`)
+
+- [`ptr_register_constant_fold()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_constant_fold_registry.md)
+  [`ptr_clear_constant_fold()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_constant_fold_registry.md)
+  [`ptr_constant_fold_keywords()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_constant_fold_registry.md)
+  : Constant-fold allowlist registry
+
+- [`ptr_signal_partial()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_signal_partial.md)
+  : Signal a transient "partial input" failure from a placeholder hook
 
 ## LLM tooling
 

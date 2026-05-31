@@ -20,7 +20,6 @@ ptr_init_state(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
   shared = list(),
@@ -31,6 +30,7 @@ ptr_init_state(
   auto_bind_shared = FALSE,
   shared_resolutions = list(),
   shared_stage_enabled = list(),
+  panel_sources = list(),
   plots = NULL
 )
 ```
@@ -51,13 +51,9 @@ ptr_init_state(
   [`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md)
   for the full schema and current defaults.
 
-- checkbox_defaults:
-
-  Optional named list of initial checked states for layer checkboxes.
-
 - expr_check:
 
-  Controls `expr` placeholder validation: `TRUE` (default) applies the
+  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
   built-in denylist + AST walker; `FALSE` disables all validation; a
   `list` with `deny_list`/`allow_list` entries customises the policy.
   See
@@ -83,12 +79,12 @@ ptr_init_state(
 - producer_debounce_ms:
 
   Optional. Controls the debounce window applied to producer-style
-  placeholder inputs (`text`, `num`, `expr`) before they invalidate
-  downstream consumer caches. `NULL` (default) enables auto mode: window
-  starts at 0 ms and the runtime flips to 300 ms after three consecutive
-  upstream resolutions exceed 150 ms (and back to 0 after five
-  consecutive resolutions under 80 ms). Pass `0` to force off forever,
-  or a positive integer to pin a manual window.
+  placeholder inputs (`ppText`, `ppNum`, `ppExpr`) before they
+  invalidate downstream consumer caches. `NULL` (default) enables auto
+  mode: window starts at 0 ms and the runtime flips to 300 ms after
+  three consecutive upstream resolutions exceed 150 ms (and back to 0
+  after five consecutive resolutions under 80 ms). Pass `0` to force off
+  forever, or a positive integer to pin a manual window.
 
 - ns:
 
@@ -112,7 +108,7 @@ ptr_init_state(
 - shared_resolutions:
 
   Named list (keyed by raw shared key) of host-computed resolutions for
-  shared data-consumer (`var`) widgets, as returned by
+  shared data-consumer (`ppVar`) widgets, as returned by
   `ptr_resolve_shared_consumers()`. When an entry is present, the
   runtime validates that key's selection against the host-resolved
   upstream (the same data the host picker was built from) instead of the
@@ -129,6 +125,17 @@ ptr_init_state(
   [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
   bundle). A missing or unset entry leaves the stage enabled. Defaults
   to [`list()`](https://rdrr.io/r/base/list.html).
+
+- panel_sources:
+
+  Named list (keyed by source-node id) of reactives, each returning the
+  host-loaded data for a panel-owned shared source (ADR 0023). Populated
+  by the host's `ptr_setup_panel_sources()` and threaded through a
+  [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
+  bundle so per-instance binders read the host's primed data
+  (`state$panel_sources[[node$id]]`) instead of re-wiring their own
+  source UI. Defaults to [`list()`](https://rdrr.io/r/base/list.html)
+  (single-plot / per-instance context — no panel-owned sources).
 
 - plots:
 
@@ -161,7 +168,7 @@ for a fully wired app use
 ``` r
 shiny::isolate({
   state <- ptr_init_state(
-    "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+    "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   )
   is.list(state)
 })

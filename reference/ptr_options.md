@@ -37,17 +37,6 @@ updated settings, returned invisibly.
   messages are intended for debugging the formula pipeline and are off
   by default. Underlying option: `options(ggpaintr.verbose = ...)`.
 
-- `checkbox_default_all_other_layer`:
-
-  Logical. The fallback initial state for layer checkboxes that aren't
-  explicitly named in a call's `checkbox_defaults` argument. `TRUE`
-  (default) starts unspecified layers checked (current behavior);
-  `FALSE` starts unspecified layers unchecked, so apps with many
-  alternative layers can opt-in only the ones they want via
-  `checkbox_defaults =`. The per-call argument always wins over this
-  global fallback. Underlying option:
-  `options(ggpaintr.checkbox_default_all_other_layer = ...)`.
-
 ## Examples
 
 ``` r
@@ -56,14 +45,8 @@ ptr_options()
 #> $verbose
 #> [1] FALSE
 #> 
-#> $checkbox_default_all_other_layer
-#> [1] TRUE
-#> 
 
 # Silence the "Layer ... removed" notice for one block
 old <- ptr_options(verbose = FALSE)
 on.exit(do.call(ptr_options, old), add = TRUE)
-
-# Start every app with all layers unchecked unless the call opts them in
-ptr_options(checkbox_default_all_other_layer = FALSE)
 ```

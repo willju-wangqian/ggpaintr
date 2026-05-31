@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,10 +20,8 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -64,6 +62,36 @@
         </dt>
         <dd>Grid App: Multiple <code>ggpaintr</code> Plots With Shared Controls</dd>
       </dl></div><div class="section level2">
+      <h2 id="formula-placeholders">Formula placeholders<a class="anchor" aria-label="anchor" href="#formula-placeholders"></a></h2>
+
+      <div class="section-desc"><p>The <code>pp*</code> tokens you write inside a formula — the value/consumer/source controls plus the structural toggles.</p></div>
+
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="pp_placeholders.html">ppVar()</a></code> <code><a href="pp_placeholders.html">ppNum()</a></code> <code><a href="pp_placeholders.html">ppText()</a></code> <code><a href="pp_placeholders.html">ppExpr()</a></code> <code><a href="pp_placeholders.html">ppUpload()</a></code>
+
+        </dt>
+        <dd>Placeholder Identity Helpers</dd>
+
+        <dt>
+
+          <code><a href="ppLayerOff.html">ppLayerOff()</a></code>
+
+        </dt>
+        <dd>Off-by-default layer wrapper</dd>
+
+        <dt>
+
+          <code><a href="ppVerbSwitch.html">ppVerbSwitch()</a></code>
+
+        </dt>
+        <dd>Switchable pipeline-stage wrapper</dd>
+      </dl></div><div class="section level2">
       <h2 id="session-configuration">Session configuration<a class="anchor" aria-label="anchor" href="#session-configuration"></a></h2>
 
       <div class="section-desc"><p>Process-wide defaults, column-name normalisation, and UI copy overrides.</p></div>
@@ -96,7 +124,7 @@
       </dl></div><div class="section level2">
       <h2 id="wrapper-examples">Wrapper examples<a class="anchor" aria-label="anchor" href="#wrapper-examples"></a></h2>
 
-      <div class="section-desc"><p>Worked examples of writing custom wrappers on top of the public ggpaintr primitives. See <code><a href="../articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code> § “Writing your own wrapper”.</p></div>
+      <div class="section-desc"><p>Worked examples of writing custom wrappers on top of the public ggpaintr primitives. See <code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code>.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -112,7 +140,7 @@
       </dl></div><div class="section level2">
       <h2 id="l-embed-with-the-default-layout">L2 — Embed with the default layout<a class="anchor" aria-label="anchor" href="#l-embed-with-the-default-layout"></a></h2>
 
-      <div class="section-desc"><p>Plug ggpaintr into your own Shiny app with its self-contained default layout. The module pair is the L2 entry; the shared coordinator (<code><a href="../reference/ptr_shared.html">ptr_shared()</a></code> → <code><a href="../reference/ptr_shared_panel.html">ptr_shared_panel()</a></code> + <code><a href="../reference/ptr_shared_server.html">ptr_shared_server()</a></code>) links a cross-formula key across plots. See <code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code> § “L2”.</p></div>
+      <div class="section-desc"><p>Plug ggpaintr into your own Shiny app with its self-contained default layout. The module pair is the L2 entry; the shared coordinator (<code><a href="../reference/ptr_shared.html">ptr_shared()</a></code> → <code><a href="../reference/ptr_shared_panel.html">ptr_shared_panel()</a></code> + <code><a href="../reference/ptr_shared_server.html">ptr_shared_server()</a></code>) links a cross-formula key across plots. See <code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code> § “Multiple plots, and writing your own Shiny app”.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -156,7 +184,7 @@
       </dl></div><div class="section level2">
       <h2 id="l-own-the-layout-render-path">L3 — Own the layout / render path<a class="anchor" aria-label="anchor" href="#l-own-the-layout-render-path"></a></h2>
 
-      <div class="section-desc"><p>Own every piece of ggpaintr’s public UI — bare builders (no behaviour flags) plus nestable combinators. Compose freely under your own Shiny (optionally <code><a href="../reference/ptr_ui_page.html">ptr_ui_page()</a></code>) and wire with <code><a href="../reference/ptr_server.html">ptr_server()</a></code>. See <code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code> § “L3”.</p></div>
+      <div class="section-desc"><p>Own every piece of ggpaintr’s public UI — bare builders (no behaviour flags) plus nestable combinators. Compose freely under your own Shiny (optionally <code><a href="../reference/ptr_ui_page.html">ptr_ui_page()</a></code>) and wire with <code><a href="../reference/ptr_server.html">ptr_server()</a></code>. See <code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code>.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -269,6 +297,13 @@
 
         </dt>
         <dd>Resolve copy for one ggpaintr control or app element</dd>
+
+        <dt>
+
+          <code><a href="ptr_id_table.html">ptr_id_table()</a></code>
+
+        </dt>
+        <dd>Enumerate every Shiny id a ggpaintr formula produces</dd>
       </dl></div><div class="section level2">
       <h2 id="placeholder-authors">Placeholder authors<a class="anchor" aria-label="anchor" href="#placeholder-authors"></a></h2>
 
@@ -313,6 +348,27 @@
 
         </dt>
         <dd>Build a Shiny UI Widget for a Typed-Tree Node</dd>
+
+        <dt>
+
+          <code><a href="ptr_arg_validators.html">ptr_arg_symbol_or_string()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_string()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_numeric()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_numeric_vector()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_expression()</a></code>
+
+        </dt>
+        <dd>Argument validators for placeholder definitions (<code>ptr_arg_*</code>)</dd>
+
+        <dt>
+
+          <code><a href="ptr_constant_fold_registry.html">ptr_register_constant_fold()</a></code> <code><a href="ptr_constant_fold_registry.html">ptr_clear_constant_fold()</a></code> <code><a href="ptr_constant_fold_registry.html">ptr_constant_fold_keywords()</a></code>
+
+        </dt>
+        <dd>Constant-fold allowlist registry</dd>
+
+        <dt>
+
+          <code><a href="ptr_signal_partial.html">ptr_signal_partial()</a></code>
+
+        </dt>
+        <dd>Signal a transient "partial input" failure from a placeholder hook</dd>
       </dl></div><div class="section level2">
       <h2 id="llm-tooling">LLM tooling<a class="anchor" aria-label="anchor" href="#llm-tooling"></a></h2>
 

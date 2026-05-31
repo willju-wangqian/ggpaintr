@@ -11,7 +11,7 @@ never place in the UI is a harmless no-op), and **returns the
 are forwarded to
 [`ptr_init_state()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_init_state.md)
 (e.g. `shared`, `draw_trigger`, `expr_check`, `safe_to_remove`,
-`ui_text`, `checkbox_defaults`).
+`ui_text`).
 
 ## Usage
 
@@ -21,7 +21,8 @@ ptr_server(
   id = NULL,
   envir = parent.frame(),
   ...,
-  shared_state = NULL
+  shared_state = NULL,
+  spec = NULL
 )
 ```
 
@@ -29,7 +30,14 @@ ptr_server(
 
 - formula:
 
-  A single formula string with `ggpaintr` placeholders.
+  Either a single character scalar containing a ggplot expression with
+  `ggpaintr` placeholders, or an unquoted ggplot expression supplied
+  directly. See
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  for the full contract (expression capture via
+  [`rlang::enexpr()`](https://rlang.r-lib.org/reference/defusing-advanced.html),
+  symbol resolution, wrapper unwrap, and the native-pipe caveat in
+  expression mode).
 
 - id:
 
@@ -57,6 +65,12 @@ ptr_server(
   [`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md)
   and the equivalent `...` arguments are not supplied directly.
 
+- spec:
+
+  An optional named list of fully-qualified Shiny input id -\> value,
+  used to override widget defaults at session boot. See [ADR
+  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
+
 ## Value
 
 The `ptr_state` list from
@@ -83,7 +97,7 @@ lower-level server function to reach for:
 `state$runtime()` is reactive; `$plot` is the built ggplot/ggplot-like
 object, `$code` the generated source string, `$error` any inline error.
 See
-[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md).
+[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md).
 
 For cross-formula coordination — multiple ggpaintr instances driven by
 one widget — build the coordinator with
@@ -112,7 +126,7 @@ does.
 
 ``` r
 if (interactive()) {
-  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   # L2: default layout
   shiny::shinyApp(
     ui = shiny::fluidPage(ptr_ui(f, "p")),

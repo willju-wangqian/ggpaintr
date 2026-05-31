@@ -21,7 +21,7 @@ the toggle layout ptr_app() / ptr_ui() render internally."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -34,10 +34,8 @@ the toggle layout ptr_app() / ptr_ui() render internally."><meta property="og:im
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -141,6 +139,27 @@ code panes (no toggle), keep the bare pieces uncombined — a standalone
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div class="ptr-code-window__head"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           &lt;span class="ptr-code-window__title"&gt;&amp;lt;/&amp;gt; Generated code&lt;/span&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           &lt;span class="ptr-code-window__actions"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             &lt;span class="ptr-code-mode"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>               &lt;div class="form-group shiny-input-container shiny-input-radiogroup shiny-input-container-inline"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 &lt;label class="control-label shiny-label-null" for="p-ptr_code_mode" id="p-ptr_code_mode-label"&gt;&lt;/label&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 &lt;div id="p-ptr_code_mode" class="radio-group-buttons"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                   &lt;div aria-labelledby="p-ptr_code_mode-label" class=" btn-group-xs btn-group-container-sw" data-toggle="buttons" role="group"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                     &lt;div class="btn-group btn-group-toggle btn-group-xs" role="group"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;button class="btn radiobtn btn-default active"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;input type="radio" autocomplete="off" name="p-ptr_code_mode" value="final" checked="checked"/&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         Final code</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;/button&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                     &lt;/div&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                     &lt;div class="btn-group btn-group-toggle btn-group-xs" role="group"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;button class="btn radiobtn btn-default"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         &lt;input type="radio" autocomplete="off" name="p-ptr_code_mode" value="spec"/&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                         Spec</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                       &lt;/button&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                     &lt;/div&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                   &lt;/div&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>                 &lt;/div&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>               &lt;/div&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>             &lt;/span&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>             &lt;button type="button" class="ptr-copy-btn"&gt;Copy&lt;/button&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>             &lt;button type="button" class="ptr-code-window__close" title="Close" aria-label="Close"&gt;&amp;times;&lt;/button&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           &lt;/span&gt;</span>

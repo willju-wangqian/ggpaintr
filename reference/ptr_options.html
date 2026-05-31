@@ -17,7 +17,7 @@ withr::with_options() and on.exit()."><meta property="og:image" content="https:/
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,10 +30,8 @@ withr::with_options() and on.exit()."><meta property="og:image" content="https:/
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -92,16 +90,6 @@ updated settings, returned invisibly.</p>
 these messages are intended for debugging the formula pipeline and
 are off by default. Underlying option: <code>options(ggpaintr.verbose = ...)</code>.</p></dd>
 
-<dt><code>checkbox_default_all_other_layer</code></dt>
-<dd><p>Logical. The fallback initial state for layer checkboxes that aren't
-explicitly named in a call's <code>checkbox_defaults</code> argument. <code>TRUE</code>
-(default) starts unspecified layers checked (current behavior); <code>FALSE</code>
-starts unspecified layers unchecked, so apps with many alternative
-layers can opt-in only the ones they want via <code>checkbox_defaults =</code>.
-The per-call argument always wins over this global fallback.
-Underlying option:
-<code>options(ggpaintr.checkbox_default_all_other_layer = ...)</code>.</p></dd>
-
 
 </dl></div>
 
@@ -112,16 +100,10 @@ Underlying option:
 <span class="r-out co"><span class="r-pr">#&gt;</span> $verbose</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> $checkbox_default_all_other_layer</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Silence the "Layer ... removed" notice for one block</span></span></span>
 <span class="r-in"><span><span class="va">old</span> <span class="op">&lt;-</span> <span class="fu">ptr_options</span><span class="op">(</span>verbose <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/on.exit.html" class="external-link">on.exit</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/do.call.html" class="external-link">do.call</a></span><span class="op">(</span><span class="va">ptr_options</span>, <span class="va">old</span><span class="op">)</span>, add <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></span>
-<span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># Start every app with all layers unchecked unless the call opts them in</span></span></span>
-<span class="r-in"><span><span class="fu">ptr_options</span><span class="op">(</span>checkbox_default_all_other_layer <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

@@ -1,24 +1,63 @@
 # ggpaintr — Domain Context
 
-ggpaintr turns ggplot-like formula strings into Shiny apps: placeholder
-tokens in the formula (`var`, `text`, `num`, `expr`, `upload`) become
-Shiny input widgets automatically. This file records the domain language
-for the **L1/L2/L3 embedding model** and the **UI-piece taxonomy** — the
-terms an embedder must get right to use the public API correctly.
+ggpaintr turns ggplot-like formula strings into Shiny apps: `pp*`
+placeholder tokens in the formula (`ppVar`, `ppText`, `ppNum`, `ppExpr`,
+`ppUpload`) become Shiny input widgets automatically, and `pp*`
+structural keywords (`ppLayerOff`, `ppVerbSwitch`) configure UI behavior
+of layer/stage controls. This file records the domain language for the
+**L1/L2/L3 embedding model**, the **UI-piece taxonomy**, and the **`pp*`
+keyword family** — the terms an embedder must get right to use the
+public API correctly.
 
 > Status: **design LOCKED 2026-05-16**, amended **2026-05-18**
-> (grill-with-docs). The 2026-05-18 amendment (single public server
-> entry; L3 = UI-side only; `ptr_module_server`→`ptr_server`,
-> `ptr_module_ui`→`ptr_ui`, old engine `ptr_server`→internal
-> `ptr_server_internal`) is recorded in
+> (grill-with-docs) and **2026-05-24** (grill-with-docs, ADR 0021). The
+> 2026-05-18 amendment (single public server entry; L3 = UI-side only;
+> `ptr_module_server`→`ptr_server`, `ptr_module_ui`→`ptr_ui`, old engine
+> `ptr_server`→internal `ptr_server_internal`) is recorded in
 > `dev/adr/0006-single-server-entry-l3-ui-only.html`, which supersedes
 > `dev/adr/0005-l2-l3-redesign.html` **in part** (0005’s L3-render-path
 > definition, the sealed-bundle name exception, and the
-> `ptr_server`-inside-`moduleServer` canonical pattern). The symbol
-> rename is **implemented**; CONTEXT.md below reflects the
-> post-amendment names. Remaining 0005 implementation (shared
-> coordinator/partition) is still pending per `dev/plans/api-audit.md`.
-> Every section header marked *LOCKED* is decided.
+> `ptr_server`-inside-`moduleServer` canonical pattern). The 2026-05-24
+> amendment (`ppVerbSwitch` replaces `ppVerbOff`; `stage_id`
+> reclassified from “runtime-semantic” to “UI-routing key” and added to
+> the comparator-exclusion list; the verb-side structural-equality
+> invariant is restored via wrapping, not siblings) is recorded in
+> `dev/adr/0021-pp-verb-switch.html`, which supersedes ADR 0020 on those
+> two specific points (the rest of ADR 0020 — `ppLayerOff`,
+> `default_active` / `default_stage_enabled` reader sites,
+> `checkbox_defaults =` deprecation, precedence ladder — stands). The
+> symbol renames are **implemented**; CONTEXT.md below reflects the
+> post-amendment names. The remaining 0005 work (shared coordinator +
+> partition) — pending at the 2026-05-18 amendment — has since
+> **landed**:
+> [`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+> computes the partition, the inline shared section applies it via
+> `host_owned_keys`, and panel-owned shared *sources* are wired
+> host-side through the bundle’s `panel_sources` field
+> (`ptr_setup_panel_sources()`). Four later ADRs post-date the
+> 2026-05-24 amendment and refine behavior without changing the L1/L2/L3
+> or `pp*` language here: **0023** (panel-owned shared sources
+> end-to-end + the parse-time *panel-owned consumer requires panel-owned
+> source* invariant — landed), **0024** (the `ppUpload` companion
+> textbox is a first-class data-loading entry point — *accepted*),
+> **0025** (source-shortcut rename + deterministic upload auto-name
+> `df_<hash(id)>` + UI mutex — landed), **0022** (the code panel’s
+> second view is now “Spec”, replacing the preserve-mode formula
+> round-trip — landed). The `shared_ui` argument to
+> [`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+> was **removed** (commit `7b0297c`; widgets now render from each
+> placeholder’s own `build_ui`). Amended **2026-05-30** (additive, no
+> ADR):
+> [`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)’s
+> `formulas` now accepts quoted ggplot expressions (`expr()` /
+> [`quote()`](https://rdrr.io/r/base/substitute.html)) per element
+> alongside strings — parity with the string-or-expression input of
+> [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+> /
+> [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md);
+> the signature is unchanged and existing all-string calls are
+> byte-for-byte unaffected. Every section header marked *LOCKED* is
+> decided.
 
 ## Language
 
@@ -42,7 +81,11 @@ the self-contained pair
 (formerly `ptr_module_ui` / `ptr_module_server` — renamed by ADR 0006;
 [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
 is the **single public server entry**, used at L2 *and* L3) **and** the
-shared pair `ptr_shared_ui()` /
+shared coordinator API
+[`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+(coordinator) /
+[`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md)
+(panel UI) /
 [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
 (for multi-plot cross-module sharing). The non-`ptr_ui`/`ptr_server`
 split (`ptr_controls_ui`/`ptr_outputs_ui`) is **removed**; the shared
@@ -114,8 +157,10 @@ one plot) and the **multi-formula** case (one key across plots).
 *Avoid*: “linked input”, “global parameter”.
 
 The **shared section** vs **shared panel** choice is decided **per key**
-by how many formulas reference it (the *partition rule* — target design,
-not yet implemented):
+by how many formulas reference it (the *partition rule* —
+**implemented**: `shared_partition()` in `R/paintr-shared-coordinator.R`
+computes `panel_keys` (≥2 formulas) vs formula-local, and ownership is
+applied end-to-end via `host_owned_keys` / `panel_sources`):
 
 > A shared key referenced in **exactly one** formula → that formula’s
 > **shared section**. A shared key referenced in **≥2** formulas → the
@@ -125,6 +170,17 @@ not yet implemented):
 > `f2 = sharedC + sharedC + sharedB` ⟹ f1’s section holds `sharedA`,
 > f2’s section holds `sharedC`, the standalone panel holds `sharedB`.
 
+The partition is **role-agnostic** (ADR 0023): it applies to value
+placeholders, `ppVar(shared=)` consumers, **and** sources
+(`ppUpload(shared=)`) alike. A panel-owned source is resolved once
+host-side and delivered to every instance via `panel_sources`. One
+asymmetry is illegal by construction: a **panel-owned consumer requires
+a panel-owned source** — pairing a shared consumer (≥2 formulas) with
+formula-local sources is a parse-time error at
+[`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md),
+because one shared column picker cannot list columns from two different
+datasets.
+
 **Shared section** *(inline, formula-local)*: The block of shared-key
 widgets rendered **inside one formula’s control panel**, for keys that
 occur **only in that formula**. **Namespaced via the controls’ `ns`**
@@ -133,40 +189,53 @@ occur **only in that formula**. **Namespaced via the controls’ `ns`**
 (the single public server entry) — **no top-level
 [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)**.
 Automatic (a formula with formula-local shared keys gets one; not
-user-triggered). Today governed by the internal `render_shared_section`
-flag (whole-section on/off, no per-key partition). *Avoid*: calling this
-a “panel”; assuming it knows about other formulas.
+user-triggered). The internal `render_shared_section` flag toggles
+whether the whole section renders; **the per-key partition is applied**
+— panel-owned keys (≥2 formulas) are excluded from the inline section
+via `host_owned_keys` (`ptr_bind_local_shared_consumers`), so a key
+never renders in both the section and the panel. *Avoid*: calling this a
+“panel”; assuming it knows about other formulas.
 
-**Shared panel** *(standalone, cross-formula)*: The single page-level
+**Shared panel** *(standalone, cross-formula)*: The page-level
 [`shiny::wellPanel()`](https://rdrr.io/pkg/shiny/man/wellPanel.html)
-built by `ptr_shared_ui(formulas, …)`, holding only keys referenced by
-**≥2 formulas**. Uses **global, un-namespaced ids** (`shared_<key>`,
-`ptr_shared_draw_all`, `ptr_shared_errors`); **exactly one per page**;
-its server counterpart
-[`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md)
-**must run at the top level**, never inside `moduleServer(id)`. *Avoid*:
-calling this a “section”; assuming it can be namespaced or duplicated
-per module; assuming it currently filters to cross-formula keys (today
-it takes *all* keys).
+built by `ptr_shared_panel(obj)` (from the coordinator `obj`, not raw
+`formulas`), holding only keys referenced by **≥2 formulas**.
+`ptr_shared(..., id = ...)` namespaces every shared id under the
+coordinator’s `id` (`<id>_shared_<key>`, `<id>_ptr_shared_draw_all`,
+`<id>_ptr_shared_errors`) — see
+`R/paintr-shared-coordinator.R:220–234, 292`. **Multiple coordinators on
+one page are supported**, each with its own `id`; their server
+counterparts `ptr_shared_server(obj)` all run at the top level, never
+inside `moduleServer(id)`. Panel-owned shared **sources**
+(`ppUpload(shared=)` referenced by ≥2 formulas) are resolved host-side
+and delivered to each instance via the bundle’s `panel_sources` field
+(`ptr_setup_panel_sources()`, ADR 0023) — the source-role gap ADR 0005
+left open is now closed. *Avoid*: calling this a “section”; assuming a
+single coordinator id is mandatory; assuming the panel currently filters
+to cross-formula keys (today it takes *all* keys).
 
-### Shared coordinator *(in flux — new design)*
+### Shared coordinator
 
 **Shared coordinator** (`obj`) — **LOCKED 2026-05-16**: A single **pure,
 non-reactive** object built once from the full formula set,
 consolidating *all* shared config:
-`ptr_shared(formulas, shared_ui = list(), ui_text = NULL, expr_check = TRUE, draw_all_label = "Draw all")`
+`ptr_shared(formulas, id = NULL, ui_text = NULL, expr_check = TRUE, draw_all_label = "Draw all")`
 → `obj`. (`expr_check` is needed because it translates the formulas to
-find shared keys.) It computes the **partition** (per key: formula-local
-→ that formula’s section; ≥2 formulas → the panel) and is the *single
-source of truth* so UI and server can never disagree. Consumed by
-exactly three functions, which take **only `obj`** (no duplicated
-config): - `ptr_shared_panel(obj, css = NULL)` — L2 self-contained panel
-(`css` = the L2 restyle hook). - `ptr_ui_shared_panel(obj)` — L3 bare
-panel (no `css`; the L3 shell owns assets). - `ptr_shared_server(obj)` —
-the reactive `ptr_shared_state` bundle, unchanged downstream into
-`ptr_server(shared_state=)`. *Avoid*: deriving the partition
-independently anywhere else; treating `obj` as reactive; putting
-`shared_ui`/`ui_text` config on the panel functions.
+find shared keys; `id` namespaces the panel so multiple coordinators can
+coexist on one page. The former `shared_ui` per-key widget-override
+argument was **removed** — every shared key now auto-renders via its
+placeholder’s own `build_ui`.) It computes the **partition** (per key:
+formula-local → that formula’s section; ≥2 formulas → the panel) and is
+the *single source of truth* so UI and server can never disagree.
+Consumed by exactly three functions, which take **only `obj`** (no
+duplicated config): - `ptr_shared_panel(obj, css = NULL)` — L2
+self-contained panel (`css` = the L2 restyle hook). -
+`ptr_ui_shared_panel(obj)` — L3 bare panel (no `css`; the L3 shell owns
+assets). - `ptr_shared_server(obj)` — the reactive `ptr_shared_state`
+bundle, unchanged downstream into `ptr_server(shared_state=)`. *Avoid*:
+deriving the partition independently anywhere else; treating `obj` as
+reactive; putting `ui_text` config on the panel functions; referring to
+a `shared_ui` argument (removed).
 
 **Shared usage by instance count** — **LOCKED 2026-05-16**: - **One
 ggpaintr instance** ⟹ no `shared=obj`; *all* shared widgets auto-render
@@ -191,6 +260,66 @@ other pieces (`ptr_ui_plot`/`ptr_ui_error`/`ptr_ui_code`/header) are
 **shared-agnostic** — they never take `obj`. - Single-formula L3, no
 panel → omit `obj`; the controls piece renders all the formula’s shared
 keys (every key is formula-local by definition).
+
+### Layer and stage toggles — `pp*` structural-keyword family
+
+The `pp*` family has two roles, registered through the same registry but
+routed differently by the translator:
+
+- **Placeholders** (`role = "value"` / `"consumer"` / `"source"`):
+  `ppText`, `ppNum`, `ppExpr`, `ppVar`, `ppUpload`. Become `ptr_ph_*`
+  nodes; each is a UI widget bind-point. Naked-R semantics: identity
+  (return their arg unchanged) so the formula renders out-of-ggpaintr
+  too.
+- **Structural keywords** (`role = "structural"`): `ppLayerOff`,
+  `ppVerbSwitch`. Never become `ptr_ph_*` nodes — the translator’s
+  *special-unwrap* branches recognise the wrapper, translate the inner
+  expression as a normal layer/stage, and stamp metadata on the
+  resulting carrier node. The wrapper itself never appears in the typed
+  tree.
+
+*Avoid*: calling structural keywords “placeholders” — they don’t bind to
+widgets, they configure UI behavior of other nodes; “off-by-default”
+wrappers as if there’s only one such family — `ppLayerOff(layer, hide=)`
+toggles an *already-existing* layer checkbox;
+`ppVerbSwitch(verb, switch_on=, label=)` *creates* a stage checkbox
+(with custom label) that wouldn’t otherwise exist.
+
+**Formula-as-source-of-truth principle** (ADR 0020, refined by ADR
+0021): the formula is the canonical record of what the app shows at boot
+for *every* first-class UI control — placeholders’ initial values
+(`ppText(initial = "hi")`), layer-checkbox boot state
+(`ppLayerOff(..., hide = TRUE)`), and stage-checkbox existence + boot
+state + label (`ppVerbSwitch(verb, switch_on = FALSE, label = "…")`).
+The same formula reads the same in or out of ggpaintr — naked-R
+semantics drop hidden layers, skip switched-off verbs, and ignore
+UI-only `label` args.
+
+**`stage_id` is a UI-routing key, not execution-shape** — **LOCKED
+2026-05-24 (ADR 0021)**: a `ptr_call` carrying
+`stage_id = "<layer>_<path>_stage_enabled"` is *addressable* by a UI
+checkbox; without a stage_id (or with one whose `stage_enabled[[sid]]`
+reactive is unbound or non-`FALSE`) the stage runs unconditionally.
+`disable_walk` drops a stage iff `isFALSE(stage_enabled[[sid]])` —
+NULL/missing reactives are runtime no-ops. Therefore `stage_id` differs
+between two trees only when they differ on “does this stage have a UI
+checkbox?” — pure UI-affordance metadata. **`ptr_tree_structural_equal`
+excludes `stage_id`** alongside `default_active` /
+`default_stage_enabled` / `has_user_control` / `stage_label` / `op` /
+`expr`. This supersedes ADR 0020’s *Out-of-Scope* note that called
+`stage_id` “runtime-semantic”; that framing was based on what
+`disable_walk` *can* do given a stage_id, not what it *does* in the
+unwired case. *Avoid*: treating `stage_id` presence as an
+execution-shape difference; assuming `stage_id` stamping changes runtime
+behavior on its own (it doesn’t — only a bound `FALSE` reactive does);
+“stage_id is runtime-semantic” (the ADR-0020 framing this overrides).
+
+**Stage-checkbox gating** (`R/paintr-disable.R::is_data_chain_call`): a
+`ptr_call` qualifies for a `stage_id` iff its subtree contains a
+placeholder **OR** it carries `has_user_control = TRUE` (stamped by
+`ppVerbSwitch`). Single gate, two triggers — the post-translate stamping
+pass `stamp_default_stage_enabled_ids` that Plan 01 introduced as a
+workaround is removed; the gate does the work in one place.
 
 ### Naming convention — **LOCKED 2026-05-16**
 
@@ -304,15 +433,41 @@ bslib/BS5). Not part of normal L2/L3 use.
   server was found also binding *formula-local* consumer pickers (global
   ids), contradicting “the owning instance binds it”. **Resolved (grill
   2026-05-17)**: the host server binds **only** panel keys; the owning
-  instance binds every formula-local key (consumer or value). One
-  partition, one owner, no double-bind.
+  instance binds every formula-local key — value, consumer, and source
+  alike. One partition, one owner, no double-bind.
+- **“is `stage_id` runtime-semantic?”** — ADR 0020’s *Out-of-Scope* note
+  classified `stage_id` as “runtime-semantic — `disable_walk` reads it
+  to drop stages” and on that basis forbade `stage_id` from the
+  comparator-exclusion list, blocking Plan-03 SC7’s verb-side
+  structural-equality invariant. **Resolved (ADR 0021, 2026-05-24)**:
+  source inspection (`R/paintr-disable.R::is_stage_disabled`) shows
+  `disable_walk` drops a stage iff `isFALSE(stage_enabled[[sid]])` —
+  unbound reactives are no-ops. `stage_id` is a *UI-routing key*: it
+  enables a UI-driven gate without changing baseline runtime behavior.
+  It joins the exclusion list alongside `default_active` /
+  `default_stage_enabled` / `has_user_control` / `stage_label`. SC7 is
+  restored as a side effect of the `ppVerbOff` → `ppVerbSwitch`
+  replacement.
+- **“`ppVerbOff` vs `ppVerbControl` vs `ppVerbSwitch` naming and
+  shape”** — ADR 0020’s *Out-of-Scope* note proposed a future
+  `ppControl` placeholder with a *sibling-node* shape (control-only node
+  parallel to the verb in the tree) to dodge the `stage_id` asymmetry.
+  **Resolved (ADR 0021, 2026-05-24)**: the sibling-node proposal is
+  rejected — the user-facing surface for any verb-stage UI control is
+  wrapping (`ppVerbSwitch(verb, switch_on=, label=)`), not siblings
+  (which cannot be expressed in surface R without inventing a non-pipe
+  operator). One keyword (`ppVerbSwitch`) strictly subsumes `ppVerbOff`;
+  `ppVerbOff` is hard-removed in the same change.
 
 ## Example dialogue
 
-> **Embedder:** “I’ll drop `ptr_shared_ui()` into each module’s sidebar
-> so every plot gets the shared control.” **Maintainer:** “No — the
-> **shared panel** uses global ids and one top-level
-> [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md);
-> N copies collide. One standalone panel per page. If you only have
-> *one* formula, you don’t want the panel at all — you want the inline
-> **shared section** (`render_shared_section = TRUE`).”
+> **Embedder:** “I’ll drop
+> [`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md)
+> into each module’s sidebar so every plot gets the shared control.”
+> **Maintainer:** “No — the **shared panel** uses coordinator-namespaced
+> ids built by `ptr_shared(..., id = ...)`; two copies of the *same*
+> coordinator collide because they share an `id`. If you genuinely need
+> two independent shared groups on one page, build two coordinators with
+> different `id`s and emit a `ptr_shared_panel(obj)` for each. If you
+> only have *one* formula, you don’t want the panel at all — you want
+> the inline **shared section** (`render_shared_section = TRUE`).”

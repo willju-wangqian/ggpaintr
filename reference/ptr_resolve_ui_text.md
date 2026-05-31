@@ -29,7 +29,7 @@ ptr_resolve_ui_text(
 
 - keyword:
 
-  Placeholder keyword (e.g. `"var"`, `"num"`); required when
+  Placeholder keyword (e.g. `"ppVar"`, `"ppNum"`); required when
   `component = "control"`.
 
 - param:
@@ -62,7 +62,7 @@ ptr_resolve_ui_text("title")
 #> 
 
 # Resolve copy for a var control on the x-axis
-ptr_resolve_ui_text("control", keyword = "var", param = "x")
+ptr_resolve_ui_text("control", keyword = "ppVar", param = "x")
 #> $label
 #> [1] "Choose the x-axis column"
 #> 

@@ -17,7 +17,7 @@ ptr_extract_code(), ptr_gg_extra())."><meta property="og:image" content="https:/
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -30,10 +30,8 @@ ptr_extract_code(), ptr_gg_extra())."><meta property="og:image" content="https:/
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -67,7 +65,6 @@ accessors (<code><a href="ptr_extract.html">ptr_extract_plot()</a></code> / <cod
 <span>  <span class="va">formula</span>,</span>
 <span>  envir <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/sys.parent.html" class="external-link">parent.frame</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  safe_to_remove <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/character.html" class="external-link">character</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  shared <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
@@ -78,6 +75,7 @@ accessors (<code><a href="ptr_extract.html">ptr_extract_plot()</a></code> / <cod
 <span>  auto_bind_shared <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  shared_resolutions <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  shared_stage_enabled <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  panel_sources <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  plots <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -99,13 +97,8 @@ accessors (<code><a href="ptr_extract.html">ptr_extract_plot()</a></code> / <cod
 for the full schema and current defaults.</p></dd>
 
 
-<dt id="arg-checkbox-defaults">checkbox_defaults<a class="anchor" aria-label="anchor" href="#arg-checkbox-defaults"></a></dt>
-<dd><p>Optional named list of initial checked states for
-layer checkboxes.</p></dd>
-
-
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
-<dd><p>Controls <code>expr</code> placeholder validation: <code>TRUE</code> (default)
+<dd><p>Controls <code>ppExpr</code> placeholder validation: <code>TRUE</code> (default)
 applies the built-in denylist + AST walker; <code>FALSE</code> disables all
 validation; a <code>list</code> with <code>deny_list</code>/<code>allow_list</code> entries customises
 the policy. See <code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code>.</p></dd>
@@ -128,7 +121,7 @@ outer wrapper such as <code><a href="ptr_app_grid.html">ptr_app_grid()</a></code
 
 <dt id="arg-producer-debounce-ms">producer_debounce_ms<a class="anchor" aria-label="anchor" href="#arg-producer-debounce-ms"></a></dt>
 <dd><p>Optional. Controls the debounce window applied
-to producer-style placeholder inputs (<code>text</code>, <code>num</code>, <code>expr</code>) before they
+to producer-style placeholder inputs (<code>ppText</code>, <code>ppNum</code>, <code>ppExpr</code>) before they
 invalidate downstream consumer caches. <code>NULL</code> (default) enables auto
 mode: window starts at 0 ms and the runtime flips to 300 ms after three
 consecutive upstream resolutions exceed 150 ms (and back to 0 after five
@@ -154,7 +147,7 @@ scope. Relaxes the "missing-from-bindings" check in
 
 <dt id="arg-shared-resolutions">shared_resolutions<a class="anchor" aria-label="anchor" href="#arg-shared-resolutions"></a></dt>
 <dd><p>Named list (keyed by raw shared key) of
-host-computed resolutions for shared data-consumer (<code>var</code>) widgets,
+host-computed resolutions for shared data-consumer (<code>ppVar</code>) widgets,
 as returned by <code>ptr_resolve_shared_consumers()</code>. When an entry is
 present, the runtime validates that key's selection against the
 host-resolved upstream (the same data the host picker was built
@@ -169,6 +162,16 @@ reactives, each returning a logical, that toggle the orphan pipeline
 stages owned by that shared key (as carried in a
 <code><a href="ptr_shared_server.html">ptr_shared_server()</a></code> bundle). A missing or unset entry leaves the
 stage enabled. Defaults to <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code>.</p></dd>
+
+
+<dt id="arg-panel-sources">panel_sources<a class="anchor" aria-label="anchor" href="#arg-panel-sources"></a></dt>
+<dd><p>Named list (keyed by source-node id) of reactives,
+each returning the host-loaded data for a panel-owned shared source
+(ADR 0023). Populated by the host's <code>ptr_setup_panel_sources()</code> and
+threaded through a <code><a href="ptr_shared_server.html">ptr_shared_server()</a></code> bundle so per-instance binders
+read the host's primed data (<code>state$panel_sources[[node$id]]</code>) instead
+of re-wiring their own source UI. Defaults to <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> (single-plot /
+per-instance context — no panel-owned sources).</p></dd>
 
 
 <dt id="arg-plots">plots<a class="anchor" aria-label="anchor" href="#arg-plots"></a></dt>
@@ -198,7 +201,7 @@ drive the typed tree programmatically or exercise ggpaintr under
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/isolate.html" class="external-link">isolate</a></span><span class="op">(</span><span class="op">{</span></span></span>
 <span class="r-in"><span>  <span class="va">state</span> <span class="op">&lt;-</span> <span class="fu">ptr_init_state</span><span class="op">(</span></span></span>
-<span class="r-in"><span>    <span class="st">"ggplot(mtcars, aes(x = var, y = var)) + geom_point()"</span></span></span>
+<span class="r-in"><span>    <span class="st">"ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"</span></span></span>
 <span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">is.list</a></span><span class="op">(</span><span class="va">state</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span><span class="op">)</span></span></span>

@@ -24,8 +24,8 @@ ptr_ui_page(..., page = shiny::fluidPage, css = NULL)
   `navbarPage` (needs a positional `title` + `tabPanel` children) and
   NOT bslib/BS5 pages (the bundled CSS is Bootstrap-3-scoped – see
   [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)).
-  For those roots, compose by hand: see the decomposition example in
-  [`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md).
+  For those roots, compose by hand: see
+  [`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md).
 
 - css:
 
@@ -49,7 +49,7 @@ A `shiny.tag` — the Bootstrap page node ready to pass to
 ## Examples
 
 ``` r
-f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 ptr_ui_page(
   shiny::sidebarLayout(
     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),
@@ -67,22 +67,22 @@ ptr_ui_page(
 #> <option value="geom_point">geom_point</option></select>
 #>           </div>
 #>           <div class="tabbable">
-#>             <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="1863">
+#>             <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="2549">
 #>               <li class="active">
-#>                 <a href="#tab-1863-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>                 <a href="#tab-2549-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
 #>               </li>
 #>               <li>
-#>                 <a href="#tab-1863-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>                 <a href="#tab-2549-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
 #>               </li>
 #>             </ul>
-#>             <div class="tab-content" data-tabsetid="1863">
-#>               <div class="tab-pane active" data-value="ggplot" id="tab-1863-1">
+#>             <div class="tab-content" data-tabsetid="2549">
+#>               <div class="tab-pane active" data-value="ggplot" id="tab-2549-1">
 #>                 <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
-#>                   <div id="p-ggplot_1_1_var_NA_ui" class="shiny-html-output"></div>
-#>                   <div id="p-ggplot_1_2_var_NA_ui" class="shiny-html-output"></div>
+#>                   <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
+#>                   <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
 #>                 </div>
 #>               </div>
-#>               <div class="tab-pane" data-value="geom_point" id="tab-1863-2">
+#>               <div class="tab-pane" data-value="geom_point" id="tab-2549-2">
 #>                 <div class="form-group shiny-input-container">
 #>                   <div class="checkbox">
 #>                     <label>

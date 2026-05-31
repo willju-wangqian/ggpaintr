@@ -20,7 +20,6 @@ ptr_ui_controls(
   formula,
   id = NULL,
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   shared = NULL
 )
@@ -44,13 +43,9 @@ ptr_ui_controls(
   [`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md)
   for the full schema and current defaults.
 
-- checkbox_defaults:
-
-  Optional named list of initial checked states.
-
 - expr_check:
 
-  Controls `expr` placeholder validation: `TRUE` (default) applies the
+  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
   built-in denylist + AST walker; `FALSE` disables all validation; a
   `list` with `deny_list`/`allow_list` entries customises the policy.
   See
@@ -84,8 +79,8 @@ composed pieces in
 which *is* the Bootstrap page and owns the single `.ptr-app` scope + the
 (deduped) assets. For a `navbarPage` or bslib root (which
 [`ptr_ui_page()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_page.md)
-does not cover) see the decomposition recipe in
-[`vignette("ggpaintr-use-cases")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-use-cases.md).
+does not cover) see
+[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md).
 
 For finer control still — placing individual placeholder widgets
 independently rather than the whole panel — register a custom
@@ -105,7 +100,7 @@ placeholder type; see
 
 ``` r
 ptr_ui_controls(
-  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
   id = "p"
 )
 #> <div class="form-group shiny-input-container">
@@ -114,22 +109,22 @@ ptr_ui_controls(
 #> <option value="geom_point">geom_point</option></select>
 #> </div>
 #> <div class="tabbable">
-#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="6312">
+#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="9649">
 #>     <li class="active">
-#>       <a href="#tab-6312-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>       <a href="#tab-9649-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
 #>     </li>
 #>     <li>
-#>       <a href="#tab-6312-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>       <a href="#tab-9649-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
 #>     </li>
 #>   </ul>
-#>   <div class="tab-content" data-tabsetid="6312">
-#>     <div class="tab-pane active" data-value="ggplot" id="tab-6312-1">
+#>   <div class="tab-content" data-tabsetid="9649">
+#>     <div class="tab-pane active" data-value="ggplot" id="tab-9649-1">
 #>       <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
-#>         <div id="p-ggplot_1_1_var_NA_ui" class="shiny-html-output"></div>
-#>         <div id="p-ggplot_1_2_var_NA_ui" class="shiny-html-output"></div>
+#>         <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
+#>         <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
 #>       </div>
 #>     </div>
-#>     <div class="tab-pane" data-value="geom_point" id="tab-6312-2">
+#>     <div class="tab-pane" data-value="geom_point" id="tab-9649-2">
 #>       <div class="form-group shiny-input-container">
 #>         <div class="checkbox">
 #>           <label>

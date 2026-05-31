@@ -19,7 +19,7 @@ ptr_server().'><meta property="og:image" content="https://willju-wangqian.github
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,10 +32,8 @@ ptr_server().'><meta property="og:image" content="https://willju-wangqian.github
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -70,7 +68,6 @@ wherever you like, and wire the server with <code><a href="ptr_server.html">ptr_
 <span>  <span class="va">formula</span>,</span>
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ui_text <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  checkbox_defaults <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  expr_check <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  shared <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
@@ -95,12 +92,8 @@ Defaults to <code>NULL</code> (identity namespace). When set, must match the
 <code><a href="ptr_ui_text.html">ptr_ui_text()</a></code> for the full schema and current defaults.</p></dd>
 
 
-<dt id="arg-checkbox-defaults">checkbox_defaults<a class="anchor" aria-label="anchor" href="#arg-checkbox-defaults"></a></dt>
-<dd><p>Optional named list of initial checked states.</p></dd>
-
-
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
-<dd><p>Controls <code>expr</code> placeholder validation: <code>TRUE</code> (default)
+<dd><p>Controls <code>ppExpr</code> placeholder validation: <code>TRUE</code> (default)
 applies the built-in denylist + AST walker; <code>FALSE</code> disables all
 validation; a <code>list</code> with <code>deny_list</code>/<code>allow_list</code> entries customises
 the policy. See <code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code>.</p></dd>
@@ -128,7 +121,7 @@ asset bundle. Don't assemble that scaffolding by hand: wrap your
 composed pieces in <code><a href="ptr_ui_page.html">ptr_ui_page()</a></code>, which <em>is</em> the Bootstrap page and
 owns the single <code>.ptr-app</code> scope + the (deduped) assets. For a
 <code>navbarPage</code> or bslib root (which <code><a href="ptr_ui_page.html">ptr_ui_page()</a></code> does not cover) see
-the decomposition recipe in <code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code>.</p>
+<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code>.</p>
 <p>For finer control still — placing individual placeholder widgets
 independently rather than the whole panel — register a custom placeholder
 type; see <code><a href="ptr_define_placeholder_value.html">ptr_define_placeholder_value()</a></code>.</p>
@@ -142,7 +135,7 @@ type; see <code><a href="ptr_define_placeholder_value.html">ptr_define_placehold
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">ptr_ui_controls</span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = var, y = var)) + geom_point()"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"</span>,</span></span>
 <span class="r-in"><span>  id <span class="op">=</span> <span class="st">"p"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;div class="form-group shiny-input-container"&gt;</span>
@@ -151,22 +144,22 @@ type; see <code><a href="ptr_define_placeholder_value.html">ptr_define_placehold
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;option value="geom_point"&gt;geom_point&lt;/option&gt;&lt;/select&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;div class="tabbable"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="6312"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="9649"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;li class="active"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-6312-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot"&gt;ggplot&lt;/a&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-9649-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot"&gt;ggplot&lt;/a&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/li&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;li&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-6312-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point"&gt;geom_point&lt;/a&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-9649-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point"&gt;geom_point&lt;/a&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/li&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;/ul&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;div class="tab-content" data-tabsetid="6312"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane active" data-value="ggplot" id="tab-6312-1"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;div class="tab-content" data-tabsetid="9649"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane active" data-value="ggplot" id="tab-9649-1"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;div id="p-ptr_layer_content_ggplot" class="ptr-layer-content"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_1_var_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_2_var_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/div&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane" data-value="geom_point" id="tab-6312-2"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane" data-value="geom_point" id="tab-9649-2"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;div class="form-group shiny-input-container"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div class="checkbox"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           &lt;label&gt;</span>

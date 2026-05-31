@@ -57,8 +57,8 @@ Override lists mirror the structure of `ptr_ui_text()`. Recognised paths
 
 - `layer_checkbox$<leaf>`
 
-- `defaults$<keyword>$<leaf>` — per placeholder keyword (`var`, `text`,
-  `num`, `expr`, `upload`, ...)
+- `defaults$<keyword>$<leaf>` — per placeholder keyword (`ppVar`,
+  `ppText`, `ppNum`, `ppExpr`, `ppUpload`, ...)
 
 - `params$<param>$<keyword>$<leaf>` — per aesthetic/argument name (`x`,
   `y`, `color`, ...); aliases (`colour`, `size`) are normalized

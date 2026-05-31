@@ -13,7 +13,7 @@ via ptr_ui_page())."><meta property="og:image" content="https://willju-wangqian.
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -26,10 +26,8 @@ via ptr_ui_page())."><meta property="og:image" content="https://willju-wangqian.
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -74,6 +72,10 @@ via <code><a href="ptr_ui_page.html">ptr_ui_page()</a></code>).</p>
 <code>NULL</code> when no panel keys exist.</p>
     </div>
     <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Namespacing is inherited from <code>obj$id</code>; supply it to <code><a href="ptr_shared.html">ptr_shared()</a></code>.</p>
+    </div>
+    <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
     <div class="dont-index"><p><code><a href="ptr_shared.html">ptr_shared()</a></code>, <code><a href="ptr_shared_panel.html">ptr_shared_panel()</a></code>,
 <code><a href="ptr_shared_server.html">ptr_shared_server()</a></code>.</p></div>
@@ -82,8 +84,8 @@ via <code><a href="ptr_ui_page.html">ptr_ui_page()</a></code>).</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="ptr_shared.html">ptr_shared</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()"</span>,</span></span>
-<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"</span></span></span>
+<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()"</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"</span></span></span>
 <span class="r-in"><span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">ptr_ui_shared_panel</span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;div class="well"&gt;</span>

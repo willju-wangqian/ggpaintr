@@ -8,11 +8,9 @@ A small wrapper that composes the public ggpaintr primitives
 inside a
 [`bslib::page_sidebar()`](https://rstudio.github.io/bslib/reference/page_sidebar.html)
 shell. Exported so users who want a quick `bslib`-themed app can call it
-directly, but its primary purpose is to illustrate the wrapper pattern
-documented in
-[`vignette("ggpaintr-customization")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-customization.md)
-§ "Writing your own wrapper" — the entire source is short enough to copy
-and adapt for any other layout or theme.
+directly, but its primary purpose is to illustrate the wrapper pattern:
+the entire source is short enough to copy and adapt for any other layout
+or theme.
 
 ## Usage
 
@@ -21,10 +19,10 @@ ptr_app_bslib(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  theme = NULL
+  theme = NULL,
+  spec = NULL
 )
 ```
 
@@ -44,13 +42,9 @@ ptr_app_bslib(
   placeholders. The app title is read from `ui_text$shell$title$label`;
   defaults to `"ggpaintr"`.
 
-- checkbox_defaults:
-
-  Optional named list of initial checked states for layer checkboxes.
-
 - expr_check:
 
-  Controls `expr` placeholder validation: `TRUE` (default) applies the
+  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
   built-in denylist + AST walker; `FALSE` disables all validation; a
   `list` with `deny_list`/`allow_list` entries customises the policy.
   See
@@ -73,6 +67,12 @@ ptr_app_bslib(
   free to expose downstream-library args like this in addition to
   whatever ggpaintr primitives they compose.
 
+- spec:
+
+  An optional named list of fully-qualified Shiny input id -\> value,
+  used to override widget defaults at session boot. See [ADR
+  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
+
   For the formula grammar (placeholder keywords, shared annotation,
   empty-call cleanup), see
   [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).
@@ -89,7 +89,7 @@ and
 [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md).
 Requires the `bslib` package (`install.packages("bslib")`).
 
-Single-formula `var(shared = "...")` coordination is not supported on
+Single-formula `ppVar(shared = "...")` coordination is not supported on
 this wrapper — the auto-built shared widgets
 [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
 provides require an internal helper that is not part of the public API
@@ -97,15 +97,15 @@ today. Use
 [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
 for that case, or
 [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
-(with explicit `shared_ui =` builders) for multi-formula shared
-coordination.
+for multi-formula shared coordination (the shared widgets auto-render
+from each placeholder's own `build_ui`).
 
 ## Examples
 
 ``` r
 if (interactive()) {
 ptr_app_bslib(
-  "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 )
 }
 ```

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -20,10 +20,8 @@
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
@@ -49,6 +47,16 @@
 <p>An R package that turns ggplot-like formula strings into Shiny apps. Placeholder tokens in the formula (<code>var</code>, <code>text</code>, <code>num</code>, <code>expr</code>, <code>upload</code>) become Shiny input widgets automatically.</p>
 </div>
 <div class="section level2">
+<h2 id="before-implementing--context-sufficiency-check-do-this-first">Before implementing — context-sufficiency check (do this FIRST)<a class="anchor" aria-label="anchor" href="#before-implementing--context-sufficiency-check-do-this-first"></a></h2>
+<p>Treat any handoff / bug report / “locked decision” / “N-line fix” as a <strong>hypothesis about scope</strong>, never as the full picture. Bugs here often span multiple sessions and branches (e.g. the consumer-seeding / source-binding / boot-default / auto-name complex). Before writing code, <strong>verify breadth, not just depth</strong>:</p>
+<ul><li>Read the cited ADR(s) in <code>dev/adr/</code> <strong>in full</strong> (not by reference) and <code>CONTEXT.md</code> for the domain model.</li>
+<li>
+<code>git log --oneline -- &lt;touched files/area&gt;</code> and scan recent commits for prior related work; check <strong>sibling branches/worktrees</strong> (<code>git branch -vv</code>, <code>git worktree list</code>) and <code>.scratch/</code> + <code>dev/</code> notes — an active multi-session campaign usually leaves tracks there.</li>
+<li>Grep <code>MEMORY.md</code> + the memory dir for the area; recalled memories naming a related bug are a signal to go read it.</li>
+<li>Then <strong>state, before coding: what larger complex this belongs to, what’s already been tried, and what context is still missing.</strong> If the answer is “this is one facet of X,” map X first.</li>
+</ul><p>A handoff’s “complete / verified / 2-line” claim gets the <em>same skepticism as its code claims</em> — and the breadth check is <strong>proactive</strong> (up front), not reactive (only when a test breaks). When in doubt, fan out and read widely before narrowing. See memory <code>verify-breadth-not-just-depth</code>.</p>
+</div>
+<div class="section level2">
 <h2 id="commands">Commands<a class="anchor" aria-label="anchor" href="#commands"></a></h2>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">test</span><span class="op">(</span><span class="op">)</span>                          <span class="co"># run all tests</span></span>
@@ -59,17 +67,18 @@
 <span><span class="kw"><a href="https://rdrr.io/r/base/source.html" class="external-link">source</a></span><span class="op">(</span><span class="st">"dev/build-pkgdown.R"</span><span class="op">)</span>; <span class="fu">build_pkgdown_clean</span><span class="op">(</span><span class="op">)</span>  <span class="co"># build documentation site</span></span></code></pre></div>
 </div>
 <div class="section level2">
+<h2 id="git-hooks--fresh-clone-bootstrap">Git hooks — fresh-clone bootstrap<a class="anchor" aria-label="anchor" href="#git-hooks--fresh-clone-bootstrap"></a></h2>
+<p>Hooks are tracked in <code>dev/githooks/</code> and wired via <code>core.hooksPath</code> (not the untracked <code>.git/hooks/</code> shims — removed 2026-05-30). <code>core.hooksPath</code> is <strong>not</strong> cloned, so each fresh clone needs this one line once (worktrees of an existing clone inherit it from the shared config — nothing to do):</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">git</span> config core.hooksPath dev/githooks</span></code></pre></div>
+<p><code>pre-commit</code> = the implementable-PASS gate + <code>symbol-lines.json</code> regen. <code>post-merge</code> = the <code>mark-stale-finding</code> drift detector (flips findings to <code>status=stale</code> when a cited file changed since their <code>verified_at_commit</code>; informational, never blocks — then run <code>/maintain-finding</code>). The relative path resolves per-worktree, and a worktree whose checkout lacks a given hook file simply skips it.</p>
+</div>
+<div class="section level2">
 <h2 id="conventions">Conventions<a class="anchor" aria-label="anchor" href="#conventions"></a></h2>
-<ul><li>Source files: <code>R/paintr-*.R</code>. Tests: <code>tests/testthat/test-*.R</code>.</li>
-<li>Public API: functions prefixed <code>ptr_</code>. Internal helpers are unexported.</li>
-<li>Tidyverse style: snake_case, 2-space indent.</li>
-<li>NAMESPACE is auto-generated by roxygen2 — never edit by hand.</li>
-<li>Dependencies: rlang (tidy eval + error signaling), assertthat (validation), cli (message formatting), ggplot2 (plot rendering), purrr (functional helpers), shiny + shinyWidgets (UI), bslib (optional, powers ptr_app_bslib()).</li>
-</ul></div>
+<p>Style (<code>ptr_</code> prefix, snake_case, 2-space), error/message idioms (<code><a href="https://rlang.r-lib.org/reference/abort.html" class="external-link">rlang::abort</a></code>, <code><a href="https://cli.r-lib.org/reference/cli_abort.html" class="external-link">cli::cli_warn</a></code>), validation (<code>assertthat</code>), and the NAMESPACE / <code>devtools::document()</code> workflow live in <code>.claude/rules/coding.md</code>. Project-specific: source <code>R/paintr-*.R</code>, tests <code>tests/testthat/test-*.R</code>; dependencies — rlang (tidy eval + error signaling), assertthat (validation), cli (messages), ggplot2 (rendering), purrr (functional helpers), shiny + shinyWidgets (UI), bslib (optional, powers <code><a href="reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>).</p>
+</div>
 <div class="section level2">
 <h2 id="code-exploration-tools">Code Exploration Tools<a class="anchor" aria-label="anchor" href="#code-exploration-tools"></a></h2>
-<p>Prefer Serena MCP symbolic tools over Read/Grep/Bash when exploring R source: - <code>mcp__serena__get_symbols_overview</code> — list all functions in a file (one call, fast) - <code>mcp__serena__find_symbol</code> — fetch a function’s body or signature by name (use <code>name_path_pattern</code>, not <code>name_path</code>; <code>relative_path</code> must be a file, not a directory) - <code>mcp__serena__find_referencing_symbols</code> — find callers of a function</p>
-<p>Reserve <code>Read</code> for <code>.Rmd</code>, <code>.md</code>, <code>.yml</code>, and for roxygen comment text outside function bodies. Reserve <code>Grep</code> for patterns that aren’t symbol-shaped (string literals, multi-file text search). This cuts tool-call count and preserves context on large R source files.</p>
+<p>Serena symbolic tools pay off only for navigating <em>named</em> functions in large <code>R/paintr-*.R</code> files; use Bash <code>grep</code> / <code>Read</code> for cross-file search and non-R files, and <code>Rscript</code> probes for runtime/reactive behavior. Full routing table, diagnosis ordering, and the sub-agent worktree edit-leak pitfall: <code>.claude/rules/serena-tools.md</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="source-of-truth-rules">Source of Truth Rules<a class="anchor" aria-label="anchor" href="#source-of-truth-rules"></a></h2>
@@ -80,6 +89,12 @@
 <li>Stored task files (<code>dev/tasks/*.md</code>) stay unchanged unless the user explicitly asks to edit them.</li>
 <li>Do not create ad-hoc markdown files in <code>.claude/specs/</code>.</li>
 <li>Architectural decision records live in <code>dev/adr/</code> (not <code>docs/</code> — that’s pkgdown’s generated, gitignored output). Agent-skill config lives in <code>dev/agents/</code> (see <code>## Agent skills</code> below).</li>
+<li>Audit results (pre-merge / post-merge / drift / roxygen / e2e / LLM / etc.) save to <code>dev/audit/audit-&lt;topic&gt;-&lt;time&gt;.html</code> — single home for every audit artifact, not <code>dev/notes/</code>.</li>
+<li>
+<code>dev/feature_bank/</code> is <strong>deprecated — NOT a source of truth</strong> (demoted 2026-05-28; its substring-match coverage went stale). Do not cite, regenerate, or treat its rows as authoritative. Derive feature/coverage status from the R source + <code>NAMESPACE</code> + <code>CONTEXT.md</code> + <code>dev/adr/</code> + the test suite.</li>
+<li>
+<code>vignettes/*.Rmd</code> were <strong>rewritten 2026-05-30 to the current API</strong> — the live set is exactly <code>ggpaintr-tutorial</code>, <code>ggpaintr-safety</code>, <code>ggpaintr-llm</code> (the stale <code>ggpaintr-use-cases</code> / <code>ggpaintr-customization</code> / <code>ggpaintr-gallery</code> were retired to <code>archive/retired_vignettes/</code>, excluded from the build via <code>.Rbuildignore ^archive$</code>). The live three are kept honest against the <code>tests/testthat/fixtures/vignette-apps/*/app.R</code> mirrors (e2e-exercised) and a build-time gate, so treat them as current; for a precise code-shaped claim still cross-check the R source + <code>NAMESPACE</code> + <code>CONTEXT.md</code> + <code>dev/adr/</code>.</li>
+<li>Generated HTML files (audits, notes, plans, ADRs, any agent-emitted artifact under <code>dev/</code>) MUST link the shared stylesheet via <code>&lt;link rel="stylesheet" href="/path/to/dev/assets/doc.css"&gt;</code> (use the correct relative path from the file’s location, e.g. <code>../assets/doc.css</code> from <code>dev/audit/</code>, <code>../../assets/doc.css</code> from <code>dev/plans/&lt;slug&gt;/</code>). Do NOT inline <code>&lt;style&gt;</code> blocks or duplicate rules already in <code>doc.css</code> — this saves output tokens and keeps doc styling consistent. If a class you need is missing from <code>doc.css</code>, add it there once rather than inlining locally.</li>
 </ul></div>
 <div class="section level2">
 <h2 id="harness-config">Harness Config<a class="anchor" aria-label="anchor" href="#harness-config"></a></h2>
@@ -95,14 +110,18 @@
 <li>Auto-approve start: true</li>
 </ul><div class="section level3">
 <h3 id="authoritative-gate-definition-of-done--read-before-claiming-green">Authoritative gate (Definition of Done) — read before claiming green<a class="anchor" aria-label="anchor" href="#authoritative-gate-definition-of-done--read-before-claiming-green"></a></h3>
-<p>The authoritative full-suite gate for this project is:</p>
-<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
-<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N = 1583 as of 2026-05-17 <code>vignette-review</code>; the count grows — what matters is 0/0/0). <code>devtools::test()</code> is equivalent (it sets <code>NOT_CRAN=true</code> itself).</p>
+<p>The authoritative full-suite gate is the suite at <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N grows; last ≈3388 on 2026-05-29 — the count is <strong>not</strong> the gate, <strong>0/0/0 is</strong>). Default run is <strong>serial</strong> (~590s); <code>devtools::test()</code> sets <code>NOT_CRAN=true</code> itself so browser tests RUN (0 SKIP):</p>
+<pre><code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code></pre>
+<p><strong>Parallelism is opt-in — use it ONLY for the post-merge full-suite gate or when I explicitly ask</strong> (never the inner loop, never R CMD check). It cuts <sub>590s→</sub>270s; enable with <code>TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4</code> (cap at 4 — browser tests are render-bound, so &gt;4 concurrent Chromes oversubscribe CPU → slower <em>and</em> more boot-tail flakes). A residual flake under parallel load is not a product failure — re-confirm serially before calling it a regression.</p>
 <blockquote>
-<p>⚠ Proxy trap — do not be fooled (corrected 2026-05-17, empirically verified): - A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. “green, SKIP n” off that is NOT the gate. - <code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>’s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong> (<code>R CMD check found ERRORs</code>, pkgload “DESCRIPTION not found”), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>. - Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</p>
+<p>⚠ Proxy trap — do not be fooled (corrected 2026-05-17 / 2026-05-29, empirically verified): - A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. “green, SKIP n” off that is NOT the gate. - <strong>Parallel runs only</strong> (<code>TESTTHAT_PARALLEL=TRUE</code>): <code><a href="https://testthat.r-lib.org/reference/test_dir.html" class="external-link">testthat::test_dir()</a></code> defaults to <code>load_package="none"</code>, so its worker subprocesses don’t load ggpaintr (the parent’s <code>devtools::load_all()</code> doesn’t propagate) → use <code>devtools::test()</code>, which pkgloads the source pkg per worker. Worker count = <code>TESTTHAT_CPUS</code> else <code>getOption("Ncpus")</code> else 2. Parallel exposes boot-tail races (a <code>renderUI</code> input read/uploaded before <code>bindAll()</code> wires it); the e2e boot helpers were hardened against this in 4b5f4d0 (poll/await bindings + <code>upload_file()</code> wrapper). - <code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>’s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong> (<code>R CMD check found ERRORs</code>, pkgload “DESCRIPTION not found”), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>. - Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</p>
 </blockquote>
 <p>Other gates: <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings (by-design NOTEs expected: CRAN incoming “new submission”, <code>.git</code>, top-level <code>CONTEXT.md</code>); the e2e browser file <strong>cleanly SKIPs</strong> here via the source-root guard — a non-zero-error check means that guard regressed, not a product failure (see proxy-trap block above). Docs: <code>source("dev/build-pkgdown.R"); build_pkgdown_clean()</code> → clean. Browser e2e needs <code>shinytest2</code> + <code>chromote</code> + Chrome; absent → clean all-skip is acceptable but must be reported, not hidden.</p>
 <p>Every plan for this project takes its <strong>Definition of Done</strong> from this block. Audit/enforce a plan with <code>/implementable &lt;plan-path&gt;</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="test-scope-during-iteration">Test scope during iteration<a class="anchor" aria-label="anchor" href="#test-scope-during-iteration"></a></h3>
+<p><strong>Default to the cheap inner loop, not the full e2e suite.</strong> Unless I explicitly ask, do not run the full e2e browser suite while iterating: always run <strong>all non-e2e tests</strong> (serial <code>test_dir</code> with no <code>NOT_CRAN</code> → browser tests cleanly SKIP, ~2680 assertions in seconds), then only the e2e tests in the change’s <strong>blast radius</strong> — which for a shared-runtime/codegen change (<code>paintr-runtime</code>/<code>server</code>/<code>substitute</code>/<code>ui.R</code>) widens to the whole seeding/binding/source cluster, or the full suite if you can’t bound it. The full e2e suite runs <strong>only</strong> at a merge boundary (post-merge + worktree landing) or on explicit request, and is the <strong>only</strong> thing that grounds a “done”/“green” claim. Recipes + blast-radius detail: <code>.claude/rules/testing.md</code>.</p>
 </div>
 </div>
 <div class="section level2">
@@ -117,7 +136,12 @@
 </div>
 <div class="section level3">
 <h3 id="domain-docs">Domain docs<a class="anchor" aria-label="anchor" href="#domain-docs"></a></h3>
-<p>Single-context. The L2/L3 embedding model, UI-piece taxonomy, and shared-coordinator language live in <code>CONTEXT.md</code> (authoritative, created 2026-05-16, locked by ADR 0005). General project/build conventions stay in this file. Architectural decisions live in <code>dev/adr/</code>. See <code>dev/agents/domain.md</code>.</p>
+<p>Single-context. The L2/L3 embedding model, UI-piece taxonomy, and shared-coordinator language live in <code>CONTEXT.md</code> (authoritative, created 2026-05-16, locked by ADR 0005 and amended through ADR 0023 — see CONTEXT.md’s status header for the ADR chain). General project/build conventions stay in this file. Architectural decisions live in <code>dev/adr/</code>. See <code>dev/agents/domain.md</code>.</p>
+</div>
+<div class="section level3">
+<h3 id="knowledge-stamps">Knowledge stamps<a class="anchor" aria-label="anchor" href="#knowledge-stamps"></a></h3>
+<p>When you derive a reusable, source-grounded understanding, emit an inline <code>⟦FINDING⟧ … ⟦/FINDING⟧</code> stamp so it survives <code>/clear</code> and can be harvested+verified later. Full contract, grammar, and the bar for what’s worth stamping: <code>.claude/rules/knowledge-stamps.md</code>. On-demand: <code>/stamp</code>. End-of-session dump (best-effort, unverified): <code>/summarize-knowledge</code> — writes the session’s stamps directly into <code>.claude/harvest-findings/raw_conversation/&lt;date&gt;-&lt;time&gt;-&lt;topic&gt;.md</code> (no <code>/export</code> step). The regular verify+store pass over that corpus: the <code>harvest-finding</code> skill. Categorize the verified findings into a labeled, greppable map: <code>/process-finding</code>.</p>
+<p><strong>Rebuild understanding from the index first.</strong> Before re-deriving knowledge about a subsystem, a past bug, or <em>why</em> something is built a certain way, consult the project knowledge index — on demand via <strong><code>/recall-finding &lt;topic&gt;</code></strong> (matches topic → labels/findings, returns verified knowledge with sources, says plainly when nothing is captured), or manually: <code>grep -i "&lt;topic&gt;" .claude/harvest-findings/INDEX.md</code> → label, then <code>grep -rl "&lt;label&gt;" .claude/harvest-findings/raw_knowledge/</code> → the findings. This is the read side of the stamp→summarize→harvest→process pipeline (set up by <code>/harvest-init</code>); the pipeline writes hard-won understanding, recall reads it back. See the “Recall” section of <code>.claude/rules/knowledge-stamps.md</code>.</p>
 </div>
 </div>
 </div>

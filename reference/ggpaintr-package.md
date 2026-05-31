@@ -6,7 +6,7 @@ runtime feedback, upload support for `.csv`, `.tsv`, `.rds`, `.xlsx`,
 `.xls`, and `.json` files, copy customization, and per-app custom
 placeholder registries. It also provides lower-level helpers for runtime
 inspection and column-name normalization for data used with the built-in
-`var` placeholder.
+`ppVar` placeholder.
 
 ## See also
 

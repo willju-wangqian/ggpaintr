@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,10 +40,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul>
 </li>
@@ -231,7 +229,7 @@ grammar.</td>
 </tr>
 <tr class="odd">
 <td><code>level3_custom_render</code></td>
-<td>Own <code><a href="https://rdrr.io/pkg/shiny/man/renderPlot.html" class="external-link">renderPlot()</a></code> / <code><a href="https://rdrr.io/pkg/plotly/man/plotly-shiny.html" class="external-link">renderPlotly()</a></code> reading
+<td>Own <code>renderPlot()</code> / <code>renderPlotly()</code> reading
 <code>state$runtime()</code>.</td>
 </tr>
 <tr class="even">
@@ -279,18 +277,18 @@ before release:</p>
 <span><span class="co">#&gt; ```r</span></span>
 <span><span class="co">#&gt; ptr_app(</span></span>
 <span><span class="co">#&gt;   formula,</span></span>
-<span><span class="co">#&gt;   envir             = parent.frame(),</span></span>
-<span><span class="co">#&gt;   ui_text           = NULL,</span></span>
-<span><span class="co">#&gt;   checkbox_defaults = NULL,</span></span>
-<span><span class="co">#&gt;   expr_check        = TRUE,</span></span>
-<span><span class="co">#&gt;   safe_to_remove    = character(),</span></span>
-<span><span class="co">#&gt;   css               = NULL</span></span>
+<span><span class="co">#&gt;   envir          = parent.frame(),</span></span>
+<span><span class="co">#&gt;   ui_text        = NULL,</span></span>
+<span><span class="co">#&gt;   expr_check     = TRUE,</span></span>
+<span><span class="co">#&gt;   safe_to_remove = character(),</span></span>
+<span><span class="co">#&gt;   css            = NULL,</span></span>
+<span><span class="co">#&gt;   spec           = NULL</span></span>
 <span><span class="co">#&gt; )</span></span>
 <span><span class="co">#&gt; ```</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; `ptr_app_bslib()` has the same arguments minus `css`, plus `theme` and `title`, and renders inside a `bslib::page_sidebar()` shell.</span></span>
+<span><span class="co">#&gt; `ptr_app_bslib()` has the same arguments minus `css`, plus `theme`, and renders inside a bslib-themed shell.</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; `ptr_app_grid(plots, shared_ui = list(), envir, title, draw_all_label, expr_check, css)` builds a grid of N plots that can share widgets at the page level — see "Multiple plots" below.</span></span>
+<span><span class="co">#&gt; `ptr_app_grid(plots, envir, ui_text, draw_all_label, expr_check, css, ncol, nrow, spec)` builds a grid of N plots that can share widgets at the page level — see "Multiple plots" below.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; There is no `placeholders =` argument: custom placeholder keywords are registered against a **process-global** registry via `ptr_define_placeholder_value()` / `_consumer()` / `_source()` before the app launches (see `custom_placeholder`).</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -300,43 +298,66 @@ before release:</p>
 <span><span class="co">#&gt; library(ggpaintr)</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ptr_app(</span></span>
-<span><span class="co">#&gt;   "ggplot(iris, aes(var, var, color = var)) + geom_point() + labs(title = text)"</span></span>
+<span><span class="co">#&gt;   "ggplot(iris, aes(ppVar, ppVar, color = ppVar)) + geom_point() + labs(title = ppText)"</span></span>
 <span><span class="co">#&gt; )</span></span>
 <span><span class="co">#&gt; ```</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Every `var`, `text` becomes a sidebar widget. Clicking **Update plot** re-renders the plot and refreshes the generated code on the side.</span></span>
+<span><span class="co">#&gt; Every `ppVar`, `ppText` becomes a sidebar widget. Clicking **Update plot** re-renders the plot and refreshes the generated code on the side.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## Multiple plots in one app — `ptr_app_grid()`</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; `ptr_app_grid()` takes a list of formulas in `plots =` and renders one tile per formula. Internally it now builds the same shared coordinator the L2 trio exposes, but as an L1 entry point it hides that machinery behind `plots =` / `shared_ui =`.</span></span>
+<span><span class="co">#&gt; `ptr_app_grid()` takes a list of formulas in `plots =` and renders one tile per formula. Internally it builds the same shared coordinator the L2 trio exposes, but as an L1 entry point it hides that machinery behind `plots =`. Clicking **Draw all** triggers a redraw across every tile.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ```r</span></span>
 <span><span class="co">#&gt; ptr_app_grid(</span></span>
 <span><span class="co">#&gt;   plots = list(</span></span>
-<span><span class="co">#&gt;     "ggplot(iris, aes(x = var, y = Sepal.Length, fill = Species)) +</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = ppVar, y = Sepal.Length, fill = Species)) +</span></span>
 <span><span class="co">#&gt;        geom_boxplot()",</span></span>
-<span><span class="co">#&gt;     "ggplot(iris, aes(x = var, y = Sepal.Width, fill = Species)) +</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = ppVar, y = Sepal.Width, fill = Species)) +</span></span>
 <span><span class="co">#&gt;        geom_violin()"</span></span>
-<span><span class="co">#&gt;   ),</span></span>
-<span><span class="co">#&gt;   shared_ui = list()  # no shared= annotations above; the first var stays per-tile</span></span>
+<span><span class="co">#&gt;   )</span></span>
 <span><span class="co">#&gt; )</span></span>
 <span><span class="co">#&gt; ```</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; Annotate any placeholder with `keyword(shared = "&lt;id&gt;")` to lift it into a single top-level widget that drives every plot, and supply a builder under the matching `&lt;id&gt;` in `shared_ui`. The `&lt;id&gt;` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot. Clicking **Draw all** triggers a redraw across every tile.</span></span>
+<span><span class="co">#&gt; Annotate any placeholder with `ppX(shared = "&lt;id&gt;")` to lift it into a single top-level widget that drives every plot. The `&lt;id&gt;` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot. A built-in shared key needs no extra wiring — its widget is built for you:</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ```r</span></span>
 <span><span class="co">#&gt; ptr_app_grid(</span></span>
 <span><span class="co">#&gt;   plots = list(</span></span>
-<span><span class="co">#&gt;     "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Length, fill = Species)) +</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) +</span></span>
 <span><span class="co">#&gt;        geom_boxplot()",</span></span>
-<span><span class="co">#&gt;     "ggplot(iris, aes(x = var(shared = 'metric'), y = Sepal.Width, fill = Species)) +</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width, fill = Species)) +</span></span>
 <span><span class="co">#&gt;        geom_violin()"</span></span>
-<span><span class="co">#&gt;   ),</span></span>
-<span><span class="co">#&gt;   shared_ui = list(metric = function(id) selectInput(id, "Metric", names(iris)))</span></span>
+<span><span class="co">#&gt;   )</span></span>
 <span><span class="co">#&gt; )</span></span>
 <span><span class="co">#&gt; ```</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; The shared mechanism works for any keyword — a built-in `num(shared = "sz")` paired with `shared_ui = list(sz = function(id) sliderInput(id, "Size", 1, 10, 3))` is the simplest two-line example; a `var(shared = "...")` consumer needs no `shared_ui` entry (its picker is built for you).</span></span>
+<span><span class="co">#&gt; There is **no `shared_ui` argument** (removed). To customise the *look* of a shared widget, register a custom placeholder whose `build_ui` supplies the control you want, then use that keyword in the formula. For example, to render the shared metric picker as a `selectInput`:</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ```r</span></span>
+<span><span class="co">#&gt; ppMetric &lt;- ptr_define_placeholder_consumer(</span></span>
+<span><span class="co">#&gt;   keyword        = "ppMetric",</span></span>
+<span><span class="co">#&gt;   build_ui       = function(node, cols = character(), label = NULL,</span></span>
+<span><span class="co">#&gt;                             selected = character(0), ...) {</span></span>
+<span><span class="co">#&gt;     selectInput(node$id, label = label %||% "Metric", choices = cols,</span></span>
+<span><span class="co">#&gt;                 selected = if (length(selected)) selected[[1L]] else NULL)</span></span>
+<span><span class="co">#&gt;   },</span></span>
+<span><span class="co">#&gt;   resolve_expr   = function(value, node, ...) {</span></span>
+<span><span class="co">#&gt;     if (length(value) == 0L || !nzchar(value)) return(NULL)</span></span>
+<span><span class="co">#&gt;     rlang::sym(value)</span></span>
+<span><span class="co">#&gt;   },</span></span>
+<span><span class="co">#&gt;   positional_arg = ptr_arg_symbol_or_string()</span></span>
+<span><span class="co">#&gt; )</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; ptr_app_grid(</span></span>
+<span><span class="co">#&gt;   plots = list(</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = ppMetric(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",</span></span>
+<span><span class="co">#&gt;     "ggplot(iris, aes(x = ppMetric(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"</span></span>
+<span><span class="co">#&gt;   )</span></span>
+<span><span class="co">#&gt; )</span></span>
+<span><span class="co">#&gt; ```</span></span>
+<span><span class="co">#&gt; </span></span>
+<span><span class="co">#&gt; The customization comes from the placeholder's `build_ui`, not a page-level override. See `custom_placeholder` for the constructors.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## Single-instance shared widgets — no coordinator</span></span>
 <span><span class="co">#&gt; </span></span>
@@ -344,7 +365,7 @@ before release:</p>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ```r</span></span>
 <span><span class="co">#&gt; ptr_app(</span></span>
-<span><span class="co">#&gt;   "ggplot(iris, aes(x = var(shared = 'col'), y = var(shared = 'col'),</span></span>
+<span><span class="co">#&gt;   "ggplot(iris, aes(x = ppVar(shared = 'col'), y = ppVar(shared = 'col'),</span></span>
 <span><span class="co">#&gt;                     color = Species)) + geom_point()"</span></span>
 <span><span class="co">#&gt; )</span></span>
 <span><span class="co">#&gt; ```</span></span>
@@ -354,14 +375,14 @@ before release:</p>
 <span><span class="co">#&gt; ## Data sources — three paths</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; 1. **Named frame in the calling environment.** `data = iris` inside the formula string; `iris` is resolved via `envir`.</span></span>
-<span><span class="co">#&gt; 2. **`upload` keyword.** Replace `data = iris` with `data = upload` (or use `upload` anywhere a data frame is needed); the user picks a `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, or `.json` file at runtime.</span></span>
+<span><span class="co">#&gt; 2. **`ppUpload` keyword.** Replace `data = iris` with `data = ppUpload` (or use `ppUpload` anywhere a data frame is needed); the user picks a `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, or `.json` file at runtime.</span></span>
 <span><span class="co">#&gt; 3. **Non-syntactic column names.** Wrap the frame with `ptr_normalize_column_names()` before passing it in; uploads get the same normalization automatically.</span></span>
 <span><span class="co">#&gt; </span></span>
 <span><span class="co">#&gt; ## When to move up a level</span></span>
 <span><span class="co">#&gt; </span></span>
-<span><span class="co">#&gt; - Need a specific Shiny layout but ggpaintr's default block is fine → Level 2 (`ptr_module_ui()` / `ptr_module_server()`; see `level2_module`).</span></span>
+<span><span class="co">#&gt; - Need a specific Shiny layout but ggpaintr's default block is fine → Level 2 (`ptr_ui()` / `ptr_server()`; see `level2_module`).</span></span>
 <span><span class="co">#&gt; - Need multiple linked instances sharing one widget → Level 2 shared trio (see `level2_shared`).</span></span>
-<span><span class="co">#&gt; - Need to hand-place every pane, or render the plot yourself (Plotly, ggiraph), or post-process the ggplot object → Level 3 (`ptr_module_server()` / `ptr_server()` returns the state; see `level3_layout` and `level3_custom_render`).</span></span>
+<span><span class="co">#&gt; - Need to hand-place every pane, or render the plot yourself (Plotly, ggiraph), or post-process the ggplot object → Level 3 (`ptr_server()` returns the state; see `level3_layout` and `level3_custom_render`).</span></span>
 <span><span class="co">#&gt; - Need a widget type not in the five built-ins → custom placeholder (see `custom_placeholder`).</span></span></code></pre>
 </div>
 <div class="section level2">
@@ -446,7 +467,7 @@ checks:</p>
 <code class="sourceCode R"><span><span class="co"># Pull a topic without a chat session.</span></span>
 <span><span class="va">payload</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_llm_topic.html">ptr_llm_topic</a></span><span class="op">(</span><span class="st">"level2_module"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nchar</a></span><span class="op">(</span><span class="va">payload</span><span class="op">)</span></span>
-<span><span class="co">#&gt; [1] 5119</span></span></code></pre></div>
+<span><span class="co">#&gt; [1] 5268</span></span></code></pre></div>
 <p><code><a href="../reference/ptr_llm_topics.html">ptr_llm_topics()</a></code> returns the canonical list; if you are
 adding a topic in a downstream repo, assert the name is present before
 sending the registration out to users.</p>
@@ -474,11 +495,10 @@ in current ellmer.</li>
 </h2>
 <ul>
 <li>The primer and topic files are bundled under <code>inst/llm/</code>.
-They are hand-curated from <code>README.Rmd</code>,
-<code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code>, and
-<code><a href="../articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code> — but regenerating them
-from the source vignettes is not yet automated. If you edit a vignette
-chunk, update the corresponding topic file manually.</li>
+They are hand-curated from <code>README.Rmd</code> and
+<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code> — but regenerating them from
+the source vignettes is not yet automated. If you edit a vignette chunk,
+update the corresponding topic file manually.</li>
 <li>
 <code><a href="../reference/ptr_llm_register.html">ptr_llm_register()</a></code> requires <a href="https://ellmer.tidyverse.org/" class="external-link">ellmer</a> in
 <code>Suggests:</code> — it is not loaded until you call the helper. If

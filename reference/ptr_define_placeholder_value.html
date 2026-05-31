@@ -3,13 +3,13 @@
 recognise as a substitutable token in a formula. The keyword's widget
 is built by build_ui; the widget's value is turned back into the R
 code spliced into the rendered call by resolve_expr. See
-vignette(&quot;ggpaintr-customization&quot;) § &quot;Adding a new widget type&quot; for
+vignette(&quot;ggpaintr-tutorial&quot;) § &quot;Defining your own placeholders&quot; for
 the lifecycle walk-through, signatures table, and runnable
 ptr_app() examples — this help page is reference."><meta property="og:description" content="Register a new keyword (e.g. pct, color, date) that ggpaintr will
 recognise as a substitutable token in a formula. The keyword's widget
 is built by build_ui; the widget's value is turned back into the R
 code spliced into the rendered call by resolve_expr. See
-vignette(&quot;ggpaintr-customization&quot;) § &quot;Adding a new widget type&quot; for
+vignette(&quot;ggpaintr-tutorial&quot;) § &quot;Defining your own placeholders&quot; for
 the lifecycle walk-through, signatures table, and runnable
 ptr_app() examples — this help page is reference."><meta property="og:image" content="https://willju-wangqian.github.io/ggpaintr/logo.png"></head><body>
     <a href="#main" class="visually-hidden-focusable">Skip to contents</a>
@@ -19,7 +19,7 @@ ptr_app() examples — this help page is reference."><meta property="og:image" c
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -32,10 +32,8 @@ ptr_app() examples — this help page is reference."><meta property="og:image" c
   <button class="nav-link dropdown-toggle" type="button" id="dropdown-articles" data-bs-toggle="dropdown" aria-expanded="false" aria-haspopup="true">Articles</button>
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
@@ -59,7 +57,7 @@ ptr_app() examples — this help page is reference."><meta property="og:image" c
 recognise as a substitutable token in a formula. The keyword's widget
 is built by <code>build_ui</code>; the widget's value is turned back into the R
 code spliced into the rendered call by <code>resolve_expr</code>. See
-<code><a href="../articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code> § "Adding a new widget type" for
+<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code> § "Defining your own placeholders" for
 the lifecycle walk-through, signatures table, and runnable
 <code><a href="ptr_app.html">ptr_app()</a></code> examples — this help page is reference.</p>
     </div>
@@ -70,7 +68,11 @@ the lifecycle walk-through, signatures table, and runnable
 <span>  <span class="va">keyword</span>,</span>
 <span>  <span class="va">build_ui</span>,</span>
 <span>  <span class="va">resolve_expr</span>,</span>
-<span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Enter a value for {param}"</span><span class="op">)</span></span>
+<span>  validate_input <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  positional_arg <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  named_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  runtime <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  ui_text_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Enter a value for {param}"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -85,12 +87,52 @@ token users type in the formula, e.g. <code>geom_point(alpha = pct)</code>.</p><
 
 
 <dt id="arg-build-ui">build_ui<a class="anchor" aria-label="anchor" href="#arg-build-ui"></a></dt>
-<dd><p><code>function(node, label, ...)</code> returning a Shiny tag.
-Pass <code>node$id</code> as the underlying widget's <code>inputId</code>. Read <code>node$keyword</code>
-and <code>node$param</code> if you need them. The framework also passes any
-<code>copy_defaults</code> field you declare by name (<code>help</code>, <code>placeholder</code>,
-<code>empty_text</code>) — or accept a <code>copy = NULL</code> list and read them off it.
-Always end the signature with <code>...</code>.</p></dd>
+<dd><p><code>function(node, label = NULL, selected = NULL, ...)</code>
+returning a Shiny tag. Pass <code>node$id</code> as the underlying widget's
+<code>inputId</code>. Read <code>node$keyword</code> and <code>node$param</code> if you need them. The
+framework also passes any <code>ui_text_defaults</code> field you declare by name
+(<code>help</code>, <code>placeholder</code>, <code>empty_text</code>) — or accept a <code>copy = NULL</code>
+list and read them off it. Always end the signature with <code>...</code>.</p>
+<p><strong>Widget-seeding contract — <code>selected</code></strong> (authoritative; the four
+<code>invoke_build_ui</code> call sites in <code>R/paintr-server.R</code> implement what
+is described here, with short pointers back to this docblock).</p>
+<p>Declare <code>selected = NULL</code> as an explicit formal, <strong>not</strong> a no-default
+<code>selected</code> (or accept <code>...</code>). The framework calls <code>build_ui</code> on every
+renderUI fire and delivers <code>selected</code> per this precedence:</p><ul><li><p>First render, <code>spec=</code> seed present → seed value.</p></li>
+<li><p>First render, no spec, positional default present
+(e.g. <code>ppPct(50)</code>) → <code>node$default</code>.</p></li>
+<li><p>First render, no spec, no positional default →
+framework <strong>omits</strong> <code>selected</code>; your <code>selected = NULL</code> formal
+default applies.</p></li>
+<li><p>Subsequent renders (Update Plot click, upstream change, layer
+toggle, …) → <code>current-input</code> verbatim. The <code>spec=</code> seed is
+<strong>boot-only</strong>: it wins on the first render only and never
+participates again, so an upstream-triggered re-render can never
+snap the widget back to the seed and away from the user's live
+pick. If the user emptied the widget, <code>current-input</code> is whatever
+the widget emits on clear — one of <code>NULL</code>, <code>character(0)</code>, <code>""</code>,
+<code>NA_real_</code>, <code>NA_character_</code>, depending on the widget — and the
+framework coerces <code>NULL</code> to <code>character(0)</code> so you always receive a
+value on subsequent renders.</p></li>
+</ul><p>Because the framework omits the argument on the first-render-no-
+default path, a hook signature without a formal default for
+<code>selected</code> aborts there with <code>argument "selected" is missing</code>.</p>
+<p><strong>Render empty when <code>selected</code> is empty.</strong> Treat any of <code>NULL</code>,
+<code>character(0)</code>, <code>""</code>, <code>NA_real_</code>, <code>NA_character_</code> as "the user
+wants this widget empty" and render the widget empty. Do not
+substitute a hardcoded fallback inside <code>build_ui</code> for the empty
+case — that re-introduces the deselect-snaps-back-to-default
+defect the framework's seeding layer is designed to prevent
+(closure-flag in <code>ptr_setup_value_uis()</code> /
+<code>ptr_setup_consumer_uis()</code> / <code>ptr_bind_shared_consumer_uis()</code>).
+Boot-time defaults belong in the formula, e.g. <code>ppPct(50)</code>, and
+reach you through <code>selected</code>, not through a hardcoded constant in
+the hook body.</p>
+<p><strong>Never read <code>node$default</code> directly.</strong> It is exposed only so the
+framework can route it into <code>selected</code> on the boot fire. Reading
+it inside the hook bypasses the precedence chain and the closure-
+flag persistence guards, and will re-clobber a user-cleared widget
+on every Update Plot click.</p></dd>
 
 
 <dt id="arg-resolve-expr">resolve_expr<a class="anchor" aria-label="anchor" href="#arg-resolve-expr"></a></dt>
@@ -99,12 +141,60 @@ expression spliced into the rendered call. <code>value</code> is
 <code>input[[node$id]]</code> — whatever Shiny stores for that widget. Allowed
 return types: scalar atomic (numeric / character / logical /
 integer), <code>name</code>/<code>symbol</code> (build with <code><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">rlang::sym()</a></code>),
-<code>call</code>/<code>language</code> (build with <code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">rlang::expr()</a></code>), or <code>NULL</code> to <strong>prune
+<code>call</code>/<code>language</code> (build with <code>rlang::ppExpr()</code>), or <code>NULL</code> to <strong>prune
 the argument</strong> from the rendered call. Use <code>NULL</code> for empty / not-yet
 input; throw with <code><a href="https://rlang.r-lib.org/reference/abort.html" class="external-link">rlang::abort()</a></code> for malformed input.</p></dd>
 
 
-<dt id="arg-copy-defaults">copy_defaults<a class="anchor" aria-label="anchor" href="#arg-copy-defaults"></a></dt>
+<dt id="arg-validate-input">validate_input<a class="anchor" aria-label="anchor" href="#arg-validate-input"></a></dt>
+<dd><p>Optional <code>function(value, ctx)</code> called before
+<code>resolve_expr</code>. Return <code>TRUE</code> / <code>NULL</code> to accept; return a single
+character string to reject (surfaced inline as the error message,
+layer pruned). <code>ctx</code> is a plain list with named fields: <code>node</code> (the
+placeholder AST node, carries <code>$id</code>, <code>$keyword</code>, <code>$args</code>), <code>keyword</code>
+(convenience alias for <code>node$keyword</code>), <code>upstream_cols</code>, and
+<code>data</code>. For a <em>value</em> placeholder, <code>ctx$upstream_cols</code> and
+<code>ctx$data</code> are <strong>always <code>NULL</code></strong> — value placeholders have no
+upstream column scope by definition. They are present in the
+signature so the same validator shape works across all roles; see
+<code><a href="ptr_define_placeholder_consumer.html">ptr_define_placeholder_consumer()</a></code> for the data-aware role where
+those fields are populated. ggpaintr invokes this function as
+<code>validate_input(value, ctx)</code> — no other positional or named
+arguments are passed, and <code>ctx</code> carries exactly the four fields
+above. The signature does not require <code>...</code>.</p></dd>
+
+
+<dt id="arg-positional-arg">positional_arg<a class="anchor" aria-label="anchor" href="#arg-positional-arg"></a></dt>
+<dd><p>Optional validator closure for the (single) positional
+argument the keyword accepts inside a formula. <code>NULL</code> (default) means
+positional arguments are rejected at translate time. A function
+receives the unevaluated AST and must return a canonical value or
+<code><a href="https://rlang.r-lib.org/reference/abort.html" class="external-link">rlang::abort()</a></code>. Validators are expected to operate on the AST only
+and not call <code><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval()</a></code>; ggpaintr trusts the author. Authors who eval in
+a validator are opting into the risk of running user code at translate
+time.</p></dd>
+
+
+<dt id="arg-named-args">named_args<a class="anchor" aria-label="anchor" href="#arg-named-args"></a></dt>
+<dd><p>Named list of validator closures for additional named
+arguments beyond the reserved <code>shared = ...</code>. Each entry's closure
+receives the unevaluated AST and returns a canonical value or
+<code><a href="https://rlang.r-lib.org/reference/abort.html" class="external-link">rlang::abort()</a></code>. Default is <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> (no named args). The name
+<code>"shared"</code> is reserved and may not appear here.</p></dd>
+
+
+<dt id="arg-runtime">runtime<a class="anchor" aria-label="anchor" href="#arg-runtime"></a></dt>
+<dd><p>Optional <code>function(x, ...)</code> body used when the
+placeholder keyword is <em>also</em> called as a plain-R function (outside a
+formula context). When <code>NULL</code> (default), the identity function
+<code>function(x, ...) x</code> is supplied — calling <code>pct(0.5)</code> returns <code>0.5</code>
+unchanged. Override to give the keyword a non-identity plain-R
+meaning. The same runtime is returned to the caller of this helper
+so authors can bind it under the same name as the keyword:
+<code>ppPct &lt;- ptr_define_placeholder_value(keyword = "ppPct", ...)</code>.</p></dd>
+
+
+<dt id="arg-ui-text-defaults">ui_text_defaults<a class="anchor" aria-label="anchor" href="#arg-ui-text-defaults"></a></dt>
 <dd><p>Named list of single non-NA character defaults
 feeding the <code>ui_text</code> tree. Allowed names: <code>label</code>, <code>help</code>,
 <code>placeholder</code>, <code>empty_text</code>. Strings may contain <code>{param}</code>, which is
@@ -113,9 +203,10 @@ interpolated to the surrounding formal-argument name at render time.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>Invisibly, the registry entry list. Called for its side effect
-of registering the placeholder in the package-global registry. Use
-<code><a href="ptr_clear_placeholder.html">ptr_clear_placeholder()</a></code> to remove it.</p>
+    <p>The runtime callable. Default for a value placeholder is the
+identity <code>function(x, ...) x</code>; override with <code>runtime = ...</code>. The
+helper is also called for its registration side effect — use
+<code><a href="ptr_clear_placeholder.html">ptr_clear_placeholder()</a></code> to remove the entry.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
@@ -128,7 +219,7 @@ the rest of the formula reads from (file upload, dataset chooser).</p>
     </div>
     <div class="section level2">
     <h2 id="see-also">See also<a class="anchor" aria-label="anchor" href="#see-also"></a></h2>
-    <div class="dont-index"><p><code><a href="../articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code> for the tutorial;
+    <div class="dont-index"><p><code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code> § "Defining your own placeholders";
 <code><a href="ptr_define_placeholder_consumer.html">ptr_define_placeholder_consumer()</a></code>, <code><a href="ptr_define_placeholder_source.html">ptr_define_placeholder_source()</a></code>,
 <code><a href="ptr_clear_placeholder.html">ptr_clear_placeholder()</a></code>.</p></div>
     </div>
@@ -136,19 +227,29 @@ the rest of the formula reads from (file upload, dataset chooser).</p>
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># A percentage placeholder: user types a number 0-100; we splice</span></span></span>
-<span class="r-in"><span><span class="co"># the fraction 0-1 into the rendered call.</span></span></span>
+<span class="r-in"><span><span class="co"># the fraction 0-1 into the rendered call. The hook reads `selected`</span></span></span>
+<span class="r-in"><span><span class="co"># to honor a formula default like `pct(75)` at boot and to keep a</span></span></span>
+<span class="r-in"><span><span class="co"># user-cleared widget empty across Update Plot fires (do NOT</span></span></span>
+<span class="r-in"><span><span class="co"># substitute a hardcoded fallback when selected is empty).</span></span></span>
 <span class="r-in"><span><span class="fu">ptr_define_placeholder_value</span><span class="op">(</span></span></span>
 <span class="r-in"><span>  keyword <span class="op">=</span> <span class="st">"pct"</span>,</span></span>
-<span class="r-in"><span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">node</span>, <span class="va">label</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/numericInput.html" class="external-link">numericInput</a></span><span class="op">(</span><span class="va">node</span><span class="op">$</span><span class="va">id</span>, label <span class="op">=</span> <span class="va">label</span>, value <span class="op">=</span> <span class="fl">50</span>,</span></span>
-<span class="r-in"><span>                        min <span class="op">=</span> <span class="fl">0</span>, max <span class="op">=</span> <span class="fl">100</span>, step <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">node</span>, <span class="va">label</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">selected</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>    <span class="va">n</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/warning.html" class="external-link">suppressWarnings</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">selected</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>    <span class="va">initial</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span> <span class="op">&amp;&amp;</span> <span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">n</span><span class="op">)</span><span class="op">)</span> <span class="va">n</span> <span class="kw">else</span> <span class="cn">NA_real_</span></span></span>
+<span class="r-in"><span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/numericInput.html" class="external-link">numericInput</a></span><span class="op">(</span><span class="va">node</span><span class="op">$</span><span class="va">id</span>, label <span class="op">=</span> <span class="va">label</span> <span class="op"><a href="https://rdrr.io/r/base/Control.html" class="external-link">%||%</a></span> <span class="st">"Percent"</span>,</span></span>
+<span class="r-in"><span>                        value <span class="op">=</span> <span class="va">initial</span>, min <span class="op">=</span> <span class="fl">0</span>, max <span class="op">=</span> <span class="fl">100</span>, step <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="op">}</span>,</span></span>
 <span class="r-in"><span>  resolve_expr <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">node</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">1L</span> <span class="op">||</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/is.finite.html" class="external-link">is.finite</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span></span>
 <span class="r-in"><span>    <span class="va">value</span> <span class="op">/</span> <span class="fl">100</span></span></span>
 <span class="r-in"><span>  <span class="op">}</span>,</span></span>
-<span class="r-in"><span>  copy_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Percent for {param}"</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  positional_arg <span class="op">=</span> <span class="fu"><a href="ptr_arg_validators.html">ptr_arg_numeric</a></span><span class="op">(</span><span class="op">)</span>,  <span class="co"># accept ppPct(50)-style defaults</span></span></span>
+<span class="r-in"><span>  ui_text_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Percent for {param}"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> function (x, ...) </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> x</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;bytecode: 0x56055beba288&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x56055e490bf0&gt;</span>
 <span class="r-in"><span><span class="fu"><a href="ptr_clear_placeholder.html">ptr_clear_placeholder</a></span><span class="op">(</span><span class="st">"pct"</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Cleared placeholder: <span style="color: #0000BB;">"pct"</span>.</span>
 </code></pre></div>

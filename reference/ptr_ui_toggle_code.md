@@ -97,6 +97,27 @@ ptr_ui_toggle_code(
 #>         <div class="ptr-code-window__head">
 #>           <span class="ptr-code-window__title">&lt;/&gt; Generated code</span>
 #>           <span class="ptr-code-window__actions">
+#>             <span class="ptr-code-mode">
+#>               <div class="form-group shiny-input-container shiny-input-radiogroup shiny-input-container-inline">
+#>                 <label class="control-label shiny-label-null" for="p-ptr_code_mode" id="p-ptr_code_mode-label"></label>
+#>                 <div id="p-ptr_code_mode" class="radio-group-buttons">
+#>                   <div aria-labelledby="p-ptr_code_mode-label" class=" btn-group-xs btn-group-container-sw" data-toggle="buttons" role="group">
+#>                     <div class="btn-group btn-group-toggle btn-group-xs" role="group">
+#>                       <button class="btn radiobtn btn-default active">
+#>                         <input type="radio" autocomplete="off" name="p-ptr_code_mode" value="final" checked="checked"/>
+#>                         Final code
+#>                       </button>
+#>                     </div>
+#>                     <div class="btn-group btn-group-toggle btn-group-xs" role="group">
+#>                       <button class="btn radiobtn btn-default">
+#>                         <input type="radio" autocomplete="off" name="p-ptr_code_mode" value="spec"/>
+#>                         Spec
+#>                       </button>
+#>                     </div>
+#>                   </div>
+#>                 </div>
+#>               </div>
+#>             </span>
 #>             <button type="button" class="ptr-copy-btn">Copy</button>
 #>             <button type="button" class="ptr-code-window__close" title="Close" aria-label="Close">&times;</button>
 #>           </span>

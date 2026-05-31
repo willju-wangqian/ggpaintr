@@ -2,23 +2,23 @@
 
 Builds a fluid layout of N plot modules with a top-level `wellPanel` for
 shared input widgets and a "Draw all" button that triggers a redraw
-across every plot. Each plot's `shared = "..."` placeholders read from
-the corresponding entry in `shared_ui` instead of rendering local
-widgets.
+across every plot. Each plot's `shared = "..."` placeholders collapse to
+one widget in the top panel, rendered from the placeholder's own
+`build_ui`.
 
 ## Usage
 
 ``` r
 ptr_app_grid(
   plots,
-  shared_ui = list(),
   envir = parent.frame(),
   ui_text = NULL,
   draw_all_label = "Draw all",
   expr_check = TRUE,
   css = NULL,
   ncol = NULL,
-  nrow = NULL
+  nrow = NULL,
+  spec = NULL
 )
 ```
 
@@ -27,13 +27,6 @@ ptr_app_grid(
 - plots:
 
   A list of formula strings, one per plot.
-
-- shared_ui:
-
-  Named list mapping shared key → `function(id) -> shiny.tag` builder.
-  Names must match the `shared = "..."` annotations used in `plots`.
-  Pass [`list()`](https://rdrr.io/r/base/list.html) if there are no
-  shared placeholders.
 
 - envir:
 
@@ -52,7 +45,7 @@ ptr_app_grid(
 
 - expr_check:
 
-  Controls `expr` placeholder validation: `TRUE` (default) applies the
+  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
   built-in denylist + AST walker; `FALSE` disables all validation; a
   `list` with `deny_list`/`allow_list` entries customises the policy.
   See
@@ -75,6 +68,14 @@ ptr_app_grid(
 
   Number of plot rows. Default `NULL` auto-computes from `ncol`.
 
+- spec:
+
+  An optional named list of fully-qualified Shiny input id -\> value,
+  used to override widget defaults at session boot. The same flat spec
+  is passed to every per-plot engine; each instance filters by its own
+  namespace prefix. See [ADR
+  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
+
 ## Value
 
 A `shiny.appobj`.
@@ -84,6 +85,15 @@ A `shiny.appobj`.
 For the formula grammar (placeholder keywords, `shared = "<id>"`
 annotation, empty-call cleanup), see
 [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).
+
+## Removed `shared_ui`
+
+The `shared_ui` argument is no longer supported (see
+[`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md)
+for the full rationale). To customise the widget a shared key renders,
+define a custom placeholder with the `build_ui` you want
+(`ptr_define_placeholder_*`) and use it in the formula — the shared
+widget auto-renders from that `build_ui`.
 
 ## See also
 
@@ -96,8 +106,8 @@ for the `css =` argument and themable CSS custom properties.
 if (interactive()) {
   ptr_app_grid(
     plots = list(
-      "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
-      "ggplot(mtcars, aes(x = var)) + geom_histogram()"
+      "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
+      "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
     )
   )
 }

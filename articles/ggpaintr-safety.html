@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.2</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -40,10 +40,8 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles">
 <li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-use-cases.html">Use cases</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-customization.html">Customization</a></li>
+    <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-gallery.html">ggpaintr in the Wild</a></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul>
 </li>
@@ -75,64 +73,61 @@
 
     
     
-<p>This vignette answers the question <em>how do I think about sharing
-ggpaintr-driven apps with untrusted users?</em> Companion vignettes
-cover the use-case ladder (<code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code>),
-tailoring defaults (<code><a href="../articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code>),
-real ggplot recipes (<code><a href="../articles/ggpaintr-gallery.html">vignette("ggpaintr-gallery")</a></code>), and LLM
-integration (<code><a href="../articles/ggpaintr-llm.html">vignette("ggpaintr-llm")</a></code>).</p>
-<p>ggpaintr was designed around the assumption that <em>the formula
-author is the package user</em> (i.e. you), while the <em>placeholder
-values</em> — including any <code>expr</code> boxes — may come from
-anywhere. Three boundaries handle the gap between those two trust
-levels:</p>
+<p>This vignette answers one question: <em>how do I think about sharing
+a ggpaintr app with untrusted users?</em> For building apps, see
+<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code>; for driving ggpaintr from an
+LLM, <code><a href="../articles/ggpaintr-llm.html">vignette("ggpaintr-llm")</a></code>.</p>
+<p>ggpaintr assumes <em>the formula author is the package user</em> —
+you — while the <em>placeholder values</em>, including anything typed
+into an <code>ppExpr</code> box, may come from anywhere. Three
+boundaries sit between those two trust levels:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong><code>expr_check</code></strong> — what controls validation
-of user-typed <code>expr</code> input.</li>
+<strong><code>expr_check</code></strong> — controls validation of
+user-typed <code>ppExpr</code> code.</li>
 <li>
-<strong>The denylist + AST walker</strong> — what the validator
+<strong>The denylist + AST walker</strong> — what that validation
 actually does.</li>
 <li>
-<strong>Upload trust</strong> — what happens between "user picks a
-file" and a data frame reaching <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code>.</li>
+<strong>The upload trust model</strong> — what happens between “user
+picks a file” and a data frame reaching <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code>.</li>
 </ol>
-<p>The rest of this vignette walks each in turn. ggpaintr has not been
-hardened for adversarial public deployment, and this package has no
-tests covering hosting / network / process-isolation scenarios — those
-concerns belong to the host environment (shinyapps.io configuration,
-Posit Connect roles, container limits, …), not to ggpaintr’s
-surface.</p>
+<p>The rest of this vignette takes each in turn. One scope note up
+front: ggpaintr has not been hardened for adversarial public deployment,
+and carries no tests for hosting, network, or process-isolation
+concerns. Those belong to the host environment (shinyapps.io, Posit
+Connect roles, container limits), not to ggpaintr’s surface.</p>
 <div class="section level2">
 <h2 id="the-expr_check-flag">The <code>expr_check</code> flag<a class="anchor" aria-label="anchor" href="#the-expr_check-flag"></a>
 </h2>
-<p>The <code>expr</code> placeholder is the only formula keyword that
-accepts arbitrary R code. The other four (<code>var</code>,
-<code>text</code>, <code>num</code>, <code>upload</code>) accept atomic
-values or files — no code path runs whatever the user types as R.
-<code>expr_check</code> controls what happens to whatever lands inside
-an <code>expr</code> box before it reaches the runtime’s evaluator.</p>
+<p><code>ppExpr</code> is the only keyword that accepts arbitrary R
+code. The other four — <code>ppVar</code>, <code>ppText</code>,
+<code>ppNum</code>, <code>ppUpload</code> — take atomic values or files,
+and nothing runs what the user typed as R. <code>expr_check</code>
+decides what happens to whatever lands in an <code>ppExpr</code> box
+before it reaches the evaluator.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>               <span class="co"># default — denylist + walker</span></span>
+<code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>               <span class="co"># default — full denylist + walker</span></span>
 <span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>              <span class="co"># off — anything goes</span></span>
 <span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>               <span class="co"># custom</span></span>
 <span>  allow_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"read.csv"</span><span class="op">)</span>,</span>
 <span>  deny_list  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"get"</span><span class="op">)</span></span>
 <span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><code>expr_check</code> is accepted on every public entry point that
-builds the AST: <code><a href="../reference/ptr_app.html">ptr_app()</a></code>, <code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>,
-<code><a href="../reference/ptr_app_grid.html">ptr_app_grid()</a></code>, <code><a href="../reference/ptr_ui_controls.html">ptr_ui_controls()</a></code>,
-<code><a href="../reference/ptr_ui.html">ptr_ui()</a></code>, <code><a href="../reference/ptr_server.html">ptr_server()</a></code> (via <code>...</code>
-to <code><a href="../reference/ptr_init_state.html">ptr_init_state()</a></code>), <code><a href="../reference/ptr_init_state.html">ptr_init_state()</a></code>.
-Default <code>TRUE</code> everywhere.</p>
+builds the AST — <code><a href="../reference/ptr_app.html">ptr_app()</a></code>, <code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code>,
+<code><a href="../reference/ptr_app_grid.html">ptr_app_grid()</a></code>, <code><a href="../reference/ptr_ui.html">ptr_ui()</a></code>,
+<code><a href="../reference/ptr_ui_controls.html">ptr_ui_controls()</a></code>, <code><a href="../reference/ptr_server.html">ptr_server()</a></code> (forwarded to
+<code><a href="../reference/ptr_init_state.html">ptr_init_state()</a></code> via <code>...</code>), and
+<code><a href="../reference/ptr_init_state.html">ptr_init_state()</a></code> — and defaults to <code>TRUE</code>
+everywhere.</p>
 <div class="section level3">
 <h3 id="the-three-modes">The three modes<a class="anchor" aria-label="anchor" href="#the-three-modes"></a>
 </h3>
 <table class="table">
 <colgroup>
-<col width="29%">
-<col width="7%">
-<col width="62%">
+<col width="54%">
+<col width="18%">
+<col width="26%">
 </colgroup>
 <thead><tr class="header">
 <th><code>expr_check =</code></th>
@@ -141,10 +136,11 @@ Default <code>TRUE</code> everywhere.</p>
 </tr></thead>
 <tbody>
 <tr class="odd">
-<td><code>TRUE</code></td>
+<td>
+<code>TRUE</code> (or <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> with no lists)</td>
 <td>denylist</td>
-<td>The curated ~151-entry denylist (see below). Any call to, symbol
-naming, or string literal mentioning a denied name aborts.</td>
+<td>The curated 151-entry denylist (below). Any call to, symbol naming,
+or string literal mentioning a denied name aborts.</td>
 </tr>
 <tr class="even">
 <td><code>FALSE</code></td>
@@ -152,54 +148,60 @@ naming, or string literal mentioning a denied name aborts.</td>
 <td>No validation. Whatever the user typed reaches the evaluator.</td>
 </tr>
 <tr class="odd">
-<td><code>list(deny_list = …, allow_list = …)</code></td>
-<td>custom</td>
-<td>A bare <code>deny_list</code> (no <code>allow_list</code>)
-<strong>replaces</strong> the curated ~151-entry denylist with
-<em>only</em> the names you list — it does <strong>not</strong> add to
-it, so on its own it <em>weakens</em> the default protection.
-<code>allow_list</code> switches the walker to allowlist mode: only the
-names you list survive, and the curated “always-dangerous” names
-(e.g. <code>system</code>) stay blocked as bare symbols regardless. With
-both, the effective allow set is <code>allow_list</code> minus
-<code>deny_list</code>. There is no “add one name to the curated
-denylist” shortcut — to keep the curated protection while permitting a
-specific name, use <code>allow_list</code>.</td>
+<td><code>list(deny_list = …)</code></td>
+<td>denylist</td>
+<td>
+<strong>Replaces</strong> the curated 151 with <em>only</em> the
+names you list. On its own this <em>weakens</em> the default — there is
+no “add to the curated list” form.</td>
+</tr>
+<tr class="even">
+<td><code>list(allow_list = …)</code></td>
+<td>allowlist</td>
+<td>Only listed names may appear as call heads. The curated
+always-dangerous names (e.g. <code>system</code>) stay blocked as bare
+symbols or strings regardless. With both lists, the effective allow set
+is <code>allow_list</code> minus <code>deny_list</code>.</td>
 </tr>
 </tbody>
 </table>
+<p>The asymmetry is the thing to internalise: a bare
+<code>deny_list</code> <em>narrows</em> protection (it discards the
+other 150 curated names), while <code>allow_list</code> <em>keeps</em>
+the curated floor and only widens which call heads are permitted. To
+permit one extra name without losing the curated protection, use
+<code>allow_list</code>, not <code>deny_list</code>.</p>
 </div>
 <div class="section level3">
 <h3 id="when-never-to-turn-it-off">When (never) to turn it off<a class="anchor" aria-label="anchor" href="#when-never-to-turn-it-off"></a>
 </h3>
-<p><code>expr_check = FALSE</code> is for <em>local prototyping with
-trusted input</em>. Concretely: you, at the R prompt, exploring a
-formula on a private dataset. It is never the right default for any app
-reachable by another person — co-workers on a shared dev server
+<p><code>expr_check = FALSE</code> is for local prototyping with trusted
+input — you, at the R prompt, on a private dataset. It is never right
+for any app another person can reach; co-workers on a shared dev server
 count.</p>
-<p>If a specific name you trust is blocked (e.g. <code>read.csv</code>
-because the denylist is conservative), the right fix is
-<code>expr_check = list(allow_list = "read.csv")</code>, not
-<code>expr_check = FALSE</code>. The list form keeps the walker active
-for everything else.</p>
+<p>If a name you trust is blocked (e.g. <code>read.csv</code>, because
+the denylist is conservative), the fix is
+<code>expr_check = list(allow_list = "read.csv")</code>, which keeps the
+walker active for everything else — not
+<code>expr_check = FALSE</code>.</p>
 </div>
 </div>
 <div class="section level2">
 <h2 id="the-denylist-ast-walker">The denylist + AST walker<a class="anchor" aria-label="anchor" href="#the-denylist-ast-walker"></a>
 </h2>
-<p>The denylist is the names the validator considers dangerous. The
-walker is <em>how</em> it looks for them. Each does only half the
-job.</p>
+<p>The denylist is <em>which</em> names the validator treats as
+dangerous. The walker is <em>how</em> it hunts for them. Each does only
+half the job.</p>
 <div class="section level3">
 <h3 id="the-denylist-151-entries-treated-as-complete">The denylist (151 entries, treated as complete)<a class="anchor" aria-label="anchor" href="#the-denylist-151-entries-treated-as-complete"></a>
 </h3>
-<p><code>unsafe_expr_denylist</code> lives in
-<code>R/paintr-utils.R</code>. It is the curated list of R names that
-are categorically unsafe to allow from untrusted input. Categories:</p>
+<p><code>unsafe_expr_denylist</code> (in <code>R/paintr-utils.R</code>)
+is the curated set of R names categorically unsafe from untrusted
+input:</p>
 <table class="table">
 <colgroup>
-<col width="38%">
 <col width="61%">
+<col width="38%">
 </colgroup>
 <thead><tr class="header">
 <th>Category</th>
@@ -238,7 +240,7 @@ are categorically unsafe to allow from untrusted input. Categories:</p>
 </td>
 </tr>
 <tr class="odd">
-<td>environment / global state mutation</td>
+<td>environment / global-state mutation</td>
 <td>
 <code>&lt;&lt;-</code>, <code>-&gt;&gt;</code>, <code>assign</code>,
 <code>attach</code>, <code>library</code>, <code>loadNamespace</code>,
@@ -285,89 +287,86 @@ are categorically unsafe to allow from untrusted input. Categories:</p>
 </table>
 <p>The list is <strong>treated as complete</strong> for the maintained
 branch. R is open enough that no finite enumeration is exhaustive —
-<code>get("system")()</code> would bypass any pure name-match if the
-walker did not also handle string literals, compound heads, and nested
-calls. New entries land only when a concrete bypass is demonstrated
-against the <em>walker</em>, not against the list alone.</p>
-<p>There is <strong>no “add one name to the curated denylist”
-shortcut</strong>: a bare
+<code>get("system")()</code> would slip past any pure name-match if the
+walker did not also descend into string literals, compound heads, and
+nested calls. New entries land only when a concrete bypass is
+demonstrated against the <em>walker</em>, not against the list
+alone.</p>
+<p>There is no “add one name” shortcut. As the table notes,
 <code>expr_check = list(deny_list = "your_name")</code>
-<em>replaces</em> the curated ~151-entry list with <strong>only</strong>
-<code>"your_name"</code> (see the <code>expr_check</code> table above),
-so using it to cover a single extra name silently drops the other ~150
-protections — it weakens, not tightens. If you believe the curated list
-genuinely omits a dangerous name, treat it as a list/walker gap and
-report it (see <em>The AST walker</em> below and the closing note)
-rather than narrowing your own deployment to a one-entry denylist.</p>
+<em>replaces</em> the curated 151 with only <code>"your_name"</code>,
+silently dropping the other 150 protections. If you think the curated
+list genuinely omits a dangerous name, treat it as a walker/list gap and
+report it (see below) rather than narrowing your own deployment to a
+one-entry denylist.</p>
 </div>
 <div class="section level3">
 <h3 id="the-ast-walker">The AST walker<a class="anchor" aria-label="anchor" href="#the-ast-walker"></a>
 </h3>
 <p><code>validate_expr_safety()</code> (also in
-<code>paintr-utils.R</code>) is the recursive descent that turns
-"denylist" from a list of names into a check that actually catches
-things. Every <code>expr</code>-box input passes through it before the
-runtime evaluates the formula.</p>
-<p>What the walker does at each AST node:</p>
+<code>paintr-utils.R</code>) is the recursive descent that turns the
+denylist from a list of names into a check with teeth. Every
+<code>ppExpr</code> input passes through it before the formula is
+evaluated. At each AST node:</p>
 <ul>
 <li>
-<strong>Bare symbol</strong> → checked against the denylist by name
-(catches <code>system</code> typed alone).</li>
+<strong>Bare symbol</strong> → checked by name (catches
+<code>system</code> typed alone).</li>
 <li>
 <strong>String literal</strong> (length 1 <em>or</em> longer) →
-every element checked against the denylist (catches
-<code>do.call("system", …)</code> and <code>c("safe", "system")</code>
-alike).</li>
+every element checked (catches <code>do.call("system", …)</code> and
+<code>c("safe", "system")</code> alike).</li>
 <li>
-<strong>Pairlist</strong> (e.g. the formals of a
-<code>function(x)</code> inside the expression) → recurse into every
-element.</li>
+<strong>Pairlist</strong> (e.g. the formals of an inline
+<code>function(x)</code>) → recurse into every element.</li>
 <li>
-<strong>Call</strong> → recurse into both the function head and
-every argument.
+<strong>Call</strong> → recurse into the head <em>and</em> every
+argument.
 <ul>
 <li>
 <strong>Compound head</strong> (<code>(system)("ls")</code>,
-<code>base::eval(parsed)</code>) → recurse into the head sub-expression
-first, then run the denylist check on its deparsed name.</li>
+<code>base::eval(parsed)</code>) → recurse into the head sub-expression,
+then check its deparsed name.</li>
 <li>
 <strong>Placeholder annotation</strong>
-(<code>num(shared = "x")</code>) → skipped. These are formula DSL, not
-user code; their arguments are validated by the parser at translation
-time.</li>
+(<code>ppNum(shared = "x")</code>) → skipped: that is formula DSL,
+validated by the parser at translation time, not user code.</li>
 </ul>
 </li>
 <li>
-<strong>Depth cap</strong> → 100 nested levels. Above that, the
-validator aborts with "simplify it." This is a DoS guard against
-pathological inputs.</li>
+<strong>Depth cap</strong> → 100 nested levels; deeper aborts with
+“simplify it.” A guard against pathological inputs.</li>
 </ul>
+<p>Importantly, in <strong>allowlist</strong> mode the floor still
+holds: a curated name appearing as a bare symbol or string is blocked
+even if it is absent from your <code>allow_list</code> — the allowlist
+governs which <em>call heads</em> are permitted, not whether
+<code>system</code> may appear as data.</p>
 <p>The walker is what makes the denylist usable. A name-only check would
-miss every form that can construct a function reference from a string —
+miss every form that builds a function reference from a string —
 <code>do.call("system", list("ls"))</code>,
-<code>getFromNamespace("system", "base")</code>,
-<code>eval(parse(text = "system('ls')"))</code>. The walker recurses
-through <em>all</em> of those, hitting the denied names wherever they
-appear.</p>
-<p>If you find a string that bypasses both the denylist and the walker,
-file a bug — the walker is the primary safety mechanism and is where
-bypasses get fixed first.</p>
+<code>eval(parse(text = "system('ls')"))</code>,
+<code>getFromNamespace("system", "base")</code>. The walker recurses
+through all of them, hitting denied names wherever they sit.</p>
+<p>If you find a string that slips past both the denylist and the
+walker, file a bug — the walker is the primary safety mechanism and
+where bypasses get fixed first.</p>
 </div>
 </div>
 <div class="section level2">
-<h2 id="upload-trust-model">Upload trust model<a class="anchor" aria-label="anchor" href="#upload-trust-model"></a>
+<h2 id="the-upload-trust-model">The upload trust model<a class="anchor" aria-label="anchor" href="#the-upload-trust-model"></a>
 </h2>
-<p>The <code>upload</code> placeholder is the second untrusted-input
-vector. Unlike <code>expr</code>, uploads do <em>not</em> execute
-user-supplied code — they parse user-supplied bytes as tabular data.</p>
+<p><code>ppUpload</code> is the second untrusted-input vector. Unlike
+<code>ppExpr</code>, an upload does not execute user code — it parses
+user bytes as tabular data.</p>
 <div class="section level3">
 <h3 id="accepted-formats">Accepted formats<a class="anchor" aria-label="anchor" href="#accepted-formats"></a>
 </h3>
 <table class="table">
 <colgroup>
-<col width="32%">
-<col width="42%">
-<col width="25%">
+<col width="23%">
+<col width="48%">
+<col width="27%">
 </colgroup>
 <thead><tr class="header">
 <th>Extension</th>
@@ -378,13 +377,13 @@ user-supplied code — they parse user-supplied bytes as tabular data.</p>
 <tr class="odd">
 <td><code>.csv</code></td>
 <td>
-<code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">utils::read.csv()</a></code> with <code>UTF-8-BOM</code>
-</td>
+<code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">utils::read.csv()</a></code> (<code>UTF-8-BOM</code>)</td>
 <td>base</td>
 </tr>
 <tr class="even">
 <td><code>.tsv</code></td>
-<td><code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">utils::read.delim()</a></code></td>
+<td>
+<code><a href="https://rdrr.io/r/utils/read.table.html" class="external-link">utils::read.delim()</a></code> (<code>UTF-8-BOM</code>)</td>
 <td>base</td>
 </tr>
 <tr class="odd">
@@ -406,69 +405,62 @@ user-supplied code — they parse user-supplied bytes as tabular data.</p>
 </tr>
 </tbody>
 </table>
-<p>Any other extension is rejected with "Please upload a .csv, .tsv,
-.rds, .xlsx, .xls, or .json file." — no fallback parser, no
-<code>?ext</code> heuristic. JSON uploads must be an array of records;
-nested objects are flattened, nested arrays error out.</p>
-<p>The <code>.rds</code> reader is the most permissive in what bytes it
-accepts (an <code>.rds</code> file is an R serialization stream). It is
-included because users who already have data in R serialization format
-expect it; if your deployment serves untrusted users, consider an
-<code>expr_check</code> policy <em>and</em> a host-level upload filter —
-<code>.rds</code> content is opaque to ggpaintr until
-<code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS()</a></code> runs.</p>
+<p>Any other extension is rejected — “Please upload a .csv, .tsv, .rds,
+.xlsx, .xls, or .json file.” — with no fallback parser. A JSON upload
+must be an array of records; nested fields are flattened, and any column
+that remains a nested array or object is rejected.</p>
+<p><code>.rds</code> is the most permissive in what bytes it accepts —
+an <code>.rds</code> file is an R serialization stream, opaque to
+ggpaintr until <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS()</a></code> runs. It is supported because
+users with data already in that format expect it; if you serve untrusted
+users, pair an <code>expr_check</code> policy with a host-level upload
+filter.</p>
 </div>
 <div class="section level3">
-<h3 id="normalization-happens-automatically">Normalization happens automatically<a class="anchor" aria-label="anchor" href="#normalization-happens-automatically"></a>
+<h3 id="normalization-is-automatic">Normalization is automatic<a class="anchor" aria-label="anchor" href="#normalization-is-automatic"></a>
 </h3>
 <p>Every successful upload passes through
-<code><a href="../reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> (or the equivalent
+<code><a href="../reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> (or
 <code>ptr_normalize_tabular_data()</code> for
 non-<code>data.frame</code> returns from
-<code>readRDS</code>/<code>readxl</code>/<code>jsonlite</code>). Column
-names that come in with spaces, reserved words, or duplicates leave
-normalized, syntactic, and unique. Downstream <code>var</code>
-placeholders therefore always see a clean column-name vector. You do not
-need to call <code><a href="../reference/ptr_normalize_column_names.html">ptr_normalize_column_names()</a></code> yourself for
-uploaded data — only for in-session data frames you reference by name
-(see <code><a href="../articles/ggpaintr-use-cases.html">vignette("ggpaintr-use-cases")</a></code> §L1).</p>
-<p>The file <em>stem</em> (name without extension) is also sanitised: a
-stem matching an R reserved word is renamed (e.g. <code>if.csv</code> →
-dataset name <code>if_</code>), not rejected — the upload still succeeds
-under the safe name, so it won’t quietly shadow the <code>if</code>
-keyword if the user later types its stem into an <code>expr</code>
-box.</p>
+<code>readRDS</code>/<code>readxl</code>/<code>jsonlite</code>). Names
+arriving with spaces, reserved words, or duplicates leave normalized,
+syntactic, and unique, so downstream <code>ppVar</code> pickers always
+see a clean column vector. You never call these yourself for uploads —
+only for in-session data frames you reference by name
+(<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code>, §1).</p>
+<p>The file <em>stem</em> is sanitised too: a stem matching an R
+reserved word is renamed (<code>if.csv</code> → dataset name
+<code>if_</code>), not rejected — the upload still succeeds under the
+safe name, so it can’t shadow the <code>if</code> keyword if the stem
+later reaches an <code>ppExpr</code> box.</p>
 </div>
 <div class="section level3">
 <h3 id="what-is-and-isnt-validated">What is and isn’t validated<a class="anchor" aria-label="anchor" href="#what-is-and-isnt-validated"></a>
 </h3>
-<p>The upload pipeline validates <em>shape</em> (parseable as a
-recognised tabular format) and <em>names</em> (syntactic, unique,
-non-reserved). It does <strong>not</strong> validate:</p>
+<p>The pipeline validates <em>shape</em> (parseable as a recognised
+tabular format) and <em>names</em> (syntactic, unique, non-reserved). It
+does <strong>not</strong> validate:</p>
 <ul>
 <li>
-<strong>Values inside the data.</strong> A column called
-<code>x</code> can contain any numeric, character, factor, or
-list-column content the parser produces. <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> will fail
-at render time if a value is unusable, and the error surfaces through
-<code>state$runtime()$error</code>; ggpaintr itself does not inspect
-cell content.</li>
+<strong>Cell values.</strong> A column may hold any content the
+parser produces. A bad value fails at render time and surfaces through
+<code>state$runtime()$error</code>; ggpaintr does not inspect
+cells.</li>
 <li>
-<strong>Schema or expected columns.</strong> Nothing requires that
-an upload have <code>Sepal.Length</code> just because the formula
-references it. A missing referenced column shows up as a runtime error,
-not a parse-time rejection.</li>
+<strong>Schema.</strong> Nothing requires an upload to carry
+<code>Sepal.Length</code> just because the formula names it. A missing
+referenced column is a runtime error, not a parse-time rejection.</li>
 <li>
-<strong>Size limits or rate limits.</strong> Shiny’s
-<code>shiny.maxRequestSize</code> option caps body size; that is host
-configuration, not a ggpaintr setting. Per-user rate limits, file-count
-caps, or anti-abuse policies are entirely the host’s problem.</li>
+<strong>Size / rate limits.</strong> Shiny’s
+<code>shiny.maxRequestSize</code> caps body size (host configuration).
+Per-user rate limits, file-count caps, and anti-abuse policy are the
+host’s concern.</li>
 </ul>
-<p>If you need any of those validations, layer them either above
-ggpaintr (a custom <code>placeholder_source</code> that wraps
-<code>upload</code> and enforces a schema — see
-<code><a href="../articles/ggpaintr-customization.html">vignette("ggpaintr-customization")</a></code>) or below it (Shiny /
-nginx / reverse-proxy configuration at the deployment tier).</p>
+<p>If you need any of these, layer them above ggpaintr — a custom source
+placeholder that wraps an upload and enforces a schema
+(<code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code>, §2.3) — or below it, at the
+deployment tier (Shiny / reverse-proxy configuration).</p>
 </div>
 </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

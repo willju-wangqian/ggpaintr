@@ -36,6 +36,11 @@ A `shiny.tag` `div.ptr-app` wrapping the wellPanel and the asset bundle,
 suitable for direct placement in the embedder's UI, or `NULL` when no
 panel keys exist.
 
+## Details
+
+Namespacing is inherited from `obj$id`; supply it to
+[`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md).
+
 ## See also
 
 [`ptr_shared()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared.md),
@@ -46,8 +51,8 @@ panel keys exist.
 
 ``` r
 obj <- ptr_shared(c(
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 ptr_shared_panel(obj)
 #> <div class="ptr-app">

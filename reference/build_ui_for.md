@@ -2,7 +2,7 @@
 
 S3 generic dispatched per node class. Resolves the human-readable label
 through `ptr_resolve_ui_text`, namespaces the node's id (and any
-`companion_id` for source nodes) via `ns_fn`, and forwards to the
+`shortcut_id` for source nodes) via `ns_fn`, and forwards to the
 registered `build_ui` hook for the placeholder's keyword.
 
 ## Usage
@@ -21,13 +21,12 @@ build_ui_for(node, ...)
 - ...:
 
   Additional arguments. Recognized by built-in methods: `ui_text`,
-  `layer_name`, `ns_fn`, `checkbox_defaults`, `shell_copy`,
-  `label_override` (force a specific widget label, used for shared
-  widgets referenced under several params). Consumer placeholders emit
-  only a `uiOutput` container at static build time; their picker is
-  rendered server-side via `ptr_setup_consumer_uis()`, which calls the
-  registry's `build_ui(node, cols, ...)` inside `renderUI` once cols are
-  resolved.
+  `layer_name`, `ns_fn`, `shell_copy`, `label_override` (force a
+  specific widget label, used for shared widgets referenced under
+  several params). Consumer placeholders emit only a `uiOutput`
+  container at static build time; their picker is rendered server-side
+  via `ptr_setup_consumer_uis()`, which calls the registry's
+  `build_ui(node, cols, ...)` inside `renderUI` once cols are resolved.
 
 ## Value
 
