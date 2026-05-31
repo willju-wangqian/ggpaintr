@@ -16,7 +16,7 @@
       "tags": "l1,api-surface,composition",
       "source": "R/paintr-app.R:134-181, 1284-1305, 1307-1502; R/paintr-app-bslib.R:56-122",
       "verdict": "verified",
-      "verification": "Read R/paintr-app.R lines 134-181, 1284-1305, 1307-1502 and R/paintr-app-bslib.R 56-122; structure confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:134-181",
         "R/paintr-app.R:1284-1305",
@@ -30,7 +30,7 @@
         "package-api-surface"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-app-formula-only-required-arg",
@@ -41,7 +41,7 @@
       "tags": "l1,api-surface,ptr_app,data-supply",
       "source": "R/paintr-app.R:134-152, 11-122; R/paintr-app-bslib.R:56-62; R/paintr-app.R:1092-1093",
       "verdict": "verified",
-      "verification": "Read signature 134-140 (formula no default, rest defaulted, no data= param); roxygen 17-34 confirms expr_check three-mode + css; 54-58 ppUpload path; 120-122 spec/ADR-0012.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:134-152",
         "R/paintr-app.R:11-122",
@@ -54,7 +54,7 @@
         "app-entry-points"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "formula-string-or-expression-mode-capture",
@@ -65,7 +65,7 @@
       "tags": "l1,formula-capture,expression-mode,gotcha",
       "source": "R/paintr-app.R:196-296, 106-132, 141, 162, 1094",
       "verdict": "verified",
-      "verification": "Read 196-296: {} unwrap, string passthrough, symbol resolve via eval_bare+sys.frames, force-eval head set (paste..$ at 264-266), expr_text(width=500L) at 290. Pipe caveat at 116-119. Called at 141,162,1094.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:196-296",
         "R/paintr-app.R:106-132",
@@ -80,7 +80,7 @@
         "app-entry-points"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-app-grid-takes-list-of-formulas-routes-through-coordinator",
@@ -91,7 +91,7 @@
       "tags": "l1,ptr_app_grid,shared-coordinator,grid-layout,composition",
       "source": "R/paintr-app.R:1284-1502; R/paintr-shared-coordinator.R:245,464; R/paintr-shared-ui.R:260; R/paintr-shared.R:35",
       "verdict": "verified",
-      "verification": "Read 1307-1502: any_shared OR-gate, ptr_shared single-source obj, per-tile ptr_ui(...,shared=obj), ncol/nrow resolution, col_width 12%/%ncol, per-plot ptr_server shared_state=state, ptr_spec_combine. canonical_shared_id=paste0('shared_',key) at shared.R:35; ptr_shared coordinator.R:245; ptr_shared_panel coordinator.R:464; ptr_shared_server shared-ui.R:260.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:1284-1502",
         "R/paintr-shared-coordinator.R:245",
@@ -106,7 +106,7 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-app-bslib-demonstration-wrapper-no-single-formula-shared",
@@ -138,13 +138,11 @@
       "tags": "l1,ptr_app,ui-structure,server-wiring",
       "source": "R/paintr-app.R:758-792, 401-438, 564-570, 302-354; R/paintr-build-ui.R:774",
       "verdict": "verified",
-      "verification": "Read 758-792, 401-438, 564-570, 302-354; ptr_assets at build-ui.R:774. All structure confirmed.",
+      "verification": "Re-verified at HEAD a1737f7: ptr_make_app_server still calls ptr_bind_local_shared_consumers once with host_owned_keys evaluating to character(0) and render_shared_section TRUE for single-instance. As of b6a2f72 (ADR 0026 #11) both are now produced via the partition_view helper — partition_host_owned_keys(new_partition_view('single')) at R/paintr-app.R:339 and partition_renders_section(new_partition_view('single')) at :169 — rather than literals; behavior byte-stable (helper returns character(0)/TRUE for role 'single'). All other wiring (ptr_server_internal auto_bind_shared=TRUE, ptr_build_app_ui fluidPage + branded header + sidebarLayout(ptr_controls_panel, ptr_outputs_panel)) unchanged.",
       "checked_refs": [
-        "R/paintr-app.R:758-792",
-        "R/paintr-app.R:401-438",
-        "R/paintr-app.R:564-570",
-        "R/paintr-app.R:302-354",
-        "R/paintr-build-ui.R:774"
+        "R/paintr-app.R:169",
+        "R/paintr-app.R:339",
+        "R/paintr-partition-view.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1700-public-api-understanding.md",
       "origin_status": "derived-unverified",
@@ -152,7 +150,7 @@
         "app-entry-points"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "pp-placeholder-three-roles",
@@ -485,7 +483,7 @@
       "tags": "l2,public-api,adr-0006",
       "source": "R/paintr-app.R:1006-1008,1019-1021,1091-1092; R/paintr-server.R:83-84,799-801; NAMESPACE:106,115",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:1004-1090",
         "R/paintr-app.R:1091-1092",
@@ -501,7 +499,7 @@
         "package-api-surface"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "l2-user-owns-shinyapp-shell",
@@ -512,7 +510,7 @@
       "tags": "l2,composition,namespacing,public-api",
       "source": "R/paintr-app.R:1047-1049,1069-1077,1166; tests/testthat/fixtures/vignette-apps/module-app/app.R:1-18; /tmp/ggp-browser-l2/fresh-l2/app.R:1-26",
       "verdict": "verified",
-      "verification": "@example shows user-authored shinyApp(fluidPage(ptr_ui),fn{ptr_server}); moduleServer(id) at 1166 confirms self-namespacing; module-app + fresh-l2 fixtures confirm user-owned fluidPage+server.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:1042-1090",
         "R/paintr-app.R:1047-1049",
@@ -526,7 +524,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-server-wraps-moduleserver-itself",
@@ -537,7 +535,7 @@
       "tags": "l2,ptr_server,adr-0006,namespacing",
       "source": "R/paintr-app.R:1092-1093,1166,1228; tests/testthat/fixtures/vignette-apps/module-app/app.R:14-16; tests/testthat/test-e2e-vignette-examples-shinytest2.R:177-198",
       "verdict": "verified",
-      "verification": "Read app.R:1092-1230: moduleServer(id) at 1166, returns `state` at 1228; fixture server is bare ptr_server(formula); e2e confirms NS(NULL) identity comment + bare/prefixed id shapes.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:1092-1230",
         "tests/testthat/fixtures/vignette-apps/module-app/app.R:14-16",
@@ -549,7 +547,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-server-returns-ptr-state-render-handle",
@@ -560,7 +558,7 @@
       "tags": "l2,l3,ptr-state,runtime,custom-render,return-contract",
       "source": "R/paintr-server.R:203-316,1941,3670-3683,838-863; R/paintr-app.R:1016-1030,1062-1065,1228; /tmp/ggp-browser-l2/fresh-l2/app.R:18-26",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-server.R:195-316",
         "R/paintr-server.R:1941",
@@ -577,7 +575,7 @@
         "l3-custom-render"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "l2-ptr-server-arg-forwarding-and-shared",
@@ -588,7 +586,7 @@
       "tags": "l2,arguments,shared-coordinator,forwarding",
       "source": "R/paintr-app.R:1092-1094,1102-1109,1121-1129,1173-1184,1194-1202; R/paintr-server.R:84-98,835-836",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:1092-1228",
         "R/paintr-server.R:80-104",
@@ -600,7 +598,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "l2-id-arg-namespaces-all-ids",
@@ -611,7 +609,7 @@
       "tags": "l2,namespacing,input-ids",
       "source": "R/paintr-app.R:831-832,1166,1186-1199; tests/testthat/test-e2e-vignette-examples-shinytest2.R:177-239",
       "verdict": "verified",
-      "verification": "id roxygen at 831-832; moduleServer(id) at 1166, session$ns wrapping 1186-1199; e2e bare vs prefixed ids confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:830-863",
         "R/paintr-app.R:1166-1203",
@@ -623,7 +621,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-self-contained-shell",
@@ -634,7 +632,7 @@
       "tags": "l2,ui,composition",
       "source": "R/paintr-app.R:861-899",
       "verdict": "verified",
-      "verification": "Read 861-899; fluidPage>div.ptr-app>[assets,header,sidebarLayout(controls,toggle_code(inline_error(plot,error),code))]; comment confirms asset-once + bare .ptr-app no --page; shared forwarded verbatim.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:851-852",
         "R/paintr-app.R:861-899"
@@ -645,7 +643,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-page-vs-ptr-ui-controls",
@@ -656,7 +654,7 @@
       "tags": "l2,l3,ui,page-shell",
       "source": "R/paintr-app.R:975-981,996-1002,901-916,951-966",
       "verdict": "verified",
-      "verification": "ptr_ui_page calls page(ptr_assets(css),div.ptr-app,...); @param page lists BS3 builders excludes navbarPage/bslib/BS5; ptr_ui_controls bare tagList no .ptr-app/assets, wrap in ptr_ui_page.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:901-916",
         "R/paintr-app.R:951-966",
@@ -669,7 +667,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-pieces-output-id-contract",
@@ -680,7 +678,7 @@
       "tags": "L3,ui-pieces,output-id,namespace,ptr_server",
       "source": "R/paintr-app.R:446-458,474-488,539-559,598-600,618-620,644-646,1009-1011; R/paintr-server.R:860-862,3502-3504,3525-3527,3582-3584",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:446-447",
         "R/paintr-app.R:456-458",
@@ -701,7 +699,7 @@
         "l3-custom-render"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-pieces-emit-no-assets-page-includes-once",
@@ -712,7 +710,7 @@
       "tags": "L3,assets,mandatory,ptr_ui_page,htmlDependency,ptr-app-scope",
       "source": "R/paintr-build-ui.R:665-807; R/paintr-app.R:901-918,996-1002",
       "verdict": "verified",
-      "verification": "ptr_assets = tagList(layer_assets, core_assets_dep, user_css_assets); both htmlDependency; user css 3rd/after ggpaintr.css; dedupe-via-htmltools comment; single-piece builders emit none; ptr_ui_page owns the deduped bundle + .ptr-app scope.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-build-ui.R:665-710",
         "R/paintr-build-ui.R:712-780",
@@ -726,7 +724,7 @@
         "l3-custom-render"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-assets-keeps-legacy-resourcepath",
@@ -758,7 +756,7 @@
       "tags": "L3,combinator,dom-only,inline-error,toggle-code,fallback",
       "source": "R/paintr-app.R:460-472,518-537,581-584,671-756",
       "verdict": "verified",
-      "verification": "inline_error card-vs-tagList fallback (671-682); toggle_code card-vs-sibling fallback (723-756); </> JS DOM-local to .ptr-output (comments 460-463/684-693); ptr_ui_plot truly bare (581-584).",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:460-472",
         "R/paintr-app.R:518-537",
@@ -771,7 +769,7 @@
         "l3-custom-render"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-code-style-window-needs-toggle",
@@ -782,7 +780,7 @@
       "tags": "L3,ptr_ui_code,window,panel,code-mode,ptr_code_mode",
       "source": "R/paintr-app.R:490-510,518-559,632-646; R/paintr-server.R:3582-3585",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:490-510",
         "R/paintr-app.R:518-559",
@@ -795,7 +793,7 @@
         "l3-custom-render"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-controls-shared-key-exclusion",
@@ -806,7 +804,7 @@
       "tags": "L3,ptr_ui_controls,shared,panel_keys,layer-picker",
       "source": "R/paintr-app.R:368-399,401-438,901-966",
       "verdict": "verified",
-      "verification": "ptr_ui_controls exclude_keys=shared$panel_keys, shared_section_tags(exclude_keys=), ptr_controls_panel(render_shared_section=FALSE); panel emits layer picker + hidden tabset + update button; shared_section_tags filters exclude_keys.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:360-399",
         "R/paintr-app.R:401-438",
@@ -819,7 +817,7 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-ui-text-is-copy-schema-accessor-not-a-piece",
@@ -830,7 +828,7 @@
       "tags": "copy,ui-text,validation,classed-object,not-a-piece,public-api",
       "source": "R/paintr-copy.R:30-63,164-166,293-317,558-628; R/paintr-app.R:794-818",
       "verdict": "verified",
-      "verification": "ptr_ui_text body 612-628 (short-circuit/NULL/validate-normalize-merge-reclass); validate allowed_top sections 302-309; defaults from registry copy_defaults; override schema roxygen 572-594; function at 612-628 (560-610 is roxygen).",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-copy.R:30-63",
         "R/paintr-copy.R:164-166",
@@ -844,7 +842,7 @@
         "copy-ui-text"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ui-text-three-level-specificity-merge",
@@ -1256,7 +1254,7 @@
       "tags": "safety,trust-boundary,expr_check,eval",
       "source": "R/paintr-safety.R:10-12; R/paintr-utils.R:628-630,484-544; R/paintr-eval.R:23; R/paintr-app.R:17; R/paintr-server.R:31",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-safety.R:10-12",
         "R/paintr-utils.R:628-630",
@@ -1271,7 +1269,7 @@
         "expr-safety"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ppexpr-walker-typed-tree-vs-language",
@@ -1486,7 +1484,7 @@
       "tags": "l2,ptr_init_state,state-container,testServer,public-api",
       "source": "R/paintr-server.R:11-25,84-122,203-316,749-835; R/paintr-app.R:1092",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-server.R:1-130",
         "R/paintr-server.R:203",
@@ -1501,7 +1499,7 @@
         "package-api-surface"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "l3-extract-needs-running-runtime",
@@ -1677,7 +1675,7 @@
       "tags": "shared-coordinator,public-api,L2,L3,usage",
       "source": "R/paintr-shared-coordinator.R:163-342,436-507; R/paintr-shared-ui.R:199-267",
       "verdict": "verified",
-      "verification": "signature 245-249; @param formulas 184-193 (char/list, string-or-quoted-expr, built-object rejected, |> desugar); roxygen 177-179 'consumed by exactly three functions, each taking only the object'; struct 322-341; empty-key abort 274-278; ptr_shared_server in shared-ui.R 260; strictly-multi-instance note 175-176.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-shared-coordinator.R:163-342",
         "R/paintr-shared-coordinator.R:436-507",
@@ -1690,7 +1688,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-shared-partition-by-formula-count",
@@ -1752,7 +1750,7 @@
       "tags": "shared-coordinator,server,L2,namespacing,usage",
       "source": "R/paintr-shared-ui.R:199-349,438-479; R/paintr-shared.R:35,45-52; R/paintr-server.R:767-821",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-shared-ui.R:199-349",
         "R/paintr-shared-ui.R:18-38",
@@ -1768,7 +1766,7 @@
         "extensibility-levels"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "ptr-shared-panel-vs-ui-shared-panel-L2-L3",
@@ -1873,7 +1871,7 @@
       "tags": "ptr_app_grid,L1,host-shape,usage",
       "source": "R/paintr-app.R:1284-1305; R/paintr-shared-coordinator.R:425-426; tests/testthat/test-e2e-vignette-examples-shinytest2.R:154-176,296-327; tests/testthat/fixtures/vignette-apps/grid-shared-partition/app.R",
       "verdict": "verified",
-      "verification": "ptr_app_grid delegates to components→shinyApp; draw-all gated formula_count>=2; e2e asserts host ids; fixture header states same host shape as embed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:1284-1305",
         "R/paintr-shared-coordinator.R:425-426",
@@ -1888,7 +1886,7 @@
         "app-entry-points"
       ],
       "status": "fresh",
-      "verified_at_commit": "13dcc5858013acb62d3e113906708814c329f57d"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "shared-panel-pickers-bind-eagerly-vs-data-subtab-suspended",
@@ -1923,7 +1921,7 @@
       "tags": "L1,runtime-gating,usage",
       "source": "R/paintr-app.R:433-437; R/paintr-server.R:1847-1861; tests/testthat/test-j11-app-basic-journey.R:27-90",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:433-437",
         "R/paintr-server.R:1847-1861",
@@ -1935,7 +1933,7 @@
         "app-entry-points"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "l1-default-ui-chrome-contents",
@@ -1946,7 +1944,7 @@
       "tags": "L1,default-ui,chrome,output-ids",
       "source": "R/paintr-app.R:401-438,456-458,479,543,556,564-570; R/paintr-server.R:859-862; tests/testthat/test-e2e-vignette-examples-shinytest2.R:130-132",
       "verdict": "verified",
-      "verification": "Re-verified by symbol at HEAD a58dadd. The only R/ behavioral drift since this finding's last verification is consumer_upstream_source_state's host-scope identity (ADR 0026 host env-rename clear); that hunk does not touch this finding's cited symbol(s), which are present and unchanged at HEAD. Claim re-confirmed.",
+      "verification": "Re-verified at HEAD a1737f7. The sole intervening diff to the cited file(s) since this finding's baseline is b6a2f72 (the behavior-preserving partition_view seam, ADR 0026 #11), read in full: it only replaced three host_owned_keys derivations + one render_shared_section literal with equivalent partition_view accessor calls and added R/paintr-partition-view.R. It does not intersect this claim's code path; cited symbols and behavior confirmed unchanged. (Line numbers in R/paintr-app.R after ~1168 shifted +4 and in R/paintr-shared-ui.R after ~416 shifted +3; verify by symbol.)",
       "checked_refs": [
         "R/paintr-app.R:401-438",
         "R/paintr-app.R:456-458",
@@ -1963,7 +1961,7 @@
         "app-entry-points"
       ],
       "status": "fresh",
-      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+      "verified_at_commit": "a1737f7a1dc9394d02efcca83a8734ba28c595ee"
     },
     {
       "id": "l1-placeholder-input-id-namespaced-by-parent-call",
