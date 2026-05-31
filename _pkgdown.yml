@@ -17,11 +17,11 @@ reference:
       - ptr_normalize_column_names
       - ptr_ui_text
   - title: Wrapper examples
-    desc: Worked examples of writing custom wrappers on top of the public ggpaintr primitives. See `vignette("ggpaintr-customization")` § "Writing your own wrapper".
+    desc: Worked examples of writing custom wrappers on top of the public ggpaintr primitives. See `vignette("ggpaintr-tutorial")`.
     contents:
       - ptr_app_bslib
   - title: L2 — Embed with the default layout
-    desc: Plug ggpaintr into your own Shiny app with its self-contained default layout. The module pair is the L2 entry; the shared coordinator (`ptr_shared()` → `ptr_shared_panel()` + `ptr_shared_server()`) links a cross-formula key across plots. See `vignette("ggpaintr-use-cases")` § "L2".
+    desc: Plug ggpaintr into your own Shiny app with its self-contained default layout. The module pair is the L2 entry; the shared coordinator (`ptr_shared()` → `ptr_shared_panel()` + `ptr_shared_server()`) links a cross-formula key across plots. See `vignette("ggpaintr-tutorial")` § "Multiple plots, and writing your own Shiny app".
     contents:
       - ptr_ui
       - ptr_server
@@ -29,7 +29,7 @@ reference:
       - ptr_shared_panel
       - ptr_shared_server
   - title: L3 — Own the layout / render path
-    desc: Own every piece of ggpaintr's public UI — bare builders (no behaviour flags) plus nestable combinators. Compose freely under your own Shiny (optionally `ptr_ui_page()`) and wire with `ptr_server()`. See `vignette("ggpaintr-use-cases")` § "L3".
+    desc: Own every piece of ggpaintr's public UI — bare builders (no behaviour flags) plus nestable combinators. Compose freely under your own Shiny (optionally `ptr_ui_page()`) and wire with `ptr_server()`. See `vignette("ggpaintr-tutorial")`.
     contents:
       - ptr_ui_page
       - ptr_ui_header
@@ -69,8 +69,6 @@ articles:
   - title: Guides
     navbar: ggpaintr
     contents:
-      - ggpaintr-use-cases
-      - ggpaintr-customization
+      - ggpaintr-tutorial
       - ggpaintr-safety
-      - ggpaintr-gallery
       - ggpaintr-llm

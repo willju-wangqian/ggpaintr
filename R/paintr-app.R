@@ -61,7 +61,7 @@
 #' Any keyword occurrence may carry `shared = "<id>"` to lift the widget out
 #' of its per-layer panel into a top-level shared section. Used by
 #' [ptr_app_grid()] to drive multiple plots from one control. See
-#' `vignette("ggpaintr-use-cases")` for worked examples of each keyword.
+#' `vignette("ggpaintr-tutorial")` for worked examples of each keyword.
 #'
 #' @section Empty-call cleanup:
 #' When a placeholder resolves to "missing" (an empty `ppVar` pick, a blank
@@ -102,7 +102,7 @@
 #'   [ptr_define_placeholder_value()] et al. for registering custom
 #'   keywords; [ptr_ui_text()] for copy overrides; [ptr_css()] for the
 #'   `css =` argument and themable CSS custom properties;
-#'   `vignette("ggpaintr-use-cases")` for tutorial examples.
+#'   `vignette("ggpaintr-tutorial")` for tutorial examples.
 #' @param formula Either a single character scalar containing a ggplot
 #'   expression with `ggpaintr` placeholders, or an unquoted ggplot
 #'   expression supplied directly. Expression-mode is captured with
@@ -915,7 +915,7 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #' composed pieces in [ptr_ui_page()], which *is* the Bootstrap page and
 #' owns the single `.ptr-app` scope + the (deduped) assets. For a
 #' `navbarPage` or bslib root (which `ptr_ui_page()` does not cover) see
-#' the decomposition recipe in `vignette("ggpaintr-use-cases")`.
+#' `vignette("ggpaintr-tutorial")`.
 #'
 #' For finer control still — placing individual placeholder widgets
 #' independently rather than the whole panel — register a custom placeholder
@@ -977,8 +977,8 @@ ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
 #'   `bootstrapPage`, `basicPage`. NOT `navbarPage` (needs a positional
 #'   `title` + `tabPanel` children) and NOT bslib/BS5 pages (the bundled
 #'   CSS is Bootstrap-3-scoped -- see [ptr_app_bslib()]). For those roots,
-#'   compose by hand: see the decomposition example in
-#'   `vignette("ggpaintr-use-cases")`.
+#'   compose by hand: see
+#'   `vignette("ggpaintr-tutorial")`.
 #' @param css Optional character vector of extra stylesheet paths,
 #'   linked after `ggpaintr.css`. See [ptr_css()].
 #' @return A `shiny.tag` — the Bootstrap page node ready to pass to
@@ -1027,7 +1027,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' ```
 #' `state$runtime()` is reactive; `$plot` is the built ggplot/ggplot-like
 #' object, `$code` the generated source string, `$error` any inline error.
-#' See `vignette("ggpaintr-use-cases")`.
+#' See `vignette("ggpaintr-tutorial")`.
 #'
 #' For cross-formula coordination — multiple ggpaintr instances driven by
 #' one widget — build the coordinator with [ptr_shared_server()] and pass

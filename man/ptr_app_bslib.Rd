@@ -55,8 +55,7 @@ A small wrapper that composes the public ggpaintr primitives
 \code{\link[=ptr_server]{ptr_server()}}) inside a \code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} shell. Exported
 so users who want a quick
 \code{bslib}-themed app can call it directly, but its primary purpose is to
-illustrate the wrapper pattern documented in
-\code{vignette("ggpaintr-customization")} § "Writing your own wrapper" — the
+illustrate the wrapper pattern: the
 entire source is short enough to copy and adapt for any other layout or
 theme.
 }

@@ -18,8 +18,8 @@ ptr_define_placeholder_source(
 }
 \arguments{
 \item{keyword, ui_text_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. See
-\code{vignette("ggpaintr-customization")} § "Source placeholders" for the
-tutorial.}
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders"
+(source role).}
 
 \item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag —
 same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. Render ONLY the

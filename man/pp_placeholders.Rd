@@ -37,7 +37,7 @@ These are the plain-R callables returned by registering the five
 built-in ggpaintr placeholders (\code{ppVar}, \code{ppNum}, \code{ppText}, \code{ppExpr},
 \code{ppUpload}). Inside a formula passed to \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_server]{ptr_server()}}
 the parser recognises calls to these names as placeholder invocations
-and binds them to Shiny widgets (see \code{vignette("ggpaintr-use-cases")}).
+and binds them to Shiny widgets (see \code{vignette("ggpaintr-tutorial")}).
 Outside \code{ptr_app()} they behave as plain R functions: the first four
 return their argument unchanged (identity), so a formula such as
 \code{aes(x = ppVar(mpg))} evaluates identically to \code{aes(x = mpg)} under

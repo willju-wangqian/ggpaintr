@@ -5,8 +5,7 @@
 #' [ptr_server()]) inside a [bslib::page_sidebar()] shell. Exported
 #' so users who want a quick
 #' `bslib`-themed app can call it directly, but its primary purpose is to
-#' illustrate the wrapper pattern documented in
-#' `vignette("ggpaintr-customization")` § "Writing your own wrapper" — the
+#' illustrate the wrapper pattern: the
 #' entire source is short enough to copy and adapt for any other layout or
 #' theme.
 #'

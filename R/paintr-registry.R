@@ -434,7 +434,7 @@ ptr_registry_register <- function(entry) {
 #' recognise as a substitutable token in a formula. The keyword's widget
 #' is built by `build_ui`; the widget's value is turned back into the R
 #' code spliced into the rendered call by `resolve_expr`. See
-#' `vignette("ggpaintr-customization")` § "Adding a new widget type" for
+#' `vignette("ggpaintr-tutorial")` § "Defining your own placeholders" for
 #' the lifecycle walk-through, signatures table, and runnable
 #' `ptr_app()` examples — this help page is reference.
 #'
@@ -562,7 +562,7 @@ ptr_registry_register <- function(entry) {
 #'   helper is also called for its registration side effect — use
 #'   [ptr_clear_placeholder()] to remove the entry.
 #'
-#' @seealso `vignette("ggpaintr-customization")` for the tutorial;
+#' @seealso `vignette("ggpaintr-tutorial")` § "Defining your own placeholders";
 #'   [ptr_define_placeholder_consumer()], [ptr_define_placeholder_source()],
 #'   [ptr_clear_placeholder()].
 #'
@@ -610,8 +610,8 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #' A *consumer* placeholder is a value placeholder that additionally
 #' receives the columns of the upstream data frame — typically a column
 #' picker. The built-in example is `ppVar`. See
-#' `vignette("ggpaintr-customization")` § "Consumer placeholders" for the
-#' tutorial.
+#' `vignette("ggpaintr-tutorial")` § "Defining your own placeholders"
+#' (consumer role).
 #'
 #' @param keyword,ui_text_defaults See [ptr_define_placeholder_value()].
 #'
@@ -681,7 +681,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   `runtime = ...`). Also called for its registration side effect; use
 #'   [ptr_clear_placeholder()] to remove it.
 #'
-#' @seealso `vignette("ggpaintr-customization")` for the tutorial;
+#' @seealso `vignette("ggpaintr-tutorial")` § "Defining your own placeholders";
 #'   [ptr_define_placeholder_value()], [ptr_define_placeholder_source()].
 #'
 #' @examples
@@ -733,8 +733,8 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #' tables, built-in datasets, URL fetches.
 #'
 #' @param keyword,ui_text_defaults See [ptr_define_placeholder_value()]. See
-#'   `vignette("ggpaintr-customization")` § "Source placeholders" for the
-#'   tutorial.
+#'   `vignette("ggpaintr-tutorial")` § "Defining your own placeholders"
+#'   (source role).
 #'
 #' @param build_ui `function(node, label, ...)` returning a Shiny tag —
 #'   same shape as in [ptr_define_placeholder_value()]. Render ONLY the

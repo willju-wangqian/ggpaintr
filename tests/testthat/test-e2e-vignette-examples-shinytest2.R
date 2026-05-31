@@ -23,7 +23,7 @@
 # ---------------------------------------------------------------------------
 #
 # COVERED (one test_that each; fixture slug == test):
-#   ggpaintr-use-cases.Rmd
+#   archive/retired_vignettes/ggpaintr-use-cases.Rmd
 #     app-basic ............. L1 ptr_app() canonical (+ the BDD interaction:
 #                             set a var input, re-draw, code reflects it)
 #     app-grid-shared-added . L1 ptr_app_grid() with a shared widget
@@ -41,10 +41,10 @@
 #     l3-pieces-toggle ...... L3 combinators ptr_ui_inline_error()/_toggle_code()
 #     l3-plotly ............. L3 own-the-render-path: moduleServer + state$runtime()
 #     l3-gg-extra ........... L3 ptr_gg_extra() programmatic layer injection
-#   ggpaintr-gallery.Rmd
+#   archive/retired_vignettes/ggpaintr-gallery.Rmd
 #     plotly-paintr ......... §5.1 worked L3 plotly custom-render example
 #     ggiraph-paintr ........ §5.2 worked L3 ggiraph custom-render example
-#   ggpaintr-customization.Rmd
+#   archive/retired_vignettes/ggpaintr-customization.Rmd
 #     ui-text-example ....... ptr_ui_text() copy overrides
 #     bslib ................. the bslib page_sidebar wrapper (lifted from the
 #                             eval=FALSE `ptr-app-bslib-source` chunk: runnable
@@ -120,7 +120,7 @@
 #     (safety = prose + denylist; llm = ellmer wiring, not a Shiny app).
 # =============================================================================
 
-# --- ggpaintr-use-cases.Rmd --------------------------------------------------
+# --- archive/retired_vignettes/ggpaintr-use-cases.Rmd --------------------------------------------------
 
 test_that("use-cases app-basic: L1 ptr_app boots, renders, re-renders on input", {
   app <- boot_vignette_app("app-basic")
@@ -418,7 +418,7 @@ test_that("use-cases l3-gg-extra: ptr_gg_extra() programmatic layer injection", 
   expect_false(identical(img_before, img_after))
 })
 
-# --- ggpaintr-gallery.Rmd ----------------------------------------------------
+# --- archive/retired_vignettes/ggpaintr-gallery.Rmd ----------------------------------------------------
 
 test_that("gallery plotly-paintr (§5.1): module + custom plotly host output", {
   testthat::skip_if_not_installed("plotly")
@@ -455,7 +455,7 @@ test_that("gallery ggiraph-paintr (§5.2): module + custom ggiraph host output",
                       "ggiraph_demo-ptr_error")
 })
 
-# --- ggpaintr-customization.Rmd ---------------------------------------------
+# --- archive/retired_vignettes/ggpaintr-customization.Rmd ---------------------------------------------
 
 test_that("customization ui-text-example: ptr_ui_text copy overrides", {
   app <- boot_vignette_app("ui-text-example")

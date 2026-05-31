@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-customization.Rmd chunk `ui-text-example` >>>
+# >>> verbatim: archive/retired_vignettes/ggpaintr-customization.Rmd chunk `ui-text-example` >>>
 custom_text <- ptr_ui_text(list(
   shell = list(
     title       = list(label = "Iris explorer"),

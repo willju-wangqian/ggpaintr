@@ -230,8 +230,8 @@ the registration out to users.
 ## 10. Current behavior boundary
 
 - The primer and topic files are bundled under `inst/llm/`. They are
-  hand-curated from `README.Rmd`, `vignette("ggpaintr-use-cases")`, and
-  `vignette("ggpaintr-customization")` — but regenerating them from the
+  hand-curated from `README.Rmd` and `vignette("ggpaintr-tutorial")` —
+  but regenerating them from the
   source vignettes is not yet automated. If you edit a vignette chunk,
   update the corresponding topic file manually.
 - `ptr_llm_register()` requires

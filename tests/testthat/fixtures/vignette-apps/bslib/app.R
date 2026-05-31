@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> lifted: vignettes/ggpaintr-customization.Rmd chunk `ptr-app-bslib-source`.
+# >>> lifted: archive/retired_vignettes/ggpaintr-customization.Rmd chunk `ptr-app-bslib-source`.
 #     That chunk is eval=FALSE and displays the *source* of the exported
 #     ptr_app_bslib(); the runnable equivalent is calling the exported
 #     wrapper it documents (the customization vignette presents bslib via

@@ -54,7 +54,7 @@ asset bundle. Don't assemble that scaffolding by hand: wrap your
 composed pieces in \code{\link[=ptr_ui_page]{ptr_ui_page()}}, which \emph{is} the Bootstrap page and
 owns the single \code{.ptr-app} scope + the (deduped) assets. For a
 \code{navbarPage} or bslib root (which \code{ptr_ui_page()} does not cover) see
-the decomposition recipe in \code{vignette("ggpaintr-use-cases")}.
+\code{vignette("ggpaintr-tutorial")}.
 
 For finer control still — placing individual placeholder widgets
 independently rather than the whole panel — register a custom placeholder

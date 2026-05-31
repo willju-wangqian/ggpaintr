@@ -51,41 +51,22 @@ formula becomes one widget:
 `library(ggpaintr)` also attaches `ggplot2`, so bare `ggplot()` /
 `aes()` / `geom_*()` calls work directly inside formula strings. For a
 grid layout, use `ptr_app_grid()`. To swap in a custom page shell or
-theme, write a thin wrapper on top of the public primitives — see
-`vignette("ggpaintr-customization")` § “Writing your own wrapper”.
+theme, write a thin wrapper on top of the public primitives.
 
 ## More topics
 
--   **`vignette("ggpaintr-use-cases")` — *Use cases*.** The three-level
-    ladder for how to use ggpaintr: L1 all-in-one (`ptr_app()` /
-    `ptr_app_grid()`), L2 embed in your own Shiny app with the
-    self-contained pair (`ptr_ui()` / `ptr_server()`) plus the
-    shared-coordinator trio (`ptr_shared()` / `ptr_shared_panel()` /
-    `ptr_shared_server()`) for cross-plot widgets, and L3 own every
-    piece of the UI — bare builders (`ptr_ui_header()` /
-    `ptr_ui_controls()` / `ptr_ui_plot()` / `ptr_ui_error()` /
-    `ptr_ui_code()` / `ptr_ui_assets()`) plus the nestable combinators
-    (`ptr_ui_inline_error()` / `ptr_ui_toggle_code()`) and the optional
-    `ptr_ui_page()` shell, including custom rendering off the returned
-    `state` via `ptr_extract_plot()` / `_code()` / `_error()`. Opens
-    with a compact tour of the 5 placeholder keywords.
-
--   **`vignette("ggpaintr-customization")` — *Customization*.** Rewrite
-    ggpaintr’s built-in copy with `ui_text`, register your own widget
-    types with the three placeholder constructors
-    (`ptr_define_placeholder_value()` / `_consumer()` / `_source()`),
-    and share one widget across multiple plots.
+-   **`vignette("ggpaintr-tutorial")` — *Tutorial*.** A guided walk from
+    a one-line `ptr_app()` formula, through defining your own
+    placeholders (every argument of the three constructors
+    `ptr_define_placeholder_value()` / `_consumer()` / `_source()`), to
+    embedding several plots in your own Shiny app with `ptr_ui()` /
+    `ptr_server()` and sharing one control across them via
+    `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()`. Opens
+    with a tour of the five built-in placeholder keywords.
 
 -   **`vignette("ggpaintr-safety")` — *Safety*.** What `expr_check` does
     and when (never) to turn it off, the denylist + AST-walker safety
-    model, the upload trust boundary, and a public-deployment checklist
-    for shinyapps.io / Posit Connect.
-
--   **`vignette("ggpaintr-gallery")` — *ggpaintr in the Wild*.** A
-    gallery of complete ggplot2 and extension-package graphics, each
-    paired with the ggpaintr formula that turns it into a Shiny app.
-    Also the canonical worked-example reference for plugging interactive
-    output packages (plotly, ggiraph) into your own app.
+    model, and the upload trust boundary.
 
 -   **`vignette("ggpaintr-llm")` — *Using ggpaintr from an LLM with
     ellmer*.** Wire ggpaintr up as an LLM-callable tool with ellmer:

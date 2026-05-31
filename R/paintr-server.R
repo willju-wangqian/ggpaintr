@@ -763,8 +763,8 @@ apply_spec_entry <- function(session, row) {
 #' (`ptr_plot`, `ptr_error`, `ptr_code`, `ptr_update_plot`, plus the
 #' internal layer-nav inputs). Treat the whole `ptr_` prefix as reserved
 #' — most relevant when hand-placing L3 pieces. The single source of truth
-#' for the id contract (and the `ptr_server()` namespacing) is the
-#' *"How input ids are built"* section of `vignette("ggpaintr-use-cases")`.
+#' for the id contract (and the `ptr_server()` namespacing) is
+#' `vignette("ggpaintr-tutorial")`.
 #'
 #' @param input,output,session The standard Shiny server arguments.
 #' @param formula A single formula string with `ggpaintr` placeholders.

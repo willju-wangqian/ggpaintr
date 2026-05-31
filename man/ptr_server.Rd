@@ -72,7 +72,7 @@ output$my_plot <- plotly::renderPlotly(state$runtime()$plot)
 
 \code{state$runtime()} is reactive; \verb{$plot} is the built ggplot/ggplot-like
 object, \verb{$code} the generated source string, \verb{$error} any inline error.
-See \code{vignette("ggpaintr-use-cases")}.
+See \code{vignette("ggpaintr-tutorial")}.
 
 For cross-formula coordination — multiple ggpaintr instances driven by
 one widget — build the coordinator with \code{\link[=ptr_shared_server]{ptr_shared_server()}} and pass
