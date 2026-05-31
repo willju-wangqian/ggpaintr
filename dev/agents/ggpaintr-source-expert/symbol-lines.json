@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-30T23:55:37-0500",
-  "git_head": "b72ce87",
+  "generated_at": "2026-05-31T01:48:08-0500",
+  "git_head": "918c2ec",
   "n_files": 35,
   "n_symbols": 506,
   "symbols": {
@@ -116,33 +116,33 @@
     },
     "ptr_ui": {
       "file": "R/paintr-app.R",
-      "start_line": 861,
-      "end_line": 899
+      "start_line": 873,
+      "end_line": 918
     },
     "ptr_ui_controls": {
       "file": "R/paintr-app.R",
-      "start_line": 951,
-      "end_line": 966
+      "start_line": 975,
+      "end_line": 996
     },
     "ptr_ui_page": {
       "file": "R/paintr-app.R",
-      "start_line": 996,
-      "end_line": 1002
+      "start_line": 1026,
+      "end_line": 1032
     },
     "ptr_server": {
       "file": "R/paintr-app.R",
-      "start_line": 1092,
-      "end_line": 1234
+      "start_line": 1122,
+      "end_line": 1264
     },
     "ptr_app_grid": {
       "file": "R/paintr-app.R",
-      "start_line": 1288,
-      "end_line": 1309
+      "start_line": 1318,
+      "end_line": 1339
     },
     "ptr_app_grid_components": {
       "file": "R/paintr-app.R",
-      "start_line": 1311,
-      "end_line": 1506
+      "start_line": 1341,
+      "end_line": 1536
     },
     "build_ui_for": {
       "file": "R/paintr-build-ui.R",

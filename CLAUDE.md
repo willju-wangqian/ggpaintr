@@ -4,8 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-An R package that turns ggplot-like formula strings into Shiny apps.
-Placeholder tokens in the formula (`var`, `text`, `num`, `expr`, `upload`) become Shiny input widgets automatically.
+An R package that turns a ggplot-like formula into a Shiny app.
+Placeholder tokens in the formula (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) become Shiny input widgets automatically.
+
+**Formula input — expression is the primary entry point; strings are the fallback.** The public boundary functions that take a `formula` — `ptr_app()`, `ptr_server()`, `ptr_ui()`, `ptr_ui_controls()` — capture it with `rlang::enexpr()`, so the canonical form is an **unquoted ggplot expression** (`ptr_app(ggplot(...) + ...)`); a formula stored in a variable via `rlang::expr()` is spliced in with `!!` (`f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")`), and `!!` is *required* for a subscripted element (`ptr_server(!!plots[[1]], ...)`). A plain **string** (`ptr_app("ggplot(...)")`) remains fully supported as the fallback (handy when a formula is built or fetched as text), and `ptr_shared(formulas = )` likewise accepts a list of strings and/or quoted exprs. (`ptr_app_bslib()` / `ptr_app_grid()` stay string-first.) Capture mechanics (symbol resolution, wrapper unwrap, native-pipe caveat) live in ADR 0009 + `ptr_capture_formula()`; showcase examples in `README.Rmd` + `vignette("ggpaintr-tutorial")` lead with the expression form.
 
 ## Before implementing — context-sufficiency check (do this FIRST)
 

@@ -64,9 +64,12 @@ test_that("B2.4 shared = does not change argument order of existing params", {
   # ADR 0020 / Plan 04: the deprecated `checkbox_defaults` slot was
   # removed, so the public signature lost it but every other position
   # is preserved.
+  # `envir` was added at position 3 to mirror ptr_server()'s
+  # `formula, id, envir, ...` when ptr_ui() gained expression-formula
+  # capture (ADR 0009 extended to the L2/L3 UI entry points).
   expect_identical(
     names(formals(ptr_ui)),
-    c("formula", "id", "ui_text",
+    c("formula", "id", "envir", "ui_text",
       "expr_check", "css", "shared")
   )
 })

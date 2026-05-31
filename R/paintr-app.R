@@ -827,9 +827,18 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' hand-composed L3 layout, use the bare `ptr_ui_*` pieces instead and pair
 #' them with the same [ptr_server()].
 #'
-#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param formula Either a single character scalar containing a ggplot
+#'   expression with `ggpaintr` placeholders, or an unquoted ggplot
+#'   expression supplied directly (the primary form). Captured with
+#'   [rlang::enexpr()] exactly as [ptr_app()] / [ptr_server()], so a
+#'   formula stored in a variable via [rlang::expr()] is spliced in with
+#'   `!!`: `f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")`. See
+#'   [ptr_app()] for the full contract (symbol resolution, wrapper unwrap,
+#'   native-pipe caveat).
 #' @param id Optional module id; the namespace prefix for inputs and outputs.
 #'   Defaults to `NULL` (identity namespace, single-instance use).
+#' @param envir Environment used to resolve a `formula` passed as a bare
+#'   symbol and any local data objects. Defaults to the calling frame.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
 #' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
@@ -853,14 +862,24 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #' @seealso [ptr_server()], [ptr_css()] for the `css =` argument and
 #'   themable CSS custom properties.
 #' @examples
-#' ui <- ptr_ui(
-#'   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-#'   "plot1"
-#' )
+#' # Expression form (primary): an unquoted ggplot call.
+#' ui <- ptr_ui(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(), "plot1")
+#' # Stored in a variable, spliced with `!!` (paired with ptr_server(!!f, "plot1")).
+#' f <- rlang::expr(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
+#' ui2 <- ptr_ui(!!f, "plot1")
+#' # String form (fallback): equivalent.
+#' ui3 <- ptr_ui("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()", "plot1")
 #' @export
-ptr_ui <- function(formula, id = NULL, ui_text = NULL,
+ptr_ui <- function(formula, id = NULL, envir = parent.frame(),
+                             ui_text = NULL,
                              expr_check = TRUE,
                              css = NULL, shared = NULL) {
+  # Public boundary, paired with ptr_server(): accept either a formula
+  # string or an unquoted / `!!`-spliced ggplot expression, exactly as
+  # ptr_app()/ptr_server() do (ADR 0009). Capture-to-string here so the
+  # forwarded `formula` is a plain scalar; ptr_ui_controls() re-captures
+  # the string symbol idempotently (its enexpr resolves it in this frame).
+  formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
   # by composing the bare L3 pieces + combinators (no reimplementation).
   # The asset bundle is emitted once here -- the folded ptr_ui_controls()
@@ -921,10 +940,15 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #' independently rather than the whole panel — register a custom placeholder
 #' type; see [ptr_define_placeholder_value()].
 #'
-#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param formula Either a single character scalar containing a ggplot
+#'   expression with `ggpaintr` placeholders, or an unquoted / `!!`-spliced
+#'   ggplot expression, captured with [rlang::enexpr()] exactly as
+#'   [ptr_app()] / [ptr_server()]. See [ptr_app()] for the full contract.
 #' @param id Optional module id; the namespace prefix for inputs.
 #'   Defaults to `NULL` (identity namespace). When set, must match the
 #'   `id` passed to the other piece functions and the server wiring.
+#' @param envir Environment used to resolve a `formula` passed as a bare
+#'   symbol and any local data objects. Defaults to the calling frame.
 #' @param ui_text Optional named list of copy overrides; see
 #'   [ptr_ui_text()] for the full schema and current defaults.
 #' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
@@ -948,9 +972,15 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #'   id = "p"
 #' )
 #' @export
-ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
+ptr_ui_controls <- function(formula, id = NULL, envir = parent.frame(),
+                            ui_text = NULL,
                             expr_check = TRUE,
                             shared = NULL) {
+  # Same public-boundary capture as ptr_ui()/ptr_server() (ADR 0009):
+  # string, unquoted expression, or `!!`-spliced `expr(...)` all accepted.
+  # When ptr_ui()/ptr_app_bslib() forward an already-captured string, the
+  # symbol resolves back to that string here -- idempotent.
+  formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   assertthat::assert_that(
     is.null(shared) || inherits(shared, "ptr_shared_spec")
   )

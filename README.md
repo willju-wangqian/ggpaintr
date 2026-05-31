@@ -9,10 +9,11 @@ experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](h
 
 ## Overview
 
-ggpaintr turns a ggplot-like formula string into a running Shiny app.
-You write a single `ggplot()` call as text, drop placeholder keywords
-(`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) anywhere a value
-would normally go, and ggpaintr does the rest: each keyword becomes an
+ggpaintr turns a ggplot-like formula into a running Shiny app. You write
+a single `ggplot()` call — passed directly as an unquoted expression
+(the primary form), or as a string (the fallback) — and drop placeholder
+keywords (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) anywhere a
+value would normally go. ggpaintr does the rest: each keyword becomes an
 input widget, the same parsed object drives the UI, the plot, and a live
 code pane, and editing any widget re-renders the plot.
 
@@ -32,12 +33,13 @@ pak::pkg_install("willju-wangqian/ggpaintr")
 ``` r
 library(ggpaintr)
 
-ptr_app("
-ggplot(data = iris, aes(x = ppVar, y = ppVar)) +
-  geom_point(aes(color = ppVar), size = ppNum) +
-  labs(title = ppText) +
-  facet_wrap(ppExpr)
-")
+# Primary form: pass the ggplot() call directly as an unquoted expression.
+ptr_app(
+  ggplot(data = iris, aes(x = ppVar, y = ppVar)) +
+    geom_point(aes(color = ppVar), size = ppNum) +
+    labs(title = ppText) +
+    facet_wrap(ppExpr)
+)
 ```
 
 That single call returns a running Shiny app. Each placeholder in the
@@ -49,9 +51,13 @@ formula becomes one widget:
 -   `ppExpr` → a code box for the facet spec (e.g. `vars(Species)`).
 
 `library(ggpaintr)` also attaches `ggplot2`, so bare `ggplot()` /
-`aes()` / `geom_*()` calls work directly inside formula strings. For a
-grid layout, use `ptr_app_grid()`. To swap in a custom page shell or
-theme, write a thin wrapper on top of the public primitives.
+`aes()` / `geom_*()` calls work directly in the formula expression. To
+reuse a formula across calls, store it with `rlang::expr()` and splice
+it in with `!!` — `f <- rlang::expr(ggplot(...)); ptr_app(!!f)`. The
+string form (`ptr_app("ggplot(...)")`) remains a supported fallback,
+handy when a formula is built or fetched as text. For a grid layout, use
+`ptr_app_grid()`. To swap in a custom page shell or theme, write a thin
+wrapper on top of the public primitives.
 
 ## More topics
 

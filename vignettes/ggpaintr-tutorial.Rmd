@@ -297,15 +297,17 @@ A source that owns a real widget (e.g. a `selectInput` of dataset names) is the 
 
 You write the `fluidPage` and the server function. Put `ptr_ui(formula, id)` where the plot's controls and output should go, and `ptr_server(formula, id)` in the server with a **matching `id`**. `ptr_server()` namespaces itself — call it **bare**, never wrapped in your own `moduleServer()`:
 
+`ptr_ui()` and `ptr_server()` take the formula the same way `ptr_app()` does: pass the `ggplot()` call directly, or — to write it once and hand the *same* formula to both — store it with `rlang::expr()` and splice it in with `!!`. (The string form still works as a fallback.)
+
 ```{r module-app}
-f <- "ggplot(mtcars, aes(x = ppVar('wt'), y = ppVar('mpg'))) + geom_point()"
+f <- rlang::expr(ggplot(mtcars, aes(x = ppVar("wt"), y = ppVar("mpg"))) + geom_point())
 
 ui <- shiny::fluidPage(
   shiny::h3("My dashboard"),
-  ptr_ui(f, "plot1")
+  ptr_ui(!!f, "plot1")
 )
 server <- function(input, output, session) {
-  ptr_server(f, "plot1")
+  ptr_server(!!f, "plot1")
 }
 shiny::shinyApp(ui, server)
 ```
@@ -342,26 +344,26 @@ ptr_define_placeholder_value(
 )
 
 plots <- list(
-  "ggplot(iris, aes(x = ppVar(shared = 'ax1'), y = Sepal.Width,
-                    color = Species)) + geom_point(size = ppSize(shared = 'sz'))",
-  "ggplot(iris, aes(x = ppVar(shared = 'ax2'), y = Petal.Width,
-                    color = Species)) + geom_point(size = ppSize(shared = 'sz'))"
+  rlang::expr(ggplot(iris, aes(x = ppVar(shared = "ax1"), y = Sepal.Width,
+                               color = Species)) + geom_point(size = ppSize(shared = "sz"))),
+  rlang::expr(ggplot(iris, aes(x = ppVar(shared = "ax2"), y = Petal.Width,
+                               color = Species)) + geom_point(size = ppSize(shared = "sz")))
 )
 
-obj <- ptr_shared(formulas = plots)
+obj <- ptr_shared(formulas = plots)        # a list of formulas, passed as-is
 obj$panel_keys           # "sz"  -- used by both formulas, so panel-owned
 
 ui <- shiny::fluidPage(
   ptr_shared_panel(obj),                 # holds the shared size slider
   shiny::fluidRow(
-    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline
-    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline
+    shiny::column(6, ptr_ui(!!plots[[1]], "plot_1", shared = obj)),  # ax1 inline
+    shiny::column(6, ptr_ui(!!plots[[2]], "plot_2", shared = obj))   # ax2 inline
   )
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_server(plots[[1]], "plot_1", shared_state = sh)
-  ptr_server(plots[[2]], "plot_2", shared_state = sh)
+  ptr_server(!!plots[[1]], "plot_1", shared_state = sh)
+  ptr_server(!!plots[[2]], "plot_2", shared_state = sh)
 }
 shiny::shinyApp(ui, server)
 ```

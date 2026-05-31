@@ -7,17 +7,24 @@
 ptr_ui_controls(
   formula,
   id = NULL,
+  envir = parent.frame(),
   ui_text = NULL,
   expr_check = TRUE,
   shared = NULL
 )
 }
 \arguments{
-\item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+\item{formula}{Either a single character scalar containing a ggplot
+expression with \code{ggpaintr} placeholders, or an unquoted / \verb{!!}-spliced
+ggplot expression, captured with \code{\link[rlang:defusing-advanced]{rlang::enexpr()}} exactly as
+\code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_server]{ptr_server()}}. See \code{\link[=ptr_app]{ptr_app()}} for the full contract.}
 
 \item{id}{Optional module id; the namespace prefix for inputs.
 Defaults to \code{NULL} (identity namespace). When set, must match the
 \code{id} passed to the other piece functions and the server wiring.}
+
+\item{envir}{Environment used to resolve a \code{formula} passed as a bare
+symbol and any local data objects. Defaults to the calling frame.}
 
 \item{ui_text}{Optional named list of copy overrides; see
 \code{\link[=ptr_ui_text]{ptr_ui_text()}} for the full schema and current defaults.}

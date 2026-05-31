@@ -7,6 +7,7 @@
 ptr_ui(
   formula,
   id = NULL,
+  envir = parent.frame(),
   ui_text = NULL,
   expr_check = TRUE,
   css = NULL,
@@ -14,10 +15,20 @@ ptr_ui(
 )
 }
 \arguments{
-\item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+\item{formula}{Either a single character scalar containing a ggplot
+expression with \code{ggpaintr} placeholders, or an unquoted ggplot
+expression supplied directly (the primary form). Captured with
+\code{\link[rlang:defusing-advanced]{rlang::enexpr()}} exactly as \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_server]{ptr_server()}}, so a
+formula stored in a variable via \code{\link[rlang:expr]{rlang::expr()}} is spliced in with
+\verb{!!}: \verb{f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")}. See
+\code{\link[=ptr_app]{ptr_app()}} for the full contract (symbol resolution, wrapper unwrap,
+native-pipe caveat).}
 
 \item{id}{Optional module id; the namespace prefix for inputs and outputs.
 Defaults to \code{NULL} (identity namespace, single-instance use).}
+
+\item{envir}{Environment used to resolve a \code{formula} passed as a bare
+symbol and any local data objects. Defaults to the calling frame.}
 
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
@@ -52,10 +63,13 @@ hand-composed L3 layout, use the bare \verb{ptr_ui_*} pieces instead and pair
 them with the same \code{\link[=ptr_server]{ptr_server()}}.
 }
 \examples{
-ui <- ptr_ui(
-  "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-  "plot1"
-)
+# Expression form (primary): an unquoted ggplot call.
+ui <- ptr_ui(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(), "plot1")
+# Stored in a variable, spliced with `!!` (paired with ptr_server(!!f, "plot1")).
+f <- rlang::expr(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
+ui2 <- ptr_ui(!!f, "plot1")
+# String form (fallback): equivalent.
+ui3 <- ptr_ui("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()", "plot1")
 }
 \seealso{
 \code{\link[=ptr_server]{ptr_server()}}, \code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and
