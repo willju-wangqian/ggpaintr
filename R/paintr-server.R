@@ -65,6 +65,13 @@
 #'   stages owned by that shared key (as carried in a
 #'   [ptr_shared_server()] bundle). A missing or unset entry leaves the
 #'   stage enabled. Defaults to `list()`.
+#' @param panel_sources Named list (keyed by source-node id) of reactives,
+#'   each returning the host-loaded data for a panel-owned shared source
+#'   (ADR 0023). Populated by the host's `ptr_setup_panel_sources()` and
+#'   threaded through a [ptr_shared_server()] bundle so per-instance binders
+#'   read the host's primed data (`state$panel_sources[[node$id]]`) instead
+#'   of re-wiring their own source UI. Defaults to `list()` (single-plot /
+#'   per-instance context — no panel-owned sources).
 #' @param plots Optional list of formula strings for grid contexts. When
 #'   supplied (typically by [ptr_app_grid()]), the validator for `shared`
 #'   bindings cross-checks shared-key references against every plot's

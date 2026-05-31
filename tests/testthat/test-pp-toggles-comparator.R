@@ -19,10 +19,12 @@ ptr_translate_annot <- function(expr) {
 # ---- SC1: exclusion list literal ------------------------------------------
 
 test_that("comparator exclusion list contains the two new UI-state slots", {
-  src <- readLines(
-    test_path("..", "..", "R", "paintr-nodes.R"),
-    warn = FALSE
+  nodes_path <- test_path("..", "..", "R", "paintr-nodes.R")
+  skip_if(
+    !file.exists(nodes_path),
+    "source-file text check needs the package source tree; absent under the R CMD check .Rcheck sandbox"
   )
+  src <- readLines(nodes_path, warn = FALSE)
   body <- paste(src, collapse = "\n")
   # ADR-0021 PLAN-01: exclusion list grew from 4 names to 7 — the new sibling
   # UI-metadata fields `stage_id`, `has_user_control`, `stage_label` are all

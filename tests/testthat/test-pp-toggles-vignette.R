@@ -7,6 +7,10 @@
 
 vignette_lines <- function() {
   path <- testthat::test_path("..", "..", "vignettes", "ggpaintr-use-cases.Rmd")
+  testthat::skip_if(
+    !file.exists(path),
+    "vignette prose checks need the package source tree; absent under the R CMD check .Rcheck sandbox"
+  )
   readLines(path, warn = FALSE)
 }
 

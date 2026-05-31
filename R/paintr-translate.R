@@ -1,4 +1,4 @@
-# P1 — translate. String formula -> typed tree.
+# P1 -- translate. String formula -> typed tree.
 #
 # Steps:
 #   1. Validate input shape (single non-empty string).
@@ -28,14 +28,14 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
     rlang::abort("Formula is empty or whitespace.")
   }
 
-  # First-pipe-op rule (PLAN-01, ADR 0012 §5 OQ2). Derive a render-time
+  # First-pipe-op rule (PLAN-01, ADR 0012 sec.5 OQ2). Derive a render-time
   # annotation from the source string: pick whichever of `%>%` / `|>`
   # appears first; default to `|>` when neither is present. In expression
   # mode `|>` is already desugared at parse time, so only `%>%` can win
   # there; in string mode the rule disambiguates mixed-op formulas to one
   # canonical choice. The hint is propagated as a pure render-time slot;
   # the typed tree's structure is unchanged across surface forms (the
-  # canonical-tree invariant, ADR 0012 §1).
+  # canonical-tree invariant, ADR 0012 sec.1).
   op_hint <- ptr_first_pipe_op(formula)
 
   preprocessed <- preprocess_native_pipe(formula)
@@ -59,14 +59,14 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root_expr <- exprs[[1L]]
   check_translate_depth(root_expr, max_depth = max_depth)
 
-  # Canonical-tree contract (ADR 0012 §1, PLAN-02): pipes are pure
+  # Canonical-tree contract (ADR 0012 sec.1, PLAN-02): pipes are pure
   # first-arg-insertion sugar with no surviving structural meaning. Desugar
   # every `%>%` and native-pipe sentinel to fully-nested call form before
   # any per-layer translation runs, so every surface form (`|>`, `%>%`,
   # nested-call) produces structurally-identical layer expressions. The
   # `ptr_classify_calls` pass then lifts the nested chain back into a
   # canonical `ptr_pipeline` whose shape depends only on the chain's
-  # semantics — never on which pipe operator the user typed.
+  # semantics -- never on which pipe operator the user typed.
   root_expr <- desugar_pipes_to_nested(root_expr)
 
   layer_exprs <- split_top_plus(root_expr)
@@ -88,10 +88,10 @@ ptr_translate <- function(formula, expr_check = TRUE, max_depth = 100L,
   root <- ptr_root(layers = layers, expr = root_expr)
   ptr_validate_tree_safety(root, expr_check = expr_check)
   if (annotate) {
-    # Pass order (PLAN-02): classify_calls (lift) → assign_ids → classify_data
-    # → shared_bind. `assign_ids` must run AFTER `classify_calls` so the
+    # Pass order (PLAN-02): classify_calls (lift) -> assign_ids -> classify_data
+    # -> shared_bind. `assign_ids` must run AFTER `classify_calls` so the
     # structural-position-derived ids are stamped on the canonical post-lift
-    # shape — otherwise nested-call and `%>%` users would get different ids
+    # shape -- otherwise nested-call and `%>%` users would get different ids
     # for the same widget. `classify_data` must run AFTER `assign_ids` so the
     # `upstream` references it pins on each `ptr_ph_data_consumer` point at
     # post-id-stamping nodes (R lists are copy-on-modify; a pre-id reference
@@ -157,8 +157,8 @@ ptr_assert_no_surviving_structural_wrappers <- function(root) {
   invisible(NULL)
 }
 
-# Canonical-pipeline-lift pass (ADR 0012 §2). Walks each layer's `$data_arg`
-# only (never `$children` — the `+` fence holds, ADR §3.4) and, when the
+# Canonical-pipeline-lift pass (ADR 0012 sec.2). Walks each layer's `$data_arg`
+# only (never `$children` -- the `+` fence holds, ADR sec.3.4) and, when the
 # data-arg is a `ptr_call`, attempts to lift the nested-call chain into a
 # canonical `ptr_pipeline` via `try_lift_to_pipeline`. The lift fires when
 # three gates pass: at least one stage exists above the source, the
@@ -218,12 +218,12 @@ build_pipeline_from_lift <- function(parts, op_hint = "|>") {
 
 # ---- canonical pipeline lift -----------------------------------------------
 #
-# Engine (ADR 0012 §3.1, PLAN-02 §"Engine"): four pure helpers that take a
+# Engine (ADR 0012 sec.3.1, PLAN-02 sec."Engine"): four pure helpers that take a
 # raw R AST and produce either a structurally-canonical pipeline parts list
 # or a typed rejection reason. The lift fires the same way regardless of
 # surface form because Step 1 erases the pipe operators.
 
-# Step 1 — desugar all pipe operators (`%>%` and the native-pipe sentinel)
+# Step 1 -- desugar all pipe operators (`%>%` and the native-pipe sentinel)
 # into fully-nested call form by inserting LHS as the RHS's first positional
 # arg. Recurses into all args of non-pipe calls, preserving arg names. A
 # no-op when the input contains no pipes.
@@ -240,7 +240,7 @@ desugar_pipes_to_nested <- function(expr) {
       if (is.symbol(rhs)) {
         return(as.call(list(rhs, lhs)))
       }
-      # Pathological RHS (e.g., literal). Leave the call untouched — the
+      # Pathological RHS (e.g., literal). Leave the call untouched -- the
       # safety walker / downstream consumers will reject it on their own
       # terms.
       return(expr)
@@ -253,9 +253,9 @@ desugar_pipes_to_nested <- function(expr) {
   out
 }
 
-# Step 2 — split a fully-nested call into `list(source, stages)`. Always-
+# Step 2 -- split a fully-nested call into `list(source, stages)`. Always-
 # aggressive descent: walks through every call whose first positional arg is
-# itself a call (ADR §1's "tree is semantic, not syntactic" — no early-stop
+# itself a call (ADR sec.1's "tree is semantic, not syntactic" -- no early-stop
 # heuristic, no verb whitelist). On loop termination, if `cur` is still a
 # call whose first arg is a non-call, executes a post-loop split that
 # extracts the non-call as the source. Each stage records its `first_arg_name`
@@ -280,7 +280,7 @@ resugar_pipeline_stages <- function(expr) {
   # Post-loop split: cur is still a call whose first arg is a non-call.
   # Extract that non-call as the source and bank cur (stripped of its first
   # arg) as the deepest stage. Skip when cur is any registered placeholder
-  # call — every placeholder's arg-bearing form is captured state on the
+  # call -- every placeholder's arg-bearing form is captured state on the
   # node (via `default_arg`), not upstream data, so the call must stay
   # atomic regardless of role.
   if (is.call(cur) && length(cur) >= 2L && !is.call(cur[[2L]]) &&
@@ -301,7 +301,7 @@ resugar_pipeline_stages <- function(expr) {
   list(source = cur, stages = stages)
 }
 
-# Step 3 — inverse of Step 2. Folds the source + ordered stages back into a
+# Step 3 -- inverse of Step 2. Folds the source + ordered stages back into a
 # fully-nested call, restoring each stage's captured `first_arg_name` on the
 # inserted source slot. Used by GATE 1 (round-trip identity) and by the
 # pipeline constructor's `expr=` slot.
@@ -314,7 +314,7 @@ rebuild_nested_from_stages <- function(parts) {
     nms <- names(new_args) %||% rep_len("", length(new_args))
     nms[1L] <- st$first_arg_name %||% ""
     if (all(!nzchar(nms))) {
-      # No named args anywhere — keep the call unnamed so identical() against
+      # No named args anywhere -- keep the call unnamed so identical() against
       # the canonical-nested form holds (R drops the names attribute when no
       # element carries a name).
       names(new_args) <- NULL
@@ -356,7 +356,7 @@ is_placeholder_call <- function(expr) {
   TRUE
 }
 
-# Step 4 — round-trip + grounding gates. Returns either
+# Step 4 -- round-trip + grounding gates. Returns either
 # `list(success = TRUE, parts = ...)` when the lift may fire, or
 # `list(success = FALSE, reason = <no-stages|round-trip-mismatch|
 # opaque-call-source|non-data-source>)` otherwise. Three independent gates,
@@ -364,17 +364,17 @@ is_placeholder_call <- function(expr) {
 #   GATE 0 (non-empty):    the stages list must hold at least one stage above
 #                          the source. The 0-stage case is degenerate
 #                          (e.g. `f()` with no args, where source = the
-#                          unchanged input call) — nothing to lift.
+#                          unchanged input call) -- nothing to lift.
 #   GATE 1 (round-trip):   the split + rebuild must equal the canonical-
 #                          nested form, otherwise the split bisected a
 #                          structure we cannot losslessly reconstruct.
 #   GATE 2 (grounding):    the source slot must be a SYMBOL. A call source
-#                          is an "opaque-call terminal" (ADR §3.2); a
+#                          is an "opaque-call terminal" (ADR sec.3.2); a
 #                          non-call non-symbol (a literal that fell out of
 #                          bisecting `data.frame(x = 1)`, say) is not a
 #                          structurally-valid data source.
 # At lift time the source is raw AST, so the grounding check is
-# `is.symbol(source)` — not `is_ptr_ph_data_source` (placeholders are still
+# `is.symbol(source)` -- not `is_ptr_ph_data_source` (placeholders are still
 # plain symbols pre-translate_node).
 try_lift_to_pipeline <- function(expr) {
   canonical <- desugar_pipes_to_nested(expr)
@@ -445,7 +445,7 @@ dedupe_layer_names <- function(names) {
 translate_layer <- function(expr, op_hint = "|>") {
   # ADR 0020 / 0021 special-unwrap branches. `ppLayerOff` is legal here and
   # unwraps to the inner layer with `default_active = !hide`. `ppVerbSwitch`
-  # is NOT legal at a layer position — it belongs in a pipeline-stage
+  # is NOT legal at a layer position -- it belongs in a pipeline-stage
   # position (intercepted by `build_pipeline_from_lift`). The error class
   # `"ptr_translate_error"` is introduced by this validator.
   if (is_structural_keyword_call(expr, "ppLayerOff")) {
@@ -456,7 +456,7 @@ translate_layer <- function(expr, op_hint = "|>") {
       "`ppVerbSwitch(...)` was used at a layer position, but it is only ",
       "valid as a pipeline-stage wrapper inside a data argument (e.g. ",
       "`mtcars |> ppVerbSwitch(mutate(x = 1), TRUE) |> ggplot(...)`). Layers ",
-      "are added with `+`, not piped — use `ppLayerOff(layer_expr, hide)` ",
+      "are added with `+`, not piped -- use `ppLayerOff(layer_expr, hide)` ",
       "for off-by-default layers."
     ))
   }
@@ -518,7 +518,7 @@ pipe_op_from_symbol <- function(sym) {
 # `getParseData()` so we never touch `|>` characters inside string
 # literals or comments. The sentinel parses as a real `%any%` call which
 # survives translation; it is mapped back to "|>" at op-extraction time.
-# This is parse-time only — not the runtime gsub round-trip G7 forbids.
+# This is parse-time only -- not the runtime gsub round-trip G7 forbids.
 preprocess_native_pipe <- function(formula) {
   pd <- tryCatch(
     utils::getParseData(parse(text = formula, keep.source = TRUE)),
@@ -562,9 +562,9 @@ translate_plain_layer <- function(expr, op_hint = "|>") {
   }
   data_arg <- extract_call_data_arg(expr)
   children <- translate_layer_children(expr, exclude_data = !is.null(data_arg))
-  # PLAN-01 (ADR 0012 §5 OQ2): stamp the render-time `source_pipe_op` hint
+  # PLAN-01 (ADR 0012 sec.5 OQ2): stamp the render-time `source_pipe_op` hint
   # only when this layer carries a source piped in (`data_arg` non-NULL).
-  # No data_arg ⇒ slot stays NULL ⇒ render side has no chain to emit.
+  # No data_arg => slot stays NULL => render side has no chain to emit.
   source_pipe_op <- if (!is.null(data_arg)) op_hint else NULL
   ptr_layer(
     name = layer_name, expr = expr, data_arg = data_arg,
@@ -692,7 +692,7 @@ detect_placeholder <- function(expr) {
   # ADR 0020: structural keywords are recognised by `placeholder_keyword()`
   # for translator special-unwrap branches, but they are NOT placeholders.
   # Returning NULL here keeps `build_placeholder_node` / `extract_placeholder_args`
-  # from running on them — the wrapper's positional args (`layer_expr`,
+  # from running on them -- the wrapper's positional args (`layer_expr`,
   # `verb_expr`, `hide`) would otherwise be rejected as "no default_arg".
   if (identical(entry$role, "structural")) return(NULL)
   args <- extract_placeholder_args(expr, entry)
@@ -741,7 +741,7 @@ is_structural_keyword_call <- function(expr, keyword) {
 # `"ptr_translate_error"` when the slot is missing, non-literal, or not a
 # length-1 logical. The wrapper accepts `hide` named or positional;
 # `hide_position` is the positional slot (2 for `ppLayerOff`). Default is
-# TRUE when the slot is omitted entirely — matches the function-body
+# TRUE when the slot is omitted entirely -- matches the function-body
 # default.
 validate_pp_off_hide <- function(expr, keyword, hide_position) {
   args <- as.list(expr[-1L])
@@ -759,7 +759,7 @@ validate_pp_off_hide <- function(expr, keyword, hide_position) {
       "`", keyword, "(hide = )` must be a length-1 logical literal ",
       "(TRUE or FALSE); got `", deparse(hide_expr)[[1L]],
       "`. The boot-state metadata is consumed at translate time so the ",
-      "formula remains the single source of truth — variables and ",
+      "formula remains the single source of truth -- variables and ",
       "non-literal expressions are not allowed in this slot."
     ))
   }
@@ -770,7 +770,7 @@ validate_pp_off_hide <- function(expr, keyword, hide_position) {
 # `hide`, then translate the inner layer expression through the normal
 # `translate_plain_layer` path. Stamp `default_active = !hide` on the
 # resulting `ptr_layer`. The wrapper itself never appears in the tree
-# (ADR 0012 §1: tree is semantic, not syntactic — a `hide = FALSE`
+# (ADR 0012 sec.1: tree is semantic, not syntactic -- a `hide = FALSE`
 # wrapper produces the same shape as the bare layer).
 unwrap_pp_layer_off <- function(expr, op_hint = "|>") {
   args <- as.list(expr[-1L])
@@ -802,7 +802,7 @@ unwrap_pp_layer_off <- function(expr, op_hint = "|>") {
 # length-1 logical. Accepts `switch_on` named or positional; `switch_on_position`
 # is the positional slot (2 at pipeline-stage position after `.data` has been
 # stripped by the lift's resugar step). Default is TRUE when the slot is
-# omitted entirely — matches the function-body default of `ppVerbSwitch`.
+# omitted entirely -- matches the function-body default of `ppVerbSwitch`.
 # Mirrors `validate_pp_off_hide`'s shape verbatim so reviewers can diff-compare.
 validate_pp_verb_switch_switch_on <- function(expr, switch_on_position) {
   args <- as.list(expr[-1L])
@@ -820,7 +820,7 @@ validate_pp_verb_switch_switch_on <- function(expr, switch_on_position) {
       "`ppVerbSwitch()` argument `switch_on` must be a length-1 logical ",
       "literal (TRUE or FALSE); got `", deparse(sw_expr)[[1L]],
       "`. The boot-state metadata is consumed at translate time so the ",
-      "formula remains the single source of truth — variables and ",
+      "formula remains the single source of truth -- variables and ",
       "non-literal expressions are not allowed in this slot."
     ))
   }
@@ -852,7 +852,7 @@ validate_pp_verb_switch_label <- function(expr, label_position) {
       "`ppVerbSwitch()` argument `label` must be a length-1 character ",
       "literal or NULL; got `", deparse(lab_expr)[[1L]],
       "`. The boot-state metadata is consumed at translate time so the ",
-      "formula remains the single source of truth — variables and ",
+      "formula remains the single source of truth -- variables and ",
       "non-literal expressions are not allowed in this slot."
     ))
   }
@@ -861,7 +861,7 @@ validate_pp_verb_switch_label <- function(expr, label_position) {
 
 # `ppVerbSwitch(.data, verb_expr, switch_on = TRUE, label = NULL)` at a
 # pipeline-stage position (i.e. as a `parts$stages[[j]]$call` after the
-# source has been split off, which strips the implicit `.data` slot — so
+# source has been split off, which strips the implicit `.data` slot -- so
 # the call we see here is `ppVerbSwitch(verb_expr, switch_on, label)`).
 # Validate `switch_on` + `label`, translate the inner verb call through
 # `translate_node`, and stamp three fields on the resulting `ptr_call`:
@@ -973,7 +973,7 @@ extract_shared_value <- function(shared_ast, keyword) {
 # Detect formulas that pipe a `ggplot()` object into a subsequent call, e.g.
 # `mtcars |> ggplot(aes(...)) |> geom_point()`. This evaluates to
 # `geom_point(<ggplot>)` (the geom receives the plot as its first arg),
-# which fails with "mapping must be created by aes()". We don't rewrite —
+# which fails with "mapping must be created by aes()". We don't rewrite --
 # just surface a diagnostic so the user knows to use `+` for layers. Returns
 # a character vector of warning messages (one per detected misuse).
 detect_pipe_layer_misuse <- function(root) {

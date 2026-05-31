@@ -1,4 +1,4 @@
-# ggpaintr (development version)
+# ggpaintr 0.10.0
 
 ## New features
 

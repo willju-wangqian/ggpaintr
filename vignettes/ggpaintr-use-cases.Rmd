@@ -97,6 +97,7 @@ The motivation is symmetry: the formula expresses *what gets rendered*, includin
 The same expression runs cleanly under bare ggplot and inside `ptr_app()`. Naked-R semantics: `ppLayerOff(layer_expr, FALSE)` returns the evaluated layer, `ppLayerOff(layer_expr, TRUE)` returns `NULL` (and `NULL + ggplot()` is a no-op); `ppVerbSwitch(.data, verb_expr, TRUE)` inserts `.data` as the first argument of `verb_expr` and evaluates it, `ppVerbSwitch(.data, verb_expr, FALSE)` returns `.data` unchanged. The chunk below is plain R — no `ptr_app` on the stack — and renders a real `ggplot2` object:
 
 ```{r pp-toggles-naked, eval = TRUE}
+library(ggpaintr)
 library(ggplot2)
 
 # ppLayerOff: hide = FALSE adds the layer; hide = TRUE drops it.

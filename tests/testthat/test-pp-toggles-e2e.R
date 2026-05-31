@@ -52,7 +52,12 @@ test_that("SC8 spec = at boot overrides formula-side ppLayerOff default (shinyte
   skip_if_not_installed("shinytest2")
   skip_if_not_installed("chromote")
 
-  withr::local_envvar(GGP_PKG = normalizePath(test_path("..", "..")))
+  pkg <- normalizePath(test_path("..", ".."), mustWork = FALSE)
+  skip_if(
+    !file.exists(file.path(pkg, "DESCRIPTION")),
+    "e2e pp-toggles-app boot needs the package source root (pkgload::load_all); absent under the R CMD check .Rcheck sandbox"
+  )
+  withr::local_envvar(GGP_PKG = pkg)
   app <- suppressWarnings(shinytest2::AppDriver$new(
     test_path("fixtures", "pp-toggles-apps", "pp-layer-off-spec-override"),
     name = "pp-layer-off-spec-override"
