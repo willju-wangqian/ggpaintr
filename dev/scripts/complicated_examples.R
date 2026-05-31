@@ -58,21 +58,18 @@ ui <- fluidPage(
   )
 )
 
-checkbox_defaults1 <- list(geom_point = FALSE)
-checkbox_defaults2 <- list(geom_point = FALSE)
-
+# ADR 0020: per-layer boot-state lives in the formula via `ppLayerOff()`.
+# Two embedded apps, each with its geom_point() starting off.
 server <- function(input, output, session) {
   ptr_server(
     input, output, session,
-    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
-    ns      = ns_a,
-    checkbox_defaults = checkbox_defaults1
+    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + ppLayerOff(geom_point(), TRUE)",
+    ns      = ns_a
   )
   ptr_server(
     input, output, session,
-    formula = "ggplot(data = iris, aes(x = var, y = var)) + geom_point()",
-    ns      = ns_b,
-    checkbox_defaults = checkbox_defaults2
+    formula = "ggplot(data = iris, aes(x = var, y = var)) + ppLayerOff(geom_point(), TRUE)",
+    ns      = ns_b
   )
 }
 
@@ -138,7 +135,7 @@ color_placeholder <- ptr_define_placeholder(
     }
     rlang::expr(!!as.character(value))
   },
-  copy_defaults = list(label = "Highlight color for {param}")
+  ui_text_defaults = list(label = "Highlight color for {param}")
 )
 
 boundary <- subset(penguins, species %in% c("Adelie", "Chinstrap"))
@@ -228,7 +225,7 @@ range_placeholder <- ptr_define_placeholder(
     if (is.null(value)) return(ptr_missing_expr())
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Zoom range for {param}")
+  ui_text_defaults = list(label = "Zoom range for {param}")
 )
 library(shiny)
 library(ggpaintr)
@@ -323,7 +320,7 @@ log_num <- ptr_define_placeholder(
     eval_env
   },
 
-  copy_defaults = list(label = "Log-transform column for {param}")
+  ui_text_defaults = list(label = "Log-transform column for {param}")
 )
 cols_placeholder <- ptr_define_placeholder(
   keyword = "cols",
@@ -438,7 +435,7 @@ log_num <- ptr_define_placeholder(
     eval_env
   },
 
-  copy_defaults = list(label = "Log-transform column for {param}")
+  ui_text_defaults = list(label = "Log-transform column for {param}")
 )
 
 registry <- ptr_merge_placeholders(list(cols = log_num))
@@ -503,7 +500,7 @@ log_num <- ptr_define_placeholder(
     eval_env
   },
 
-  copy_defaults = list(label = "Log-transform column for {param}")
+  ui_text_defaults = list(label = "Log-transform column for {param}")
 )
 
 registry <- ptr_merge_placeholders(list(log_num = log_num))
@@ -565,7 +562,7 @@ cols_ph <- ptr_define_placeholder(
     rlang::expr(dplyr::all_of(!!value))
   },
 
-  copy_defaults = list(label = "Choose columns for {param}")
+  ui_text_defaults = list(label = "Choose columns for {param}")
 )
 
 registry <- ptr_merge_placeholders(list(cols = cols_ph))
@@ -660,7 +657,7 @@ cols_ph <- ptr_define_placeholder(
     rlang::expr(dplyr::all_of(!!value))
   },
 
-  copy_defaults = list(label = "Choose columns for {param}")
+  ui_text_defaults = list(label = "Choose columns for {param}")
 )
 range_placeholder <- ptr_define_placeholder(
   keyword       = "range",
@@ -672,7 +669,7 @@ range_placeholder <- ptr_define_placeholder(
     if (is.null(value)) return(ptr_missing_expr())
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Zoom range for {param}")
+  ui_text_defaults = list(label = "Zoom range for {param}")
 )
 registry <- ptr_merge_placeholders(list(cols = cols_ph,
                                         range = range_placeholder))

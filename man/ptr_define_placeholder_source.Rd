@@ -9,21 +9,36 @@ ptr_define_placeholder_source(
   build_ui,
   resolve_data,
   resolve_expr = NULL,
-  companion_id_fn = NULL,
-  copy_defaults = list(label = "Provide a data source for {param}")
+  shortcut = FALSE,
+  positional_arg = NULL,
+  named_args = list(),
+  runtime = NULL,
+  ui_text_defaults = list(label = "Provide a data source for {param}")
 )
 }
 \arguments{
-\item{keyword, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. See
-\code{vignette("ggpaintr-customization")} § "Source placeholders" for the
-tutorial.}
+\item{keyword, ui_text_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. See
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders"
+(source role).}
 
 \item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag —
-same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. With
-\code{companion_id_fn} set, render \strong{two} bound inputs in the same tag,
-one with \code{inputId = node$id} (data payload) and one with
-\code{inputId = node$companion_id} (sibling input — typically the
-user-facing dataset name spliced into the rendered code).}
+same shape as in \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}. Render ONLY the
+source's data-payload widget at \code{inputId = node$id} (e.g. a
+\code{fileInput}, a \code{selectInput} chooser). With \code{shortcut = TRUE} the
+framework emits the sibling shortcut \code{textInput} (at
+\code{node$shortcut_id}) for you (ADR 0025 item #7) — do NOT render it
+yourself, or the id would be bound twice. A source whose only entry
+point is the shortcut (e.g. an env-name loader) may return \code{NULL}.
+
+\emph{Seeding} — same opt-in shape as the other two helpers: declare an
+optional \code{selected = NULL} formal (or accept \code{...}) to receive the
+seeded value. Seeding is \strong{boot-only}: a \verb{spec=} entry naming this
+source wins on the first render, and on every later render (e.g. a tree
+rebuild) the user's current pick is authoritative — the spec seed never
+snaps the widget back. The built-in \code{ppUpload} declines this because a
+Shiny \code{fileInput()} can never be seeded programmatically; custom sources
+whose primary widget \emph{can} be seeded (e.g. a \code{selectInput} dataset
+chooser) should accept it.}
 
 \item{resolve_data}{\verb{function(value, node, ...)} returning a
 \code{data.frame} (the data downstream consumers read from), or \code{NULL} to
@@ -36,36 +51,99 @@ position — i.e. \emph{how the data is referred to} in the reproducible
 call, not the data itself. Default \code{rlang::sym(value)} works when the
 widget's value is already the symbol you want. Override to make the
 rendered code re-fetch instead of referencing an in-session object,
-e.g. \code{function(value, node, ...) rlang::expr(read.csv(!!value$datapath))}.
-With \code{companion_id_fn} set, \code{value} here is the \emph{companion} input's
+e.g. \code{function(value, node, ...) rlang::ppExpr(read.csv(!!value$datapath))}.
+With \code{shortcut = TRUE}, \code{value} here is the \emph{shortcut} input's
 value (e.g. the typed dataset name), \strong{not} the primary payload —
-the built-in \code{upload} relies on this so the default splices the typed
+the built-in \code{ppUpload} relies on this so the default splices the typed
 name as a bare symbol.}
 
-\item{companion_id_fn}{Optional \verb{function(id) -> companion_id_string}.
-Use this when the source widget needs \strong{two} bound Shiny inputs that
-both participate in the runtime substitution cycle: one at \code{node$id}
-(the data payload) and one at \code{node$companion_id} (a sibling input,
-typically a name or override). The framework calls this function with
-the primary id and namespaces the returned companion id alongside it,
-so a single \code{build_ui} can render both widgets and both values reach
+\item{shortcut}{Single logical (default \code{FALSE}). When \code{TRUE}, the
+framework stamps \code{node$shortcut_id <- paste0(node$id, "_shortcut")}
+on every translated source node AND renders the sibling shortcut
+\code{textInput} (at \code{node$shortcut_id}) for you — an "Optional dataset
+name" box beside the source widget (ADR 0025 item #7). Your
+\code{build_ui} renders ONLY the data-payload widget at \code{node$id} (or
+\code{NULL} for a shortcut-only source); it must NOT render the shortcut
+input itself. Both inputs participate in the runtime substitution
+cycle: one at \code{node$id} (the data payload) and one at
+\code{node$shortcut_id} (a typed-in name that resolves a \code{data.frame} from
+the caller-supplied \code{envir}). The shortcut value reaches
 \code{resolve_data} / \code{resolve_expr} through \code{node}. Most sources do not
-need it — one bound input is the common case. The built-in \code{upload}
-uses it to attach the "Optional dataset name" textbox: the file
-contents bind to \code{node$id}, the user-typed dataset name binds to
-\code{node$companion_id}, and the substitution uses the name as the symbol
-inserted into the generated code. Pass \code{NULL} (default) when one
-input suffices.}
+need it — one bound input is the common case. The built-in \code{ppUpload}
+sets \code{shortcut = TRUE}: the file contents bind to \code{node$id}, the
+user-typed name binds to \code{node$shortcut_id}, and the substitution
+uses the name as the symbol inserted into the generated code. The
+framework also re-renders the source widget when the shortcut goes
+non-empty, clearing a stale display (ADR 0025 item #7). The reserved
+shared key \code{"shortcut"} is rejected at translate time (see ADR 0025
+§1).}
+
+\item{positional_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+Source placeholders use the same arg-schema slots.}
+
+\item{runtime}{Optional \verb{function(...)} body used when the placeholder
+is called as a plain-R function (outside \code{ptr_app()}). \code{NULL}
+(default) supplies a guard that aborts with a message naming the
+keyword and noting the call is only meaningful inside \code{ptr_app()} —
+source placeholders typically have no out-of-app meaning (a file
+upload widget cannot produce data at the REPL). Override only if the
+source has a sensible plain-R interpretation.}
 }
 \value{
-Invisibly, the registry entry list. Use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove
-the registration.
+The runtime callable. Default for a source placeholder is a
+guard that aborts when called outside an app context. Also called for
+its registration side effect; use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove
+the entry.
 }
 \description{
 A \emph{source} placeholder produces a data frame the rest of the formula
-reads from. Built-in example: \code{upload}. Custom examples: database
+reads from. Built-in example: \code{ppUpload}. Custom examples: database
 tables, built-in datasets, URL fetches.
 }
+\section{\verb{spec=} round-trip}{
+
+The \verb{spec=} mechanism (see \code{\link[=ptr_app]{ptr_app()}}) captures a sparse snapshot of
+input values so the preserve-mode panel can publish a reproducible boot
+state. For a source placeholder, ONE of two patterns must hold:
+\itemize{
+\item \strong{Shortcut pattern} — set \code{shortcut = TRUE}. The shortcut input's
+text value (typically the typed dataset name) carries the round-trip
+identity; the source's own value at \code{node$id} is dropped from the
+spec, because it is typically a per-session Shiny artifact (a
+\code{fileInput()} data.frame whose \code{datapath} is a tempfile path that
+does not survive the session). The built-in \code{ppUpload} uses this.
+
+\strong{Data-loading entry point (ADR 0024).} When \code{shortcut = TRUE},
+the shortcut sibling is more than a name override for an uploaded
+frame — it is a typed-in shortcut for loading a \code{data.frame} from
+the embedder's environment (\code{envir} passed to \code{\link[=ptr_app]{ptr_app()}} /
+\code{\link[=ptr_server]{ptr_server()}}). Any valid R name typed into the shortcut input (or
+seeded via \verb{spec = list(<shortcut-id> = "df_name")}) is looked
+up via \code{get(name, envir, inherits = TRUE)} and bound as the
+resolved source frame, with OR without \verb{default=} on the
+placeholder. The downstream pipeline, generated code panel, and
+consumer pickers all read the named frame from \code{state$eval_env}
+as if it had been uploaded. Failures surface on the inline error
+pane via \code{set_resolve_error}:
+\code{"Object 'x' not found in environment."} /
+\code{"Object 'x' is not a data frame."} Lookup uses \code{inherits = TRUE},
+so package exports become reachable — typing \code{"plot"} will resolve
+to \code{graphics::plot} and then fail the "is not a data frame" check
+(loudly, not silently).
+\item \strong{Scalar pattern} — \code{shortcut = FALSE}. The widget's value at
+\code{node$id} must be a literal that round-trips through \code{deparse()} —
+a length-1 string / number / logical, or a simple atomic vector.
+The \code{selectInput}-style example above qualifies (its value is a
+single string).
+}
+
+Source widgets whose primary value is a complex object (raw
+\code{fileInput()} data.frame, environment, S4 instance, etc.) without
+\code{shortcut = TRUE} cannot round-trip; opt into \code{shortcut = TRUE} and the
+framework renders the sibling \code{textInput(node$shortcut_id, ...)} that
+carries the binding name, mirroring \code{ppUpload}.
+}
+
 \examples{
 # A minimal in-memory dataset source (picks from pre-loaded data frames).
 ptr_define_placeholder_source(

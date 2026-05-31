@@ -65,7 +65,7 @@ test_that("copy_defaults validation: rejects non-list", {
     keyword = "k1",
     build_ui = function(node, ...) NULL,
     resolve_expr = function(value, node, ...) value,
-    copy_defaults = "label"
+    ui_text_defaults = "label"
   ), "named list")
 })
 
@@ -74,7 +74,7 @@ test_that("copy_defaults validation: rejects non-string values", {
     keyword = "k2",
     build_ui = function(node, ...) NULL,
     resolve_expr = function(value, node, ...) value,
-    copy_defaults = list(label = 42)
+    ui_text_defaults = list(label = 42)
   ), "single non-NA string")
 })
 
@@ -83,7 +83,7 @@ test_that("copy_defaults validation: rejects unnamed entries", {
     keyword = "k3",
     build_ui = function(node, ...) NULL,
     resolve_expr = function(value, node, ...) value,
-    copy_defaults = list("naked")
+    ui_text_defaults = list("naked")
   ))
 })
 
@@ -93,7 +93,7 @@ test_that("consumer constructor stores role and validate_input", {
     keyword = "mycol",
     build_ui = function(node, cols, ...) NULL,
     resolve_expr = function(value, node, ...) rlang::sym(value),
-    validate_input = function(value, upstream_cols) value %in% upstream_cols
+    validate_input = function(value, ctx) value %in% ctx$upstream_cols
   )
   e <- ptr_registry_lookup("mycol")
   expect_equal(e$role, "consumer")
@@ -108,28 +108,29 @@ test_that("source constructor defaults resolve_expr to symbol of value", {
     keyword = "mysrc",
     build_ui = function(node, ...) NULL,
     resolve_data = function(value, node, ...) data.frame(x = 1:3),
-    companion_id_fn = function(id) paste0(id, "_companion")
+    shortcut = TRUE
   )
   e <- ptr_registry_lookup("mysrc")
   expect_equal(e$role, "source")
   expect_true(e$data_aware)
   expect_true(is.function(e$resolve_expr))
   expect_equal(e$resolve_expr("foo"), rlang::sym("foo"))
-  expect_equal(e$companion_id_fn("abc"), "abc_companion")
+  expect_true(isTRUE(e$shortcut))
+  expect_null(e$companion_id_fn)
   ptr_registry_clear()
 })
 
 test_that("translate dispatches placeholders to correct node class via role", {
   ptr_registry_clear()
   ptr_register_builtins()
-  r <- ptr_translate("ggplot(my_local_df, aes(x = var, y = num)) + geom_point(color = text)")
+  r <- ptr_translate("ggplot(my_local_df, aes(x = ppVar, y = ppNum)) + geom_point(color = ppText)")
   values <- find_nodes(r, is_ptr_ph_value)
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
   sources <- find_nodes(r, is_ptr_ph_data_source)
   expect_equal(length(consumers), 1L)
-  expect_equal(consumers[[1]]$keyword, "var")
-  expect_true(any(vapply(values, function(v) v$keyword == "num", logical(1))))
-  expect_true(any(vapply(values, function(v) v$keyword == "text", logical(1))))
+  expect_equal(consumers[[1]]$keyword, "ppVar")
+  expect_true(any(vapply(values, function(v) v$keyword == "ppNum", logical(1))))
+  expect_true(any(vapply(values, function(v) v$keyword == "ppText", logical(1))))
   expect_equal(length(sources), 0L)
 })
 
@@ -160,7 +161,7 @@ test_that("validate_copy_defaults rejects unknown copy fields", {
       "kw_bad",
       build_ui = function(node, ...) NULL,
       resolve_expr = function(value, node, ...) value,
-      copy_defaults = list(tooltip = "x")
+      ui_text_defaults = list(tooltip = "x")
     ),
     "unsupported field"
   )
@@ -176,7 +177,7 @@ test_that("validate_copy_defaults accepts every supported leaf field", {
       "kw_ok",
       build_ui = function(node, ...) NULL,
       resolve_expr = function(value, node, ...) value,
-      copy_defaults = list(label = "L", help = "H", placeholder = "P", empty_text = "E")
+      ui_text_defaults = list(label = "L", help = "H", placeholder = "P", empty_text = "E")
     )
   )
 })
@@ -230,8 +231,8 @@ test_that("ptr_clear_placeholder() errors on an unknown keyword", {
 
 test_that("ptr_clear_placeholder() refuses to clear a built-in placeholder", {
   .clean_registry()
-  expect_error(ptr_clear_placeholder("var"), "built-in")
-  expect_true("var" %in% ptr_registry_keywords())
+  expect_error(ptr_clear_placeholder("ppVar"), "built-in")
+  expect_true("ppVar" %in% ptr_registry_keywords())
 })
 
 test_that("ptr_clear_placeholder() with nothing to clear informs and returns empty", {
@@ -240,4 +241,41 @@ test_that("ptr_clear_placeholder() with nothing to clear informs and returns emp
   .clean_registry()
   expect_message(ret <- ptr_clear_placeholder(), "[Nn]o user-registered")
   expect_equal(ret, character())
+})
+
+# ---- Regression: registry env is session-anchored, not per-namespace ---------
+#
+# Bug: `devtools::test()` (and any flow that goes through `load_all` more than
+# once) used to re-evaluate `.ptr_registry <- new.env(...)` on every reload,
+# producing a NEW env object bound in the new namespace. Functions defined in
+# earlier reload cycles still held a lexical-scope reference to the OLD env, so
+# `ptr_define_placeholder_value` from cycle A wrote into env A while
+# `invoke_build_ui` from cycle B read from env B, and custom placeholders
+# vanished mid-test with "Placeholder X has no build_ui function". Fix anchors
+# both envs in `options()`; this test pins that contract.
+
+test_that(".ptr_registry env is anchored in options() across load_all cycles", {
+  # This contract is about the load_all() reload path (devtools::test); under
+  # the installed-package R CMD check runner there are no reload cycles and the
+  # options() anchor is not populated, so the invariant does not apply. Skip
+  # when the source tree is absent (the .Rcheck sandbox).
+  skip_if(
+    !file.exists(file.path(normalizePath(test_path("..", ".."), mustWork = FALSE), "DESCRIPTION")),
+    "options()-anchoring contract applies to the load_all path; absent under the R CMD check .Rcheck sandbox"
+  )
+  reg_opt <- getOption(".ggpaintr_registry_v1")
+  expect_true(is.environment(reg_opt))
+  expect_identical(reg_opt, asNamespace("ggpaintr")$.ptr_registry)
+
+  init_opt <- getOption(".ggpaintr_registry_initialized_v1")
+  expect_true(is.environment(init_opt))
+  expect_identical(init_opt, asNamespace("ggpaintr")$.ptr_registry_initialized)
+})
+
+test_that("ptr_register_builtins() is silent when re-invoked without clear", {
+  # With the env anchored across cycles, builtins persist across reloads. A
+  # naive re-register would warn 7x "Overwriting placeholder registry entry"
+  # from `ptr_registry_register`; `ptr_register_builtins` now removes its own
+  # keys (via `ptr_builtin_keywords()`) first so the second call is silent.
+  expect_no_warning(ptr_register_builtins())
 })

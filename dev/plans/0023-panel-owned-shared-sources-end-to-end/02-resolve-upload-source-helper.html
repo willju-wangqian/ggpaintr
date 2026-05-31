@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — Extract resolve_upload_source helper (from ADR 0023)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: resolve-upload-source-helper
+  source_adr: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  depends_on: []
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-02 — Extract <code>resolve_upload_source()</code> helper</h1>
+<p class="meta">Source: ADR 0023 · Depends on: none · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0023 §3 (Decision): <em>"The csv/tsv/rds/xlsx detection, the <code>resolve_data</code>-hook dispatch, the default-arg fallback (eyeball-play <code>try_bind_source_default</code>, commit a3d1636), and the binding-name derivation today live inside <code>ptr_setup_pipelines()</code>. Extract them into an internal <code>resolve_upload_source(input_slot, companion_slot, node, entry, envir)</code> helper that returns the resolved df + binding name. Per-instance pipeline calls it with namespaced slots; host calls it with top-level slots. <strong>One resolver, two callers</strong> — any future format addition (Parquet, Arrow) is made once."</em></p>
+
+<p>The current code in <code>R/paintr-server.R</code> has two near-identical observer bodies in <code>ptr_setup_pipelines()</code>: one at lines ~916–993 (bare-data-source layers) and one at lines ~1004–1064 (pipeline-head sources). Both compute the same <code>file_info → df → binding_name</code> shape. This plan extracts that mechanics into one helper. No behaviour change for the existing call sites; Plan 04 adds the third caller (host scope).</p>
+
+<h2>Governing principle</h2>
+<p>Upload-format support and the default-arg fallback are a <strong>single mechanism with multiple callers</strong>, not two parallel mechanisms that happen to look alike. The ADR's Consequences section calls this out: <em>"Upload format support (csv/tsv/rds/xlsx and any future addition) and the default-arg fallback live in one function called from both scopes. Removes the divergence-risk vector that motivated Q4-I in the grilling session."</em> An implementer tempted to leave the duplicated bodies in place "because they work" misses the WHY: the divergence-risk this refactor exists to eliminate is exactly the kind of bug that won't surface in tests until a future format is added in one place and not the other.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>A new internal helper <code>resolve_upload_source(input_slot, companion_slot, node, entry, envir, state, key, slot)</code> exists in <code>R/paintr-server.R</code> and returns <code>invisible(NULL)</code> after calling either <code>bind_source_value()</code> (when an upload is provided OR the default-arg fallback resolves) or <code>slot(NULL)</code> + <code>set_resolve_error()</code> (otherwise). The signature accepts the namespaced input/companion ids the caller already computed; the helper does NOT call <code>ns()</code> itself.</li>
+  <li>Both existing call sites inside <code>ptr_setup_pipelines()</code> (bare-data-source layer loop at line ~916 and pipeline-head source loop at line ~1004) call the helper instead of inlining the resolve mechanics. The two <code>shiny::observe({ ... })</code> bodies shrink to roughly <code>shiny::observe({ resolve_upload_source(src_id, comp_id, src, entry, state$eval_env, state, ln_or_sid, slot) })</code>.</li>
+  <li>Behaviour is byte-equivalent at the boundary: the existing test suite (every test that exercises <code>ptr_setup_pipelines</code>, including <code>test-shared-source-rendering.R</code>, <code>test-upload-companion-autofill.R</code>, and every browser fixture that uploads a file) continues to PASS unchanged.</li>
+  <li>A new focused unit test (<code>tests/testthat/test-resolve-upload-source-helper.R</code>) exercises the helper directly with a stubbed registry entry: (a) <code>file_info = NULL</code> + node$default resolvable in envir → calls <code>bind_source_value</code> with the resolved df; (b) <code>file_info</code> populated → entry$resolve_data dispatched, <code>bind_source_value</code> called with returned df; (c) <code>entry$resolve_data</code> throws → <code>set_resolve_error</code> called with the message and <code>slot(NULL)</code>; (d) invalid binding name (non-syntactic via <code>make.names</code>) → <code>bind_source_value</code> called with <code>name = NULL</code>.</li>
+  <li>All criteria verified by running <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> and observing FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ 4 (the four unit scenarios above) and existing PASS count is preserved exactly.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-server.R</code> (only the source-resolution observer bodies in <code>ptr_setup_pipelines()</code> and the new helper definition), <code>tests/testthat/test-resolve-upload-source-helper.R</code>.</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-shared-ui.R</code> (Plan 01, Plan 04), <code>R/paintr-shared-coordinator.R</code> (Plan 03), any vignette or fixture.</li>
+  <li>The helper is internal — not exported, no roxygen <code>@export</code> tag. A short header comment names the call sites.</li>
+  <li>Pure refactor: no new observable behaviour, no new logged messages, no new error class, no signature change visible to embedders. <code>try_bind_source_default()</code> stays as-is (the helper calls it directly).</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code>.</li>
+  <li>Tidyverse style, snake_case, 2-space indent.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: Single resolver for upload-source mechanics, two call sites
+
+Scenario: Helper exists and is internal
+  Given the package loaded via devtools::load_all
+  When ggpaintr:::resolve_upload_source is queried
+  Then it is a function whose formals match the names
+       input_slot, companion_slot, node, entry, envir, state, key, slot
+
+Scenario: NULL file_info with resolvable default-arg binds the resolved frame
+  Given a stub state with eval_env containing df_main = mtcars
+  And  a node with default = "df_main" and a registered upload entry
+  And  input slots where input[[input_slot]] is NULL and input[[companion_slot]] is ""
+  When resolve_upload_source(...) is called
+  Then bind_source_value is called with name = "df_main" and df = mtcars
+  And  the slot is set to mtcars
+
+Scenario: Populated file_info dispatches entry$resolve_data and binds the result
+  Given input[[input_slot]] = list(datapath = "&lt;csv-file&gt;", name = "penguins.csv")
+  And  a registry entry whose resolve_data returns penguins
+  And  input[[companion_slot]] = "penguins"
+  When resolve_upload_source(...) is called
+  Then bind_source_value is called with name = "penguins" and df = penguins
+  And  set_resolve_error is called with NULL (cleared)
+
+Scenario: entry$resolve_data error surfaces via set_resolve_error and clears the slot
+  Given a registry entry whose resolve_data throws "boom"
+  And  input[[input_slot]] = list(datapath = "&lt;file&gt;", name = "x.csv")
+  When resolve_upload_source(...) is called
+  Then set_resolve_error is called with message containing "boom"
+  And  slot(NULL) is called
+
+Scenario: Invalid binding name yields NULL name passed to bind_source_value
+  Given input[[companion_slot]] = "1 not a name" (fails make.names)
+  And  input[[input_slot]] = list(datapath = "&lt;file&gt;", name = "x.csv")
+  And  entry$resolve_data returns mtcars
+  When resolve_upload_source(...) is called
+  Then bind_source_value is called with name = NULL and df = mtcars
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                               | kind     | summary (one line)                                                                  | Scenario in this plan                            |
+|----------------------------------------------------------|----------|-------------------------------------------------------------------------------------|--------------------------------------------------|
+| (none — pure refactor enabling Plans 04/05; no user-visible observable in this plan) | -        | -                                                                                   | -                                                |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate" — copy verbatim:</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with PASS rising by ≥ 5 (the five BDD scenarios above) versus the pre-plan baseline. Every existing browser fixture that uploads a file must still PASS — the refactor is byte-equivalent at the observable boundary.</p>
+<p><strong>Plan-specific gate risks</strong>: if the implementer accidentally changes the observer's <code>local({...})</code> scoping so the loop variable leaks between iterations, the existing per-instance tests would silently misbind frames across layers. The unit test for the helper does NOT catch this — only the existing integration tests do. The auditor must read both per-instance observer bodies after the refactor and confirm each still wraps in <code>local({...})</code> with the captured loop variable.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: the source-resolution observer bodies inside <code>ptr_setup_pipelines()</code> in <code>R/paintr-server.R</code> (lines ~907–1066 today) and the new helper function definition. The rest of <code>paintr-server.R</code> is off-limits in this plan. <code>NAMESPACE</code> regeneration is an integration concern — the helper is internal, no <code>@export</code>, so no doc regeneration is required.</p>
+<p>Branch convention: this plan lives on branch <code>0023-resolve-upload-source-helper</code> in a worktree at <code>.claude/worktrees/0023-panel-owned-shared-sources-end-to-end/resolve-upload-source-helper/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies the expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>shared-id-upgrade</code> at <code>099d33c</code>. Pre-existing failures: none expected (FAIL 0 / ERROR 0 / SKIP 0 / PASS ≥ 2876 as recorded in the handoff). Implementer records actual baseline PASS in the worktree's first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>The host-side third caller (decision §2) is Plan 04. Per-instance substitution branch (decision §4) is Plan 05. Any drift found in <code>ptr_setup_source_uis()</code> (decision §7) belongs to Plan 06. Findings outside this plan's owned region are surfaced in the audit report, not silently absorbed.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: none. Provides for: <strong>04</strong> (host-side <code>ptr_setup_panel_sources()</code> calls this helper with top-level input slots), <strong>05</strong> (per-instance pipeline substitution branch coexists with this helper at the same call sites).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=597af8240ba1 -->
+</body>
+</html>

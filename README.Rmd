@@ -21,7 +21,7 @@ knitr::opts_chunk$set(
 
 ## Overview
 
-ggpaintr turns a ggplot-like formula string into a running Shiny app. You write a single `ggplot()` call as text, drop placeholder keywords (`var`, `text`, `num`, `expr`, `upload`) anywhere a value would normally go, and ggpaintr does the rest: each keyword becomes an input widget, the same parsed object drives the UI, the plot, and a live code pane, and editing any widget re-renders the plot.
+ggpaintr turns a ggplot-like formula string into a running Shiny app. You write a single `ggplot()` call as text, drop placeholder keywords (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) anywhere a value would normally go, and ggpaintr does the rest: each keyword becomes an input widget, the same parsed object drives the UI, the plot, and a live code pane, and editing any widget re-renders the plot.
 
 No Shiny UI or server code required. If you can write a ggplot call, you can ship an interactive version of it.
 
@@ -39,31 +39,27 @@ pak::pkg_install("willju-wangqian/ggpaintr")
 library(ggpaintr)
 
 ptr_app("
-ggplot(data = iris, aes(x = var, y = var)) +
-  geom_point(aes(color = var), size = num) +
-  labs(title = text) +
-  facet_wrap(expr)
+ggplot(data = iris, aes(x = ppVar, y = ppVar)) +
+  geom_point(aes(color = ppVar), size = ppNum) +
+  labs(title = ppText) +
+  facet_wrap(ppExpr)
 ")
 ```
 
 That single call returns a running Shiny app. Each placeholder in the formula becomes one widget:
 
-- the three `var` tokens → column pickers populated from `iris`,
-- `num` → a numeric input (point size),
-- `text` → a text input (plot title),
-- `expr` → a code box for the facet spec (e.g. `vars(Species)`).
+- the three `ppVar` tokens → column pickers populated from `iris`,
+- `ppNum` → a numeric input (point size),
+- `ppText` → a text input (plot title),
+- `ppExpr` → a code box for the facet spec (e.g. `vars(Species)`).
 
-`library(ggpaintr)` also attaches `ggplot2`, so bare `ggplot()` / `aes()` / `geom_*()` calls work directly inside formula strings. For a grid layout, use `ptr_app_grid()`. To swap in a custom page shell or theme, write a thin wrapper on top of the public primitives — see `vignette("ggpaintr-customization")` § "Writing your own wrapper".
+`library(ggpaintr)` also attaches `ggplot2`, so bare `ggplot()` / `aes()` / `geom_*()` calls work directly inside formula strings. For a grid layout, use `ptr_app_grid()`. To swap in a custom page shell or theme, write a thin wrapper on top of the public primitives.
 
 ## More topics
 
-- **`vignette("ggpaintr-use-cases")` — _Use cases_.** The three-level ladder for how to use ggpaintr: L1 all-in-one (`ptr_app()` / `ptr_app_grid()`), L2 embed in your own Shiny app with the self-contained pair (`ptr_ui()` / `ptr_server()`) plus the shared-coordinator trio (`ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()`) for cross-plot widgets, and L3 own every piece of the UI — bare builders (`ptr_ui_header()` / `ptr_ui_controls()` / `ptr_ui_plot()` / `ptr_ui_error()` / `ptr_ui_code()` / `ptr_ui_assets()`) plus the nestable combinators (`ptr_ui_inline_error()` / `ptr_ui_toggle_code()`) and the optional `ptr_ui_page()` shell, including custom rendering off the returned `state` via `ptr_extract_plot()` / `_code()` / `_error()`. Opens with a compact tour of the 5 placeholder keywords.
+- **`vignette("ggpaintr-tutorial")` — _Tutorial_.** A guided walk from a one-line `ptr_app()` formula, through defining your own placeholders (every argument of the three constructors `ptr_define_placeholder_value()` / `_consumer()` / `_source()`), to embedding several plots in your own Shiny app with `ptr_ui()` / `ptr_server()` and sharing one control across them via `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()`. Opens with a tour of the five built-in placeholder keywords.
 
-- **`vignette("ggpaintr-customization")` — _Customization_.** Rewrite ggpaintr's built-in copy with `ui_text`, register your own widget types with the three placeholder constructors (`ptr_define_placeholder_value()` / `_consumer()` / `_source()`), and share one widget across multiple plots.
-
-- **`vignette("ggpaintr-safety")` — _Safety_.** What `expr_check` does and when (never) to turn it off, the denylist + AST-walker safety model, the upload trust boundary, and a public-deployment checklist for shinyapps.io / Posit Connect.
-
-- **`vignette("ggpaintr-gallery")` — _ggpaintr in the Wild_.** A gallery of complete ggplot2 and extension-package graphics, each paired with the ggpaintr formula that turns it into a Shiny app. Also the canonical worked-example reference for plugging interactive output packages (plotly, ggiraph) into your own app.
+- **`vignette("ggpaintr-safety")` — _Safety_.** What `expr_check` does and when (never) to turn it off, the denylist + AST-walker safety model, and the upload trust boundary.
 
 - **`vignette("ggpaintr-llm")` — _Using ggpaintr from an LLM with ellmer_.** Wire ggpaintr up as an LLM-callable tool with ellmer: register the primer and the topic-lookup tool, inspect what the model sees, swap providers/models, and test without spending tokens.
 

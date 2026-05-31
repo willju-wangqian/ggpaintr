@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0011 — Bug 3a / 3b handoff: pipeline-internal ppVar cols + load_all S3-dispatch trap</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0011 — Bug 3a / 3b handoff</h1>
+<p class="meta">Date: 2026-05-21 · Author: Claude Opus 4.7 (orchestrator session, post-PLAN-08) · Status: <strong>SUPERSEDED in part — diagnosis of bug 3b was wrong; structural fix proposed in <a href="0012-role-based-tree-and-ptr-spec.html">ADR 0012</a></strong> · vignette-review HEAD: <code>18309da</code> · Cross-refs: <a href="0009-pp-placeholders-and-expression-input.html">ADR 0009</a> · <a href="0010-ppupload-name-default-arg.html">ADR 0010</a> · <a href="0012-role-based-tree-and-ptr-spec.html">ADR 0012</a></p>
+
+<div class="note" style="border-left:4px solid #c97a00;background:#fdf3e1;"><strong>2026-05-21 update — this document is the historical investigation log; the live design is ADR 0012.</strong> A follow-on debug session compared the post-substitute tree from <code>%&gt;%</code> vs <code>|&gt;</code> input and found the two surface forms produce structurally different trees (pipeline vs nested call). The bug-3b symptom is a consequence of that structural divergence, <em>not</em> of an S3 / <code>UseMethod</code> / <code>load_all</code> shadow trap. §2.4–§2.7 below are wrong — do not re-attempt the namespace-lookup or explicit-method-dispatch fixes. Bug-3a's per-layer fast-path is correctly identified as the trip-wire (§1.5), but the "is-inner" predicate proposed in §1.7 is no longer needed under the role-based redesign in ADR 0012. See ADR 0012 §1 for the corrected diagnosis and §2–§3 for the structural fix shape.</div>
+
+<div class="danger"><strong>Read this whole document before attempting a fix.</strong> Bug 3b in particular has consumed multiple investigation cycles. Both naive fixes (one-line bare-name fallback, one-line namespace lookup) and the more-disciplined explicit-dispatch fix have been tried; the explicit-dispatch fix <em>cleared bug 3b but regressed 49 tests</em>. The trap is real and lives in <code>devtools::load_all</code>'s shadowing behaviour interacting with S3 method dispatch. Section 3 of this doc enumerates everything that has been tried and why each failed.</p></div>
+
+<h2>1. Bug 3a — ppVar inside a pipe-stage call (e.g. <code>filter(ppVar &gt; ppNum)</code>) has no column options</h2>
+
+<p><span class="badge b-open">OPEN</span> &nbsp; <span class="badge b-blocked">needs live upload to repro</span></p>
+
+<h3>1.1 User report (verbatim, 2026-05-21)</h3>
+
+<pre>library(dplyr)
+ptr_app(
+  ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt;
+    ggplot(aes(ppVar, ppVar)) +
+    geom_point()
+)
+
+# when filter is included (with the checkbox), the picker for ppVar in the
+# filter doesn't work. There are no options for the ppVar picker inside the
+# filter function.
+</pre>
+
+<p>User clarification: <em>"the upstream data frame is already uploaded via ppUpload for filter. It seems that filter stage doesn't see it for some reason"</em>. So this is reproduced <strong>after</strong> the user has uploaded a file (e.g. <code>penguins.csv</code>) — ppUpload's resolve_expr has run, the data is available, the ppVar pickers in the downstream <code>aes()</code> populate correctly, but the ppVar nested inside <code>filter(...)</code> remains an empty <code>selectInput</code>.</p>
+
+<h3>1.2 The data-flow rule (user-stated, accepted)</h3>
+
+<p>Per the user, the semantic rule is: <em>"for a data consumer, their current calling function should also be included as part of the upstream. Or its upstream starts from their calling function."</em></p>
+
+<p>Concretely for the filter case:</p>
+
+<ul>
+  <li>The ppVar inside <code>filter(ppVar &gt; ppNum)</code> is a child of the <code>filter</code> call.</li>
+  <li><code>filter</code>'s upstream is whatever feeds it in the pipeline — here, the resolved <code>ppUpload</code>.</li>
+  <li>Therefore the ppVar's <em>cols</em> = names of the resolved ppUpload data (the pre-filter columns).</li>
+</ul>
+
+<p>This is the right semantic. <em>The cols presented to the in-filter ppVar should be the cols of the data flowing INTO filter, not the cols of the data flowing OUT of the pipeline.</em></p>
+
+<h3>1.3 What the design already says</h3>
+
+<p>Source path inspected: <code>R/paintr-server.R:866-921 runtime_upstream_data(state, snapshot)</code>.</p>
+
+<p>The function walks every <code>ptr_ph_data_consumer</code> node, looks at three slots:</p>
+
+<table>
+  <tr><th>Slot</th><th>Used for</th><th>Notes</th></tr>
+  <tr><td class="kw">c$shared</td><td>Cross-layer shared bucket</td><td>If set and a host resolution exists in <code>state$shared_resolutions</code>, validate against that. Falls through otherwise.</td></tr>
+  <tr><td class="kw">c$layer_name</td><td>Per-layer resolved data fast-path</td><td>If <code>state$resolved_data[[layer_name]]()</code> is non-null, use those cols.</td></tr>
+  <tr><td class="kw">c$upstream</td><td>Per-position fallback</td><td>If neither of the above hits, resolve <code>c$upstream</code> via <code>ptr_resolve_upstream(c$upstream, snapshot, ...)</code>.</td></tr>
+</table>
+
+<h3>1.4 Empirical probe (no upload — static reproduction)</h3>
+
+<p>The translate output for the user's formula has <strong>three</strong> consumer nodes:</p>
+
+<pre># Probe (post-translate, pre-substitute):
+tree &lt;- ptr_translate("ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()")
+consumers &lt;- ggpaintr:::find_nodes(tree, ggpaintr:::is_ptr_ph_data_consumer)
+
+# consumer 1: id = "ggplot_2_1_1_ppVar_NA"    <- THE ONE INSIDE filter
+#   layer_name = "ggplot"
+#   upstream class = ptr_ph_data_source   (the ppUpload source alone)
+#
+# consumer 2: id = "ggplot_1_1_ppVar_NA"      <- ppVar in aes() x
+#   layer_name = "ggplot"
+#   upstream class = ptr_pipeline         (full ppUpload |&gt; filter)
+#
+# consumer 3: id = "ggplot_1_2_ppVar_NA"      <- ppVar in aes() y
+#   layer_name = "ggplot"
+#   upstream class = ptr_pipeline         (full ppUpload |&gt; filter)
+</pre>
+
+<p><strong>Finding:</strong> The parser correctly sets <code>c$upstream</code> for the filter-internal consumer to <em>just the ppUpload data source</em>, not the full pipeline. The design <em>does</em> understand that the filter-internal consumer's upstream is the pre-filter data.</p>
+
+<p><strong>But</strong> all three consumers carry <code>layer_name = "ggplot"</code>. So they all share the same <code>state$resolved_data[["ggplot"]]</code> fast-path. That fast-path's value is the <em>post-pipeline</em> resolved data (after filter applies), which is wrong for consumer 1. The per-layer fast-path fires <em>before</em> the per-position fallback (line 901-906 of <code>runtime_upstream_data</code>), so consumer 1's correct <code>c$upstream</code> resolution is never reached.</p>
+
+<h3>1.5 Hypothesis for what the user sees</h3>
+
+<p>When the user uploads:</p>
+
+<ol>
+  <li><code>state$resolved_data[["ggplot"]]</code> is populated with the <em>post-filter</em> data via an upload observer.</li>
+  <li>If filter has no args yet (because ppVar/ppNum in filter are unset), filter is a no-op and the post-filter data equals the pre-filter data — consumers 2 and 3 populate fine, consumer 1 <em>also</em> populates from the same data.</li>
+  <li>But once consumer 1's <code>ppVar &gt; ppNum</code> arg becomes well-defined (the checkbox enables filter, ppVar inside filter has a value, ppNum has a value), filter actually filters, and <code>state$resolved_data[["ggplot"]]</code> shrinks to the filtered subset.</li>
+  <li>Consumer 1 then sees its <em>own filtered output</em>'s cols, not the pre-filter cols. If the filtered subset is empty (because filter args are still under construction), <code>state$resolved_data[["ggplot"]]</code> is empty → consumer 1 picker has no options.</li>
+</ol>
+
+<p>This is consistent with the user's symptom: "no options for ppVar inside filter". The picker is bound to the post-filter resolved data, which is empty / wrong.</p>
+
+<h3>1.6 What was NOT done (out of scope tonight)</h3>
+
+<ul>
+  <li><strong>Live reproduction with an actual upload.</strong> Requires a shinytest2 fixture that uploads a real file then asserts consumer-1's picker options. The existing <code>adr9-*</code> e2e fixtures use built-in datasets only — none drive a file upload widget. Writing the upload-driving fixture is a follow-up task in itself (~30 min plus chromote setup).</li>
+  <li><strong>Confirming the per-layer fast-path is the trip-wire.</strong> The 1.5 hypothesis is based on reading <code>runtime_upstream_data</code>'s code path; not yet verified by tracing the actual <code>state$resolved_data[["ggplot"]]</code> contents at the moment of the user's bug.</li>
+</ul>
+
+<h3>1.7 Proposed fix shape (subject to live-upload verification)</h3>
+
+<p>In <code>R/paintr-server.R</code>'s <code>runtime_upstream_data</code>, the per-layer fast-path should only fire for consumers whose <code>c$upstream</code> is the FULL layer pipeline (the aes-side consumers), not for consumers whose <code>c$upstream</code> is a narrower subtree (the pipe-stage-internal consumers).</p>
+
+<p>Mechanical shape:</p>
+
+<pre>for (c in consumers) {
+  if (is.null(c$id)) next
+  if (!is.null(c$shared)) { ... existing shared path ... }
+
+  # NEW: skip the per-layer fast-path when the consumer's c$upstream
+  # is a strict subset of the layer's pipeline (i.e. it lives INSIDE a
+  # pipe stage). The c$upstream subtree set by the parser already
+  # captures the correct point of resolution for these consumers; the
+  # per-layer resolved_data fast-path would over-shrink them to the
+  # post-pipeline subset.
+  layer_name &lt;- c$layer_name
+  is_inner   &lt;- !inherits(c$upstream, "ptr_pipeline") &amp;&amp;
+                !inherits(c$upstream, "ptr_layer")     # i.e. just a source
+  if (!is_inner &amp;&amp;
+      !is.null(layer_name) &amp;&amp;
+      !is.null(state$resolved_data[[layer_name]])) {
+    df &lt;- state$resolved_data[[layer_name]]()
+    if (!is.null(df)) {
+      out[[c$id]] &lt;- list(cols = names(df), data = df)
+      next
+    }
+  }
+
+  # ... existing per-position ptr_resolve_upstream fallback ...
+}
+</pre>
+
+<p>The exact <code>is_inner</code> predicate needs verification — possibilities:</p>
+
+<ul>
+  <li>Use the class of <code>c$upstream</code> as above.</li>
+  <li>OR add a new slot to the consumer node at parse time: <code>c$inside_pipe_stage = TRUE/FALSE</code>, set by the parser. Cleaner contract.</li>
+  <li>OR compute the predicate from <code>c$id</code> shape (the in-filter consumer has id <code>ggplot_2_1_1_ppVar_NA</code> — a four-segment id while the aes consumers have three-segment ids). The extra segment is the call-depth marker; the parser already encodes this. A four-segment id means "nested inside a pipe-stage call".</li>
+</ul>
+
+<p>Whichever predicate is chosen, the <code>c$upstream</code> per-position fallback already produces the right result — the fix is purely about <em>not stealing the consumer with the per-layer fast-path</em>.</p>
+
+<h3>1.8 Testing plan for the fix</h3>
+
+<ol>
+  <li>Write an e2e fixture <code>adr11-filter-upstream</code>: <code>ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()</code> + an upload of <code>penguins.csv</code>.</li>
+  <li>Assert <code>expect_picker_populated(app, "ggplot_2_1_1_ppVar_NA", "bill_length_mm")</code> — the filter-internal picker shows penguins' cols.</li>
+  <li>Also assert <code>expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "bill_length_mm")</code> — the aes pickers still work (regression net).</li>
+  <li>Assert that <em>after</em> a filter is applied (filter restricts to species == "Adelie"), aes pickers still offer all cols, not a row-narrowed view.</li>
+</ol>
+
+<hr>
+
+<h2>2. Bug 3b — empty <code>filter()</code> not pruned out of pipeline (load_all S3-dispatch trap)</h2>
+
+<p><span class="badge b-open">OPEN</span> &nbsp; <span class="badge b-revert">two fix attempts reverted</span> &nbsp; <span class="badge b-confirm">diagnosis confirmed</span></p>
+
+<h3>2.1 User report (verbatim, 2026-05-21)</h3>
+
+<pre>library(dplyr)
+ptr_app(
+  ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt;
+    ggplot(aes(ppVar, ppVar)) +
+    geom_point()
+)
+
+# when filter is included with no arguments, filter should be dropped from
+# the expression tree. Why is it preserved in the code panel? I understand
+# that filter(penguins) is what R sees. But we are working with the AST, we
+# should be able to set the node for filter to NULL and get rid of it...
+#
+# Observed code-panel output:
+#   ggplot(data = filter(penguins), aes(bill_length_mm, bill_depth_mm)) +
+#     geom_point()
+</pre>
+
+<p>User's expectation: when <code>filter(ppVar &gt; ppNum)</code>'s args all prune to missing, the entire <code>filter</code> stage should drop out of the pipeline.</p>
+
+<h3>2.2 Reproduction at the R level</h3>
+
+<pre>NOT_CRAN=true Rscript -e '
+suppressMessages(devtools::load_all("."))
+library(dplyr)
+tree   &lt;- ptr_translate("ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()")
+ctx    &lt;- list(snapshot = list(), upstream_cols = list())
+sub    &lt;- ggpaintr:::substitute_walk(tree, ctx)
+pruned &lt;- ptr_prune(sub)
+cat(ptr_render(pruned), "\n")
+# OBSERVED:
+#   filter() |&gt;
+#     ggplot() +
+#     geom_point()
+# EXPECTED:
+#   ggplot() +
+#     geom_point()    # or with ppUpload elided too
+</pre>
+
+<p>The empty <code>filter()</code> survives. With the <em>qualified</em> form <code>dplyr::filter(...)</code> (instead of the bare <code>filter</code> after <code>library(dplyr)</code>), the prune works correctly. So the bug is specific to bare-name dispatch under <code>load_all</code>.</p>
+
+<h3>2.3 First hypothesis (false-alarm): name-resolution gap</h3>
+
+<p>Initial guess: the remove-set contains <code>"dplyr::filter"</code> but <code>name_matches_remove_set(bare="filter", qualified="filter", remove_set)</code> never matches because qualified resolution didn't happen for the bare symbol.</p>
+
+<p><strong>Result: REJECTED.</strong> <code>qualified_call_name(quote(filter))</code> in <code>R/paintr-prune.R:179-199</code> already resolves bare symbols via <code>get(nm, mode = "function")</code>, follows <code>environment(fn)</code>, and returns <code>"dplyr::filter"</code> when dplyr is attached. Probed:</p>
+
+<pre>cat("ggpaintr:::qualified_call_name(quote(filter)) -&gt;",
+    ggpaintr:::qualified_call_name(quote(filter)), "\n")
+# dplyr::filter
+</pre>
+
+<p>So the name resolves correctly to the qualified form, which IS in <code>default_drop_when_empty()</code>. The user's correction on this point (<em>"when ggpaintr reads filter, it should firstly check which package it is coming from, then compare with the list"</em>) is correct, and the design already does it. Bug 3b is downstream of name resolution.</p>
+
+<h3>2.4 Second hypothesis (confirmed root cause): UseMethod from package-env shadow</h3>
+
+<p>Probe sequence:</p>
+
+<div class="step"><strong>Step 1.</strong> Direct call to <code>prune_walk</code> on the filter stage alone <em>does</em> return <code>ptr_missing</code>:
+<pre>filter_stage &lt;- sub$layers[[1]]$data_arg$stages[[2]]
+direct &lt;- ggpaintr:::prune_walk(filter_stage, remove_set = rs,
+                                is_standalone = ggpaintr:::ptr_default_is_standalone)
+class(direct)[1]   # =&gt; "ptr_missing"
+</pre>
+</div>
+
+<div class="step"><strong>Step 2.</strong> <code>prune_walk(sub, ...)</code> via namespace also produces the correct tree (filter stage dropped, layer1$data_arg becomes NULL):
+<pre>root_pruned &lt;- ggpaintr:::prune_walk(sub, remove_set = rs, is_standalone = ggpaintr:::ptr_default_is_standalone)
+class(root_pruned$layers[[1]]$data_arg)[1] %||% "NULL"   # =&gt; "NULL"
+</pre>
+</div>
+
+<div class="step"><strong>Step 3.</strong> A faithful replica of <code>ptr_prune</code>'s body (same args, same internals, defined in <code>globalenv()</code>) ALSO produces the correct result:
+<pre>ptr_prune_replica &lt;- function(node) {
+  remove_set &lt;- unique(c(ggpaintr:::default_drop_when_empty(),
+                          ggpaintr:::validate_safe_to_remove(NULL)))
+  is_standalone &lt;- ggpaintr:::ptr_default_is_standalone
+  ggpaintr:::check_prune_depth(node)
+  ggpaintr:::prune_walk(node, remove_set = remove_set, is_standalone = is_standalone)
+}
+r1 &lt;- ptr_prune_replica(sub)
+class(r1$layers[[1]]$data_arg)[1] %||% "NULL"   # =&gt; "NULL"
+</pre>
+</div>
+
+<div class="step"><strong>Step 4.</strong> The REAL <code>ptr_prune(sub)</code> (defined in the package, accessed under <code>devtools::load_all</code>) returns the BROKEN tree:
+<pre>r2 &lt;- ptr_prune(sub)
+class(r2$layers[[1]]$data_arg)[1] %||% "NULL"   # =&gt; "ptr_call"  &lt;- BUG
+</pre>
+</div>
+
+<p>Steps 3 and 4 do <em>exactly</em> the same thing. Same internal calls. Same args. Same remove_set (confirmed via <code>identical()</code>, 369 entries). Different result.</p>
+
+<h3>2.5 The shadow trap</h3>
+
+<p>Confirmed via direct env inspection:</p>
+
+<pre>pw_pkg &lt;- get("prune_walk", envir = as.environment("package:ggpaintr"))
+pw_ns  &lt;- get("prune_walk", envir = asNamespace("ggpaintr"))
+environmentName(environment(pw_pkg))   # "package:ggpaintr"   &lt;- SHADOW
+environmentName(environment(pw_ns))    # "ggpaintr"           &lt;- namespace
+identical(pw_pkg, pw_ns)                # FALSE -- distinct closures
+</pre>
+
+<p>Calling the package-env shadow directly errors:</p>
+
+<pre>pw_pkg(sub, remove_set = rs, is_standalone = ggpaintr:::ptr_default_is_standalone)
+# Error in UseMethod("prune_walk") :
+#   no applicable method for 'prune_walk' applied to an object of class "c('ptr_root', 'ptr_node')"
+</pre>
+
+<p>So <code>devtools::load_all</code> creates a second copy of <code>prune_walk</code> in <code>package:ggpaintr</code>, whose closure env is the package env (not the namespace), and <code>UseMethod</code> from inside <em>that</em> shadow generic cannot find the methods registered in the namespace's S3 method table.</p>
+
+<p>This is the same shape as the trap PLAN-01 hit with <code>ptr_constant_fold_env</code> — a generic / accessor lives in <code>package:ggpaintr</code> and its lookups don't reach the namespace's bindings. PLAN-01 fixed that case by routing through <code>get("...", envir = asNamespace("ggpaintr"))</code>.</p>
+
+<h3>2.6 Fix attempt #1 — namespace lookup of the generic</h3>
+
+<p>Hypothesis: replace the bare <code>prune_walk(...)</code> call in <code>ptr_prune</code> with the namespace's version, so the generic's environment is the namespace, and UseMethod finds methods.</p>
+
+<pre>ptr_prune &lt;- function(node, ...) {
+  ...
+  pw &lt;- get("prune_walk", envir = asNamespace("ggpaintr"))
+  pw(node, remove_set = remove_set, is_standalone = is_standalone)
+}
+</pre>
+
+<p><strong>Result: did NOT fix the bug.</strong> Even with <code>pw</code> being the namespace's <code>prune_walk</code> (verified: <code>environmentName(environment(pw)) == "ggpaintr"</code>), the output was still the broken tree (<code>layer1$data_arg = ptr_call</code>).</p>
+
+<p>Surprise: a stand-alone <code>ptr_prune2</code> defined in <code>globalenv()</code> using <em>the same</em> <code>get(asNamespace)</code> + <code>pw(node, ...)</code> shape DOES produce the correct tree:</p>
+
+<pre>ptr_prune2 &lt;- function(node) {
+  ggpaintr:::check_prune_depth(node)
+  pw &lt;- get("prune_walk", envir = asNamespace("ggpaintr"))
+  rs &lt;- unique(ggpaintr:::default_drop_when_empty())
+  pw(node, remove_set = rs, is_standalone = ggpaintr:::ptr_default_is_standalone)
+}
+class(ptr_prune2(sub)$layers[[1]]$data_arg)[1] %||% "NULL"   # =&gt; "NULL"  CORRECT
+</pre>
+
+<p>So the bug is <em>not</em> just about the closure env of the generic being called. It depends on the closure env of the CALLER (ptr_prune itself). When ptr_prune lives in the package (under load_all, in package:ggpaintr), something in <code>UseMethod</code>'s frame-walking sees the package-env context and fails to locate methods. The same call shape works when ptr_prune is in globalenv.</p>
+
+<p>This is the deep trap. UseMethod's method lookup is documented as: (1) the generic's environment's <code>.__S3MethodsTable__.</code>; (2) walk parent.frames; (3) global env. In step (2), when the caller's enclosing env is <code>package:ggpaintr</code> (the shadow), the walk finds the package env's <code>.__S3MethodsTable__.</code> first — which under load_all is either empty or contains a stale subset of methods — and stops there.</p>
+
+<h3>2.7 Fix attempt #2 — explicit method dispatch</h3>
+
+<p>Hypothesis: skip <code>UseMethod</code> entirely. Every callsite I could grep for (<code>R/paintr-safe.R:32</code>, <code>R/paintr-resolve.R:30</code>, and ~15 test usages) passes the output of <code>substitute_walk</code>, which preserves <code>ptr_root</code> class (verified: <code>inherits(substitute_walk(tree, ctx), "ptr_root") == TRUE</code> for a translated formula). So in practice the entry node is always <code>ptr_root</code>; we can dispatch directly.</p>
+
+<pre>ptr_prune &lt;- function(node, ...) {
+  ...
+  if (!inherits(node, "ptr_root")) {
+    rlang::abort("`node` must be a `ptr_root` tree.")
+  }
+  m &lt;- get("prune_walk.ptr_root", envir = asNamespace("ggpaintr"))
+  m(node, remove_set = remove_set, is_standalone = is_standalone)
+}
+</pre>
+
+<p><strong>Result: FIXED bug 3b but REGRESSED a large number of unrelated tests.</strong> Final gate after this fix:</p>
+
+<pre>FAIL: 52   ERROR: 49   SKIP: 0   PASS: 1777   # (was 1982 baseline; -205 passing)
+</pre>
+
+<p>So 101 tests transitioned to failed-or-errored, and 205 fewer tests passed (some of the lost passes are expectations within a test_that block whose first expect_* raised an error).</p>
+
+<p><strong>I do not yet know the precise cause of this regression.</strong> Initial speculation was "the class assertion rejected non-root callers" — but the audit (§2.7 paragraph 1 above) shows every known caller passes <code>ptr_root</code>, so the assertion would not fire. Other speculation was "recursive calls inside the methods still hit the shadow trap" — plausible but not proven; <code>prune_walk.ptr_root</code> calls <code>prune_walk(layer, ...)</code> in a lexical scope (namespace) where bare <code>prune_walk</code> SHOULD resolve to the namespace generic. The third speculation was "S3 method bodies rely on UseMethod-set frame vars (<code>.Generic</code>, <code>.Class</code>, <code>.Method</code>) or expect to be invoked via NextMethod" — inspected, no <code>NextMethod</code> call in any prune_walk method, so this is unlikely too.</p>
+
+<p><strong>Action item for the next implementer:</strong> before trying Shape B (§2.10), reproduce Fix #2 and capture the FIRST failing test's traceback. The traceback will identify the actual recursion path that broke. Without that, all four proposed fix shapes are unverified.</p>
+
+<h3>2.8 Reverted to original state</h3>
+
+<p>Working tree at <code>vignette-review</code> HEAD <code>18309da</code>. <code>R/paintr-prune.R</code>'s <code>ptr_prune</code> body restored to the original bare-<code>prune_walk(...)</code> call. Gate: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS 1982</code>.</p>
+
+<h3>2.9 What's known about the bug</h3>
+
+<table>
+  <tr><th>Question</th><th>Answer</th></tr>
+  <tr><td>Does it reproduce under <code>library(ggpaintr)</code> from a real R CMD INSTALL?</td><td><strong>Not verified.</strong> Under a proper install the package env and namespace env share the same bindings; there is no shadow. So this <em>may</em> be a load_all-only artifact. Worth verifying by building the package with <code>R CMD INSTALL .</code>, then in a fresh R session: <code>library(ggpaintr); library(dplyr); &lt;repro&gt;</code>. If the empty filter prunes correctly there, the bug is dev-mode-only.</td></tr>
+  <tr><td>Why does <code>ggpaintr:::prune_walk(sub, ...)</code> called from globalenv work, but <code>ptr_prune(sub)</code> (which calls the same function) not work?</td><td>UseMethod's method lookup uses the calling environment's enclosure chain in step (2). From globalenv, the walk doesn't hit any shadow. From inside <code>ptr_prune</code> living in <code>package:ggpaintr</code>, the walk hits the package env's S3 table (potentially incomplete) before reaching the namespace's.</td></tr>
+  <tr><td>How many internal callsites use bare <code>prune_walk(...)</code>?</td><td>Many. <code>R/paintr-prune.R</code> alone has bare calls inside <code>prune_walk.ptr_root</code>, <code>prune_walk.ptr_layer</code>, <code>prune_walk.ptr_call</code>, <code>prune_walk.ptr_pipeline</code>, <code>prune_walk.ptr_closure</code>. Each recursion uses the bare form. A complete fix needs every one of these to dispatch through the namespace's S3 table, not the package env's shadow.</td></tr>
+  <tr><td>Is there an R-level idiom that always uses the namespace's method table for an S3 generic regardless of caller frame?</td><td>The standard idiom is <code>NextMethod()</code> for delegating to the next method in the class chain, but it doesn't help here. Another option: convert <code>prune_walk</code> from S3 to an R6 method, or to a vapply over a manual class-dispatch table. Both are bigger restructurings.</td></tr>
+</table>
+
+<h3>2.10 Proposed fix shapes (none verified)</h3>
+
+<h4>Shape A — verify-then-no-op</h4>
+
+<p>If R CMD INSTALL doesn't reproduce the bug, document it as a load_all-only artifact and add a developer note: "if you reproduce <code>filter() |&gt; ggplot()</code> in dev, run <code>R CMD INSTALL .</code> and confirm the bug doesn't repro under the installed package; the dev-mode artifact is benign because end users always run from an installed copy." Cheapest "fix" if applicable.</p>
+
+<h4>Shape B — convert prune_walk from S3 to explicit class-dispatch table</h4>
+
+<p>Replace the <code>UseMethod</code>-based generic with a function that switches on <code>class(node)[1]</code> and calls the matching helper by direct name (looked up via the namespace). No <code>UseMethod</code>, no caller-frame-dependent dispatch.</p>
+
+<pre>prune_walk &lt;- function(node, remove_set, is_standalone) {
+  cls &lt;- class(node)[1]
+  fn &lt;- switch(cls,
+    ptr_root             = prune_walk.ptr_root,
+    ptr_layer            = prune_walk.ptr_layer,
+    ptr_call             = prune_walk.ptr_call,
+    ptr_pipeline         = prune_walk.ptr_pipeline,
+    ptr_closure          = prune_walk.ptr_closure,
+    ptr_user_expr        = prune_walk.ptr_user_expr,
+    ptr_literal          = prune_walk.ptr_literal,
+    ptr_missing          = prune_walk.ptr_missing,
+    ptr_ph_value         = prune_walk.ptr_ph_value,
+    ptr_ph_data_consumer = prune_walk.ptr_ph_data_consumer,
+    ptr_ph_data_source   = prune_walk.ptr_ph_data_source,
+    prune_walk.default)
+  fn(node, remove_set = remove_set, is_standalone = is_standalone)
+}
+</pre>
+
+<p>The method bodies stay unchanged but no longer need <code>@export</code> — they're called by direct name. The dispatch is now lexical (closure-captures the methods at namespace creation time), so the load_all package-env shadow has nothing to do with method lookup. Same closure env as the rest of paintr-prune.R, so the namespace is the resolution scope.</p>
+
+<p>Risk: this is a stylistic departure from R's idiomatic S3 dispatch. May feel un-R-like. But it's a one-time restructuring and the method bodies are unchanged.</p>
+
+<h4>Shape C — keep S3 but force every call to qualify via namespace</h4>
+
+<p>Every bare <code>prune_walk(...)</code> in <code>R/paintr-prune.R</code> becomes <code>get("prune_walk", envir = asNamespace("ggpaintr"))(...)</code>. Pollutes the methods but is mechanical. Need to verify whether UseMethod from inside such a "namespace-pinned" generic actually escapes the trap (Fix attempt #1 suggests it might not).</p>
+
+<h4>Shape D — restructure dispatch via fn_env() / topenv() tricks</h4>
+
+<p>Modify <code>prune_walk</code> to set its own caller frame before <code>UseMethod</code> dispatches. Possible via <code>sys.function()</code> + <code>environment&lt;-</code> manipulation. Hacky and fragile.</p>
+
+<h3>2.11 Testing plan for whichever fix is chosen</h3>
+
+<ol>
+  <li>Add a unit test <code>test-prune-bare-pipe-stage.R</code> that asserts <code>ptr_render(ptr_prune(ggpaintr:::substitute_walk(ptr_translate("ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar)) + geom_point()"), list(snapshot=list(), upstream_cols=list()))))</code> does NOT contain <code>filter</code>.</li>
+  <li>Same assertion with bare <code>arrange(ppVar)</code>, <code>mutate(...)</code>, etc. for other dplyr verbs.</li>
+  <li>Confirm the existing 1982 tests still pass.</li>
+  <li>If the fix is "Shape A" (verify-only), add a CI step that runs the reproduction under <code>R CMD INSTALL</code>'d package, not just load_all.</li>
+</ol>
+
+<hr>
+
+<h2>3. Open questions for the next session</h2>
+
+<ol>
+  <li><strong>R CMD INSTALL reproduction</strong> — does Bug 3b reproduce after <code>R CMD INSTALL .; R; library(ggpaintr); library(dplyr); ptr_app(ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ...)</code>? If not, Shape A is cheapest.</li>
+  <li><strong>UseMethod frame-walk minimal reproduction</strong> — build a minimal package with a single generic and one method, install via R CMD INSTALL vs load_all, and observe the dispatch difference. This isolates the trap from ggpaintr's complexity.</li>
+  <li><strong>State$resolved_data shape under live upload</strong> — for Bug 3a, attach a debugger or print statement in <code>runtime_upstream_data</code> at the moment the user reports the bug. Observe whether <code>state$resolved_data[["ggplot"]]</code> is set and what its contents are.</li>
+  <li><strong>Parser slot for "inside pipe stage"</strong> — does <code>R/paintr-translate.R</code>'s consumer-node construction already encode the call-depth? The four-segment id (<code>ggplot_2_1_1_ppVar_NA</code>) suggests yes. If so, the predicate for Bug 3a's fix can be id-shape-based without parser changes.</li>
+  <li><strong>Interaction between Bug 3a and Bug 3b</strong> — once Bug 3b is fixed, an empty filter never reaches runtime, and Bug 3a's "filter shrinks resolved_data to empty" scenario goes away for the empty-filter case. Bug 3a's symptom <em>may</em> reduce to "filter with non-empty args still hides cols from its own internal ppVar" — narrower but still wrong. Verify whether fixing 3b also reduces 3a's surface area.</li>
+</ol>
+
+<h2>4. Files touched this session (reference)</h2>
+
+<table>
+  <tr><th>Commit</th><th>What</th><th>Status</th></tr>
+  <tr><td class="kw">2c504da</td><td>Bug 1 v0 — wire <code>ptr_code_mode</code> radio to <code>ptr_register_code</code> (the original toggle wiring was missing from PLAN-08)</td><td>LANDED</td></tr>
+  <tr><td class="kw">514cafd</td><td>4 ADR-0009 e2e regression nets (code-mode toggle, default-seeding, shared-default, named-args-custom)</td><td>LANDED</td></tr>
+  <tr><td class="kw">aed04a8</td><td>FEATURE-CHECKLIST.html syntax correction (positional default args)</td><td>LANDED</td></tr>
+  <tr><td class="kw">307eb7f</td><td>Bug 1 v1 — add <code>stamp_current_pick_walk</code> S3 walk; wire into preserve branch via live <code>reactiveValuesToList</code></td><td>LANDED (superseded by v3)</td></tr>
+  <tr><td class="kw">32b9e4e</td><td>Bug 1 v2 — switch snapshot to spec-driven <code>input[[ns_fn(raw_id)]]</code>; add missing-value filter</td><td>LANDED (superseded by v3)</td></tr>
+  <tr><td class="kw">8dd1287</td><td>ADR 0010 — <code>ppUpload(name)</code> default-arg + identity-outside-app proposal</td><td>LANDED (deferred)</td></tr>
+  <tr><td class="kw">18309da</td><td>Bug 1 v3 — preserve uses runtime's FROZEN snapshot (attached to <code>res$snapshot</code>); same source of truth as final mode</td><td>LANDED (final)</td></tr>
+  <tr><td class="kw">(none)</td><td>Bug 3b fix attempts (#1 namespace lookup + #2 explicit method dispatch)</td><td>REVERTED — see §2.6, §2.7</td></tr>
+</table>
+
+<h2>5. Confidence + caveats for the next implementer</h2>
+
+<ul>
+  <li>Bug 3a's hypothesis (§1.5) is <strong>not verified</strong> against a live upload. Confirm before writing the fix in §1.7.</li>
+  <li>Bug 3b's diagnosis (§2.4-2.5) is <strong>verified</strong> at the env-inspection level (the shadow is real). The fix shape is <strong>unverified</strong>; both fix attempts §2.6 and §2.7 failed for distinct reasons.</li>
+  <li>If you (next implementer) come to a different conclusion about either bug — especially Bug 3b — write up <em>why</em> the diagnosis here was wrong before changing code. The investigations here cost ~2 hours of orchestrator-session time; redoing them blind is wasteful.</li>
+  <li>The gate at <code>vignette-review</code> HEAD <code>18309da</code> is <code>0/0/0/1982</code>. Don't merge a fix that lowers PASS without an explicit story for what new test PASS count should be.</li>
+</ul>
+
+</body>
+</html>

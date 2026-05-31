@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-06 — spec= apply at session boot (from ADR 0012)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 06
+  slug: spec-apply-session-boot
+  source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
+  depends_on: [05]
+  parallel_group: G5
+  status: draft
+-->
+
+<h1>PLAN-06 — <code>spec=</code> apply at session boot (round-trip closes the loop)</h1>
+<p class="meta">Source: ADR 0012 (§2 rows "spec= plumbing", "Apply timing of spec="; §3.6 "spec= apply at session boot"; §4 S6) · Depends on: 05 · Parallel group: G5 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0012 §3.6 lays out the boot-time apply: per-entry namespace check, silent drop of unknown ids with an aggregated <code>cli::cli_inform</code>, <code>updateXyzInput</code> at session boot via <code>session$onFlushed</code>, drop with <code>cli::cli_warn</code> on invalid choice. §2 row "spec= plumbing" locks the single engine + four wrappers contract.</p>
+<p>Verified (ADR 0012 §2): <code>ptr_app</code> / <code>ptr_app_bslib</code> / <code>ptr_app_grid</code> / <code>ptr_server</code> all reach <code>ptr_server_internal</code>. The <code>spec=</code> argument lives in the engine; wrappers thread it through.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>ptr_server_internal</code> gains a <code>spec = NULL</code> argument. When non-<code>NULL</code>, it must be a named list of fully-qualified Shiny input id → value.</li>
+  <li>A new internal helper <code>apply_spec_at_boot(spec, session, ns_prefix)</code> in <code>R/paintr-server.R</code> implements the four-step protocol from ADR 0012 §3.6:
+    <ol>
+      <li>Filter <code>spec</code> entries whose id starts with <code>ns_prefix</code>.</li>
+      <li>Among those, drop entries whose stripped id is unknown to this engine instance's registry / has no bound widget; collect the dropped ids into a vector emitted as a single <code>cli::cli_inform</code> at the end.</li>
+      <li>For each surviving entry, dispatch to the appropriate <code>updateXyzInput</code> based on the widget type registered for that id. The dispatch table is keyed by the placeholder hook's widget kind (existing registry field; no new registry shape).</li>
+      <li>If the value is not a valid choice for the widget (e.g., not in the picker's current <code>choices</code>), drop with a single <code>cli::cli_warn</code> naming the id and the invalid value.</li>
+    </ol>
+    All <code>updateXyzInput</code> calls happen inside <code>session$onFlushed(once = TRUE)</code> so widgets exist when touched.
+  </li>
+  <li><code>ptr_app</code>, <code>ptr_app_bslib</code>, <code>ptr_app_grid</code>, and <code>ptr_server</code> each gain a <code>spec = NULL</code> argument with identical semantics, threaded through to <code>ptr_server_internal</code>. For <code>ptr_app_grid</code>, the same flat <code>spec=</code> list is passed to every per-plot <code>ptr_server_internal</code> call; each engine instance filters by its own namespace prefix.</li>
+  <li>A new e2e fixture <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code> exists. The app boots <code>ptr_app(formula, spec = list(...))</code> with a precooked spec, asserts that on session start the widgets named in the spec carry the spec values (rather than defaults).</li>
+  <li><code>tests/testthat/test-adr12-spec-roundtrip.R</code> exists, gated like the other browser tests. The test:
+    <ol>
+      <li>Boots the fixture under <code>AppDriver$new(...)</code>.</li>
+      <li>Asserts that for at least one stage-checkbox id in the spec, the rendered widget value matches the spec's value (not the default).</li>
+      <li>Asserts that for at least one var-picker id in the spec, the rendered selected option matches the spec's value.</li>
+      <li>Asserts that an unknown id in the spec is silently dropped (no app crash, no error visible to the user).</li>
+    </ol>
+  </li>
+  <li>Authoritative gate (Definition of Done): FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ N_new_assertions.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-server.R</code> (new <code>apply_spec_at_boot</code> helper + new <code>spec=</code> arg on <code>ptr_server_internal</code>), <code>R/paintr-app.R</code> (new <code>spec=</code> arg on <code>ptr_app</code>, <code>ptr_app_bslib</code>, <code>ptr_app_grid</code>, <code>ptr_server</code> plus <code>ptr_make_app_server</code> / <code>ptr_app_grid_components</code> as needed for threading), <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code> (new), <code>tests/testthat/test-adr12-spec-roundtrip.R</code> (new).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-translate.R</code>, <code>R/paintr-prune.R</code>, <code>R/paintr-resolve.R</code>, <code>R/paintr-safe.R</code>, any other vignette or fixture, <code>NAMESPACE</code>, <code>man/</code> (roxygen entries for the new <code>spec=</code> arg ARE in scope — they live in the same source files this plan owns; document the new arg in the existing function roxygen blocks).</li>
+  <li>One-shot apply only: no <code>observe()</code> or <code>observeEvent()</code> watching the spec, no re-application after boot. After the <code>onFlushed</code> handler fires, the spec is no longer consulted.</li>
+  <li>Unknown-id behavior: silent drop with one aggregated <code>cli::cli_inform</code> at the end of the apply pass listing all dropped ids (not a per-id message). Invalid-value behavior: <code>cli::cli_warn</code> per affected id.</li>
+  <li>The <code>spec=</code> argument default is <code>NULL</code> for backward compatibility — existing callers see no behavior change.</li>
+  <li>For <code>ptr_app_grid</code>: pass the same flat spec to every per-plot engine; each engine filters by namespace prefix. Do not pre-partition the spec at the grid level.</li>
+  <li>For <code>ptr_app_grid</code> OUTPUT: expose a grid-level combined spec by calling <code>ptr_spec_combine()</code> (the helper from plan 05) over the list of per-plot <code>state$spec()</code> reactives. The combined spec is the single flat namespaced list a user can paste back into <code>ptr_app_grid(spec = ...)</code> for round-trip. Wire this into whatever grid-level accessor exists (today there is no grid-level code panel; minimum bar is that the combiner is callable from the grid's returned components — extend the return shape if needed).</li>
+  <li>Document each new <code>spec=</code> arg with one roxygen line per function: <code>@param spec An optional named list of fully-qualified Shiny input id → value, used to override widget defaults at session boot. See <a href="dev/adr/0012-role-based-tree-and-ptr-spec.html">ADR 0012</a>.</code></li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: spec= replays user picks at session boot
+
+Scenario: Stage checkbox honored at boot
+  Given the fixture app booted with spec = list(`ggplot_2_stage_enabled` = FALSE)
+  When  the app boots (session$onFlushed fires once)
+  Then  the rendered stage checkbox for the filter stage is unchecked
+
+Scenario: Var picker honored at boot
+  Given the fixture app booted with spec = list(`ggplot_1_1_ppVar_NA` = "bill_depth_mm")
+        and the upstream data has columns including "bill_depth_mm"
+  When  the app boots
+  Then  the rendered ppVar picker shows "bill_depth_mm" as the selected option
+
+Scenario: Unknown id silently dropped
+  Given the fixture app booted with spec = list(`no_such_widget_id_99` = "x")
+  When  the app boots
+  Then  the app does not crash
+  And   no rendered error is visible to the user
+  And   a single cli::cli_inform message lists the dropped id (visible in app log / test stderr)
+
+Scenario: spec=NULL preserves today's behavior
+  Given an existing fixture app boot path that does not pass spec=
+  When  the app boots
+  Then  every widget shows its registry default (identical to today's behavior — no regression)
+
+Scenario: Grid: same flat spec across plots
+  Given a ptr_app_grid call with two plots (p1, p2) and spec containing entries with both `p1-` and `p2-` prefixes
+  When  the grid boots
+  Then  p1's widgets reflect spec entries whose ids start with `p1-`
+  And   p2's widgets reflect spec entries whose ids start with `p2-`
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline_after_plan_05 + N_new)</code>. The browser e2e tests run (not silently SKIP) under <code>NOT_CRAN=true</code>.</p>
+<p><strong>Proxy traps — do not be fooled (copied verbatim from CLAUDE.md):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+</ul>
+<p>This plan adds ~4 browser-driven assertions in <code>test-adr12-spec-roundtrip.R</code> plus likely 2–3 unit tests covering <code>apply_spec_at_boot</code>'s pure-function pieces (namespace filtering, unknown-id collection). Gate must show PASS rise by that total, FAIL/ERROR still 0, SKIP unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-server.R</code>, <code>R/paintr-app.R</code> (signature extensions only — no logic restructure), <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code>, <code>tests/testthat/test-adr12-spec-roundtrip.R</code>. Generated files (<code>NAMESPACE</code>, <code>man/</code>) untouched — the new <code>spec=</code> args are documented inline in roxygen blocks; man/ regen is owned by an integration step.</p>
+<p>Branch convention: <code>0012-spec-apply-session-boot</code>, worktree at <code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/spec-apply-session-boot/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the gate command and verifies (a) <code>spec=NULL</code> path unchanged, (b) the round-trip e2e runs (not SKIPs) and passes, (c) the unknown-id branch does not error.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after plan 05 has merged. Record SHA + PASS count in worktree first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced, never absorbed. Out-of-scope examples: reactive re-application of spec (deferred per ADR 0012 §2 row "Apply timing"); spec migration helper <code>ptr_migrate_spec</code> (deferred per ADR 0012 §2 row "Versioning"); render-time pipe-style preservation (ADR 0012 §5 open question 2). All become follow-up plans, not silent edits here.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: plan 05 (which constructs <code>state$spec</code> and shows the spec in the preserve panel — this plan closes the loop by consuming a spec at boot). Also implicitly depends on plans 01–04 for the broader ADR 0012 redesign coherence, though the apply logic itself works regardless of whether the tree is role-classified.</p>
+<p>Provides for: nothing in this batch. Completes the ADR 0012 staging plan.</p>
+
+<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=7c417f0d9dd3 -->
+</body>
+</html>

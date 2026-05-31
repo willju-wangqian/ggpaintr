@@ -13,8 +13,8 @@
 source("tests/manual/edge_cases/launchers/_setup.R")
 shiny::runApp(
   ptr_app(
-    "mtcars |> head(num) |> ggplot(aes(x = var, y = var)) +
-       geom_point(size = num) + labs(title = text) + coord_cartesian()"
+    "mtcars |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) +
+       geom_point(size = ppNum) + labs(title = ppText) + coord_cartesian()"
   ),
   port = PORT, host = "127.0.0.1", launch.browser = FALSE
 )

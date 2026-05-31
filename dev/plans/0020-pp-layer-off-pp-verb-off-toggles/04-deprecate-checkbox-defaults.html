@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — remove checkbox_defaults = formal + checkbox_default_all_other_layer option + R/paintr-checkbox-defaults.R (from ADR 0020)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 04
+  slug: deprecate-checkbox-defaults
+  source_adr: dev/adr/0020-pp-layer-off-pp-verb-off-toggles.html
+  depends_on: [02]
+  parallel_group: G3
+  status: draft
+-->
+
+<h1>PLAN-04 — remove <code>checkbox_defaults =</code> formal + <code>checkbox_default_all_other_layer</code> option + <code>R/paintr-checkbox-defaults.R</code></h1>
+<p class="meta">Source: ADR 0020 (Decision §Precedence + §Deprecation, Verified facts 5) · Depends on: 02 · Parallel group: G3 · Status: draft</p>
+
+<h2>Context</h2>
+<p>Plan 02 stopped every read site from consulting <code>checkbox_defaults</code> or the global option <code>checkbox_default_all_other_layer</code> — the snapshot, the layer-checkbox UI, the stage-checkbox UI (per-layer + shared), and the server-side spec-defaults reader all now read <code>node$default_active</code> / <code>node$default_stage_enabled</code> directly. The <code>checkbox_defaults =</code> argument is therefore vestigial: present on the signatures of the entire public API surface (<code>ptr_app</code>, <code>ptr_app_components</code> ×2, <code>ptr_app_grid</code>, <code>ptr_app_grid_components</code>, <code>ptr_app_bslib</code>, <code>ptr_init_state</code>, <code>ptr_run_formula</code>, <code>ptr_default_snapshot</code>), forwarded via <code>...</code> from <code>ptr_server</code>, and a formal on the internal <code>build_ui_for.ptr_layer</code> method — but no longer read anywhere.</p>
+
+<p>This plan rips out the deprecated machinery in one change, per ADR 0020's "straight remove" cadence ("ggpaintr has no external users to deprecate-warn for — there is no production deployment surface to protect"). It also deletes the now-orphan source file <code>R/paintr-checkbox-defaults.R</code> (the resolver, two validators, plus <code>ptr_strip_dedup_suffix</code> — verified to have only one caller, also inside that file, so it dies with the file), the dedicated test file <code>tests/testthat/test-checkbox-defaults.R</code> (287 lines, all about the deleted machinery), the <code>checkbox_default_all_other_layer</code> half of <code>R/paintr-options.R</code>, the corresponding half of <code>tests/testthat/test-options.R</code>, and the now-dead <code>resolve_layer_default()</code> helper at <code>R/paintr-build-ui.R:531-540</code>. Tests that Plan 02 skipped with the "superseded by ADR 0020" marker are deleted or rewritten here against the formula-side <code>ppLayerOff</code> equivalent. Vignettes and manual fixtures that document the deprecated path are migrated to <code>ppLayerOff</code>.</p>
+
+<h2>Governing principle</h2>
+<p><strong>One mechanism for boot state, no side-channels.</strong> ADR 0020's deprecation rests on the conviction that <em>four</em> entry points for one bit of state (<code>spec =</code>, per-call <code>checkbox_defaults =</code>, global <code>checkbox_default_all_other_layer</code>, implicit <code>TRUE</code>) is too many — three of them are side-channels disconnected from the formula. <code>ppLayerOff</code> + <code>ppVerbOff</code> live inside the formula and strictly subsume <code>checkbox_defaults =</code> + the global option (every shape they expressed has a mechanical per-layer <code>ppLayerOff</code> equivalent). Leaving <code>checkbox_defaults =</code> as a no-op formal indefinitely re-introduces the same configuration-vs-source-of-truth confusion the ADR was written to eliminate: a future reader sees the argument in <code>?ptr_app</code>, assumes it does something, and silently passes values that are ignored. The argument must come out of every signature this plan can reach.</p>
+
+<p>Corollary: the <strong>removal cadence is "all at once"</strong>, not "deprecate-warn, remove later". ggpaintr has no external users. There is no production surface to protect. Keeping the formal around with a <code>.Deprecated()</code> shim trades one form of confusion (silently ignored value) for another (a warning the user can't escape because their formula is correct). The ADR locked this decision explicitly; this plan executes it.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC1 — Public-API formal removed.</strong> Every one of these functions no longer has a <code>checkbox_defaults =</code> formal in its signature: <code>ptr_app</code>, <code>ptr_app_components</code> (both variants), <code>ptr_app_grid</code>, <code>ptr_app_grid_components</code>, <code>ptr_app_bslib</code>, <code>ptr_init_state</code>, <code>ptr_run_formula</code>, <code>ptr_default_snapshot</code>. Verified by <code>grep -nE "checkbox_defaults" R/*.R</code> returning <strong>no matches</strong>. <code>ptr_server</code> (which forwards via <code>...</code>) requires no change at the signature; verify by reading its body for any explicit pass-through that needs cleanup.</li>
+
+  <li><strong>SC2 — Internal formal removed.</strong> <code>build_ui_for.ptr_layer</code> at <code>R/paintr-build-ui.R</code> no longer has a <code>checkbox_defaults =</code> formal. Verified by reading the function signature.</li>
+
+  <li><strong>SC3 — Global option removed.</strong> The <code>checkbox_default_all_other_layer</code> entry is removed from <code>ptr_settings</code> in <code>R/paintr-options.R:10-13</code>. <code>ptr_default_layer_state()</code> at <code>R/paintr-options.R:135-137</code> is removed. Roxygen prose for the option (<code>R/paintr-options.R:34-43</code> and <code>:62</code>) is removed. <code>getOption("ggpaintr.checkbox_default_all_other_layer")</code> + <code>ptr_options(checkbox_default_all_other_layer = FALSE)</code> no longer have any effect (the option is no longer in the registry, so <code>ptr_options()</code> errors on the name). Verified by <code>grep -nE "checkbox_default_all_other_layer" R/*.R</code> returning <strong>no matches</strong> and by an inline test that <code>ptr_options(checkbox_default_all_other_layer = TRUE)</code> aborts with the existing "unknown setting" error class (test at <code>tests/testthat/test-options.R</code> line 69 already exists; verify it still passes against the now-shrunk registry).</li>
+
+  <li><strong>SC4 — File deleted: <code>R/paintr-checkbox-defaults.R</code>.</strong> The file no longer exists. <code>ptr_resolve_checkbox_defaults</code>, <code>ptr_strip_dedup_suffix</code>, and the two validators it contained are gone from the package. Verified by <code>test -f R/paintr-checkbox-defaults.R</code> returning false, and by <code>grep -rn "ptr_resolve_checkbox_defaults\|ptr_strip_dedup_suffix" R/ tests/</code> returning no matches.</li>
+
+  <li><strong>SC5 — File deleted: <code>tests/testthat/test-checkbox-defaults.R</code>.</strong> The 287-line file is gone (it tested the now-deleted resolver). Verified by <code>test -f tests/testthat/test-checkbox-defaults.R</code> returning false.</li>
+
+  <li><strong>SC6 — Partial removal: <code>tests/testthat/test-options.R</code>.</strong> The <code>checkbox_default_all_other_layer</code>-related <code>test_that()</code> blocks (lines 85, 92, 102, 117) are removed. Additionally, the assertions inside the <em>retained</em> blocks at lines 5 (<code>local_options(... ggpaintr.checkbox_default_all_other_layer = NULL)</code>), 19-21 (expects the option's name in <code>ptr_options()</code> output), 27, 31, 54, 57, 62 are updated to remove every reference to the deleted option. The <code>verbose</code> half stays. Verified by <code>grep -c "checkbox_default_all_other_layer" tests/testthat/test-options.R</code> returning <code>0</code> and by the file's gate continuing to pass.</li>
+
+  <li><strong>SC7 — Helper removed: <code>resolve_layer_default()</code>.</strong> <code>R/paintr-build-ui.R:531-540</code>'s function definition is removed. Plan 02 already removed the only callsite at line 144. Verified by <code>grep -n "resolve_layer_default" R/ tests/</code> returning no matches.</li>
+
+  <li><strong>SC8 — Tests Plan 02 marked skipped are deleted or rewritten.</strong> Every <code>test_that()</code> block in the codebase that was marked <code>testthat::skip("superseded by ADR 0020 ppLayerOff; ...")</code> by Plan 02 is either: (a) deleted if it tested only the deprecated machinery (e.g. "ptr_init_state exposes resolved vector on state$checkbox_defaults"); or (b) rewritten to assert the equivalent behavior via <code>ppLayerOff</code> if the underlying user-facing behavior is still meaningful (e.g. "geom_point starts unchecked given the formula <code>ggplot() + ppLayerOff(geom_point(), TRUE)</code>"). Verified by <code>grep -rn 'skip\("superseded by ADR 0020' tests/</code> returning no matches.</li>
+
+  <li><strong>SC9 — Manual fixtures + vignettes migrated.</strong> The two manual launcher files <code>tests/manual/edge_cases/launchers/checkbox-defaults-overlength.R</code> and <code>checkbox-defaults-unknown.R</code> are deleted (they exist only to demo the deleted resolver's edge cases). <code>tests/manual/edge_cases/manual_cover_edge_cases.Rmd</code> updated to remove the corresponding sections. <code>vignettes/ggpaintr-customization.Rmd</code> + <code>vignettes/ggpaintr-use-cases.Rmd</code> have any <code>checkbox_defaults =</code> or <code>checkbox_default_all_other_layer</code> usage migrated to <code>ppLayerOff(...)</code> equivalents (per the migration mapping in <a href="0020-pp-layer-off-pp-verb-off-toggles.html#deprecation">ADR 0020 Deprecation §</a>). Verified by <code>grep -rn "checkbox_defaults\|checkbox_default_all_other_layer" vignettes/ tests/manual/</code> returning no matches. Dev-only sources (<code>dev/scripts/*.R</code>, <code>dev/feature_bank/*.R</code>, <code>dev/vignettes-pending-port/*.Rmd</code>) that reference the deleted API are also migrated to keep them runnable; historical artifacts under <code>dev/adr/</code>, <code>dev/audit/</code>, <code>dev/notes/</code>, and finished <code>dev/plans/</code> are <strong>frozen — never edited</strong>.</li>
+
+  <li><strong>SC10 — NAMESPACE + man/ regenerated.</strong> <code>devtools::document()</code> is run; <code>NAMESPACE</code> no longer exports anything from the deleted file; <code>man/ptr_app.Rd</code>, <code>man/ptr_app_bslib.Rd</code>, <code>man/ptr_init_state.Rd</code>, <code>man/ptr_options.Rd</code>, <code>man/ptr_server.Rd</code>, <code>man/ptr_ui.Rd</code>, <code>man/ptr_ui_controls.Rd</code>, <code>man/build_ui_for.Rd</code> all rebuilt without <code>checkbox_defaults =</code> in their Usage/Arguments sections. Verified by <code>grep -rn "checkbox_defaults\|checkbox_default_all_other_layer" man/</code> returning no matches.</li>
+
+  <li><strong>SC11 — Migration mapping documented in NEWS.md (if the project keeps a NEWS file) or as a top-line block in <code>vignettes/ggpaintr-customization.Rmd</code>.</strong> A short "Migrating from <code>checkbox_defaults</code>" block lists the three mechanical conversions from <a href="0020-pp-layer-off-pp-verb-off-toggles.html#deprecation">ADR 0020 Deprecation §</a>: (1) direct entries, (2) duplicate-group expansion, (3) opt-in mode. (If neither file exists or is owned by another plan, document the mapping in the docstring of the relevant section instead — call out the location in the audit so Plan 05's vignette work can pick it up.)</li>
+
+  <li><strong>SC12 — Authoritative gate.</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → <code>FAIL 0 / ERROR 0 / SKIP 0</code>. PASS count <em>drops</em> by the count of deleted tests minus any added/rewritten replacement tests — record the exact delta in the audit report; the integration step verifies the drop matches the expected count and is not hiding a regression. SKIP must drop back to its pre-Plan-02 baseline (the "superseded by ADR 0020" skips disappear).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li><strong>Files this plan owns (read+write):</strong>
+    <ul>
+      <li><code>R/paintr-checkbox-defaults.R</code> — <strong>DELETE</strong>.</li>
+      <li><code>R/paintr-options.R</code> — remove the <code>checkbox_default_all_other_layer</code> entry from <code>ptr_settings</code> (lines 10-13); remove the <code>ptr_default_layer_state()</code> function (lines 135-137); remove the roxygen prose mentioning the option (lines 34-43, 62). Keep everything related to <code>verbose</code>.</li>
+      <li><code>R/paintr-app.R</code> — remove every <code>checkbox_defaults = NULL</code> formal and every <code>checkbox_defaults = checkbox_defaults</code> pass-through (19 hits: lines 17, 139, 149, 161, 173, 182, 299, 321, 392, 402, 749, 776, 827, 855, 879, 924, 947, 958, 1010; the line-17 + line-827 + line-924 hits are roxygen <code>@param</code>; line-1010 is a documentation cross-reference — drop them all).</li>
+      <li><code>R/paintr-app-bslib.R</code> — remove the three hits at lines 61, 94, 119.</li>
+      <li><code>R/paintr-server.R</code> — remove the formal at <code>ptr_init_state()</code> line 89 (Plan 02 already removed the body usage). Verify no other <code>checkbox_defaults</code> reference remains.</li>
+      <li><code>R/paintr-headless.R</code> — remove the formals at <code>ptr_default_snapshot()</code> line 86 and <code>ptr_run_formula()</code> line 121 (Plan 02 already removed the body usage in <code>ptr_default_snapshot</code>; check <code>ptr_run_formula</code> body for any remaining pass-through to delete).</li>
+      <li><code>R/paintr-build-ui.R</code> — remove the formal at <code>build_ui_for.ptr_layer</code> line 113; remove the <code>resolve_layer_default()</code> function definition at lines 531-540 (Plan 02 already removed the only caller).</li>
+      <li><code>tests/testthat/test-checkbox-defaults.R</code> — <strong>DELETE</strong>.</li>
+      <li><code>tests/testthat/test-options.R</code> — remove the four <code>test_that()</code> blocks at lines 85, 92, 102, 117 (the <code>checkbox_default_all_other_layer</code> coverage); remove the option-name references in the retained <code>test_that()</code> blocks (lines 5, 19-21, 27, 31, 54, 57, 62).</li>
+      <li><code>tests/testthat/test-rewrite-server-state.R</code> — delete or rewrite the <code>state$checkbox_defaults</code>-asserting <code>test_that()</code> blocks (the ones Plan 02 wrapped in <code>skip("superseded by ADR 0020...")</code>). Rewrite if the underlying behavior remains meaningful via <code>ppLayerOff</code>; delete otherwise. Surrounding tests stay live.</li>
+      <li><code>tests/testthat/test-rewrite-layer-panel.R</code> — same protocol for the <code>checkbox_defaults =</code>-using tests (lines 73, 84, 97 area). Rewrite to use <code>ppLayerOff</code> as appropriate.</li>
+      <li><code>tests/testthat/test-module-ui.R</code> — same protocol if any test was skipped by Plan 02.</li>
+      <li><code>tests/manual/edge_cases/launchers/checkbox-defaults-overlength.R</code> — <strong>DELETE</strong>.</li>
+      <li><code>tests/manual/edge_cases/launchers/checkbox-defaults-unknown.R</code> — <strong>DELETE</strong>.</li>
+      <li><code>tests/manual/edge_cases/manual_cover_edge_cases.Rmd</code> — remove sections that reference the deleted launchers.</li>
+      <li><code>vignettes/ggpaintr-customization.Rmd</code> — migrate <code>checkbox_defaults =</code> / <code>checkbox_default_all_other_layer</code> mentions to <code>ppLayerOff</code> per the migration mapping.</li>
+      <li><code>vignettes/ggpaintr-use-cases.Rmd</code> — same migration.</li>
+      <li><code>dev/scripts/complicated_examples.R</code>, <code>dev/scripts/feature-coverage-examples.R</code>, <code>dev/scripts/feature-sweep.R</code>, <code>dev/feature_bank/build-feature-bank.R</code>, <code>dev/vignettes-pending-port/ggpaintr-workflow.Rmd</code> — migrate references to keep the scripts runnable. <code>dev/feature_bank/feature-bank.html</code> is a generated artifact; either regenerate via the build script or note the staleness in the audit and leave for a follow-up dev-only refresh.</li>
+      <li><code>NAMESPACE</code>, <code>man/*.Rd</code> — regenerate via <code>devtools::document()</code>. Generated output; the audit may treat them as an integration step's territory (the prevailing convention in this repo's existing plans). If the integration step doesn't own this regen, include it here so the gate runs cleanly.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Anything Plan 01/02/03 already touched <em>outside</em> the sites above (e.g. don't re-edit <code>ptr_default_snapshot()</code>'s body — Plan 02 owns it).</li>
+      <li>Anything in <code>dev/adr/</code>, <code>dev/audit/</code>, <code>dev/notes/</code>, or finished plans under <code>dev/plans/</code> — historical artifacts are frozen even when they mention the deprecated API.</li>
+      <li><code>R/paintr-translate.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code>.</li>
+      <li><code>R/paintr-utils.R</code> (Plan 02 may have lifted a helper there; this plan does not touch it).</li>
+    </ul>
+  </li>
+  <li>No scope creep. This plan is the demolition crew, not the renovation crew. It does not add new public-API features or change the semantics of <code>spec =</code> / <code>ppLayerOff</code> / <code>ppVerbOff</code>.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If a downstream test fails because the removed <code>checkbox_defaults =</code> argument is no longer accepted (e.g. a vignette example aborts on the unused-arg error): STOP and migrate the call site to <code>ppLayerOff</code> per the migration mapping. Do NOT preserve the formal as a silently-ignored argument to "keep the call site working". Do NOT add a <code>.Deprecated()</code> shim. The ADR explicitly chose "straight remove" — preserving the argument under any guise re-introduces the side-channel this plan exists to eliminate.</li>
+  <li>Conventions: snake_case for internals; 2-space indent; <code>rlang::abort()</code> with a class for any new errors (none expected — this plan deletes, doesn't add error paths).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: remove deprecated checkbox_defaults = and checkbox_default_all_other_layer; all paths run on formula-side ppLayerOff
+
+Scenario: every public API entry point rejects checkbox_defaults as an unknown argument
+  Given the package is loaded
+  When  ptr_app("ggplot() + geom_point()", checkbox_defaults = list(geom_point = FALSE)) is called
+  Then  it aborts with R's standard "unused argument" error
+  And   the same is true for ptr_app_components, ptr_app_grid, ptr_app_grid_components,
+        ptr_app_bslib, ptr_init_state, ptr_run_formula, ptr_default_snapshot
+
+Scenario: ptr_options registry no longer accepts checkbox_default_all_other_layer
+  Given the package is loaded
+  When  ptr_options(checkbox_default_all_other_layer = FALSE) is called
+  Then  it aborts (the option is no longer in ptr_settings)
+  And   names(ptr_options()) does NOT contain "checkbox_default_all_other_layer"
+
+Scenario: R/paintr-checkbox-defaults.R is gone
+  Given the package source tree
+  When  file.exists("R/paintr-checkbox-defaults.R") is checked
+  Then  it returns FALSE
+  And   ggpaintr:::ptr_resolve_checkbox_defaults is not defined (exists("ptr_resolve_checkbox_defaults", envir = asNamespace("ggpaintr")) is FALSE)
+
+Scenario: tests/testthat/test-checkbox-defaults.R is gone
+  Given the package test directory
+  When  file.exists("tests/testthat/test-checkbox-defaults.R") is checked
+  Then  it returns FALSE
+
+Scenario: resolve_layer_default helper is gone
+  Given the package source
+  When  grep is run for "resolve_layer_default" across R/
+  Then  there are no matches
+
+Scenario: rewritten test asserts ppLayerOff replaces the deleted checkbox_defaults schema test
+  Given a test that previously asserted "checkbox_defaults = list(geom_point = FALSE) makes geom_point start off"
+  When  the test is rewritten as "ggplot() + ppLayerOff(geom_point(), TRUE) makes geom_point start off"
+  Then  the rewritten test asserts: snapshot[["geom_point_checkbox"]] equals FALSE
+  And   the rewritten test passes against the post-Plan-02 reader chain
+
+Scenario: vignette migration uses ppLayerOff
+  Given a vignette chunk that previously passed checkbox_defaults = list(geom_smooth = FALSE)
+  When  the chunk is rewritten with the formula-side equivalent
+  Then  the chunk reads ggplot(...) + geom_point() + ppLayerOff(geom_smooth(), TRUE)
+  And   the vignette knits cleanly under the standard build
+
+Scenario: NAMESPACE no longer exports the deleted resolver
+  Given devtools::document() has run
+  When  NAMESPACE is grep'd for "ptr_resolve_checkbox_defaults\|ptr_default_layer_state\|ptr_strip_dedup_suffix"
+  Then  there are no matches
+
+Scenario: man pages no longer document checkbox_defaults
+  Given devtools::document() has run
+  When  grep is run for "checkbox_defaults" across man/
+  Then  there are no matches
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>'s "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>. PASS count <strong>drops</strong> by the count of deleted tests minus any rewritten replacement tests; SKIP count drops back to its pre-Plan-02 baseline (the "superseded by ADR 0020" skips disappear because the deferred-test files are deleted or rewritten). Record the exact deltas in the audit report; the post-merge integration step verifies the drop matches the expected count and is not hiding a regression.</p>
+
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>not</strong> make <code>skip_on_cran()</code> fire. Browser fixtures cleanly SKIP via the source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that's a harness defect, not the gate.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+</ul>
+
+<p>This plan removes <strong>~287 lines of tests</strong> (test-checkbox-defaults.R) + ~30 lines (the four removed test-options.R blocks) + several rewritten tests under <code>test-rewrite-*</code>. The net PASS-count delta is expected to be <strong>negative</strong>; the audit must record the exact number and confirm every "test deleted" maps to either (a) "tested only the deleted machinery" or (b) "rewritten in this plan against <code>ppLayerOff</code>".</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: all files listed under Constraints. R-package generated files (<code>NAMESPACE</code>, <code>man/*.Rd</code>) are touched only as a direct consequence of removing <code>@export</code>s + <code>@param checkbox_defaults</code> roxygen — call out the regen in the commit message.</p>
+
+<p>Branch convention: this plan lives on branch <code>0020-deprecate-checkbox-defaults</code> in a worktree at <code>.claude/worktrees/0020-pp-layer-off-pp-verb-off-toggles/deprecate-checkbox-defaults/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch at the commit where this plan's worktree was created (post-Plan-02 merge SHA — record in the worktree's first commit message). The pre-plan baseline has Plan 01 + Plan 02 + Plan 03 merged (Plan 03's merge happens before Plan 04 since they share <code>R/paintr-nodes.R</code> as a sequential boundary even though they don't touch the same hunks). Pre-existing failures (if any) named in <code>dev/baselines/</code> as of that SHA.</p>
+
+<h2>Out-of-scope handling</h2>
+<p><strong>Surface, do not absorb:</strong></p>
+<ul>
+  <li>If <code>devtools::document()</code> reveals roxygen drift unrelated to the deleted argument: flag in the audit, do not silently fix.</li>
+  <li>If <code>devtools::check()</code> reports NOTEs beyond the documented allowlist (CRAN incoming "new submission", <code>.git</code>, top-level <code>CONTEXT.md</code>): flag and stop.</li>
+  <li>If a vignette migration uncovers a vignette bug that predates this plan: flag for a follow-up plan; this plan's vignette edits are migration-only, not bug-fix.</li>
+  <li>If the feature-bank build script reveals stale entries unrelated to this plan: flag for a follow-up dev refresh; do not silently edit historical content.</li>
+  <li><strong>If any reader of <code>node$default_active</code> / <code>node$default_stage_enabled</code> exists outside the sites Plan 02 enumerated</strong> (translated via grep <em>before</em> this plan's deletions, to catch a Plan 02 gap): flag and stop — this plan is not the place to add a fifth reader site. A follow-up Plan-02-fix is needed before this plan can safely proceed.</li>
+  <li><strong>Symmetric: if Plan 02's reader-site removal missed any <code>checkbox_defaults</code> consumer in <code>R/paintr-server.R</code></strong> (e.g. the resolver call at <code>:142</code>, the <code>state$checkbox_defaults</code> write at <code>:236</code>, or the read at <code>:331</code>; the roxygen <code>@param</code> at <code>:31</code>; or any other site Plan 02 didn't tag): flag and stop. Plan 04 is the demolition crew, not a fixer for Plan 02 gaps. Removing <code>R/paintr-checkbox-defaults.R</code> while a Plan-02 reader survives produces an immediate <code>load_all()</code> failure with a confusing error; halt instead.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>Plan 02</strong> — every reader site must already be reading the new node-level fields before this plan removes the producer chain. Also benefits from Plan 03 being merged (the comparator already ignores the new fields), but does not strictly depend on it.</p>
+<p>Provides for: <strong>Plan 05 (docs)</strong> — the new vignette section can reference the migration mapping documented here; the new keywords are the only documented way to set per-instance boot state, so the vignette is free of two competing mechanisms.</p>
+
+<!-- implementable: PASS date=2026-05-24 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=9720287027d0 -->
+</body>
+</html>

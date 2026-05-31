@@ -4,16 +4,26 @@
 # `ptr_missing` (input absent / empty / NA per built-in semantics).
 # Layer activation: if the layer's `active_input_id` is in the snapshot
 # and FALSE, the layer is marked `active = FALSE` for P9 to drop.
+#
+# PLAN-07 invariant: `node$default` (set by the PLAN-06 parser) is
+# consumed only at boot, via the UI layer (`R/paintr-build-ui.R` +
+# `R/paintr-builtins.R` seed the widget's initial value from it).
+# Substitute reads the resolved runtime value from `input_snapshot`
+# alone -- it never falls back to `node$default`. Once Shiny boots,
+# every input slot has a value (or has been emptied by the user),
+# so the snapshot is authoritative.
 
 ptr_substitute <- function(node, input_snapshot = list(),
                           shared_bindings = list(),
                           eval_env = parent.frame(),
-                          upstream_cols = list()) {
+                          upstream_cols = list(),
+                          upstream_data = list()) {
   ctx <- list(
     snapshot = input_snapshot,
     shared = shared_bindings,
     eval_env = eval_env,
-    upstream_cols = upstream_cols
+    upstream_cols = upstream_cols,
+    upstream_data = upstream_data
   )
   substitute_walk(node, ctx)
 }
@@ -89,10 +99,30 @@ substitute_walk.ptr_ph_value <- function(node, ctx) {
       "`?ptr_define_placeholder_value`."
     ))
   }
+  if (!is.null(entry$validate_input)) {
+    # Value-role ctx: `upstream_cols` / `data` are always NULL by contract
+    # (value placeholders have no upstream column scope; `data_aware = FALSE`
+    # on the registry entry). Hook still receives `node` + `keyword` so the
+    # validator can branch on the keyword if it's reused across registrations.
+    hook_ctx <- list(
+      node = node, keyword = node$keyword,
+      upstream_cols = NULL, data = NULL
+    )
+    ok <- entry$validate_input(value, hook_ctx)
+    # Accept TRUE or NULL as "valid" -- NULL is the standard R idiom for
+    # "no message to report". A character vector is the error message.
+    # Any other return value fails closed with a generic message.
+    if (!is.null(ok) && !isTRUE(ok)) {
+      rlang::abort(paste0(
+        "Invalid value for placeholder `", node$keyword, "`: ",
+        if (is.character(ok)) ok else "validation failed."
+      ))
+    }
+  }
   resolved <- entry$resolve_expr(value, node)
   if (is.null(resolved)) return(ptr_missing())
   validate_resolve_expr_return(resolved, node$keyword)
-  if (node$keyword == "expr") {
+  if (node$keyword == "ppExpr") {
     return(ptr_user_expr(resolved))
   }
   ptr_literal(resolved)
@@ -116,7 +146,18 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
   if (!is.null(entry$validate_input)) {
     cols <- ctx$upstream_cols[[node$id %||% ""]]
     if (!is.null(cols)) {
-      ok <- entry$validate_input(value, cols)
+      # Consumer-role ctx: populate both `upstream_cols` and `data` when
+      # the upstream has resolved. `data` is the same data.frame the
+      # consumer's `build_ui` received as its `data` arg (see
+      # `runtime_upstream_data()` in `R/paintr-server.R`), allowing the
+      # validator to inspect column types / ranges / levels and not just
+      # the column names.
+      hook_ctx <- list(
+        node = node, keyword = node$keyword,
+        upstream_cols = cols,
+        data = ctx$upstream_data[[node$id %||% ""]]
+      )
+      ok <- entry$validate_input(value, hook_ctx)
       # Accept TRUE or NULL as "valid" -- NULL is the standard R idiom for
       # "no message to report". A character vector is the error message.
       # Any other return value fails closed with a generic message.
@@ -137,12 +178,45 @@ substitute_walk.ptr_ph_data_consumer <- function(node, ctx) {
 #' @export
 substitute_walk.ptr_ph_data_source <- function(node, ctx) {
   entry <- ptr_registry_lookup(node$keyword)
-  if (!is.null(node$companion_id)) {
-    # Companion-driven source (e.g. `upload`): the companion text input
+  if (!is.null(node$shortcut_id)) {
+    # Shortcut-driven source (e.g. `upload`): the shortcut text input
     # carries the binding name; resolve_expr maps name -> symbol.
-    name_value <- ctx$snapshot[[node$companion_id]]
-    if (is.null(name_value) || !is.character(name_value) ||
-        length(name_value) != 1L || !nzchar(name_value)) {
+    name_value <- ctx$snapshot[[node$shortcut_id]]
+    has_name_value <- !is.null(name_value) && is.character(name_value) &&
+      length(name_value) == 1L && nzchar(name_value)
+    if (!has_name_value) {
+      # ADR 0025 §5 / PLAN-02: empty shortcut snapshot falls through to
+      # `node$auto_name` (the deterministic translate-/runtime-stamped
+      # binding name) -- but ONLY when an upload has actually bound a
+      # frame under that symbol in `eval_env`. The fallback's sole
+      # justification (ADR 0025 §5 / R/paintr-ids.R) is the post-upload,
+      # mutex-cleared state, in which `resolve_upload_source()` has
+      # `assign()`ed the frame under `node$auto_name`. When NOTHING is
+      # bound (no upload, empty textbox -- the boot state, and the state
+      # left by A1's vacate-on-empty), the binder deliberately does NOT
+      # bind, so emitting `as.name(auto_name)` here would inject a symbol
+      # that errors `object '<auto_name>' not found` at eval-time. We
+      # therefore gate on the binding actually existing -- `inherits =
+      # TRUE` so a shared source bound in the parent coordinator eval_env
+      # (ADR 0023) resolves too. `exists()` on `ctx$eval_env` mirrors
+      # exactly what eval will see, so the walk emits the symbol iff it
+      # will resolve, and otherwise returns `ptr_missing()` (the `data=`
+      # arg is pruned, so e.g. `geom_rug(data = ppUpload())` inherits the
+      # plot's data, which is the documented no-arg `ppUpload()` meaning).
+      # ADR 0025 §3 (caveat-2 / path-4): prefer the stamped node$auto_name,
+      # but fall back to the canonical key (node$shared) for the per-instance
+      # + consumer shared source nodes, which carry node$auto_name = NULL
+      # (only the host rep node is stamped in ptr_setup_panel_sources). The
+      # bind side (`panel_owned_binding_name()`) uses the SAME helper, so an
+      # empty-shortcut shared upload emits the symbol it was bound under.
+      auto <- panel_source_canonical_name(node)
+      auto_bound <- !is.null(auto) && is.character(auto) &&
+        length(auto) == 1L && nzchar(auto) &&
+        is.environment(ctx$eval_env) &&
+        exists(auto, envir = ctx$eval_env, inherits = TRUE)
+      if (auto_bound) {
+        return(ptr_literal(as.name(auto)))
+      }
       return(ptr_missing())
     }
     if (make.names(name_value) != name_value) {
@@ -191,19 +265,20 @@ read_placeholder_value <- function(node, ctx) {
 is_missing_value_input <- function(node, value) {
   if (is.null(value)) return(TRUE)
   if (length(value) == 0L) return(TRUE)
-  if (node$keyword == "num") {
+  if (node$keyword == "ppNum") {
     # numericInput's blank state arrives at the server as logical `NA`
     # (not NA_real_), which earlier checks missed because `is.numeric(NA)`
     # is FALSE. Catch any all-NA scalar regardless of storage type.
     if (length(value) == 1L && is.atomic(value) && is.na(value)) return(TRUE)
     if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
-  if (node$keyword == "expr") {
+  if (node$keyword == "ppExpr") {
     if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
-  if (node$keyword == "text") {
-    # textInput's blank state is `""`; treat as missing so empty `labs(title = text)`
-    # collapses to nothing rather than rendering `labs(title = "")`.
+  if (node$keyword == "ppText") {
+    # textInput's blank state is `""`; treat as missing so empty
+    # `labs(title = ppText())` collapses to nothing rather than rendering
+    # `labs(title = "")`.
     if (is.character(value) && !nzchar(value[[1]])) return(TRUE)
   }
   FALSE

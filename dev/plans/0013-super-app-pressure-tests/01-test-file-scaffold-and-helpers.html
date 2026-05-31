@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — Test file scaffold + sentinel-propagation helpers (from ADR 0013)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: test-file-scaffold-and-helpers
+  source_adr: dev/adr/0013-super-app-pressure-test-suite.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — Test file scaffold + sentinel-propagation helpers</h1>
+<p class="meta">Source: ADR 0013 (D3 fixture-pair form + D4 probe-ledger assertion contract) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0013 D3 locks the single-file test layout: <em>"<code>tests/testthat/test-super-pressure.R</code> (single file, all 5 apps inside as separate <code>test_that()</code> blocks)"</em>. ADR 0013 D4 locks the assertion contract: <em>"For every placeholder in each super-app, the test sets a literally-unique sentinel value via <code>app$set_inputs(&lt;id&gt; = &lt;sentinel&gt;, wait_ = FALSE)</code>, clicks the Update button, then asserts: Final-mode propagation … Preserve-mode round-trip … No error class on plot output."</em></p>
+
+<p>This plan creates the <strong>enforcement surface</strong> that the five app plans (02–06) will fill in. Two artefacts: (a) the test file with five anchor-delimited empty regions, one per app, so concurrent worktrees never overlap; (b) a helper module exposing the sentinel-propagation primitives whose signatures force every caller to name the exact sentinel + the exact expected position. Any helper that lets a caller assert <em>"some text"</em> rather than <em>"this specific sentinel at this specific position"</em> is the failure shape recorded in project memory <code>e2e-assertion-weakness-lens</code> — every helper in this plan is shaped to make that shape impossible.</p>
+
+<p>The plan produces zero <code>test_that()</code> blocks of its own. The gate is unaffected: no PASS added, no SKIP added, no test ID created. The five app plans then each insert exactly one <code>test_that()</code> block between their owned anchor markers.</p>
+
+<h2>Governing principle</h2>
+
+<p>ADR 0013 commits the suite to <strong>propagation assertions</strong>, not presence proxies. The motivating regression (the B3 toggle wiring, fixed in <code>2c504da</code>) survived its full cycle of presence-style fixture assertions (<code>expect_dom_id</code>, <code>expect_code_nonempty</code>) because those helpers proved only that <em>some</em> code text reached the panel. Project memory <code>e2e-assertion-weakness-lens</code> distills the lesson: <em>presence proves the surface; propagation proves the integration.</em></p>
+
+<p>This plan's helper module is the binding mechanism for that principle. Every helper signature in <code>helper-super-pressure.R</code> takes an <em>exact sentinel string</em> and asserts the sentinel appears at an <em>exact rendered position</em> under an <em>explicitly named mode</em> (final or preserve). The helpers <strong>refuse to fall back to "code panel non-empty"</strong>: a helper that did so would let an integration bug of the B3 shape survive again. The anchor markers in the test file are equally load-bearing — they make the suite's five apps independently editable, so a defect in one app's coverage does not pressure later plans to weaken the contract for the rest.</p>
+
+<p>Strengthening, not weakening, is the only legal direction of change. If a future refactor wants to remove a propagation helper in favor of a presence helper "for speed", that is an ADR-0013 violation — flag it, do not absorb it.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>Test file exists with the five anchor regions.</strong> <code>tests/testthat/test-super-pressure.R</code> exists; <code>grep -c "^# &gt;&gt;&gt; super-" tests/testthat/test-super-pressure.R</code> returns <code>5</code> and <code>grep -c "^# &lt;&lt;&lt; super-" tests/testthat/test-super-pressure.R</code> returns <code>5</code>. The marker pairs (in this exact order, with these exact strings) are: <code># &gt;&gt;&gt; super-1 begin</code>/<code># &lt;&lt;&lt; super-1 end</code>, <code># &gt;&gt;&gt; super-2a begin</code>/<code># &lt;&lt;&lt; super-2a end</code>, <code># &gt;&gt;&gt; super-2b begin</code>/<code># &lt;&lt;&lt; super-2b end</code>, <code># &gt;&gt;&gt; super-3 begin</code>/<code># &lt;&lt;&lt; super-3 end</code>, <code># &gt;&gt;&gt; super-4 begin</code>/<code># &lt;&lt;&lt; super-4 end</code>. Each region contains no <code>test_that()</code> calls — only whitespace and a single comment line stating which plan fills it.</li>
+
+  <li><strong>Test file contains zero <code>test_that()</code> calls.</strong> <code>grep -c "^test_that" tests/testthat/test-super-pressure.R</code> returns <code>0</code>. The gate's PASS/SKIP counts are unaffected by this plan.</li>
+
+  <li><strong>Helper file exists and is loaded by testthat.</strong> <code>tests/testthat/helper-super-pressure.R</code> exists; testthat loads it automatically during <code>test_dir()</code> (no <code>source()</code> call needed in the test file).</li>
+
+  <li><strong>Helper: <code>boot_super_app(slug)</code>.</strong> Boots <code>tests/testthat/fixtures/vignette-apps/&lt;slug&gt;/app.R</code> via the same scaffolding as <code>boot_vignette_app()</code> (<code>tests/testthat/helper-vignette-apps.R</code>): <code>skip_on_cran()</code>, <code>skip_if_not_installed("shinytest2")</code>, <code>skip_if_not_installed("chromote")</code>, source-root guard, <code>GGP_PKG</code> env var, <code>prune_dead_ggpaintr_resource_paths()</code>, <code>suppressWarnings(shinytest2::AppDriver$new(...))</code>, <code>withr::defer(app$stop())</code>. Returns the <code>AppDriver</code>. Distinct name from <code>boot_vignette_app()</code> so the two helpers are independently evolvable.</li>
+
+  <li><strong>Helper: <code>expect_sentinel_in_code(app, code_output_id, sentinel, position_regex, mode)</strong>.</strong> Reads the rendered code text via <code>app$get_value(output = code_output_id)</code>, then asserts that <code>regexpr(position_regex, code_text, perl = TRUE)</code> matches AND the matched substring contains the literal <code>sentinel</code>. The <code>mode</code> argument is one of <code>"final"</code>, <code>"preserve"</code> and is recorded in the assertion label (so a failure message names which mode failed). Any of <code>code_text</code> empty, <code>sentinel</code> missing entirely from <code>code_text</code>, <code>position_regex</code> matching but its capture not containing <code>sentinel</code>, fails the expectation with a label naming all four inputs.</li>
+
+  <li><strong>Helper: <code>expect_sentinel_nowhere(app, code_output_id, sentinel)</code>.</strong> Reads the rendered code text and asserts the literal <code>sentinel</code> does not appear anywhere in it (used for the inverse claim in final mode when only preserve mode should show a placeholder wrapper). <code>fixed = TRUE</code>.</li>
+
+  <li><strong>Helper: <code>set_sentinel(app, input_id, sentinel)</code>.</strong> Wraps <code>app$set_inputs(<id> = <sentinel>, wait_ = FALSE)</code> with literal sentinel string. Identical semantics to the existing <code>set_input()</code> helper in <code>helper-vignette-apps.R</code> but renamed to make sentinel-shaped intent visible in test code.</li>
+
+  <li><strong>Helper: <code>draw_and_wait(app, button_id = "draw")</code>.</strong> Clicks the named button and runs <code>wait_for_idle(timeout = 25 * 1000)</code>. Default button id matches the project's existing draw-button convention in <code>ptr_app()</code> (so most callers pass no <code>button_id</code> argument).</li>
+
+  <li><strong>Helper: <code>toggle_code_mode(app, mode)</code>.</strong> Sets the B3 radio (input id <code>"ptr_code_mode"</code> as registered by <code>ptr_register_code</code>) to <code>"final"</code> or <code>"preserve"</code> using <code>wait_ = FALSE</code>, then <code>app$wait_for_idle()</code>. Aborts with <code>stop("mode must be 'final' or 'preserve'")</code> on any other value.</li>
+
+  <li><strong>Helper: <code>expect_no_plot_error(app, host_id = "ptr_plot")</code>.</strong> Asserts the host output's outer HTML contains neither the class <code>shiny-output-error</code> nor the class <code>ptr-alert--error</code>. Default host id matches the project's existing <code>ptr_app()</code> host output id.</li>
+
+  <li><strong>Anchor immutability guard.</strong> The file header of <code>test-super-pressure.R</code> contains a comment block that names every anchor pair, states the per-anchor plan ownership (super-1 → PLAN-02, super-2a → PLAN-03, super-2b → PLAN-04, super-3 → PLAN-05, super-4 → PLAN-06), and explicitly forbids later plans from removing or renaming anchor markers.</li>
+
+  <li><strong>Authoritative gate</strong> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N_baseline</code> (PASS count unchanged from baseline; this plan adds zero tests).</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>tests/testthat/test-super-pressure.R</code> (NEW)</li>
+      <li><code>tests/testthat/helper-super-pressure.R</code> (NEW)</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Any <code>R/paintr-*.R</code> source file. This plan is a test-infrastructure plan; no product change is allowed.</li>
+      <li><code>tests/testthat/helper-vignette-apps.R</code> — even if the new helpers duplicate small fragments (e.g. <code>set_input</code> body), do not refactor the existing helper to share. Sharing helpers across two e2e suites couples them; the new helpers stay independent so super-pressure can evolve without disturbing the vignette-app suite.</li>
+      <li>Any existing <code>tests/testthat/test-*.R</code> or <code>tests/testthat/fixtures/</code> file.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, anything under <code>man/</code>.</li>
+    </ul>
+  </li>
+  <li>No new package dependencies. The helpers use only what <code>shinytest2</code>, <code>testthat</code>, <code>withr</code>, and <code>shiny</code> already provide. <code>shinytest2</code> and <code>chromote</code> are referenced via <code>skip_if_not_installed()</code>, not <code>library()</code>.</li>
+  <li>No production R-source side effects. The helper file does not call <code>options()</code>, <code>Sys.setenv()</code>, or modify <code>.GlobalEnv</code> at load time. All state is scoped per-test via <code>withr::local_*</code> inside the helpers, mirroring <code>helper-vignette-apps.R</code>.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If implementing a Success Criterion or BDD <code>Then</code> as written breaks something (e.g. <code>expect_sentinel_in_code</code> reveals that <code>app$get_value(output = code_output_id)</code> returns <code>NULL</code> on the project's actual code-panel output id), STOP and escalate to the orchestrator. Do not narrow the helper to "asserts text not empty"; do not weaken the regex contract to substring inclusion. The whole point of these helpers is that they refuse to weaken.</li>
+  <li>Conventions to honor: project's <code>CLAUDE.md</code> and <code>.claude/rules/testing.md</code>. Two-space indent, snake_case helper names, <code>testthat::expect_*</code> wrappers, no <code>get_values()</code> (per memory <code>shinytest2-appdir-pkgload</code>).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Sentinel-propagation helpers refuse to weaken into presence proxies
+
+Scenario: expect_sentinel_in_code fails on empty code text
+  Given a stub app whose code-panel output value is the empty string ""
+  When I call expect_sentinel_in_code(app, "ptr_code", "S_abc", "ppNum\\(([^)]*)\\)", "preserve")
+  Then the testthat expectation fails
+  And the failure label contains the four input strings "ptr_code", "S_abc", "ppNum", "preserve"
+
+Scenario: expect_sentinel_in_code passes when sentinel sits inside the regex capture
+  Given a stub app whose code-panel output value is "geom_point(size = ppNum(S_abc))"
+  When I call expect_sentinel_in_code(app, "ptr_code", "S_abc", "ppNum\\(([^)]*)\\)", "preserve")
+  Then the testthat expectation passes
+  And the matched capture group contains the literal "S_abc"
+
+Scenario: expect_sentinel_in_code fails when the regex matches but the capture does not contain the sentinel
+  Given a stub app whose code-panel output value is "geom_point(size = ppNum(7))"
+  When I call expect_sentinel_in_code(app, "ptr_code", "S_abc", "ppNum\\(([^)]*)\\)", "preserve")
+  Then the testthat expectation fails
+  And the failure label names the sentinel "S_abc" and the actual capture "7"
+
+Scenario: expect_sentinel_nowhere passes on final-mode-stripped output
+  Given a stub app whose code-panel output value is "geom_point(size = 7)"
+  When I call expect_sentinel_nowhere(app, "ptr_code", "ppNum")
+  Then the testthat expectation passes
+
+Scenario: expect_sentinel_nowhere fails when the literal still appears
+  Given a stub app whose code-panel output value is "geom_point(size = ppNum(7))"
+  When I call expect_sentinel_nowhere(app, "ptr_code", "ppNum")
+  Then the testthat expectation fails
+
+Scenario: toggle_code_mode rejects unknown modes
+  Given a stub app
+  When I call toggle_code_mode(app, "raw")
+  Then the call aborts with a message containing "mode must be 'final' or 'preserve'"
+
+Scenario: anchor regions are present, ordered, and empty
+  When I parse tests/testthat/test-super-pressure.R
+  Then I find exactly five "# >>> super-N begin" / "# <<< super-N end" pairs
+  And the pairs appear in this order: super-1, super-2a, super-2b, super-3, super-4
+  And between each pair there is no test_that() call
+  And no other content sits between any pair except a single TODO comment naming the plan that will fill it
+
+Scenario: the suite gate is unaffected
+  Given the baseline gate count before this plan: FAIL 0 / ERROR 0 / SKIP 0 / PASS N
+  When I run the authoritative gate after this plan lands
+  Then the gate reports FAIL 0 / ERROR 0 / SKIP 0 / PASS N
+  And no new test ID is created
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N unchanged from baseline; this plan adds zero tests).</p>
+
+<p><strong>Proxy traps — do not be fooled (verbatim from <code>CLAUDE.md</code>):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file ERRORing (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> runs the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds <strong>0</strong> new <code>test_that()</code> calls. The PASS count must equal baseline; FAIL/ERROR/SKIP must equal <code>0</code>. Any change from baseline means this plan introduced an unintended product-level effect (e.g. helper file was sourced eagerly and registered something at load time) — that is a regression of this plan, not a project defect.</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: <code>tests/testthat/test-super-pressure.R</code>, <code>tests/testthat/helper-super-pressure.R</code>. No generated files. NAMESPACE/man/ are untouched (no exported symbols added). Lockfiles, codegen output, OpenAPI clients — N/A.</p>
+<p>Branch convention: this plan lives on branch <code>0013-test-file-scaffold-and-helpers</code> in a worktree at <code>.claude/worktrees/0013-super-app-pressure-tests/test-file-scaffold-and-helpers/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command, verifies <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N_baseline</code>, and independently verifies the five anchor pairs exist in the order locked above before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: orchestrator branch HEAD at the commit where this plan's worktree was created (record the SHA in the worktree's first commit message). Pre-existing PASS count: read at worktree creation, written into the worktree commit message as <code>baseline_pass=N</code>. Any FAIL/ERROR/SKIP &gt; 0 in baseline is named in <code>dev/baselines/</code> if it exists; absent, baseline is taken as <code>0/0/0</code>.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Findings outside this plan's owned files are surfaced in the audit report, never absorbed. If the implementer discovers (e.g.) that <code>ptr_register_code</code>'s input id is not <code>"ptr_code_mode"</code> as documented but something else, that becomes a follow-up plan (a doc fix or a follow-up to ADR-0009), not a silent edit to <code>R/paintr-server.R</code> from this plan's branch.</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: none.</p>
+<p>Provides for: PLAN-02 through PLAN-06 (each inserts one <code>test_that()</code> block between its owned anchor pair and uses every helper this plan exposes).</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=3d082521e728 -->
+</body>
+</html>

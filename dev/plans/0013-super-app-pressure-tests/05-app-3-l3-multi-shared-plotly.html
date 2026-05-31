@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-05 — Super-app 3: L3 multi-cell + shared + plotly (from ADR 0013)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 05
+  slug: app-3-l3-multi-shared-plotly
+  source_adr: dev/adr/0013-super-app-pressure-test-suite.html
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-05 — Super-app 3: L3 multi-cell + shared + plotly</h1>
+<p class="meta">Source: ADR 0013 §"App 3 — L3 multi-cell + shared + plotly" + D1/D4/D5/D6 (G4+G6 row) + L1/L3/L4 (multi-instance &amp; layout) · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0013 §App-3 locks the slot picks: hand-rolled L3 (<code>ptr_ui_page</code> + <code>ptr_shared_panel</code> + 2× <code>ptr_server</code>) · per-cell <code>mtcars</code> literal · G4 pre-quoted via local <code>rlang::expr</code> var (PLUS G6 forwarded-symbol resolution) · custom plotly output on plot2 · default theme. One custom value placeholder <code>ppRange</code> registers locally (same shape as App-1's <code>ppRange</code> — name reuse is safe per ADR D5 because each fixture's child process is independent, project memory <code>shinytest2-appdir-pkgload</code>).</p>
+
+<p>The shared coordinator carries one key <code>"linked"</code> that reaches plot1 (default ggplot output) and plot2 (plotly output) — the cross-output-backend propagation test that App-1 and App-2a cannot give. Shared widget id is <code>"shared_linked"</code> (canonical-shared-id, <code>R/paintr-app.R:1322</code>).</p>
+
+<div class="note"><strong>Important constraint from the ADR.</strong> ADR §App-3 documents that <code>ptr_app_grid</code> (<code>R/paintr-app.R:1271</code>) delegates to <code>ptr_app_grid_components</code> (<code>R/paintr-app.R:1296</code>) which asserts <code>all(vapply(plots, rlang::is_string, ...))</code> at <code>R/paintr-app.R:1309–1313</code> — grid takes string formulas only. To exercise G4 (pre-quoted via <code>rlang::expr</code>) alongside a custom plot output, App 3 hand-rolls the L3 surface instead of using <code>ptr_app_grid</code>. <code>ptr_app_grid</code>'s pressure surface is covered by narrow fixtures (<code>app-grid-shared-added</code>, <code>grid-shared-partition</code>) and is out of scope here.</div>
+
+<p>Unique pressure axes (ADR §App-3): (i) G4 + G6 capture — both formulas live in local <code>rlang::expr(...)</code> vars; <code>ptr_server(formula_a, "plot1")</code> uses <code>enexpr</code> capture; the captured symbol is then resolved via sys.frames fallback (G6); (ii) shared coordinator across hand-rolled L3 cells with two different output backends (default ggpaintr-managed and plotly) — project memory <code>project-shared-section-binder</code> documents the pre-2026-05-22 binder weakness here; (iii) custom plot output + B3 toggle (<code>ptr_ui_toggle_code(ptr_ui_code("plot2"))</code> attaches B3 next to a plotly output, not the default plot pane); (iv) F4 + F7 + F8 — <code>state$runtime()$plot</code> read inside <code>renderPlotly</code>; <code>state$tree()</code> available; <code>state$runtime()$code_text</code> drives the code panel.</p>
+
+<h2>Governing principle</h2>
+
+<p>ADR 0013 commits the suite to <strong>propagation assertions</strong>. App 3's distinguishing load: the shared widget's value MUST round-trip through the rendered code of <em>both</em> output cells, regardless of whether the cell's host is a default ggplot pane or a custom plotly pane. The B3 toggle MUST work next to a plotly output the same way it works next to a default pane — a regression where the toggle wiring is independent of the plot backend in code but accidentally coupled to it via shared state would surface here.</p>
+
+<p>The G4 + G6 capture is also load-bearing: <code>rlang::expr(...)</code> bindings are a real user surface (the L3 vignette uses them), but no super-app before this one stresses them under L3. If the pre-quoted formula's placeholders are not discovered, the corresponding widgets do not appear on the page and the propagation assertions fail at <code>set_sentinel</code> — that failure mode is the auditor's evidence of the regression.</p>
+
+<p>STOP-and-escalate on any structural infeasibility (e.g., hand-rolled L3 cannot register both cells against one <code>ptr_shared_server</code>). Do not silently fall back to <code>ptr_app_grid</code> — that defeats the G4 row entirely.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>Fixture directory exists with two files.</strong> <code>tests/testthat/fixtures/vignette-apps/super-3-l3-multi-shared-plotly/app.R</code>, <code>reference.R</code>. No CSV (per-cell <code>mtcars</code> literal, no upload).</li>
+
+  <li><strong><code>app.R</code> shape.</strong> First line is the pkgload scaffolding. Body: <code>library(shiny)</code>. Local <code>ppRange</code> registration. Two formulas as local bindings: <code>formula_a &lt;- rlang::expr(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar(wt), color = ppVar(cyl, shared = "linked"))) + geom_point(size = ppNum(2), alpha = ppNum(0.7)) + scale_x_continuous(limits = ppRange(c(10, 40))) + labs(title = ppText("Cell A: ggplot")))</code> and <code>formula_b &lt;- rlang::expr(ggplot(mtcars, aes(x = ppVar(hp), y = ppVar(qsec), color = ppVar(cyl, shared = "linked"))) + geom_point(size = ppNum(2)) + geom_smooth(method = ppText("lm"), linewidth = ppNum(1)) + labs(title = ppText("Cell B: plotly")))</code>. A shared coordinator: <code>shared &lt;- ptr_shared(formulas = list(formula_a, formula_b), shared_ui = list(linked = function(id) selectInput(id, "Linked color", names(mtcars))))</code>. UI built via <code>ptr_ui_page(ptr_shared_panel(shared), shiny::fluidRow(...))</code> with two columns: column 1 holds plot1's <code>ptr_ui_controls(formula_a, "plot1")</code> + a default <code>shiny::plotOutput(shiny::NS("plot1")("plot"))</code> + <code>ptr_ui_code("plot1")</code>; column 2 holds plot2's <code>ptr_ui_controls(formula_b, "plot2")</code> + a <code>plotly::plotlyOutput(shiny::NS("plot2")("custom_plot"), height = "500px") |&gt; ptr_ui_toggle_code(ptr_ui_code("plot2"))</code>. Server: <code>shared_state &lt;- ptr_shared_server(shared); state_a &lt;- ptr_server(formula_a, "plot1", shared_state = shared_state); state_b &lt;- ptr_server(formula_b, "plot2", shared_state = shared_state); output[[shiny::NS("plot2")("custom_plot")]] &lt;- plotly::renderPlotly({ res &lt;- state_b$runtime(); shiny::req(isTRUE(res$ok), res$plot); plotly::ggplotly(res$plot) })</code>. Final <code>shiny::shinyApp(ui, server)</code>.</li>
+
+  <li><strong><code>reference.R</code> shape.</strong> Doc-only ggplot2 expressions, all-defaults equivalents for both formulas. First line: <code># Doc-only reference (ADR 0013 D3). Not parsed by tests.</code>.</li>
+
+  <li><strong>One <code>test_that()</code> block lands between PLAN-01's <code># &gt;&gt;&gt; super-3 begin</code> and <code># &lt;&lt;&lt; super-3 end</code> markers.</strong></li>
+
+  <li><strong>Shared "linked" key drives the rendered code of BOTH cells.</strong> The test sets the shared widget <code>"shared_linked"</code> to the unique choice <code>"gear"</code>, draws plot1, draws plot2, then asserts in <strong>both</strong> cells' rendered code text that <code>"gear"</code> appears as a bare symbol in <code>aes(... color = gear ...)</code>. The two code outputs are read independently via <code>app$get_value(output = "plot1-&lt;code output id&gt;")</code> and <code>app$get_value(output = "plot2-&lt;code output id&gt;")</code>. If only one of the two contains <code>"gear"</code>, the shared-coordinator-across-backends contract has failed.</li>
+
+  <li><strong>Plotly custom output renders a plotly node.</strong> After plot2's draw, the test asserts <code>expect_rendered(app, "#plot2-custom_plot", "plotly")</code> (the helper from <code>helper-vignette-apps.R</code>; this plan uses it via testthat's auto-loaded-helper mechanism).</li>
+
+  <li><strong>B3 toggle wiring works next to the plotly output.</strong> The test sets <code>"shared_linked"</code> to <code>"gear"</code>, draws plot2, toggles plot2's B3 to preserve (the toggle id is the one <code>ptr_ui_toggle_code</code> wires for plot2 — verified by inspecting the wrapped element's DOM), asserts the plot2 code text contains <code>"ppVar("</code>; toggles back to final, asserts the plot2 code text does NOT contain <code>"ppVar("</code>. Both transitions leave the plotly host with no error class.</li>
+
+  <li><strong>G4 + G6 capture path is exercised end-to-end.</strong> The test asserts that all of plot1's expected widget input ids are present in the page (<code>expect_dom_id</code> per id, for each placeholder in formula_a) AND all of plot2's are present. If <code>rlang::expr</code>-captured formulas had their placeholders silently dropped, those input ids would not appear — failing the assertion.</li>
+
+  <li><strong>ppRange (custom value placeholder) sentinel propagates in plot1.</strong> The test sets the ppRange slider (input id for plot1's <code>scale_x_continuous(limits = ppRange(c(10, 40)))</code>) to the literally-unique pair <code>c(12, 38)</code>, draws plot1, asserts final-mode <code>expect_sentinel_in_code(app, "plot1-&lt;code id&gt;", "c(12, 38)", "scale_x_continuous\\(limits\\s*=\\s*([^)]*)", "final")</code>. In preserve mode, <code>expect_sentinel_in_code(app, "plot1-&lt;code id&gt;", "c(12, 38)", "ppRange\\(([^)]*)\\)", "preserve")</code>.</li>
+
+  <li><strong>No plot-error class on either cell, happy path.</strong> <code>expect_no_plot_error(app, "plot1-plot")</code> and an analogous assertion for plot2's plotly node (asserting <code>"shiny-output-error"</code> is absent from the plotlyOutput's HTML).</li>
+
+  <li><strong>Authoritative gate</strong> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</code> with the browser stack <em>and</em> the plotly package available.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-3-l3-multi-shared-plotly/app.R</code> (NEW)</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-3-l3-multi-shared-plotly/reference.R</code> (NEW)</li>
+      <li>The lines between <code># &gt;&gt;&gt; super-3 begin</code> and <code># &lt;&lt;&lt; super-3 end</code> in <code>tests/testthat/test-super-pressure.R</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Any <code>R/paintr-*.R</code> file.</li>
+      <li>The other four anchor regions in <code>tests/testthat/test-super-pressure.R</code>.</li>
+      <li>The helper files.</li>
+      <li>Any other fixture subdir.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, anything under <code>man/</code>.</li>
+    </ul>
+  </li>
+  <li>The test_that block must call <code>skip_if_not_installed("plotly")</code> at the top (in addition to PLAN-01's <code>boot_super_app</code> baseline skips). plotly is in Suggests, not Imports — must be a soft dependency at test time.</li>
+  <li>The formulas MUST be pre-quoted via <code>rlang::expr(...)</code> as local bindings. <code>ptr_server(formula_a, ...)</code> with a string formula would degrade to G1 and defeat the entire App-3 pressure surface (G4 row).</li>
+  <li>The L3 surface MUST be hand-rolled — no <code>ptr_app_grid()</code> shortcut. ADR §App-3 documents this constraint explicitly.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If the implementer finds that <code>ptr_shared_server(shared)</code> does not deliver the same <code>"shared_linked"</code> value to both cells, that is a product defect in the shared-coordinator path (project memory <code>project-shared-section-binder</code> records the pre-2026-05-22 history — verify the fix held). STOP and escalate; do not narrow the "both cells contain gear" claim to "at least one cell contains gear".</li>
+  <li>Conventions: <code>CLAUDE.md</code>, <code>.claude/rules/testing.md</code>. Suppression scope for AppDriver$new is restricted to construction only (project memory).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: App-3 L3 multi-cell + shared + plotly propagation contract
+
+Scenario: Both pre-quoted formulas boot and render
+  Given the super-3 fixture booted in headless Chrome (plotly available)
+  When I click the plot1 draw button and the plot2 draw button
+  Then plot1's host output rendered a ggplot <img>
+  And plot2's host output rendered a plotly.js node
+  And neither host carries a shiny-output-error class
+
+Scenario: Shared "linked" key reaches BOTH cells' rendered code
+  Given the super-3 fixture booted and both cells drawn at defaults
+  When I set "shared_linked" to "gear"
+  And I draw plot1 and plot2 and the app settles
+  Then the rendered code text of plot1 contains "aes(... color = gear ...)"
+  And the rendered code text of plot2 contains "aes(... color = gear ...)"
+
+Scenario: B3 toggle next to plotly output flips preserve↔final
+  Given the super-3 fixture booted and plot2 drawn at defaults
+  When I toggle plot2's B3 to preserve
+  Then plot2's rendered code text contains the substring "ppVar("
+  When I toggle plot2's B3 to final
+  Then plot2's rendered code text does not contain the substring "ppVar("
+  And plot2's host has no shiny-output-error class in either mode
+
+Scenario: G4-captured formula yields the expected placeholder widgets
+  Given the super-3 fixture booted
+  Then every placeholder input id from formula_a is present in the page (plot1 namespace)
+  And every placeholder input id from formula_b is present in the page (plot2 namespace)
+
+Scenario: ppRange custom value sentinel propagates in plot1
+  Given the super-3 fixture booted
+  When I set plot1's ppRange slider to c(12, 38)
+  And I draw plot1 and the app settles
+  Then plot1's rendered final-mode code contains "scale_x_continuous(limits = c(12, 38))"
+  And plot1's rendered preserve-mode code contains "ppRange(c(12, 38))"
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</strong> when the browser stack + plotly are available.</p>
+
+<p><strong>Proxy traps — do not be fooled (verbatim from <code>CLAUDE.md</code>):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file ERRORing (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> runs the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds <strong>1</strong> new <code>test_that()</code> call at the super-3 anchor region. Gate must show PASS+1 with FAIL/ERROR still 0 and SKIP unchanged from pre-plan baseline (when plotly is available). If plotly is NOT installed on the gate-running machine, the test SKIPs cleanly via <code>skip_if_not_installed("plotly")</code> — that is correct behavior, but the orchestrator must run the gate on a machine where plotly is present to verify PASS+1.</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>Owns: the two fixture files + the super-3 anchor region. NAMESPACE/man/ untouched.</p>
+<p>Branch: <code>0013-app-3-l3-multi-shared-plotly</code> at <code>.claude/worktrees/0013-super-app-pressure-tests/app-3-l3-multi-shared-plotly/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The auditor independently re-runs the gate, verifies <code>PASS (baseline + 1)</code>, AND reads the inserted <code>test_that</code> to confirm: (a) BOTH cells are asserted to contain the shared "gear" sentinel; (b) the plot2 B3 toggle assertion is the differential shape, not "code panel non-empty"; (c) the test calls <code>skip_if_not_installed("plotly")</code>.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Baseline = orchestrator HEAD after PLAN-01. PLAN-05 net effect: +1 PASS.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Follow-up plan candidates surfaced by this plan: (a) if the shared-coordinator-across-backends propagation regresses, file a follow-up against <code>R/paintr-shared-coordinator.R</code> + <code>R/paintr-shared-ui.R</code>; (b) E8 preserve-mode round-trip under L3 (ADR §"Coverage gaps deliberately left unfilled") is explicitly deferred; (c) a third cell with a different custom-output backend (ggiraph, DT) is deferred to a follow-up plan per ADR's "Status &amp; next steps".</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: PLAN-01. Parallel-group sibling of 02/03/04/06.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=ab95a42df96b -->
+</body>
+</html>

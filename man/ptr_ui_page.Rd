@@ -14,8 +14,8 @@ ptr_ui_page(..., page = shiny::fluidPage, css = NULL)
 \code{bootstrapPage}, \code{basicPage}. NOT \code{navbarPage} (needs a positional
 \code{title} + \code{tabPanel} children) and NOT bslib/BS5 pages (the bundled
 CSS is Bootstrap-3-scoped -- see \code{\link[=ptr_app_bslib]{ptr_app_bslib()}}). For those roots,
-compose by hand: see the decomposition example in
-\code{vignette("ggpaintr-use-cases")}.}
+compose by hand: see
+\code{vignette("ggpaintr-tutorial")}.}
 
 \item{css}{Optional character vector of extra stylesheet paths,
 linked after \code{ggpaintr.css}. See \code{\link[=ptr_css]{ptr_css()}}.}
@@ -30,7 +30,7 @@ theme scope + the (deduped) asset bundle. The only thing an L3 user
 must remember.
 }
 \examples{
-f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 ptr_ui_page(
   shiny::sidebarLayout(
     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),

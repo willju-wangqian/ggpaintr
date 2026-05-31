@@ -26,10 +26,13 @@ theming scope and the bundled ggpaintr asset dependency, so it can be
 dropped straight into a host layout. Its server counterpart
 \code{\link[=ptr_shared_server]{ptr_shared_server()}} must run at the top level.
 }
+\details{
+Namespacing is inherited from \code{obj$id}; supply it to \code{\link[=ptr_shared]{ptr_shared()}}.
+}
 \examples{
 obj <- ptr_shared(c(
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 ptr_shared_panel(obj)
 }

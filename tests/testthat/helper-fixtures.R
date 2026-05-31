@@ -41,7 +41,7 @@ set_layer_checkboxes <- function(input, ptr_obj, value = TRUE) {
 
 supported_use_cases <- list(
   basic_scatter = list(
-    formula = "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
+    formula = "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = globalenv(),
     input = list(
       "ggplot_3_2" = "mpg",
@@ -51,9 +51,9 @@ supported_use_cases <- list(
   ),
   scatter_with_labels = list(
     formula = paste(
-      "ggplot(data = iris, aes(x = var, y = var)) +",
-      "geom_point(size = num) +",
-      "labs(title = text, x = text, y = text)"
+      "ggplot(data = iris, aes(x = ppVar, y = ppVar)) +",
+      "geom_point(size = ppNum) +",
+      "labs(title = ppText, x = ppText, y = ppText)"
     ),
     envir = globalenv(),
     input = list(
@@ -68,7 +68,7 @@ supported_use_cases <- list(
     )
   ),
   facet_expr = list(
-    formula = "ggplot(data = iris, aes(x = var, y = var)) + geom_point() + facet_wrap(expr)",
+    formula = "ggplot(data = iris, aes(x = ppVar, y = ppVar)) + geom_point() + facet_wrap(ppExpr)",
     envir = globalenv(),
     input = list(
       "ggplot_3_2" = "Sepal.Length",
@@ -79,11 +79,11 @@ supported_use_cases <- list(
     )
   ),
   upload_global = list(
-    formula = "ggplot(data = upload, aes(x = var, y = var)) + geom_point()",
+    formula = "ggplot(data = ppUpload, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = globalenv(),
     input = list(
       "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-      "ggplot_2_name" = "",
+      "ggplot_2_shortcut" = "",
       "ggplot_3_2" = "x",
       "ggplot_3_3" = "y",
       "geom_point_checkbox" = TRUE
@@ -92,12 +92,12 @@ supported_use_cases <- list(
   upload_layer = list(
     formula = paste(
       "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) +",
-      "geom_point(data = upload, aes(x = var, y = var))"
+      "geom_point(data = ppUpload, aes(x = ppVar, y = ppVar))"
     ),
     envir = globalenv(),
     input = list(
       "geom_point_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "layer-data.csv"),
-      "geom_point_2_name" = "layer_data",
+      "geom_point_2_shortcut" = "layer_data",
       "geom_point_3_2" = "x",
       "geom_point_3_3" = "y",
       "geom_point_checkbox" = TRUE
@@ -111,15 +111,15 @@ unsupported_use_cases <- list(
     stage = "parse"
   ),
   no_data_for_var = list(
-    formula = "ggplot(aes(x = var, y = var)) + geom_point()",
+    formula = "ggplot(aes(x = ppVar, y = ppVar)) + geom_point()",
     stage = "ui"
   ),
   unknown_data_object = list(
-    formula = "ggplot(data = unknown_object, aes(x = var, y = var)) + geom_point()",
+    formula = "ggplot(data = unknown_object, aes(x = ppVar, y = ppVar)) + geom_point()",
     stage = "plot"
   ),
   malformed_expr_input = list(
-    formula = "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(expr)",
+    formula = "ggplot(data = iris, aes(x = Sepal.Length, y = Sepal.Width)) + facet_wrap(ppExpr)",
     stage = "complete"
   )
 )

@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Audit: dev/notes/placeholder-expr-mode/FEATURE-CHECKLIST.html vs. source (2026-05-23)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>Audit — FEATURE-CHECKLIST.html vs. live source</h1>
+<p class="meta">
+Audit target: <code>dev/notes/placeholder-expr-mode/FEATURE-CHECKLIST.html</code><br>
+Target's declared HEAD: <code>2c504da</code> (2026-05-21)<br>
+Live HEAD at audit time: <code>984b689</code> (2026-05-23, branch <code>post-add-expr</code>)<br>
+Commits between declared HEAD and live HEAD: <strong>57</strong> (incl. ADR-0010 ppUpload(name), ADR-0012 semantic-tree / pipe-op preserve, spec= boot-restore, drift sweeps).<br>
+Scope: spot-check every section's load-bearing claims against <code>R/paintr-*.R</code> + <code>NAMESPACE</code>. Code paths sampled, not run.<br>
+Method: <code>mcp__serena__find_symbol</code> / <code>get_symbols_overview</code> for symbols, <code>grep</code> for literals, <code>NAMESPACE</code> for the export boundary.
+</p>
+
+<h2>Headline verdict</h2>
+<p>The checklist is <strong>broadly accurate on the placeholder grammar, registry shape, and code-mode wiring</strong>, but contains <strong>three concrete factual errors</strong> in the public-API surface and one outdated header. The 57-commit gap since the doc was written matters most for <em>preserve-mode rendering</em> (semantics rewritten by ADR-0012) and <em>ppUpload</em> (companion <code>name=</code> added by ADR-0010) — both of which are nominally inside sections B / H but the doc still describes the pre-ADR-0010/0012 shape.</p>
+
+<h2>Findings (by impact)</h2>
+
+<table>
+  <tr><th>#</th><th>Section</th><th>Claim in doc</th><th>Reality on HEAD <code>984b689</code></th><th>Verdict</th></tr>
+
+  <tr>
+    <td>F1</td><td>Header</td>
+    <td>"vignette-review HEAD: <code>2c504da</code> · 2026-05-21"</td>
+    <td>57 commits later; live HEAD is <code>984b689</code> (2026-05-23). Includes ADR-0010 PLAN-01/02/03 (ppUpload <code>name=</code> companion + preserve-mode round-trip), ADR-0012 PLAN-01 (pipe-op preservation in preserve-mode), spec= boot-restore PLAN-05/06, several drift sweeps.</td>
+    <td class="warn">STALE</td>
+  </tr>
+
+  <tr>
+    <td>F2</td><td>A7 / H</td>
+    <td>ppUpload "Validates file extension (csv / tsv / xlsx / rds / <strong>fst</strong>)."</td>
+    <td><code>ptr_upload_accept_formats()</code> in <code>R/paintr-builtins.R:215</code> returns <code>c(".csv", ".tsv", ".rds", ".xlsx", ".xls", ".json")</code>. There is no <code>fst</code> dispatch in <code>ptr_read_uploaded_data()</code>; the supported set is <strong>csv, tsv, rds, xlsx, xls, json</strong>.</td>
+    <td class="fail">WRONG</td>
+  </tr>
+
+  <tr>
+    <td>F3</td><td>B5</td>
+    <td>Public helper named <code>ptr_ui_code_block(style = "panel")</code>.</td>
+    <td>No such function. The exported helper is <code>ptr_ui_code(id, style = c("panel", "window"))</code> (<code>R/paintr-app.R:634</code>; <code>export(ptr_ui_code)</code> in <code>NAMESPACE</code>). <code>code_block_tag()</code> is an unexported internal used by <code>ptr_app()</code>'s window chrome.</td>
+    <td class="fail">WRONG NAME</td>
+  </tr>
+
+  <tr>
+    <td>F4</td><td>F2 / L2</td>
+    <td><code>ptr_app_components()</code> is presented as a public L3 entry ("Hand-place sidebar / plot / code panels separately. Returns a named list.") and reused in section L2 for grid examples.</td>
+    <td>The function exists (<code>R/paintr-app.R:158</code>) and does return <code>list(ui, server)</code>, but it has <strong>no <code>@export</code> tag</strong> and is absent from <code>NAMESPACE</code> (verified: <code>grep -c '^export(ptr_app_components)' NAMESPACE</code> → 0). It is not part of the public API. The actual exported public L3 surface is <code>ptr_ui()</code> + <code>ptr_server()</code>.</td>
+    <td class="fail">NOT EXPORTED</td>
+  </tr>
+
+  <tr>
+    <td>F5</td><td>F9</td>
+    <td>"<code>ptr_render(state$tree(), preserve_placeholders = TRUE)</code> — L3 callers can ask for the preserve-mode text without booting the UI toggle."</td>
+    <td><code>ptr_render</code> is tagged <code>#' @keywords internal</code> (<code>R/paintr-render.R:26</code>) and is not exported (<code>grep -c '^export(ptr_render)' NAMESPACE</code> → 0). L3 callers cannot call it from outside <code>ggpaintr:::</code>. The exported pathway to a code snapshot is <code>ptr_extract_code(state)</code>, which today is <strong>final-mode only</strong> — exactly the parity gap the doc flags as (UNTESTED) in B8.</td>
+    <td class="fail">NOT EXPORTED</td>
+  </tr>
+
+  <tr>
+    <td>F6</td><td>A2</td>
+    <td>"Call form (parens, no args) <code>geom_point(size = ppNum())</code> — equivalent to bareword."</td>
+    <td>Both forms are accepted; <code>ppNum</code>, <code>ppVar</code>, <code>ppText</code>, <code>ppExpr</code>, <code>ppUpload</code> are exported in <code>NAMESPACE</code> (<code>R/paintr-builtins.R</code> lines 313+, registration via <code>ptr_register_builtins()</code>). The bareword (A1) form is also recognised by the parser. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F7</td><td>B3</td>
+    <td>"Reads <code>input$&lt;ns&gt;-ptr_code_mode</code>, values <code>"final"</code> / <code>"preserve"</code>."</td>
+    <td>Confirmed: <code>R/paintr-server.R:2015</code> uses <code>state$server_ns_fn("ptr_code_mode")</code>; <code>R/paintr-app.R:492</code> uses <code>radioGroupButtons(inputId = ns("ptr_code_mode"), …)</code>. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F8</td><td>B7</td>
+    <td>"<code>outputOptions(suspendWhenHidden = FALSE)</code> — output renders even when the window is initially collapsed."</td>
+    <td>Confirmed at <code>R/paintr-server.R:2053</code> (code panel) and at lines 1413 / 1456 / 1547 (other outputs). ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F9</td><td>D7</td>
+    <td>"Grandfather list = <code>c("range", "date")</code> for vignette fixtures only."</td>
+    <td>Verbatim match at <code>R/paintr-registry.R:174–176</code>: <code>.ptr_grandfathered_keywords &lt;- c("range", "date")</code>. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F10</td><td>E5</td>
+    <td>"<code>ptr_validate_shared_roles()</code> — a shared key spanning value + consumer roles aborts at translate time."</td>
+    <td>Function exists at <code>R/paintr-translate.R:776</code>, called from <code>ptr_translate()</code> at line 105. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F11</td><td>G5</td>
+    <td>"Closed whitelist (<code>paste/paste0/sprintf/format/formatC/gettextf/c/vector/[/[[/$</code>)."</td>
+    <td>Verbatim match at <code>R/paintr-app.R:260–262</code> in <code>ptr_capture_formula()</code> — same 11 names, same order. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F12</td><td>J1</td>
+    <td>"~151 entries + AST walker descends into all node types (lambdas, pairlists, string literals via <code>str2lang</code>)."</td>
+    <td>Counted unique quoted entries in <code>unsafe_expr_denylist</code> (<code>R/paintr-utils.R:448–507</code>): <strong>151</strong> distinct names (<code>awk '/^unsafe_expr_denylist &lt;- c\(/,/^\)/' R/paintr-utils.R | grep -o '"[^"]*"' | sort -u | wc -l</code> → 151). Walker logic not re-audited here, but entry count is exact. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F13</td><td>F3</td>
+    <td>"<code>ptr_app_bslib(theme = bslib::bs_theme(...))</code> — Bootstrap-5 theming pass-through."</td>
+    <td><code>ptr_app_bslib</code> is exported, has <code>theme = NULL</code> arg (<code>R/paintr-app-bslib.R:58, 64</code>). ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F14</td><td>F5</td>
+    <td>"<code>ptr_extract_plot / _error / _code</code> for non-reactive contexts."</td>
+    <td>All three exported (<code>NAMESPACE</code> lines 22–24); defined at <code>R/paintr-server.R:2090, 2094, 2097</code>. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F15</td><td>F4 / F8</td>
+    <td>"plot / code reactive via <code>state$runtime()</code>; <code>state$runtime()$code_text</code> final substituted code as character."</td>
+    <td><code>state$runtime</code> is a <code>reactiveVal</code> initialised at <code>R/paintr-server.R:197</code>; <code>format_code_with_extras()</code> reads <code>res$code_text</code> at line 1998 — confirming the field name. ✓</td>
+    <td class="pass">PASS</td>
+  </tr>
+
+  <tr>
+    <td>F16</td><td>L (header)</td>
+    <td>Section L lists L1–L4 but never mentions the exported <code>ptr_app_grid()</code>, which is the canonical multi-instance helper post-ADR-0006.</td>
+    <td><code>ptr_app_grid</code> is exported (<code>NAMESPACE</code>) and defined at <code>R/paintr-app.R:1271</code>; <code>ptr_shared</code> coordinator at <code>R/paintr-shared-coordinator.R:99</code>. The doc's grid examples (L2) instead reach for the unexported <code>ptr_app_components()</code> — see F4 above.</td>
+    <td class="warn">OMISSION</td>
+  </tr>
+
+  <tr>
+    <td>F17</td><td>A7 / H4</td>
+    <td>"<code>ppUpload() |&gt; dplyr::filter(...)</code> at formula head or mid-pipeline." (No mention of the <code>name=</code> companion.)</td>
+    <td>ADR-0010 (merged 2026-05-22, commit <code>140d6a5</code>) added <code>ppUpload(name = "...")</code> as a registered <code>default_arg</code> + companion <code>textInput</code> with preserve-mode round-trip (PLAN-01/02). The checklist predates this; A7 / H descriptions do not surface it.</td>
+    <td class="warn">STALE (post-doc feature)</td>
+  </tr>
+
+  <tr>
+    <td>F18</td><td>B / preserve-mode</td>
+    <td>"Re-renders <code>state$tree()</code> with <code>preserve_placeholders = TRUE</code>; widget value appears as <code>ppX(value)</code> arg."</td>
+    <td>Still true at the surface, but the rendering semantics were materially extended post-doc: ADR-0012 PLAN-01 (commit <code>c4de3ed</code>) introduced pipe-op preservation in preserve mode — <code>|&gt;</code> / <code>%&gt;%</code> / nested-call now collapse to the same canonical tree (memory <code>feedback-tree-is-semantic-not-syntactic</code>). Commit <code>8235d8a</code> changed preserve-mode to drop empty parens and emit bare <code>ppX</code> when there is no pick + no shared. The checklist's preserve-mode description does not reflect these.</td>
+    <td class="warn">STALE</td>
+  </tr>
+
+  <tr>
+    <td>F19</td><td>Header section flag</td>
+    <td>"Items marked (BROKEN) have a known regression on current HEAD"; "Known-broken / known-weak features" table lists code-mode toggle wiring as "FIXED on HEAD 2c504da" and shared-section binder as "plan stamped; impl pending".</td>
+    <td>The shared-section binder is now marked FIXED on 2026-05-22 per user (project memory <code>shared-section-binder</code>). The doc's "impl pending" wording is stale by one day.</td>
+    <td class="warn">STALE</td>
+  </tr>
+</table>
+
+<h2>Cross-checks that PASSED (sampled)</h2>
+<ul>
+  <li>D1/D2/D3 registry define-helpers — all three exported, signatures match doc (<code>R/paintr-registry.R</code>).</li>
+  <li>D5 default-arg helpers — <code>ptr_default_symbol_or_string</code>, <code>ptr_default_string</code>, <code>ptr_default_numeric</code>, <code>ptr_default_numeric_vector</code>, <code>ptr_default_expression</code> all exported (<code>R/paintr-default-args.R</code>).</li>
+  <li>J2 constant-fold registry — <code>ptr_register_constant_fold</code>, <code>ptr_clear_constant_fold</code>, <code>ptr_constant_fold_keywords</code> exported.</li>
+  <li>K3 explicit <code>addResourcePath("ggpaintr", …)</code> inside <code>core_assets_dep()</code> — confirmed at <code>R/paintr-build-ui.R:591</code> (matches project memory <code>htmldependency-resource-prefix</code>).</li>
+  <li>A12 <code>ptr_builtin_var_validate_input</code> exists at <code>R/paintr-builtins.R:202</code>; wired through <code>ptr_define_placeholder_consumer</code> on registration.</li>
+  <li>G2 expression-mode capture: <code>ptr_app(formula, envir = parent.frame(), …)</code> uses <code>rlang::enexpr(formula)</code> + <code>ptr_capture_formula()</code> — matches the doc's narrative (<code>R/paintr-app.R:144, 167, 202</code>).</li>
+</ul>
+
+<h2>Recommended doc edits</h2>
+<p>The minimum patch to bring the checklist back into alignment without rewriting it:</p>
+<ol>
+  <li>A7 / H4 / H5: replace "csv / tsv / xlsx / rds / fst" with "csv / tsv / rds / xlsx / xls / json" (the actual <code>ptr_upload_accept_formats()</code> set).</li>
+  <li>B5: replace <code>ptr_ui_code_block(style = "panel")</code> with <code>ptr_ui_code(style = "panel")</code>.</li>
+  <li>F2 + L2: either (a) drop <code>ptr_app_components()</code> from the "public L3 surface" framing, replacing with <code>ptr_app_grid()</code> + <code>ptr_ui()</code>/<code>ptr_server()</code>; or (b) decide to export <code>ptr_app_components</code> and add the <code>@export</code> tag. Today's NAMESPACE makes option (a) the truthful patch.</li>
+  <li>F9: same fork — either drop the <code>ptr_render()</code> example, or export <code>ptr_render</code> (currently <code>@keywords internal</code>). The <code>ptr_extract_code(state, preserve = TRUE)</code> alternative the doc itself flags as UNTESTED in B8 is the cleanest forward fix.</li>
+  <li>Header HEAD ref + the "Known-broken" table: refresh to <code>984b689</code> and flag ADR-0010 (ppUpload name=) + ADR-0012 (pipe-op preserve) as landed.</li>
+  <li>A7 / H4: surface the <code>ppUpload(name = "object_name")</code> companion-input shape (ADR-0010 §C1–C6).</li>
+</ol>
+
+<h2>Confidence</h2>
+<p>72/100 on the failures (F2–F5 directly verified against NAMESPACE + symbol bodies; F2 also against the <code>ptr_read_uploaded_data</code> dispatch table). Lower confidence on the staleness notes (F1, F17–F19) — they are accurate at the "post-doc work landed" level, but I did not regression-test the preserve-mode/ppUpload semantics in this audit; if you want a behavioural delta (not just an existence delta) that wants a fresh tester-vignette pass. The remaining sections (C copy rules, E shared infra, I error surfaces) were spot-sampled rather than exhaustively walked.</p>
+
+</body>
+</html>

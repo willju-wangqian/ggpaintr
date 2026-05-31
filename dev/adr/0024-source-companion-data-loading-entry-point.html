@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0024 — Source companion as data-loading entry point</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0024 — Source companion as data-loading entry point</h1>
+
+<p><strong>Status:</strong> <em>Accepted.</em> Drafted &amp; landed 2026-05-26. Authoritative gate: <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 3093</code> on the FINDING #8 + ADR 0024 commit on branch <code>shared-id-upgrade</code>.</p>
+
+<p><strong>Date:</strong> 2026-05-26</p>
+
+<p><strong>Relates to:</strong> <a href="0010-ppupload-name-default-arg.html">ADR-0010</a> (introduced the companion <code>textInput</code> beside <code>ppUpload</code>'s <code>fileInput</code> as a <em>name override</em> for the uploaded frame), <a href="0012-role-based-tree-and-ptr-spec.html">ADR-0012</a> (added <code>spec=</code> + <code>state$spec_seed</code>; defined the <code>source_companion</code> role for spec dispatch), <a href="0015-consumer-picker-source-headed-resolution.html">ADR-0015</a> (per-instance <code>state$resolved_data</code> / <code>state$bound_names</code> assign-before-signal invariant — the bind site this ADR widens), <a href="0023-panel-owned-shared-sources-end-to-end.html">ADR-0023</a> (<code>resolve_upload_source</code> as the single resolver, with companion-driven name lookup at panel scope).</p>
+
+<p><strong>Implementation:</strong> in-flight on branch <code>shared-id-upgrade</code> alongside the FINDING #8 fix (<code>dev/notes/placeholder-role-coverage2.html</code>). Carries one source change (<code>R/paintr-server.R</code> — lift the <code>is.null(node$default)</code> guard in <code>try_bind_source_default()</code> and <code>try_bind_source_default_resolved()</code>, add structured error surface), one roxygen update (<code>R/paintr-registry.R</code> — promote the "Companion pattern" doc), and four shinytest2 cases. No plan directory — the change is one self-contained surface.</p>
+
+<h2>Context</h2>
+
+<p>The <code>companion_id</code> mechanism was introduced by ADR-0010 as a <em>name override</em> for an uploaded data frame: the user uploads a file, types an optional name into the sibling <code>textInput</code> (<code>shared_&lt;k&gt;_name</code> / <code>&lt;source-id&gt;_name</code>), and that name appears in the generated code panel and in <code>state$eval_env</code> as the symbol that <code>substitute_walk.ptr_ph_data_source()</code> emits. Without an upload, the companion was just a label, not a data source.</p>
+
+<p>Three subsequent ADRs incrementally generalised the companion's role:</p>
+<ul>
+  <li><strong>ADR-0012</strong> made the companion a first-class spec target — <code>spec = list(&lt;companion-id&gt; = "df_name")</code> dispatches via <code>apply_spec_entry()</code>'s <code>source_companion</code> branch (<code>R/paintr-server.R:691-695</code>) to <code>updateTextInput()</code>. Spec carries a name into the companion at boot.</li>
+  <li><strong>ADR-0015</strong> added <code>try_bind_source_default()</code> — when no upload is present, look up the companion's value (or <code>node$default</code> on the boot race) in <code>state$eval_env</code> and bind it. This is the FIRST point where a typed name without an upload could actually bind a frame.</li>
+  <li><strong>ADR-0023</strong> made <code>resolve_upload_source()</code> the single resolver across per-instance and panel scopes, called from the bare-data-source-layer loop, pipeline-head loop, and panel-source observer. All three paths fall through to <code>try_bind_source_default[_resolved]()</code> when no upload is present.</li>
+</ul>
+
+<p>But all three paths to a name-driven bind go through the same gate at <code>R/paintr-server.R:945</code> / <code>R/paintr-server.R:1069</code>:</p>
+
+<pre><code>if (is.null(node$default)) return(FALSE)</code></pre>
+
+<p>This guard is consistent with the original ADR-0010 framing — the companion is a <em>name override</em>, so no <code>default</code> means nothing to override and nothing to bind. The downstream code already prefers <code>comp_value</code> over <code>node$default</code> when both are set:</p>
+
+<pre><code>binding_name &lt;- if (has_companion) {
+  nm &lt;- comp_value
+  # Boot race: the companion textInput is seeded with node$default by
+  # `ptr_builtin_upload_build_ui()`, but `input[[comp_id]]` is NULL until
+  # the widget registers. Fall back to `node$default` so the first
+  # observer fire can bind immediately rather than waiting an extra
+  # invalidation.
+  if (!is.character(nm) || length(nm) != 1L || !nzchar(nm)) {
+    nm <- node$default
+  }
+  if (is.character(nm) && length(nm) == 1L && nzchar(nm) &&
+      make.names(nm) == nm) nm else NULL
+} else if (...) { ... }
+</code></pre>
+
+<p>i.e., the machinery is keyword-agnostic and already routes through <code>state$eval_env</code> via <code>get(binding_name, envir = state$eval_env, inherits = TRUE)</code>. The <em>only</em> thing the null-default guard does is bail before the companion is ever consulted.</p>
+
+<p>FINDING #8 in <code>dev/notes/placeholder-role-coverage2.html</code> exposes two visible consequences of the guard:</p>
+<ol>
+  <li>A user opening <code>ptr_app("ppUpload() |&gt; ggplot(aes(x = ppVar('col'))) + geom_bar()")</code> and typing <code>"mtcars"</code> into the companion textInput sees no picker population and no plot — the typed name is rejected silently by the guard.</li>
+  <li>A caller passing <code>spec = list(&lt;companion-id&gt; = "mtcars")</code> for a no-<code>default=</code> source gets the same silent failure (post the FINDING #8 spec-routing fix that landed the companion's value at boot).</li>
+</ol>
+
+<p>Both failure modes are silent — there's no inline error, no log line, no visible signal that the companion was looked at and rejected.</p>
+
+<h2>Decision</h2>
+
+<p>Promote the source companion's contract from <em>name override for an uploaded frame</em> to <strong>data-loading entry point</strong>: when the companion holds a valid R name resolvable to a <code>data.frame</code> in <code>state$eval_env</code>'s lookup chain, that frame binds — with or without <code>node$default</code>, with or without an upload. The companion is no longer a passive label; it is a typed-in shortcut for loading a frame from the embedder's environment.</p>
+
+<p>This is a semantic promotion of an already-keyword-agnostic mechanism. Every piece of plumbing — companion id, spec_seed write/dispatch, <code>state$eval_env</code> lookup, <code>state$bound_names</code> assign-before-signal, generated-code-panel symbol substitution — is already in place. The change is the removal of one structural guard plus an honest error surface.</p>
+
+<h3>1. Lift the null-default guard (two sites)</h3>
+
+<p>At <code>R/paintr-server.R:945</code> (<code>try_bind_source_default()</code>, used by the bare-data-source-layer loop) and <code>R/paintr-server.R:1069</code> (<code>try_bind_source_default_resolved()</code>, used by <code>resolve_upload_source()</code> at the pipeline-head and panel loops):</p>
+
+<pre><code># OLD
+if (is.null(node$default)) return(FALSE)
+
+# NEW
+has_comp_value &lt;- has_companion &amp;&amp;
+                  is.character(comp_value) &amp;&amp; length(comp_value) == 1L &amp;&amp;
+                  nzchar(comp_value)
+if (is.null(node$default) &amp;&amp; !has_comp_value) return(FALSE)
+</code></pre>
+
+<p>(The variable names differ slightly between the two functions — the resolved variant already receives <code>has_companion</code> + <code>comp_value</code>; the unresolved one reads <code>input[[comp_id]]</code> itself and must compute the equivalent locally.)</p>
+
+<p>The downstream binding-name derivation is unchanged: it already prefers the companion value, falls back to <code>node$default</code> when the companion is blank, and rejects names that fail <code>make.names()</code> validation.</p>
+
+<h3>2. Structured error surface on resolve failure</h3>
+
+<p>When <code>binding_name</code> is non-NULL but <code>get(binding_name, envir = state$eval_env, inherits = TRUE)</code> either errors or does not return a <code>data.frame</code>, currently both helpers <code>return(FALSE)</code> silently. The previous semantics ("no default = no bind") justified silent bail. The new semantics ("typed-in entry point") do not — the user typed a name and the binder rejected it; the user is owed a reason.</p>
+
+<p>Both helpers gain one extra branch via <code>set_resolve_error(state, key, msg)</code> (<code>R/paintr-server.R:847-855</code>) before returning FALSE:</p>
+
+<ul>
+  <li><em>get() throws</em> → <code>"Object '&lt;name&gt;' not found in environment."</code></li>
+  <li><em>get() returns non-data.frame</em> → <code>"Object '&lt;name&gt;' is not a data frame."</code></li>
+</ul>
+
+<p>The error is recorded keyed by the same resolution-stage id used elsewhere (layer name for bare-data-source, source-node id for pipeline-head + panel). The existing inline error pane (<code>#ptr_error</code>) reads <code>state$resolve_errors()</code> via <code>ptr_register_error()</code> and surfaces it without further plumbing. Successful binds clear the error via the existing <code>set_resolve_error(state, key, NULL)</code> call inside <code>bind_source_value()</code>.</p>
+
+<h3>3. Document the promoted contract (roxygen only, vignette deferred)</h3>
+
+<p><code>R/paintr-registry.R</code> — <code>ptr_define_placeholder_source()</code>'s <em>@details</em> "Companion pattern" section gets one new paragraph: when <code>companion_id_fn</code> is set, the companion is a data-loading entry point, not just a name override. A valid R-name typed (or seeded via <code>spec=</code>) into the companion binds the named <code>data.frame</code> from the embedder's <code>envir</code> — independent of any <code>default=</code> on the source node. Failures surface via the inline error pane.</p>
+
+<p>The vignette is deferred. <code>vignettes/ppupload.Rmd</code> (or the relevant L2 vignette covering the upload widget) needs a companion-entry-point section, but it can wait until the first user-discoverable feature using a non-<code>ppUpload</code> source with a companion lands — there is no such custom source today, and adding a paragraph now without a reader artifact tied to it would compound the docs-test backlog.</p>
+
+<h2>Scope cuts</h2>
+
+<ul>
+  <li><strong>No companion-id read in renderUI bodies.</strong> The post-FINDING-#8-fix path lands the spec value into the companion textInput via the onFlushed <code>updateTextInput</code> dispatch (<code>apply_spec_entry()</code>'s <code>source_companion</code> branch). The renderUI bodies already correctly do not read <code>state$spec_seed[[&lt;companion-id&gt;]]</code> because there's nothing to read at first render — the companion is dispatch-driven, not renderUI-seeded. No new spec_seed read site is added; the seed slot becomes a reserved sentinel for the FINDING-#8 dispatch path, not a renderUI input.</li>
+  <li><strong>No fileInput suppression.</strong> When the user fills only the companion and never uploads, the fileInput sits unused. This is the same shape as <code>ppUpload(mtcars)</code> today and is not a regression. A future ADR may decide whether to hide the fileInput when an env-loaded frame is bound, but doing so would couple the widget to the bind state and is out of scope here.</li>
+  <li><strong>No widget-validation surface on the companion textInput.</strong> The error surface lives on the resolve path (<code>set_resolve_error</code>), not on the companion's own widget binding (no red-bordered <code>shinyFeedback</code>-style annotation). Promoting the inline-error pane to the authoritative surface mirrors how upload-side resolve errors already work.</li>
+  <li><strong>No change to <code>node$default</code> semantics.</strong> When <code>default=</code> is set and the companion is blank, the boot-race fallback still binds <code>node$default</code> on the first observer fire. The change is additive — it widens the set of cases that bind, not the cases that don't.</li>
+  <li><strong>Companion-name binding is sticky across an upload-clear.</strong> A successful upload writes the resolved frame into <code>state$eval_env</code> under the companion's typed name (<code>bind_source_value</code> at <code>R/paintr-server.R:877</code>: <code>assign(name, df, envir = state$eval_env)</code>). Once that assignment lands, the companion name resolves via env lookup — clearing JUST the <code>fileInput</code> (without also clearing the companion <code>textInput</code>) leaves the slot bound to the prior frame, because the entry-point lookup picks it up via <code>get(name, envir, inherits = TRUE)</code>. Pre-ADR-0024 the no-default <code>try_bind_source_default_resolved</code> guard bailed immediately, so clearing the file alone cleared the slot. Post-ADR-0024 the user clears the slot by clearing BOTH inputs. This is consistent with the entry-point contract — the companion is the resolved name — and is captured by the updated <code>tests/testthat/test-rewrite-pipeline-data-source.R</code> assertion. Avoiding it would require either tracking which bindings came from upload (vs entry-point) so file-clear could selectively <code>rm()</code> the upload-side binding, or refusing to populate <code>state$eval_env</code> from uploads — both are larger surgery than this ADR justifies.</li>
+  <li><strong>Self-invalidation risk in <code>set_resolve_error</code>.</strong> ADR 0024's structured error surface widens the set of contexts in which <code>set_resolve_error</code> is called from inside a reactive observer (previously the no-upload path only ever cleared, idempotent on an empty list). The helper's pre-existing <code>cur &lt;- state$resolve_errors()</code> read created an undeclared reactive dependency on the resolve-errors slot itself — harmless when the only writes were idempotent clears, but a self-invalidating loop the moment a structured error is written from inside an observer that already reads <code>resolve_errors</code> via <code>set_resolve_error</code> itself. Fix: wrap the read in <code>shiny::isolate()</code> so <code>set_resolve_error</code> stays write-only from the caller's reactive-context perspective. Implemented at <code>R/paintr-server.R:847-862</code>.</li>
+</ul>
+
+<h2>Consequences</h2>
+
+<h3>Positive</h3>
+<ul>
+  <li><strong>Eliminates a silent failure mode.</strong> The pre-decision behavior — typed companion name with no <code>default=</code> ⇒ no bind, no error — is gone; either it binds or it surfaces a structured error.</li>
+  <li><strong>Companion is now a usable data shortcut.</strong> Users can bind in-environment frames without writing a default into the formula source. <code>ptr_app("ppUpload() |&gt; ...", spec = list(&lt;comp&gt; = "mtcars"))</code> works end-to-end; a typed <code>"mtcars"</code> in the live app works end-to-end; both with the same error surface for typos.</li>
+  <li><strong>The promotion is automatic for custom source keywords.</strong> Any source defined via <code>ptr_define_placeholder_source(..., companion_id_fn = ...)</code> whose <code>build_ui</code> renders an input at <code>node$companion_id</code> inherits the entry-point semantics — no per-keyword wiring.</li>
+  <li><strong>The change is small and localised.</strong> Two conditional changes + two <code>set_resolve_error</code> calls + one roxygen paragraph + four tests. No coordinator, partition, or shared-section logic is touched.</li>
+</ul>
+
+<h3>Risks &amp; mitigations</h3>
+<ul>
+  <li><strong>Error-message stability.</strong> The two new error strings become part of the user-visible surface. Pin them with regression tests so a future refactor doesn't drift them silently. (Test plan §C asserts on the substring "not found" or "not a data frame".)</li>
+  <li><strong>Lookup environment surprises.</strong> <code>get(..., inherits = TRUE)</code> walks the parent chain — a user typing <code>"plot"</code> would resolve to <code>graphics::plot</code> (and then fail the "is.data.frame" check). The "not a data frame" branch covers this loudly. Worth noting in the roxygen update so embedders are aware their package's exports become reachable.</li>
+  <li><strong>Compatibility.</strong> No existing test today depends on the null-default guard's silent-bail behavior (the bind never happens, so nothing asserts on the silent failure). All existing source-with-default tests are unaffected: the new guard is a strict superset of the old one (lifts only when the companion is non-empty).</li>
+  <li><strong>Future spec_seed reader.</strong> If a future change adds a renderUI-side <code>state$spec_seed[[&lt;companion-id&gt;]]</code> reader (e.g. to honor the seed before the onFlushed flush), the FINDING #8 fix's seed-write-but-no-seeded-flag stub already provides the slot to read from. This ADR does not require it, but does not preclude it.</li>
+</ul>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (per <code>CLAUDE.md</code>):</p>
+
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+
+<p>Expected: <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS &gt;= 3070</strong> (current baseline 3066 + 4 new cases).</p>
+
+<p>BDD coverage:</p>
+
+<pre><code>Feature: Source companion as a data-loading entry point
+
+  Scenario: typed companion name binds the named env frame without default
+    Given an app with `ppUpload() |&gt; ggplot(aes(x = ppVar('col'))) + geom_bar()`
+      And `mtcars` is in scope
+     When the user types "mtcars" into the companion textInput
+     Then the ppVar('col') picker populates with names(mtcars)
+      And no inline error is shown
+
+  Scenario: spec= overrides default at the companion AND binds the named frame
+    Given an app with `ppUpload() |&gt; ggplot(aes(x = ppVar('col'))) + geom_bar()`
+      And `spec = list(&lt;companion-id&gt; = "mtcars")` is passed to ptr_app
+      And `mtcars` is in scope
+     When the app boots
+     Then the companion textInput's input value is "mtcars"
+      And the ppVar('col') picker populates with names(mtcars)
+      And no inline error is shown
+
+  Scenario: a typed name that doesn't resolve to a data.frame surfaces an inline error
+    Given an app with `ppUpload() |&gt; ggplot(aes(x = ppVar('col'))) + geom_bar()`
+     When the user types "fooberry" into the companion textInput
+     Then the inline error pane shows a message naming "fooberry"
+      And the message indicates the object was not found or is not a data frame
+
+  Scenario: shared-section companion entry point honors spec= at boot
+    Given an app with `ppUpload(shared='ds') |&gt; ggplot(aes(x = ppVar(shared='col'))) + geom_bar()`
+      And `spec = list(shared_ds_name = "mtcars")` is passed to ptr_app
+      And `mtcars` is in scope
+     When the app boots
+     Then the companion textInput at #shared_ds_name has input value "mtcars"
+      And the ppVar(shared='col') picker populates with names(mtcars)
+</code></pre>
+
+<p>Proxy traps (per <code>CLAUDE.md</code> authoritative-gate block):</p>
+<ul>
+  <li>Raw <code>test_file</code> / <code>test_dir</code> without <code>NOT_CRAN=true</code> ⇒ <code>skip_on_cran()</code> fires inside <code>boot_vignette_app()</code> ⇒ the four new shinytest2 cases SKIP. SKIP &gt; 0 is NOT the gate.</li>
+  <li><code>devtools::check()</code> runs with <code>NOT_CRAN=true</code> but uses the <code>.Rcheck</code> sandbox; the source-root guard in <code>boot_vignette_app()</code> cleanly SKIPs the e2e file in that environment. Clean SKIP under check is expected; ERROR is not.</li>
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — Expression-mode capture at ptr_app/ptr_server</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+
+<h1>PLAN-04 — Expression-mode capture at <code>ptr_app</code> / <code>ptr_server</code></h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/04-expr-mode</code> · Parallelism: <span class="par">PARALLEL with PLAN-01, 02, 03, 05</span> · Depends on: nothing · Date: 2026-05-20</p>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>Adds an alternate input mode to the public surface: <code>ptr_app()</code> and <code>ptr_server()</code> may now be called with an <em>unquoted expression</em> instead of a string. The captured expression is deparsed to a single string at the public boundary and fed into the existing <code>ptr_translate()</code> pipeline. The string-mode path is unchanged. After this plan, both calls below produce equivalent apps:</p>
+
+<pre>ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")       # string mode (existing)
+ptr_app(ggplot(mtcars, aes(x = var, y = var)) + geom_point())          # expression mode (new)</pre>
+
+<p>The new expression-mode path uses the <em>existing</em> keyword vocabulary (<code>var/num/text/expr/upload</code>). The keyword rename to <code>ppX</code> is PLAN-08. The two changes are independent — the expression-mode dispatch is purely an entry-point capture, with no dependency on what the formula's tokens are called.</p>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>Per ADR 0009 §2 ("Two input modes — string and unquoted expression"):</p>
+
+<ul>
+  <li><strong>String mode</strong> (existing): the argument is a character scalar. Routed through <code>preprocess_native_pipe()</code> (which substitutes <code>|&gt;</code> for a sentinel before parse) and then <code>rlang::parse_exprs()</code>. This stays.</li>
+  <li><strong>Expression mode</strong> (new): the argument is captured unevaluated. R's parser has already desugared <code>|&gt;</code> at parse time, so the pipe surface is lost in expression mode (calls become nested function calls). Users who want <code>|&gt;</code> preserved must stay in string mode or use <code>%&gt;%</code>.</li>
+</ul>
+
+<p>Both modes share the same downstream typed-AST pipeline (<code>ptr_translate()</code> step 4 onward).</p>
+
+<h2>Current source (verified 2026-05-20)</h2>
+
+<table>
+  <tr><th>Function</th><th>File:line</th><th>Current signature</th></tr>
+  <tr><td><code>ptr_app</code></td><td><code>R/paintr-app.R:113</code></td><td><code>function(formula, envir = parent.frame(), ui_text = NULL, checkbox_defaults = NULL, expr_check = TRUE, safe_to_remove = character(), css = NULL)</code></td></tr>
+  <tr><td><code>ptr_server</code></td><td><code>R/paintr-app.R:921</code></td><td><code>function(formula, id = NULL, envir = parent.frame(), ..., shared_state = NULL)</code> (verified 2026-05-20)</td></tr>
+  <tr><td><code>ptr_app_components</code></td><td><code>R/paintr-app.R:132</code></td><td><code>function(formula, envir = parent.frame(), ui_text = NULL, checkbox_defaults = NULL, expr_check = TRUE, safe_to_remove = character(), ns = shiny::NS(NULL), css = NULL)</code></td></tr>
+  <tr><td><code>ptr_translate</code></td><td><code>R/paintr-translate.R:12</code></td><td><code>function(formula, expr_check = TRUE, max_depth = 100L, ns_fn = shiny::NS(NULL), annotate = TRUE)</code></td></tr>
+</table>
+
+<p><code>ptr_translate()</code>'s first guard (lines 14–17) is <code>assertthat::assert_that(is.character(formula), length(formula) == 1L, !is.na(formula))</code>. This plan keeps that guard in place; the new dispatch deparses any language input to a string <em>before</em> calling <code>ptr_translate()</code>, so the assertion still passes.</p>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-app.R</code></td><td>Capture <code>formula</code> with <code>rlang::enexpr()</code> (NOT base R <code>substitute()</code> — per ADR 0009 cross-cutting rlang-preference rule) at the top of <code>ptr_app</code>, <code>ptr_server</code>, and <code>ptr_app_components</code>. Dispatch via a new private helper <code>ptr_capture_formula(formula_captured, envir)</code>: string → return; symbol → eval in <code>envir</code> and recurse on the result; wrapper call (<code>rlang::expr</code>, <code>rlang::quo</code>, <code>quote</code>, <code>bquote</code>) → unwrap one layer (E1.a); language → <code>rlang::expr_text()</code> to single string. <code>enexpr()</code> also gives <code>!!</code>-splicing support for free (per ADR 0009 §E1).</td></tr>
+  <tr><td>new <code>tests/testthat/test-expression-mode.R</code></td><td>Tests covering: string-mode unchanged; expression-mode produces an identical typed AST (modulo whitespace/native-pipe surface) for an equivalent formula; mixed call shapes (string-mode, expression-mode, expression-mode-with-magrittr-pipe).</td></tr>
+</table>
+
+<h2>Dispatch sketch</h2>
+
+<pre>ptr_app &lt;- function(formula, envir = parent.frame(), ...) {
+  formula_str &lt;- ptr_capture_formula(rlang::enexpr(formula), envir)
+  parts &lt;- ptr_app_components(formula_str, envir = envir, ...)
+  shiny::shinyApp(ui = parts$ui, server = parts$server)
+}
+
+# NOTE (ADR 0009 cross-cutting): use rlang::enexpr() not substitute().
+# enexpr() processes `!!` splicing automatically and is the rlang-idiom
+# equivalent of substitute() for argument capture at the public boundary.
+ptr_capture_formula &lt;- function(formula_captured, envir) {
+  # (a) caller passed a string literal -> enexpr returns the character scalar.
+  if (rlang::is_string(formula_captured)) {
+    return(formula_captured)
+  }
+  # (b) caller passed a symbol referencing a variable. Resolve once in envir.
+  if (rlang::is_symbol(formula_captured)) {
+    resolved &lt;- tryCatch(rlang::eval_bare(formula_captured, envir),
+                         error = function(e) NULL)
+    if (rlang::is_string(resolved)) return(resolved)
+    if (is.call(resolved) || rlang::is_symbol(resolved)) {
+      formula_captured &lt;- resolved
+      # fall through to wrapper-unwrap + deparse
+    } else {
+      rlang::abort(paste0(
+        "`formula` must be a single string or an unquoted ggplot expression; ",
+        "the variable `", rlang::as_string(formula_captured),
+        "` did not resolve to either."
+      ))
+    }
+  }
+  # (c) unwrap one layer of rlang::expr() / rlang::quo() / quote() / bquote()
+  #     wrappers (per ADR 0009 §"Edge-case resolutions" - E1.a).
+  if (rlang::is_call(formula_captured)) {
+    head &lt;- formula_captured[[1L]]
+    head_name &lt;- if (rlang::is_symbol(head)) {
+      rlang::as_string(head)
+    } else if (rlang::is_call(head) &amp;&amp; length(head) == 3L &amp;&amp;
+               rlang::as_string(head[[1L]]) %in% c("::", ":::")) {
+      rlang::as_string(head[[3L]])
+    } else ""
+    if (head_name %in% c("expr", "quo", "quote", "bquote") &amp;&amp;
+        length(formula_captured) &gt;= 2L) {
+      formula_captured &lt;- formula_captured[[2L]]
+    }
+  }
+  # (d) deparse the language to a single string via rlang::expr_text().
+  if (is.call(formula_captured) || rlang::is_symbol(formula_captured)) {
+    return(rlang::expr_text(formula_captured, width = 500L))
+  }
+  rlang::abort(paste0(
+    "`formula` must be a single string or an unquoted ggplot expression; ",
+    "got ", typeof(formula_captured), "."
+  ))
+}</pre>
+
+<p><strong>Why <code>rlang::enexpr()</code> over <code>substitute()</code></strong> (ADR 0009 cross-cutting + E1):</p>
+<ul>
+  <li>Drop-in replacement for <code>substitute()</code> in the common case (character / symbol / language argument).</li>
+  <li>Processes <code>!!</code> splicing: <code>col &lt;- quote(mpg); ptr_app(ggplot(aes(x = ppVar(!!col))))</code> works (the <code>!!col</code> splices to <code>mpg</code>). With <code>substitute()</code>, <code>!!col</code> would parse as <code>!(!col)</code> and break silently.</li>
+  <li>Idiomatic across the rlang ecosystem (dplyr, ggplot2, rlang itself), so users coming from those packages get expected behavior.</li>
+</ul>
+
+<p><strong>Wrapper unwrap (E1.a)</strong>: if the captured expression's root is one of <code>rlang::expr(...)</code>, <code>rlang::quo(...)</code>, <code>quote(...)</code>, <code>bquote(...)</code>, unwrap exactly once. Users who pre-quote an expression and pass it via <code>ptr_app(rlang::expr(ggplot(...)))</code> get the natural behavior; deeper-nested wrapping is not unwrapped (rare and unambiguous user intent).</p>
+
+<p><strong>Why capture without evaluating:</strong> if R evaluates <code>ggplot(aes(x = var, y = var))</code> before <code>ptr_app</code> sees it, the call fails (<code>var</code> is not a value in the caller's frame). Capturing via <code>rlang::enexpr(formula)</code> at the top of <code>ptr_app</code> gives the unevaluated AST instead, sidestepping evaluation entirely. The dispatch helper above branches on what the captured object is (string → use; symbol → resolve in <code>envir</code>; wrapped language → unwrap once; language → deparse) and produces a string for the existing translate pipeline.</p>
+
+<p><strong>String-mode is unchanged:</strong> when the user passes a character literal, <code>enexpr()</code> returns it verbatim (it never wraps strings in language objects). The dispatch's first branch <code>rlang::is_string</code> returns it directly.</p>
+
+<p><strong>Symbol-resolution covers the <code>f &lt;- "..."; ptr_app(f)</code> case:</strong> <code>enexpr</code> returns the symbol <code>f</code>; the dispatch's second branch evaluates it in <code>envir</code>, gets back the string. (A single symbol cannot itself be the new "unquoted ggplot expression" surface — no calls, no aes, no <code>+</code> — so re-resolving is safe.)</p>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li><code>ptr_app("ggplot(...)")</code> continues to produce the identical app as today.</li>
+  <li><code>ptr_app(ggplot(mtcars, aes(x = var, y = var)) + geom_point())</code> produces an app whose translated AST is equivalent to the string-mode call (verified by comparing <code>ptr_translate()</code>'s output classes and the per-layer call shape).</li>
+  <li><code>ptr_server</code> accepts both modes identically.</li>
+  <li><code>ptr_app_components</code> accepts both modes (the dispatch is centralized in <code>ptr_capture_formula</code>).</li>
+  <li><code>ptr_app(f)</code> where <code>f &lt;- "ggplot(...)"</code> resolves the symbol in the caller's frame and behaves as if the string was inlined.</li>
+  <li><code>ptr_app(NULL)</code>, <code>ptr_app(42)</code>, <code>ptr_app(c("a","b"))</code> all abort with a clear message naming the accepted input shapes.</li>
+  <li>The native pipe (<code>|&gt;</code>) in <em>string mode</em> still round-trips through <code>preprocess_native_pipe()</code> (existing behaviour).</li>
+  <li>The native pipe in <em>expression mode</em> is desugared by R's parser before capture; the deparsed string no longer contains <code>|&gt;</code>. This is a documented limitation (mentioned in the public-facing docs of <code>ptr_app</code>).</li>
+  <li>The authoritative gate reports 0/0/0 PASS N ≥ baseline + the new tests in <code>test-expression-mode.R</code>.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>No keyword changes.</strong> This plan uses the existing keyword vocabulary (<code>var/num/text/expr/upload</code>). The rename to <code>ppX</code> is PLAN-08 and is independent.</li>
+  <li><strong>No translate-time changes.</strong> <code>ptr_translate()</code> is unchanged. The new dispatch terminates at the public-API boundary by converting language → string.</li>
+  <li><strong>No registry changes.</strong> <code>R/paintr-registry.R</code> is not touched.</li>
+  <li><strong>No node changes.</strong> <code>R/paintr-nodes.R</code> is not touched.</li>
+  <li><strong>The captured environment for symbol-resolution defaults to <code>parent.frame()</code></strong> via the existing <code>envir</code> arg. Do not invent a new env-capture mechanism.</li>
+  <li><strong>Roxygen.</strong> Update <code>ptr_app</code>'s and <code>ptr_server</code>'s roxygen <code>@param formula</code> to document both modes; add an <code>@examples</code> block demonstrating the new surface.</li>
+  <li><strong>NOT_CRAN gate only.</strong></li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
+  <li><strong>No emojis.</strong></li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: ptr_app and ptr_server accept both string and unquoted expression formulas
+
+  Scenario: string-mode unchanged
+    Given formula_str <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+    When ptr_app(formula_str) is called
+    Then the translated root from ptr_translate(formula_str) is identical
+         to the translated root produced under the new dispatch
+
+  Scenario: expression-mode produces equivalent translated AST
+    Given formula_expr <- rlang::expr(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar(disp))) + geom_point())
+    And formula_str  <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+    When both are routed through ptr_capture_formula and then ptr_translate
+    Then the two roots have identical layer counts and per-layer keyword sets
+    And the placeholder ids match
+
+  Scenario: symbol holding a string is resolved
+    Given f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+    When ptr_app(f) is called
+    Then it behaves identically to ptr_app(f) with the string inlined
+
+  Scenario: invalid input is rejected with a clear message
+    Given a call ptr_app(42)
+    When made
+    Then it aborts with an rlang_error naming "single string or unquoted ggplot expression"
+
+  Scenario: native pipe in string mode is preserved
+    Given formula_str <- "mtcars |> ggplot(aes(x = var)) + geom_histogram()"
+    When ptr_app(formula_str) is called
+    Then preprocess_native_pipe survives the |> token and the formula translates without error
+
+  Scenario: native pipe in expression mode is desugared
+    Given formula_expr captured via rlang::enexpr(mtcars |> ggplot(aes(x = ppVar(mpg))) + geom_histogram())
+    When ptr_capture_formula deparses it
+    Then the resulting string contains "ggplot(mtcars, " (R-desugared form), not "|>"
+    And ptr_translate succeeds on the desugared string
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command:</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>, with N ≥ baseline + the new tests in <code>test-expression-mode.R</code>.</p>
+
+<p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings.</p>
+
+<p><strong>Plus:</strong> <code>devtools::document()</code> regenerates roxygen with the updated <code>@param formula</code> docs.</p>
+
+<p><strong>Proxy traps:</strong></p>
+<ul>
+  <li>Expression-mode is tested entirely via <code>testServer</code>-flavoured tests and direct <code>ptr_translate</code> comparisons. The browser e2e tests use string-mode fixtures and are unchanged by this plan — but they still must SKIP-clean under R CMD check and run under <code>NOT_CRAN=true</code>.</li>
+  <li>Memory recall (project memory: "testServer != ptr_app") — a bare <code>ptr_server</code> in <code>testServer</code> is not a faithful proxy for <code>ptr_app</code>. For this plan, verify the new dispatch via <code>ptr_capture_formula</code> directly and via comparing <code>ptr_translate</code> outputs, not via <code>testServer</code> alone.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li>Edit <code>ptr_app</code>, <code>ptr_server</code>, <code>ptr_app_components</code> to capture <code>formula</code> with <code>rlang::enexpr()</code> and route through a single private helper <code>ptr_capture_formula()</code>. (Cross-cutting rlang preference, ADR 0009.)</li>
+  <li>Wrapper unwrap (E1.a): detect <code>rlang::expr</code> / <code>rlang::quo</code> / <code>quote</code> / <code>bquote</code> at the captured root and unwrap once.</li>
+  <li><code>!!</code> splicing support comes for free via <code>rlang::enexpr</code>; document in <code>?ptr_app</code> with a brief example.</li>
+  <li>Add an E2.a documentation paragraph in <code>?ptr_app</code>: "Native pipe (<code>|&gt;</code>) is desugared by R's parser before expression-mode capture; generated code shows the desugared form. Use string mode or <code>%&gt;%</code> if you need <code>|&gt;</code> preserved in the rendered output."</li>
+  <li>New private helper <code>ptr_capture_formula(formula_captured, envir)</code> (matches the sketch and Files-touched row).</li>
+  <li>Tests for both modes and the invalid-input paths.</li>
+  <li>Roxygen + <code>devtools::document()</code>.</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>Keyword rename (PLAN-08).</li>
+  <li>Anything inside <code>ptr_translate()</code> — the dispatch terminates by feeding it a string.</li>
+  <li>Code-gen / renderer changes (PLAN-05).</li>
+  <li>Registry / node / parser / UI changes.</li>
+  <li>Updating vignettes/tests to use expression-mode (PLAN-08 handles vignette renames; expression-mode adoption in docs is a follow-up).</li>
+</ul>
+
+<h2>Baseline</h2>
+
+<ul>
+  <li>Worktree checked out from <code>vignette-review</code> HEAD on branch <code>adr9/04-expr-mode</code>.</li>
+  <li>Suite green at the authoritative gate (0/0/0 PASS N).</li>
+  <li>Before edits, confirm signatures match the table above (lines 113, 132, 921 in <code>R/paintr-app.R</code>; line 12 in <code>R/paintr-translate.R</code>).</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>This plan lands cleanly without any other ADR-0009 plan. The string-mode path is preserved verbatim, and the new expression-mode path uses today's keyword vocabulary. Once PLAN-08 renames the keywords, both modes carry the new names without further changes in <code>ptr_app</code> / <code>ptr_server</code>.</p>
+
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
+<div class="note">
+  <strong>Verification, 2026-05-20:</strong> Line numbers for <code>ptr_app</code> (113), <code>ptr_app_components</code> (132), <code>ptr_server</code> (921), and <code>ptr_translate</code> (12) verified on 2026-05-20. Re-verify with <code>grep -n "^ptr_app\b\|^ptr_server\b\|^ptr_app_components\b" R/paintr-app.R</code> and <code>grep -n "^ptr_translate\b" R/paintr-translate.R</code> before editing.
+</div>
+
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=73bf39a74c79 -->
+</body>
+</html>

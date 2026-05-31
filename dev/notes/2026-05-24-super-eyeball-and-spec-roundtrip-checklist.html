@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Super-app eyeball checklist (rev 2026-05-25)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<div class="wrap">
+
+<h1>Super-app eyeball checklist</h1>
+
+<p class="lede">Subjective-only human checks against the 5 super-app fixtures &mdash; the residue the automated gate provably cannot make. Each surviving recipe has a verified action sequence (renders cleanly through <code>eval(formula) |&gt; ggplot_build() |&gt; ggplot_gtable()</code>) and cites the gate assertion that proves its widget-by-ID pre-condition is reachable. Everything not on this list moved into the gate or was dropped.</p>
+
+<div class="note">
+<strong>Rule A &mdash; what this doc is.</strong> If a check can be expressed as a test assertion, it belongs in <code>tests/testthat/</code>, not here. This file lists only judgments that require a human's eyes: <em>snappy / no flicker / synchronized / visually matches the rule / reads like a non-developer can understand</em>. Spec round-trip is no longer in this doc &mdash; the closed loop runs in <code>tests/testthat/test-spec-roundtrip-closed-loop.R</code>.
+</div>
+
+<section>
+<h2>1. What the gate covers (recap)</h2>
+<p class="desc">Authoritative gate: <code>NOT_CRAN=true Rscript -e 'devtools::load_all("."); testthat::test_dir(...)'</code> (or <code>devtools::test()</code>). Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0</strong> on a machine with <code>shinytest2</code> + <code>chromote</code> + Chrome. Under R CMD check the e2e suite cleanly all-skips via the source-root guard.</p>
+
+<table>
+  <thead>
+    <tr><th>Super</th><th>Built-ins</th><th>Custom keywords</th><th>Pressure surface</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>super-1 kitchen-sink</td><td>ppText, ppNum, ppExpr, ppVar</td><td>ppRange</td><td>Shared-default tiebreak; full B3 toggle differential.</td></tr>
+    <tr><td>super-2a upload-registry</td><td>ppText, ppNum, ppExpr, ppVar, ppUpload</td><td>ppMultiVar, ppPower</td><td>Two disjoint uploaded data sources; layer-data picker scope discrimination; <code>validate_input</code> &rarr; <code>#ptr_error</code>.</td></tr>
+    <tr><td>super-2b customsource-splice</td><td>ppText, ppNum, ppVar, ppUpload</td><td>ppCoef, ppFactor, ppSample</td><td>Custom D3 source at formula head + layer-data ppUpload; placeholders inside a <code>!!</code> splice; <code>shared=</code> on a custom consumer placeholder.</td></tr>
+    <tr><td>super-3 L3-multi-shared-plotly</td><td>ppText, ppNum, ppVar</td><td>ppRange</td><td>Two L3 cells; shared key crosses ggplot &harr; plotly backends.</td></tr>
+    <tr><td>super-4 user-css adversarial</td><td>ppText, ppNum, ppExpr, ppVar</td><td>ppColor</td><td>user.css + core asset coexistence; G5 string-builder; <code>validate_input</code> + denylist rejection; K4 <code>resourcePath</code> teardown.</td></tr>
+  </tbody>
+</table>
+
+<p class="desc">Spec round-trip closed-loop coverage (emit-text &rarr; parse &rarr; apply &rarr; <code>state$spec_seed</code> matches snapshot) lives in <code>tests/testthat/test-spec-roundtrip-closed-loop.R</code> (4 tests, including the ppUpload tmp-path leak guard). Promoted from <code>wip-</code> on 2026-05-25.</p>
+</section>
+
+<section>
+<h2>2. Per-super eyeball checks</h2>
+
+<p class="desc">Boot each super interactively. Playable copies live at <code>dev/scripts/super-examples/&lt;slug&gt;/</code> &mdash; first line of each <code>app.R</code> is the only difference from the fixture (the <code>pkgload::load_all(Sys.getenv("GGP_PKG"))</code> scaffolding is replaced by a one-line comment because <code>ggpaintr</code> is already loaded interactively).</p>
+
+<pre><code># From the repo root:
+devtools::load_all(".")
+shiny::runApp("dev/scripts/super-examples/super-1-kitchen-sink")
+# To run the no-default variant:
+shiny::runApp(shiny::shinyAppFile(
+  "dev/scripts/super-examples/super-1-kitchen-sink/app-no-default.R"))</code></pre>
+
+<h3>super-1 kitchen-sink</h3>
+
+<details>
+<summary><strong>Recipe A &mdash; bulk widget update &rarr; <em>snappy redraw?</em></strong> (~2 min)</summary>
+<ol>
+  <li>Open the <strong>ggplot layer</strong>'s <strong>Controls</strong> subtab. You'll see <strong>two</strong> ppExpr widgets: one for <code>dplyr::filter(...)</code> (expects a logical) and one for <code>dplyr::mutate(adj = ...)</code> (any numeric).</li>
+  <li>Set the <strong>mutate</strong> ppExpr (the one feeding <code>adj =</code>) to <code>mpg + wt</code>. Leave the filter ppExpr at its default <code>hp &gt;= 75</code>.</li>
+  <li>Set <code>aes(x)</code> to <code>disp</code>, <code>shared_grp</code> to <code>gear</code>, <code>labs(title)</code> to <code>S_T_2718</code>, ppNum <strong>size</strong> to <code>0.7314159</code>.</li>
+  <li>Click <strong>Update</strong>. Plot redraws &mdash; <em>does it feel snappy? Any visible blink / clear-then-redraw?</em></li>
+</ol>
+<div class="warn">
+<strong>Trap if you stray.</strong> Setting the <em>filter</em> ppExpr to a non-logical (e.g. <code>hp + 1</code>) errors from <code>dplyr::filter</code>. Setting the <em>mutate</em> ppExpr to a value that pushes <code>adj</code> out of the formula's <code>scale_y_continuous(limits = c(0, 50))</code> (e.g. <code>hp + 1</code> &rarr; range 53&ndash;336) drops every row from <code>geom_smooth</code>, and <code>loess</code> on empty data hard-errors from <code>seq_len()</code>. The recipe above stays inside the limits and was verified through <code>eval(formula) |&gt; ggplot_build() |&gt; ggplot_gtable()</code>.
+</div>
+<p class="meta">Gate cite: <code>tests/testthat/test-super-pressure.R:26-101</code> (super-1 with-default) drives the same widget IDs to the same values; <code>expect_no_plot_error("ptr_plot")</code> at L80 proves the host has no Shiny error class after draw.</p>
+</details>
+
+<details>
+<summary><strong>Recipe B &mdash; rapid code-mode toggle &rarr; <em>no flicker, no stale fragment?</em></strong> (~30 s)</summary>
+<ol>
+  <li>After Recipe A's draw, find the code-mode radio (<strong>final</strong> / <strong>preserve</strong>) above the code panel.</li>
+  <li>Toggle <strong>final &harr; preserve &harr; final &harr; preserve</strong> three times as fast as you can click.</li>
+  <li>Watch the code panel during the toggles &mdash; <em>does it ever flash the wrong text, or leave a stale fragment from the previous mode?</em> The text should switch atomically.</li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:84</code> + <code>L100</code> drive the toggle once and assert preserve-mode text shape; the gate does not stress-test rapid toggling.</p>
+</details>
+
+<h3>super-2a upload-registry</h3>
+
+<details>
+<summary><strong>Recipe A &mdash; real OS file picker round-trip</strong> (~3 min)</summary>
+<ol>
+  <li>Upload <code>dev/scripts/super-examples/super-2a-upload-registry/sample_main.csv</code> via the root <code>ppUpload</code> fileInput (the real OS picker dialog, not a path string).</li>
+  <li>Upload <code>sample_aux.csv</code> via the geom_smooth fileInput.</li>
+  <li>Click <strong>Update</strong> &mdash; <em>plot renders without an error pane?</em> (The gate uses shinytest2's <code>fileInput</code> shim, which sets <code>datapath</code> directly. This recipe exercises the actual browser file picker integration the shim simulates.)</li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:161-339</code> drives identical widget IDs with shinytest2's shim; this eyeball covers only the human-driven picker piece.</p>
+</details>
+
+<details>
+<summary><strong>Recipe B &mdash; ppPower out-of-range &rarr; <em>error wording reads human?</em></strong> (~30 s)</summary>
+<ol>
+  <li>After Recipe A, find the geom_point <strong>alpha</strong> widget (ppPower, slider 0&ndash;1).</li>
+  <li>Set it to <code>1.5</code> (out-of-range) via the slider's numeric input.</li>
+  <li>Click <strong>Update</strong>. <em>Read the message in the error pane out loud &mdash; does it sound like something a non-developer would understand?</em> The plot should still show Recipe A's render (B3 prior-render retention).</li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:307-326</code> pins the literal <code>must be in [0,1]</code> in <code>#ptr_error</code>. Eyeball judges <em>readability</em>, not the literal.</p>
+</details>
+
+<h3>super-2b customsource-splice</h3>
+
+<details>
+<summary><strong>Recipe A &mdash; ppSample iris&rarr;mtcars switch &rarr; <em>no broken intermediate state?</em></strong> (~2 min)</summary>
+<ol>
+  <li>Boot the super (default: <code>ppSample("iris")</code>; root aes pickers seeded with <code>Sepal.Length</code> / <code>Sepal.Width</code>; <code>shared_fac</code> = <code>Species</code>).</li>
+  <li>Switch the root <code>ppSample</code> from <strong>iris</strong> to <strong>mtcars</strong>. <em>Do the aes(x) / aes(y) / shared_fac pickers flash a broken/empty intermediate during the switch, or do they re-bind cleanly?</em></li>
+  <li>Set <code>aes(x) = mpg</code>, <code>aes(y) = wt</code>, <code>shared_fac = cyl</code>. Click <strong>Update</strong>. Plot should render with mtcars data (verified clean through <code>eval+build</code>).</li>
+  <li>Switch back to <strong>iris</strong>, set <code>aes(x) = Sepal.Length</code>, <code>aes(y) = Sepal.Width</code>, <code>shared_fac = Species</code>, click <strong>Update</strong>. Same question about the reverse switch.</li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:445-639</code> drives the same iris&harr;mtcars dance and asserts <code>expect_no_plot_error</code> + propagation; eyeball judges the <em>transient</em> state the gate cannot see.</p>
+</details>
+
+<details>
+<summary><strong>Recipe B &mdash; geom_rug ppUpload &rarr; <em>no stuck <code>recalculating</code> spinner?</em></strong> (~1 min)</summary>
+<ol>
+  <li>From a working state on <strong>iris</strong> (Recipe A's final step), upload <code>sample_rug.csv</code> via the geom_rug <code>df_rug</code> fileInput.</li>
+  <li>The rug-layer pickers should populate from the CSV's columns (<code>mpg</code>, <code>wt</code>). <em>Do you see a stuck <code>recalculating</code> spinner first, or do the pickers populate immediately?</em> ADR-0015 / 6ee63d7 should mean no.</li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:564-622</code> uploads <code>sample_rug.csv</code> and asserts the layer pickers do NOT offer iris columns (scope is df_rug, not the root). Eyeball judges spinner latency.</p>
+</details>
+
+<h3>super-3 L3-multi-shared-plotly</h3>
+
+<details>
+<summary><strong>Recipe A &mdash; shared key across ggplot &harr; plotly cells &rarr; <em>synchronized?</em></strong> (~1 min)</summary>
+<ol>
+  <li>Boot the super. You see two cells: <strong>plot1</strong> (ggplot) and <strong>plot2</strong> (plotly).</li>
+  <li>Drive the <strong>Linked color</strong> picker (shared coordinator panel) to <code>am</code>. Click <strong>Update</strong> on both cells.</li>
+  <li>Both cells' point colors should change to color-by-am. <em>Does the color update look synchronized across cells, or noticeably staggered?</em></li>
+</ol>
+<div class="warn">
+<strong>Expected ggplot2 message.</strong> Cell B's <code>geom_smooth</code> emits a "colour aesthetic dropped during statistical transformation" warning when the linked variable is continuous numeric (am, gear, cyl, etc.). The smooth line is single-color; the points still color correctly. Harmless &mdash; if you want a perfectly clean console, the picker doesn't offer a factor option.
+</div>
+<p class="meta">Gate cite: <code>test-super-pressure.R:692-829</code> asserts <code>expect_rendered</code> + <code>expect_no_plot_error</code> on both <code>#plot1-ptr_plot</code> and the plotly cell; eyeball judges cross-backend timing.</p>
+</details>
+
+<details>
+<summary><strong>Recipe B &mdash; plotly tooltips &rarr; <em>content reasonable?</em></strong> (~30 s)</summary>
+<ol>
+  <li>After Recipe A's draw, hover over the plotly cell's points.</li>
+  <li><em>Do the tooltips show the variables you expect (x, y, color)? Any garbled labels or unexpected fields?</em> The gate only checks the plotly node exists, not what its tooltips say.</li>
+</ol>
+<p class="meta">No gate cite &mdash; tooltip content is a plotly interactive feature outside ggpaintr's render path.</p>
+</details>
+
+<h3>super-4 user-css adversarial</h3>
+
+<details>
+<summary><strong>Recipe A &mdash; user.css applied &rarr; <em>visual theme matches the rule?</em></strong> (~1 min)</summary>
+<ol>
+  <li>Open <code>dev/scripts/super-examples/super-4-user-css-safety-adversarial/user.css</code> in another window. Find the rule for <code>.ptr-super4-colorpicker</code>.</li>
+  <li>Boot the super. Find the ppColor widget (geom_smooth, color text input).</li>
+  <li><em>Does the widget actually look like the CSS rule says it should?</em> The gate only confirms the link tag fetched and the wrapper class landed in the DOM; it cannot judge visual matching.</li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:966-970</code> asserts the wrapper has class <code>ptr-super4-colorpicker</code>; eyeball judges <em>visual</em> outcome.</p>
+</details>
+
+<details>
+<summary><strong>Recipe B &mdash; denylist <code>eval(parse())</code> &rarr; <em>error reads human?</em></strong> (~30 s)</summary>
+<ol>
+  <li>Find the ppExpr <strong>subtitle</strong> widget (labs).</li>
+  <li>Type <code>eval(parse(text="1+1"))</code> and click <strong>Update</strong>.</li>
+  <li><em>Read the error pane &mdash; does a non-developer user understand what's wrong and what to do?</em></li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:1042</code> pins the literal <code>is not allowed in an `expr` input</code>. Eyeball judges readability.</p>
+</details>
+
+<details>
+<summary><strong>Recipe C &mdash; ppColor non-hex &rarr; <em>error reads human?</em></strong> (~30 s)</summary>
+<ol>
+  <li>Type <code>notahex</code> into the ppColor widget. Click <strong>Update</strong>.</li>
+  <li><em>The <code>must be #RRGGBB hex</code> message &mdash; does a non-developer get it?</em></li>
+</ol>
+<p class="meta">Gate cite: <code>test-super-pressure.R:997-1016</code> pins the hex error literal. Eyeball judges readability.</p>
+</details>
+
+</section>
+
+<section>
+<h2>3. What to capture if anything fails</h2>
+<ul>
+  <li>The exact <code>input_id</code> you set and the value you set it to (DOM ids are visible via browser dev-tools).</li>
+  <li>Screenshot of: <code>#ptr_plot</code>, <code>#ptr_code</code> contents, <code>#ptr_error</code> contents.</li>
+  <li>Console R messages from the browser tab and the parent R session.</li>
+</ul>
+<p class="desc">File under <code>.scratch/&lt;feature-slug&gt;/issues/NN-&lt;slug&gt;.md</code> (issue tracker convention; see <code>dev/agents/issue-tracker.md</code>).</p>
+</section>
+
+<section>
+<h2>4. Related files</h2>
+<ul>
+  <li>Test that drives the supers (gate): <code>tests/testthat/test-super-pressure.R</code> + <code>tests/testthat/helper-super-pressure.R</code>.</li>
+  <li>Spec round-trip closed loop (gate): <code>tests/testthat/test-spec-roundtrip-closed-loop.R</code> &mdash; promoted from <code>wip-</code> on 2026-05-25 after the ppUpload tmp-path leak was fixed.</li>
+  <li>Fixture source-of-truth: <code>tests/testthat/fixtures/vignette-apps/super-{1,2a,2b,3,4}-*/</code>.</li>
+  <li>Playable copies (interactive): <code>dev/scripts/super-examples/&lt;slug&gt;/</code>.</li>
+  <li>Decision: <code>dev/adr/0013-super-app-pressure-test-suite.html</code>.</li>
+</ul>
+</section>
+
+</div>
+</body>
+</html>

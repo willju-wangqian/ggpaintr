@@ -17,11 +17,11 @@ test_that("copy rules validate supported sections and leaf fields", {
 test_that("copy rules normalize aliases and merge precedence field by field", {
   rules <- ptr_ui_text(
     list(
-      defaults = list(var = list(empty_text = "Pick one column")),
-      params = list(colour = list(var = list(label = "Choose a colour column"))),
+      defaults = list(ppVar = list(empty_text = "Pick one column")),
+      params = list(colour = list(ppVar = list(label = "Choose a colour column"))),
       layers = list(
         ggplot = list(
-          var = list(
+          ppVar = list(
             color = list(label = "Choose a layer-specific color column")
           )
         )
@@ -31,7 +31,7 @@ test_that("copy rules normalize aliases and merge precedence field by field", {
 
   color_copy <- ptr_resolve_ui_text(
     "control",
-    keyword = "var",
+    keyword = "ppVar",
     layer_name = "ggplot",
     param = "colour",
     ui_text = rules
@@ -48,11 +48,11 @@ test_that("copy rule compaction keeps only custom diffs with canonical keys", {
         title = list(label = "Exploratory Plot Builder")
       ),
       params = list(
-        colour = list(var = list(label = "Choose a colour column"))
+        colour = list(ppVar = list(label = "Choose a colour column"))
       ),
       layers = list(
         facet_wrap = list(
-          expr = list(
+          ppExpr = list(
             `__unnamed__` = list(label = "Split the plot by")
           )
         )
@@ -67,11 +67,11 @@ test_that("copy rule compaction keeps only custom diffs with canonical keys", {
         title = list(label = "Exploratory Plot Builder")
       ),
       params = list(
-        color = list(var = list(label = "Choose a colour column"))
+        color = list(ppVar = list(label = "Choose a colour column"))
       ),
       layers = list(
         facet_wrap = list(
-          expr = list(
+          ppExpr = list(
             `__unnamed__` = list(label = "Split the plot by")
           )
         )
@@ -95,19 +95,19 @@ test_that("copy rule compaction collapses default-equivalent overrides", {
 test_that("copy rules provide readable fallbacks and seeded defaults", {
   fallback_copy <- ptr_resolve_ui_text(
     "control",
-    keyword = "num",
+    keyword = "ppNum",
     layer_name = "geom_histogram",
     param = "bin_size"
   )
   alpha_copy <- ptr_resolve_ui_text(
     "control",
-    keyword = "num",
+    keyword = "ppNum",
     layer_name = "geom_point",
     param = "alpha"
   )
   facet_copy <- ptr_resolve_ui_text(
     "control",
-    keyword = "expr",
+    keyword = "ppExpr",
     layer_name = "facet_wrap",
     param = list(NULL)
   )
@@ -150,56 +150,50 @@ test_that("ptr_ui_text_component_paths keys are exhaustive", {
 
 # --- Improvements: alias normalization, generic label ---
 
-test_that("alias: size resolves to same copy as linewidth, both yield label 'Size'", {
-  size_copy <- ptr_resolve_ui_text(
-    "control",
-    keyword = "num",
-    param = "size"
-  )
-  linewidth_copy <- ptr_resolve_ui_text(
-    "control",
-    keyword = "num",
-    param = "linewidth"
-  )
-
+test_that("size and linewidth share default 'Size' label but user overrides do not bleed", {
+  size_copy <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "size")
+  linewidth_copy <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "linewidth")
   expect_equal(size_copy$label, "Size")
   expect_equal(linewidth_copy$label, "Size")
-  expect_identical(size_copy, linewidth_copy)
+
+  ut <- list(params = list(linewidth = list(ppNum = list(label = "Line thickness"))))
+  size_overridden <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "size", ui_text = ut)
+  linewidth_overridden <- ptr_resolve_ui_text("control", keyword = "ppNum", param = "linewidth", ui_text = ut)
+  expect_equal(linewidth_overridden$label, "Line thickness")
+  expect_equal(size_overridden$label, "Size")
 })
 
-test_that("alias: size resolves to same var copy as linewidth", {
-  size_var <- ptr_resolve_ui_text(
-    "control",
-    keyword = "var",
-    param = "size"
-  )
-  linewidth_var <- ptr_resolve_ui_text(
-    "control",
-    keyword = "var",
-    param = "linewidth"
-  )
-
+test_that("size and linewidth share default ppVar label but user overrides do not bleed", {
+  size_var <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "size")
+  linewidth_var <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "linewidth")
   expect_equal(size_var$label, "Choose the size column")
-  expect_identical(size_var, linewidth_var)
+  expect_equal(linewidth_var$label, "Choose the size column")
+
+  ut <- list(params = list(linewidth = list(ppVar = list(label = "Linewidth col"))))
+  size_overridden <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "size", ui_text = ut)
+  linewidth_overridden <- ptr_resolve_ui_text("control", keyword = "ppVar", param = "linewidth", ui_text = ut)
+  expect_equal(linewidth_overridden$label, "Linewidth col")
+  expect_equal(size_overridden$label, "Choose the size column")
 })
 
-test_that("linewidth$num label is the generic 'Size'", {
+test_that("size and linewidth both ship 'Size' as the ppNum default label", {
   defaults <- ptr_default_ui_text()
-  expect_equal(defaults$params$linewidth$num$label, "Size")
+  expect_equal(defaults$params$linewidth$ppNum$label, "Size")
+  expect_equal(defaults$params$size$ppNum$label, "Size")
 })
 
 # --- W3 (D5): scoped, ui_text-overridable shared copy ---
 
 test_that("W3: shared section hint uses new scoped copy string", {
-  f <- 'ggplot(iris, aes(x = var(shared = "a"))) + geom_point()'
+  f <- 'ggplot(iris, aes(x = ppVar(shared = "a"))) + geom_point()'
   html <- paste(as.character(ptr_ui(f, "p")), collapse = "\n")
   expect_match(html, "Drives every place this variable appears in this plot.", fixed = TRUE)
   expect_false(grepl("reused everywhere it is referenced", html, fixed = TRUE))
 })
 
 test_that("W3: shared panel hint uses new scoped copy string", {
-  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
-  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  f1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = ppVar(shared = "sz"))) + geom_point()'
   tag <- ptr_shared_panel(ptr_shared(c(f1, f2)))
   html <- paste(as.character(tag), collapse = "\n")
   expect_match(html, "Drives every plot that uses it.", fixed = TRUE)
@@ -207,8 +201,8 @@ test_that("W3: shared panel hint uses new scoped copy string", {
 })
 
 test_that("W3: shared panel hint is overridable via ui_text", {
-  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
-  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  f1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = ppVar(shared = "sz"))) + geom_point()'
   obj <- ptr_shared(c(f1, f2), ui_text = list(shell = list(shared_panel_hint = "X-LINK")))
   html <- paste(as.character(ptr_shared_panel(obj)), collapse = "\n")
   expect_match(html, "X-LINK", fixed = TRUE)
@@ -245,7 +239,7 @@ test_that("W3: ptr_validate_ui_text rejects non-string shared_panel_hint", {
 # so it remains discoverable, ui_text-overridable, and assertable.
 
 test_that("W3b: shared section hint renders as a help-icon tooltip, not a bare paragraph", {
-  f <- 'ggplot(iris, aes(x = var(shared = "a"))) + geom_point()'
+  f <- 'ggplot(iris, aes(x = ppVar(shared = "a"))) + geom_point()'
   html <- paste(as.character(ptr_ui(f, "p")), collapse = "\n")
   expect_match(html, "ptr-shared-panel__help", fixed = TRUE)
   expect_match(html, "ptr-shared-panel__tip", fixed = TRUE)
@@ -255,8 +249,8 @@ test_that("W3b: shared section hint renders as a help-icon tooltip, not a bare p
 })
 
 test_that("W3b: shared panel hint renders as a help-icon tooltip, not a bare paragraph", {
-  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
-  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  f1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = ppVar(shared = "sz"))) + geom_point()'
   html <- paste(as.character(ptr_shared_panel(ptr_shared(c(f1, f2)))), collapse = "\n")
   expect_match(html, "ptr-shared-panel__help", fixed = TRUE)
   expect_match(html, "ptr-shared-panel__tip", fixed = TRUE)
@@ -265,15 +259,15 @@ test_that("W3b: shared panel hint renders as a help-icon tooltip, not a bare par
 })
 
 test_that("W3b: help trigger is keyboard-focusable", {
-  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
-  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  f1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = ppVar(shared = "sz"))) + geom_point()'
   html <- paste(as.character(ptr_shared_panel(ptr_shared(c(f1, f2)))), collapse = "\n")
   expect_match(html, 'tabindex="0"', fixed = TRUE)
 })
 
 test_that("W3b: ui_text override still flows into the tooltip body", {
-  f1 <- 'ggplot(mtcars, aes(x = var(shared = "sz"))) + geom_point()'
-  f2 <- 'ggplot(mtcars, aes(y = var(shared = "sz"))) + geom_point()'
+  f1 <- 'ggplot(mtcars, aes(x = ppVar(shared = "sz"))) + geom_point()'
+  f2 <- 'ggplot(mtcars, aes(y = ppVar(shared = "sz"))) + geom_point()'
   obj <- ptr_shared(c(f1, f2), ui_text = list(shell = list(shared_panel_hint = "X-LINK")))
   html <- paste(as.character(ptr_shared_panel(obj)), collapse = "\n")
   expect_match(html, "ptr-shared-panel__tip", fixed = TRUE)

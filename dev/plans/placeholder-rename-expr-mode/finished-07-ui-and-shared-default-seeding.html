@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-07 — UI hooks + shared coordinator default seeding</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+
+<h1>PLAN-07 — UI hooks + shared coordinator default seeding</h1>
+<p class="meta">Owning ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Branch: <code>adr9/07-ui-shared-defaults</code> · Parallelism: <span class="seq">SEQUENTIAL (after PLAN-02 + PLAN-06)</span> · Date: 2026-05-20</p>
+
+<div class="note" style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0;">
+  <strong>Edge-case resolutions confirmed (ADR 0009 §"Edge-case resolutions", 2026-05-20):</strong>
+  <ul style="margin:.3rem 0;">
+    <li><strong>C1 (default column not in upstream data) → silent drop.</strong> The existing <code>intersect(selected, cols)</code> path drops the default the same way it drops persisted input that no longer matches; no warning. This plan's build-ui orchestrator inherits that behavior — no special case needed.</li>
+    <li><strong>C2 (default before async data arrives) → seed unconditionally.</strong> Use <code>node$default</code> as the fallback whenever persisted input is empty, regardless of whether <code>cols</code> has populated yet. <code>intersect</code> resolves it once cols arrive.</li>
+    <li><strong>B2 (shared default conflict) → first-occurrence-wins silently.</strong> <code>shared_widget_default(occurrences)</code> reads only <code>occurrences[[1L]]$default</code>; later occurrences' defaults are silently ignored. No warning.</li>
+  </ul>
+</div>
+
+<h2>What this plan does (self-contained)</h2>
+
+<p>Wires <code>node$default</code> (set by PLAN-06's parser) into two consumer paths:</p>
+
+<ol>
+  <li><strong>Per-placeholder widget initialization</strong> (<code>R/paintr-builtins.R</code> + <code>R/paintr-build-ui.R</code>): when a placeholder's widget is built, the widget's initial value is set from <code>node$default</code> (when no persisted prior input exists). This requires extending the built-in <code>build_ui</code> hooks for <code>num/text/expr</code> to accept and use a default argument (today only <code>var</code>'s hook accepts <code>selected</code>); also requires the build-ui orchestrator at the call-site of each hook to pass <code>node$default</code> through.</li>
+  <li><strong>Shared coordinator default seeding</strong> (<code>R/paintr-shared.R</code>): the label-resolution helper (<code>shared_widget_label</code> at line 177) currently picks <code>occurrences[[1L]]</code> for the first-occurrence-wins rule. This plan adds a sibling helper (or extends <code>shared_widget_label</code>) to surface the first occurrence's <code>default</code> so the shared widget's initial value can use it.</li>
+</ol>
+
+<p>The third touch (<code>R/paintr-substitute.R</code>) is small and defensive: the substitution walk that converts placeholder nodes to their resolved values continues to read <code>input$&lt;id&gt;</code> as the source of truth; the default participates only at boot, through the UI initialization above. No new behaviour in substitute.R itself, but a comment is added to record the invariant for future readers.</p>
+
+<div class="note" style="border-left:4px solid #d68910;background:#fdf6e3;padding:.6rem .9rem;margin:.8rem 0;">
+  <strong>Premise correction (2026-05-20 audit).</strong> An earlier draft of this plan claimed "the orchestrator computes a <code>selected</code> from persisted input state today" — that is incorrect. <code>grep -n "selected\b" R/paintr-build-ui.R</code> returns zero matches; the orchestrator does not currently compute a <code>selected</code> argument. The only built-in hook that has a <code>selected</code> formal is <code>ptr_builtin_var_build_ui</code> (paintr-builtins.R:132); the four others (<code>text/num/expr/upload</code>) take <code>node, label, copy, ...</code> and would silently swallow any extra arg via <code>...</code>. This plan therefore <em>introduces</em> the orchestrator-level computation and extends the value-placeholder hooks to consume it, rather than just adjusting an existing path.
+</div>
+
+<h2>Context from ADR 0009 (only the bits this plan touches)</h2>
+
+<p>ADR 0009 §8 ("Default + shared, combinable"): <code>ppVar(mpg, shared = "axis")</code> is legal; first-occurrence-in-formula-order wins for the shared widget's default. Matches today's tiebreak rule for label and widget-config conflicts among multiple <code>shared = "k"</code> occurrences (see <code>R/paintr-shared.R:177</code> — <code>shared_widget_label</code> picks <code>occurrences[[1L]]</code> for its config).</p>
+
+<p>ADR 0009 §5 ("Default-validator helpers"): the canonical default value stored on <code>node$default</code> matches the helper's return type — string for <code>ptr_default_symbol_or_string</code> and <code>ptr_default_string</code>; numeric scalar for <code>ptr_default_numeric</code>; numeric vector for <code>ptr_default_numeric_vector</code>; language for <code>ptr_default_expression</code>.</p>
+
+<h2>Current source (verified 2026-05-20)</h2>
+
+<table>
+  <tr><th>Item</th><th>Location</th><th>Notes</th></tr>
+  <tr><td><code>ptr_shared_bind</code></td><td><code>R/paintr-shared.R:6</code></td><td>Top-level binding entry; rewires the root so shared occurrences point to a coordinator.</td></tr>
+  <tr><td><code>resolve_shared_consumer(occurrences)</code></td><td><code>R/paintr-shared.R:192</code></td><td>The per-bucket resolution; today's tiebreak picks <code>occurrences[[1L]]</code> for label / widget-config. The default seeding piggy-backs on the same first-occurrence-wins choice.</td></tr>
+  <tr><td><code>shared_widget_label(occurrences)</code></td><td><code>R/paintr-shared.R:177</code></td><td>Label resolution; reads <code>occurrences[[1L]]</code>.</td></tr>
+  <tr><td><code>collect_shared_consumer_occurrences</code></td><td><code>R/paintr-shared.R:144</code></td><td>Groups shared-consumer nodes by key; the buckets are passed to <code>resolve_shared_consumer</code>.</td></tr>
+  <tr><td>build_ui hooks (built-ins)</td><td><code>R/paintr-builtins.R</code></td><td>Only <code>ptr_builtin_var_build_ui</code> (line ~132) takes a <code>selected = character(0)</code> formal — and reads <code>retained &lt;- intersect(selected, cols)</code> to seed the picker. The other four built-ins — <code>ptr_builtin_text_build_ui</code> (~24), <code>ptr_builtin_num_build_ui</code> (~55), <code>ptr_builtin_expr_build_ui</code> (~91), <code>ptr_builtin_upload_build_ui</code> (~183) — take <code>node, label, copy, ...</code> with no initial-value formal at all. This plan extends each value-placeholder hook (num/text/expr) to accept a default-shaped argument and use it as the widget's initial value.</td></tr>
+  <tr><td>build-ui orchestrator</td><td><code>R/paintr-build-ui.R</code></td><td>Calls the placeholder's <code>build_ui</code> hook with <code>node</code>, <code>cols</code>, <code>data</code>, <code>label</code>, <code>copy</code>, plus a <code>...</code> sink. Today's orchestrator does <strong>not</strong> compute or pass a <code>selected</code> / initial-value argument — every <code>selected</code> formal in the codebase is a hook-side default (typically <code>character(0)</code>). This plan introduces an orchestrator-level reading of persisted input + <code>node$default</code> fallback, and threads it into the hook call as a new named argument.</td></tr>
+</table>
+
+<h2>Files touched</h2>
+
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>R/paintr-build-ui.R</code></td><td>At the call site(s) that invoke <code>entry$build_ui</code> via <code>do.call</code> (likely <code>invoke_build_ui</code> around line 669 and <code>build_ui_for.ptr_ph_data_source</code> around line 68 — grep <code>do.call.*build_ui</code> to enumerate), <em>introduce</em> the computation of <code>selected</code> from <code>isolate(input[[node$id]])</code> with <code>node$default</code> as the fallback. Pass it as a named argument into the hook call. Also pass <code>node$named_args</code> through as a named arg.</td></tr>
+  <tr><td><code>R/paintr-builtins.R</code></td><td>Add a <code>selected = NULL</code> formal (or equivalent <code>value</code> arg) to <code>ptr_builtin_num_build_ui</code>, <code>ptr_builtin_text_build_ui</code>, and <code>ptr_builtin_expr_build_ui</code>. Each hook threads the value into its underlying Shiny input (<code>numericInput</code>/<code>sliderInput</code>'s <code>value</code>, <code>textInput</code>'s <code>value</code>, <code>textAreaInput</code>'s <code>value</code>; <code>expr</code> uses <code>deparse()</code> when the default is language). <code>ptr_builtin_var_build_ui</code> already accepts <code>selected</code> — no change. <code>ptr_builtin_upload_build_ui</code> is unchanged.</td></tr>
+  <tr><td><code>R/paintr-shared.R</code></td><td>Add a tiny new helper <code>shared_widget_default(occurrences)</code> mirroring <code>shared_widget_label</code>'s first-occurrence-wins rule (returns <code>occurrences[[1L]]$default</code>). Wire it at the existing call site that builds the shared widget (alongside <code>shared_widget_label</code>; grep for callers to find the spot). <strong>Do not modify <code>resolve_shared_consumer</code></strong> — its <code>list(kind, value, error)</code> arbitration record is unrelated to widget configuration.</td></tr>
+  <tr><td><code>R/paintr-substitute.R</code></td><td>Add a one-line comment at the top documenting that <code>node$default</code> is consumed only at boot via the UI layer, not by the substitute walk. No code changes.</td></tr>
+  <tr><td>new <code>tests/testthat/test-default-and-shared-seeding.R</code></td><td>Tests covering: a placeholder with <code>node$default = "mpg"</code> renders a picker with "mpg" pre-selected (when no persisted input); a numeric placeholder with <code>node$default = 5</code> renders a numericInput pre-set to 5; a shared bucket with two occurrences resolves to the first occurrence's default; a bucket whose first occurrence has no default and second occurrence does still uses the first's NULL (first-occurrence-wins, even when first has no default).</td></tr>
+</table>
+
+<h2>Build-ui change (sketch)</h2>
+
+<p>Today, the orchestrator in <code>R/paintr-build-ui.R</code> does <strong>not</strong> compute any initial-value argument. Locate the call site that does <code>do.call(entry$build_ui, ...)</code> (a likely candidate is the <code>invoke_build_ui</code> helper around line 669, and <code>build_ui_for.ptr_ph_data_source</code> around line 68 — grep <code>do.call.*build_ui</code> in the file to enumerate). Each call site assembles the named args passed to the hook.</p>
+
+<p>After this plan, the orchestrator computes an initial value from persisted input + <code>node$default</code> and passes it to the hook:</p>
+
+<pre>persisted &lt;- isolate(input[[node$id]])
+initial   &lt;- if (length(persisted) &amp;&amp; nzchar(as.character(persisted)[[1L]])) {
+  persisted
+} else if (!is.null(node$default)) {
+  node$default
+} else {
+  character(0)
+}
+build_ui_args &lt;- list(
+  rendered_node, label = copy$label,
+  selected = initial,                          # consumed by var hook today; extended below for value hooks
+  named_args = node$named_args %||% list()
+)
+do.call(entry$build_ui, c(build_ui_args, list(...)))</pre>
+
+<p><strong>Hook-side changes required</strong>: the four value-placeholder hooks in <code>R/paintr-builtins.R</code> must learn to read the new initial-value argument:</p>
+
+<table>
+  <tr><th>Hook</th><th>Current formal</th><th>New formal</th><th>How it uses the initial value</th></tr>
+  <tr><td><code>ptr_builtin_var_build_ui</code></td><td><code>selected = character(0)</code> (already accepts)</td><td>unchanged</td><td>existing <code>retained &lt;- intersect(selected, cols)</code> path</td></tr>
+  <tr><td><code>ptr_builtin_num_build_ui</code></td><td><em>no initial-value formal</em></td><td>add <code>selected = NULL</code> (or <code>value = NULL</code>)</td><td>passes to <code>numericInput</code> / <code>sliderInput</code>'s <code>value</code> arg</td></tr>
+  <tr><td><code>ptr_builtin_text_build_ui</code></td><td><em>no initial-value formal</em></td><td>add <code>selected = NULL</code></td><td>passes to <code>textInput</code>'s <code>value</code></td></tr>
+  <tr><td><code>ptr_builtin_expr_build_ui</code></td><td><em>no initial-value formal</em></td><td>add <code>selected = NULL</code></td><td>passes to <code>textAreaInput</code>'s <code>value</code>; <code>node$default</code> is language → use <code>deparse()</code> for text</td></tr>
+  <tr><td><code>ptr_builtin_upload_build_ui</code></td><td><em>no initial-value formal</em></td><td>unchanged (ppUpload disallows positional)</td><td>n/a</td></tr>
+</table>
+
+<p>Named-arg passing (<code>named_args = node$named_args %||% list()</code>) is purely additive — built-in hooks ignore the <code>named_args</code> arg via their <code>...</code> sink. Custom-placeholder hooks may consume it.</p>
+
+<h2>Shared coordinator change (sketch)</h2>
+
+<p><strong>Mechanism correction (2026-05-20 audit).</strong> The actual <code>resolve_shared_consumer</code> at line 192 returns <code>list(kind, value, error)</code> — an upstream/source arbitration record — <em>not</em> a label/widget-config record. The first-occurrence-wins rule for the shared widget's <em>label</em> lives in a separate helper, <code>shared_widget_label</code> at line 177, which picks <code>occurrences[[1L]]</code> for its config. The default-seeding hook therefore lands alongside or inside <code>shared_widget_label</code> (or a new sibling helper called from the same orchestrator that already calls <code>shared_widget_label</code>) — <em>not</em> inside <code>resolve_shared_consumer</code>.</p>
+
+<p>Recommended shape — add a tiny new helper that mirrors <code>shared_widget_label</code>'s first-occurrence-wins rule:</p>
+
+<pre>shared_widget_default &lt;- function(occurrences) {
+  if (length(occurrences) == 0L) return(NULL)
+  occurrences[[1L]]$default   # NULL if first has no default
+}</pre>
+
+<p>And wire it at the existing call site that builds the shared widget (find it via <code>grep -n "shared_widget_label\|canonical_shared_id" R/</code>; the orchestrator passes the resolved label through to the per-keyword shared-widget builder). The new helper's return value is passed alongside the label to the builder, which threads it into the widget's initial value the same way the per-layer orchestrator threads <code>node$default</code> into per-layer widgets.</p>
+
+<p><strong>Do not touch <code>resolve_shared_consumer</code>.</strong> Its <code>list(kind, value, error)</code> shape is unrelated to widget configuration and would not be improved by carrying a default. Its callers parse <code>$kind</code> against <code>"upstream"/"source"/"error"</code> and would break if extra fields appeared in unexpected positions.</p>
+
+<p>If a second occurrence has a <em>different</em> default, it is <strong>silently ignored</strong>. This matches ADR 0009 §8 ("If two occurrences disagree on the default, the first wins silently; no translate-time abort.") and mirrors today's silent-tiebreak behaviour in <code>shared_widget_label</code>.</p>
+
+<h2>Success Criteria</h2>
+
+<ol>
+  <li>For a placeholder with <code>node$default = "mpg"</code> and no persisted input, the built picker has <code>"mpg"</code> as its initial <code>selected</code> value.</li>
+  <li>For a placeholder with persisted input <code>"disp"</code> and <code>node$default = "mpg"</code>, the picker's initial value is <code>"disp"</code> (persisted wins).</li>
+  <li>For a placeholder with no persisted input and <code>node$default = NULL</code>, the picker's initial value matches today's behaviour (empty / character(0)).</li>
+  <li>For a shared bucket with two occurrences, both with <code>shared = "k"</code> and <code>default = "mpg"</code> and <code>default = "disp"</code> respectively, the resolved coordinator carries <code>default = "mpg"</code> (first-occurrence-wins). No warning is emitted.</li>
+  <li>For a shared bucket where the first occurrence has <code>default = NULL</code> and the second has <code>default = "disp"</code>, the resolved coordinator carries <code>default = NULL</code>.</li>
+  <li>build_ui hooks receive <code>named_args</code> as an additional argument (named list, possibly empty). Existing hooks that don't consume it continue to work via the <code>...</code> sink.</li>
+  <li>The substitution walk in <code>R/paintr-substitute.R</code> is unchanged in behaviour; the new comment documents the invariant.</li>
+  <li>The authoritative gate reports 0/0/0 PASS N ≥ baseline + new tests.</li>
+</ol>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Built-in hooks ARE modified by this plan.</strong> The four value-placeholder hooks (<code>num</code>, <code>text</code>, <code>expr</code>, <code>upload</code>) do not have a <code>selected</code> formal today; this plan adds one to <code>num</code>, <code>text</code>, <code>expr</code> (<code>upload</code> stays untouched because ppUpload disallows positional defaults). The consumer hook (<code>var</code>) already accepts <code>selected</code> and needs no change.</li>
+  <li><strong>No keyword changes.</strong> The rename to ppX is PLAN-08.</li>
+  <li><strong>No parser changes.</strong> PLAN-06 set <code>node$default</code>; this plan consumes it.</li>
+  <li><strong>First-occurrence-wins silently.</strong> No warning on default conflicts among shared occurrences — consistent with today's label-conflict policy.</li>
+  <li><strong>NOT_CRAN gate only.</strong> Browser-driven UI assertions require <code>NOT_CRAN=true</code>.</li>
+  <li><strong>Surface-not-absorb.</strong> If during implementation you discover work outside this plan's "Files touched" scope — a related bug, a refactor opportunity, an adjacent test gap, a doc inconsistency — file it as a follow-up (add a new entry under <code>dev/plans/</code> or a one-line NEWS note) and STOP. Do NOT silently expand scope. Do NOT paper over by editing the out-of-scope file "while you're there." Returning a smaller correct change beats absorbing scope creep.</li>
+  <li><strong>No emojis.</strong></li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>Feature: node$default seeds widget initial values and shared coordinators
+
+  Scenario: default seeds initial selection when no persisted input
+    Given a placeholder node with default = "mpg" and id = "p1"
+    And input[["p1"]] is NULL
+    When the orchestrator builds the picker UI
+    Then the picker's selected argument equals "mpg"
+
+  Scenario: persisted input wins over default
+    Given a placeholder node with default = "mpg" and id = "p1"
+    And input[["p1"]] equals "disp"
+    When the orchestrator builds the picker UI
+    Then the picker's selected argument equals "disp"
+
+  Scenario: NULL default preserves today's empty initial
+    Given a placeholder node with default = NULL and id = "p1"
+    And input[["p1"]] is NULL
+    When the orchestrator builds the picker UI
+    Then the picker's selected argument equals character(0) (today's empty)
+
+  Scenario: shared coordinator uses first occurrence's default
+    Given two ppVar(mpg, shared = "k") and ppVar(disp, shared = "k") in formula order
+    When the shared coordinator is resolved
+    Then resolved$default equals "mpg"
+    And the shared widget initializes with "mpg" selected
+
+  Scenario: shared coordinator tolerates a NULL first default
+    Given two shared occurrences: first with default = NULL, second with default = "disp"
+    When the shared coordinator is resolved
+    Then resolved$default is NULL
+    And the shared widget initializes with character(0)
+
+  Scenario: build_ui receives named_args
+    Given a placeholder node with named_args = list(step = 0.5)
+    When the orchestrator calls the build_ui hook
+    Then the hook is called with named_args = list(step = 0.5) among its arguments
+
+  Scenario: substitute walk is unchanged
+    Given a placeholder node with default = "mpg" and input[["p1"]] = "disp"
+    When the substitute walk runs
+    Then the resolved value used downstream is "disp" (the runtime pick, not the default)
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p><strong>Authoritative command:</strong></p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p><strong>Expected output:</strong> <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>, with N ≥ baseline + new tests in <code>test-default-and-shared-seeding.R</code>. Browser e2e tests (shinytest2) MUST run (not skip); browser stack is required (chromote, Chrome). If browser stack is absent locally, the all-skip outcome is acceptable but must be reported and the merge gate must run them in CI.</p>
+
+<p><strong>Plus:</strong> <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> → 0 errors / 0 warnings.</p>
+
+<p><strong>Proxy traps:</strong></p>
+<ul>
+  <li>Memory recall ("shinytest2 app-dir + pkgload"): the e2e fixture apps must <code>pkgload::load_all(Sys.getenv("GGP_PKG"), ...)</code> so the in-tree changes are exercised, not a stale installed copy. If new e2e tests are added, follow that pattern.</li>
+  <li>Memory recall ("e2e assertion-weakness lens"): <code>expect_dom_id</code> / <code>expect_code_nonempty</code> are presence proxies. For default-seeding, assert on the literal value present in the rendered control (e.g. <code>app$get_value(input = "p1") == "mpg"</code>), not just on the control's existence.</li>
+  <li>Memory recall ("Shared-section binder"): formula-local <code>var(shared=)</code> has historically been blank in embed+grid. After this plan, verify that the shared default actually surfaces in the embed and grid hosts, not only the standalone <code>ptr_app</code> host.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<h3>In scope</h3>
+<ul>
+  <li>Build-ui orchestration in <code>R/paintr-build-ui.R</code>: <em>introduce</em> the computation of an initial value (persisted input + <code>node$default</code> fallback) and pass it as a named argument to each placeholder's hook; also pass <code>node$named_args</code>.</li>
+  <li>Built-in hooks in <code>R/paintr-builtins.R</code>: extend <code>num</code>/<code>text</code>/<code>expr</code> hooks to accept and consume the new initial-value formal. <code>var</code> already has it; <code>upload</code> is unchanged.</li>
+  <li>Shared coordinator in <code>R/paintr-shared.R</code>: new helper <code>shared_widget_default</code> for first-occurrence-wins default seeding; wired into the existing shared-widget builder alongside <code>shared_widget_label</code>.</li>
+  <li>Substitute.R: doc-only comment recording the invariant.</li>
+  <li>Tests covering all three paths (per-layer var, per-layer value, shared).</li>
+</ul>
+
+<h3>Out of scope</h3>
+<ul>
+  <li>Renaming built-in keywords (PLAN-08).</li>
+  <li>Modifying the <code>upload</code> built-in hook (ppUpload disallows positional defaults — its hook stays as today). Note: the <code>num</code>, <code>text</code>, <code>expr</code> hooks <em>are</em> modified by this plan to grow a <code>selected</code> formal; that change is in-scope, see the build-ui sketch.</li>
+  <li>Renderer changes (PLAN-05).</li>
+  <li>Parser changes (PLAN-06).</li>
+  <li>Anything outside the three files named above.</li>
+</ul>
+
+<h2>Baseline</h2>
+
+<ul>
+  <li>PLAN-02 (node slots) and PLAN-06 (parser) have already been merged into the worktree's base.</li>
+  <li>Suite green at the authoritative gate.</li>
+  <li>Worktree branched from the post-merge HEAD on branch <code>adr9/07-ui-shared-defaults</code>.</li>
+  <li>Before edits, confirm <code>resolve_shared_consumer</code> at line 192 and <code>shared_widget_label</code> at line 177 of <code>R/paintr-shared.R</code>; identify the build-ui call site in <code>R/paintr-build-ui.R</code> that computes <code>selected</code>.</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>This plan depends on PLAN-02 (node$default slot) and PLAN-06 (parser populates it). It is independent of PLAN-08's keyword rename — the default-seeding logic reads <code>node$default</code> regardless of what the keyword is. After PLAN-08 lands, the new built-in keywords get their default-seeded widgets automatically.</p>
+
+<p><strong>Verification independence.</strong> Any implementer self-report ("tests pass", "DoD met", "scope clean") is a <em>claim to be verified</em>, never proof. The integrator MUST re-run the authoritative gate command from the Definition of Done before merging this plan, and MUST NOT treat the implementer's report (or any status block in this plan) as a substitute for that re-run. This is the project-wide rule from CLAUDE.md, made explicit here so a fresh agent reading only this plan still inherits it.</p>
+
+<div class="note">
+  <strong>Verification, 2026-05-20:</strong> <code>R/paintr-shared.R</code> line 144 (<code>collect_shared_consumer_occurrences</code>), 177 (<code>shared_widget_label</code>), 192 (<code>resolve_shared_consumer</code>) verified on 2026-05-20. The build-ui call site that computes <code>selected</code> was not pinned to a single line during planning — locate it with <code>grep -n "selected\b" R/paintr-build-ui.R</code> before editing and document the line in the implementing PR.
+</div>
+
+<!-- implementable: PASS date=2026-05-20 gate="NOT_CRAN=true devtools::test()" hash=3412bf0e1da6 -->
+</body>
+</html>

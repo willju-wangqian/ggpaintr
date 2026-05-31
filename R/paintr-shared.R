@@ -35,6 +35,23 @@ collect_then_rewrite_shared <- function(root) {
 canonical_shared_id <- function(key) paste0("shared_", key)
 
 
+# Namespacing helper for the multi-panel shared coordinator. Returns the
+# identity prefixer when `obj$id` is NULL (or empty), so the default --
+# byte-for-byte compatible with single-panel apps -- is unchanged. When
+# `obj$id` is a non-empty string, returns a function that prefixes every
+# bare id with `<id>-`, matching Shiny `NS()`'s separator. Used at every
+# id-emitting site in the shared coordinator (UI + server) so two
+# coordinators with overlapping `shared` keys can coexist in one session.
+shared_ns <- function(obj) {
+  id <- obj$id
+  if (is.null(id) || !nzchar(id)) {
+    identity
+  } else {
+    function(x) paste(id, x, sep = "-")
+  }
+}
+
+
 # Synthetic Shiny input id for the shared-panel stage(verb) checkbox. One
 # checkbox per shared key controls every orphan pipeline stage that hosts
 # that key (across every formula in a `ptr_app_grid()` / `ptr_shared_ui()`
@@ -68,6 +85,46 @@ shared_stage_input_id <- function(key) {
 #   list(kind = "upstream"|"source"|"error",
 #        value = <ptr_node or NULL>,
 #        error = <chr or NULL>)
+#
+# Trade-off (read before declaring `shared = "..."` on a `var`):
+#
+#   The truncation in step 1 deliberately discards every stage that
+#   contains any placeholder, even stages that introduce a column
+#   statically. For example:
+#
+#     mtcars |>
+#       dplyr::filter(ppExpr(hp >= 75)) |>
+#       dplyr::mutate(adj = ppExpr(mpg / wt)) |>
+#       dplyr::select(ppVar(adj, shared = "v"))
+#
+#   The `shared = "v"` picker is fed `names(mtcars)`. It never offers
+#   `adj`, because the resolver stops at the `filter` stage (first one
+#   carrying a placeholder) and cannot evaluate past it.
+#
+#   This is intentional, not an oversight. Two constraints force it:
+#     (a) The framework must not invoke any placeholder hook (built-in
+#         or custom `resolve_expr`) just to populate a UI dropdown -- a
+#         custom `resolve_expr` may open DB connections, do I/O, or
+#         depend on server state the picker code path does not have.
+#     (b) When occurrences diverge, there is no canonical occurrence to
+#         source per-layer producer values from. Picking one would make
+#         the shared picker's choice list depend on that occurrence's
+#         currently-typed producer input, which would (i) flicker as
+#         the user types and (ii) be wrong for the other occurrences.
+#
+#   So the semantic this code implements is "the deepest pipeline level
+#   every occurrence agrees on; the bare data source if they diverge;
+#   an error if even the source disagrees" -- NOT a column-set
+#   intersection across evaluated frames. No frame is ever evaluated
+#   on behalf of more than one occurrence at a time.
+#
+# Rule of thumb (surface to users):
+#   If you want a `var` picker to actively reflect its own pipeline --
+#   including columns added by upstream `mutate` / `transmute` / `select`
+#   stages -- do NOT declare it as `shared = "..."`. Drop the share and
+#   the non-shared resolver (`ptr_setup_consumer_uis`, paintr-server.R)
+#   will substitute live producer values into the full upstream and the
+#   picker will see whatever columns the evaluated pipeline produces.
 
 # TRUE if `n` (or any descendant, modulo the `upstream` back-pointer) is
 # a placeholder node.
@@ -97,6 +154,21 @@ extract_source_leaf <- function(upstream) {
   if (is_ptr_pipeline(upstream)) {
     if (length(upstream$stages) == 0L) return(NULL)
     return(extract_source_leaf(upstream$stages[[1L]]))
+  }
+  # ADR 0012 §1: most chains lift to `ptr_pipeline`, but a `ptr_call` can
+  # still appear here as an upstream — e.g. when the lift gate rejected
+  # an opaque-call source (`read_csv("f") |> filter(...)`) or when the
+  # caller passed a non-data-arg subtree. The shared-coordinator's
+  # source-equality check (`identical(src1, sources[[i]])`) needs the
+  # deepest data-source leaf, not the wrapping call — otherwise two layers
+  # whose data_args are `dplyr::select(mtcars, mpg, cyl)` vs
+  # `dplyr::select(mtcars, hp, wt)` look like different sources even though
+  # they share `mtcars`. Descend into the call's data-arg position (same
+  # tidyverse convention `disable_walk` uses) until we find a non-call leaf.
+  if (is_ptr_call(upstream)) {
+    pos <- data_arg_position(upstream)
+    if (is.null(pos)) return(upstream)
+    return(extract_source_leaf(upstream$args[[pos]]))
   }
   upstream
 }
@@ -188,6 +260,18 @@ shared_widget_label <- function(occurrences) {
   }
 }
 
+# PLAN-07: first-occurrence-wins default for a shared bucket. Mirrors
+# `shared_widget_label`'s tiebreak rule. Returns NULL when the bucket
+# is empty OR when the first occurrence has no default (NULL is the
+# canonical "no seed" sentinel for `node$default`; callers fall back
+# to the widget hook's own empty/initial state). A different default
+# on a later occurrence is silently ignored, matching ADR 0009 §8
+# ("first wins silently; no translate-time abort").
+shared_widget_default <- function(occurrences) {
+  if (length(occurrences) == 0L) return(NULL)
+  occurrences[[1L]]$default
+}
+
 # Apply the contract above to one bucket of occurrences.
 resolve_shared_consumer <- function(occurrences) {
   if (length(occurrences) == 0L) {
@@ -244,20 +328,29 @@ rewrite_shared <- function(x, canonical) {
     new_id <- canonical[[x$shared]]
     if (!is.null(new_id)) {
       x$id <- new_id
-      # Keep paired ids (e.g. an upload source's dataset-name companion)
+      # Keep paired ids (e.g. an upload source's dataset-name shortcut)
       # in sync with the canonical id. Without this, two occurrences of
       # `upload(shared = "ds")` in different layers keep the distinct
-      # companion ids `ptr_assign_ids()` gave them, so only the first
-      # occurrence's companion widget is rendered/read and the other
+      # shortcut ids `ptr_assign_ids()` gave them, so only the first
+      # occurrence's shortcut widget is rendered/read and the other
       # layer's `data = ...` silently drops out.
-      if (is_ptr_ph_data_source(x) && !is.null(x$companion_id)) {
+      if (is_ptr_ph_data_source(x) && !is.null(x$shortcut_id)) {
         entry <- ptr_registry_lookup(x$keyword)
-        if (!is.null(entry) && !is.null(entry$companion_id_fn)) {
-          x$companion_id <- entry$companion_id_fn(new_id)
+        if (!is.null(entry) && isTRUE(entry$shortcut)) {
+          x$shortcut_id <- paste0(new_id, "_shortcut")
         }
       }
     }
-    return(x)
+    # Fall through to the ptr_node recursion below so the placeholder's
+    # captured-subtree fields are rewritten too. The consumer node
+    # carries an `$upstream` snapshot stamped by `ptr_classify_data`
+    # (paintr-classify.R) *before* `ptr_shared_bind` runs, so the source
+    # nodes inside that snapshot still carry pre-rewrite ids (and the
+    # pre-rewrite `shortcut_id`). The early-return that used to be here
+    # left them stale, which made `ptr_bind_shared_consumer_uis()` build
+    # its substitute snapshot from input ids that no DOM widget owns —
+    # the picker silently showed "Data source not yet provided" even
+    # when the source itself had bound its frame correctly.
   }
   if (is_ptr_node(x)) {
     for (nm in names(x)) x[[nm]] <- rewrite_shared(x[[nm]], canonical)

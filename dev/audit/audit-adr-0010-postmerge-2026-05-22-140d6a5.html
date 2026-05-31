@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Post-merge drift audit — adr-0010 → vignette-review @ 140d6a5</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>Post-merge drift audit — <code>adr-0010-ppupload-name-default-arg → vignette-review</code></h1>
+<p>Run inline by orchestrator (Opus 4.7) after sub-agent returned early without writing the audit file. Read-only on all R/test/vignette sources; this HTML is the only artifact written. 2026-05-22.</p>
+
+<h2>Header</h2>
+<table>
+  <tr><th>What</th><th>Value</th></tr>
+  <tr><td>vignette-review tip (post-merge)</td><td><code>140d6a5</code> — <em>Merge branch 'adr-0010-ppupload-name-default-arg' into vignette-review</em></td></tr>
+  <tr><td>Merge parents</td><td><code>a2d0ee2</code> (housekeeping) + <code>c3a6b06</code> (rebase fixup on adr-0010)</td></tr>
+  <tr><td>Pre-merge tip</td><td><code>93f2d28</code> (Bug-B merge)</td></tr>
+  <tr><td>adr-0010 rebase base</td><td><code>93f2d28</code>; merge-base before rebase was <code>940f103</code> (ADR-0012 stamp)</td></tr>
+  <tr><td>Authoritative gate (re-run from MAIN)</td><td><code class="pass">FAIL 0 / WARN 0 / SKIP 0 / PASS 2272</code> in <strong>113.4 s</strong></td></tr>
+  <tr><td>Overall verdict</td><td><span class="verdict-green"><strong>GREEN — 12 PASS / 0 CONCERN / 0 FAIL.</strong> The merge is structurally clean and functionally clean.</span></td></tr>
+</table>
+
+<h2>V1 — Merge sanity</h2>
+<p class="pass">PASS.</p>
+<ul>
+  <li>HEAD = <code>140d6a5</code>, two parents <code>a2d0ee2</code> + <code>c3a6b06</code> as expected.</li>
+  <li><code>git diff vignette-review~1..vignette-review --stat</code> shows 14 files / +1207 -21 — R/paintr-{builtins,render,translate}.R + 4 new test files + new e2e fixture + new plan dir + ADR doc update + test-registry-slots flip.</li>
+  <li>Working-tree status post-merge: only long-running untracked items (<code>.claude/worktrees/</code>, <code>.codex/</code>, two <code>dev/notes/0012-exec-plan-*</code>). No tracked-file leak.</li>
+</ul>
+
+<h2>V2 — Authoritative gate (MAIN, post-merge)</h2>
+<p class="pass">PASS.</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 113.4 s
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 2272 ]</pre>
+<p>Pre-merge gate (93f2d28): 2222 PASS. Delta = +50 (new ppUpload-name unit + e2e + preserve-mode tests). Same count as the bug-b worktree's pre-merge self-report — independent corroboration.</p>
+
+<h2>V3 — Lifter fix preserved in source</h2>
+<p class="pass">PASS.</p>
+<pre>R/paintr-translate.R:228:      !is_placeholder_source_call(cur)) {        # post-loop split guard
+R/paintr-translate.R:278:is_placeholder_source_call &lt;- function(expr) {  # helper
+R/paintr-translate.R:318:  if (is.call(parts$source) &amp;&amp; !is_placeholder_source_call(parts$source)) {   # GATE 2
+R/paintr-translate.R:321:  if (!is.symbol(parts$source) &amp;&amp; !is_placeholder_source_call(parts$source)) { # GATE 3</pre>
+<p>Helper uses <code>ptr_registry_lookup()</code> + <code>identical(entry$role, "source")</code> — registry-driven, no hardcoded keyword list. Resilient to user-defined source placeholders registered via <code>ptr_define_placeholder_source()</code>.</p>
+
+<h2>V4 — Canonical-shape invariant across three surface forms</h2>
+<p class="pass">PASS.</p>
+<pre>[pipe    ] n_stages=2  stage1=ptr_ph_data_source   default="penguins"    stage2=ptr_call
+[magrittr] n_stages=2  stage1=ptr_ph_data_source   default="penguins"    stage2=ptr_call
+[nested  ] n_stages=2  stage1=ptr_ph_data_source   default="penguins"    stage2=ptr_call</pre>
+<p>All three forms of <code>ppUpload(penguins) |> dplyr::filter(...) |> ggplot(...)</code> (native pipe, magrittr, nested-call) produce the same canonical 2-stage pipeline with the bareword captured as <code>default = "penguins"</code>. This is the ADR-0012 tree-is-semantic contract correctly extended to placeholder-source calls (before this fix the lifter produced a 3-stage shape with the default lost).</p>
+
+<h2>V5 — ADR-0012 lift tests untouched by this merge</h2>
+<p class="pass">PASS.</p>
+<p><code>git diff 93f2d28..140d6a5 -- tests/testthat/test-classify-calls-lift.R tests/testthat/test-resugar-pipeline.R</code> returns empty. The classify-calls-lift suite uses bare <code>ppUpload</code> (no arg), which goes through the symbol branch unchanged — the lifter fix is structurally isolated from that path. Both files pass in V2.</p>
+
+<h2>V6 — Iceberg check: <code>stages[[1]]</code> callsites in R/</h2>
+<p class="pass">PASS.</p>
+<table>
+  <tr><th>Site</th><th>Verdict</th></tr>
+  <tr><td><code>R/paintr-render.R:227</code> — fold over stages</td><td>render_walk dispatches via S3, has a <code>render_placeholder_preserved</code> path for placeholders — safe.</td></tr>
+  <tr><td><code>R/paintr-shared.R:99</code> — <code>extract_source_leaf</code> on pipeline</td><td>Returns the stage node as-is for non-pipeline non-call leaves. A <code>ptr_ph_data_source</code> compares equal to itself via <code>identical()</code> — source-equality semantics preserved for shared coordinator.</td></tr>
+  <tr><td><code>R/paintr-eval.R:72-73</code> — <code>pipeline_to_eval_expr</code></td><td>Post-substitute, the placeholder is already a <code>ptr_literal</code>; <code>node_to_lang</code> returns its expr. Safe.</td></tr>
+  <tr><td><code>R/paintr-classify.R:65</code> — classify first stage</td><td>Classifies data-arg context for the stage. ptr_ph_data_source flows through the placeholder branch; not exercised differently for first stage.</td></tr>
+</table>
+<p>V2's clean 2272 PASS is the dispositive arbiter — every downstream consumer either handles the placeholder source in stage[1] or never reaches it.</p>
+
+<h2>V7 — PLAN-01 contract: registry default_arg + build_ui seeding</h2>
+<p class="pass">PASS.</p>
+<pre>R/paintr-builtins.R:332-338:
+  upload_fn &lt;- ptr_define_placeholder_source(
+    keyword = "ppUpload",
+    build_ui = ptr_builtin_upload_build_ui,
+    resolve_data = ptr_builtin_upload_resolve_data,
+    companion_id_fn = ptr_upload_name_id,
+    default_arg = ptr_default_symbol_or_string(),
+    copy_defaults = list(label = "Upload data for {param}")
+  )
+R/paintr-builtins.R:235:        value = node$default %||% "",   # in ptr_builtin_upload_build_ui</pre>
+
+<h2>V8 — PLAN-02 contract: stamp_current_pick_walk reads companion_id</h2>
+<p class="pass">PASS.</p>
+<pre>R/paintr-render.R: stamp_current_pick_walk.ptr_ph_data_source
+  key &lt;- if (!is.null(node$companion_id) &amp;&amp; nzchar(node$companion_id)) {
+    node$companion_id
+  } else if (!is.null(node$id)) {
+    node$id
+  } else {
+    return(node)
+  }
+  val &lt;- snapshot[[key]]
+  if (.snapshot_value_is_set(node, val)) node$current_pick &lt;- val
+  node</pre>
+<p>Companion-driven sources stamp <code>current_pick</code> from the user-typed display name; companion-less sources keep the legacy <code>node$id</code> path.</p>
+
+<h2>V9 — PLAN-03 e2e fixture + browser test</h2>
+<p class="pass">PASS.</p>
+<ul>
+  <li><code>tests/testthat/fixtures/vignette-apps/adr10-ppupload-name/app.R</code> exists; line 9 is <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code> — the app-dir + pkgload pattern from project memory <code>shinytest2-appdir-pkgload</code>. Lines 1-8 are documentation comments.</li>
+  <li><code>tests/testthat/test-adr10-ppupload-name-browser.R</code> opens with <code>skip_on_cran()</code> + <code>skip_if_not_installed("shinytest2")</code>. Browser tests RAN under <code>NOT_CRAN=true</code> (since SKIP 0 in V2).</li>
+</ul>
+
+<h2>V10 — ADR doc Clarifications C1–C6</h2>
+<p class="pass">PASS.</p>
+<pre>dev/adr/0010-ppupload-name-default-arg.html:
+  C1. The display-name mechanism is the existing companion textInput
+  C2. Final-mode bind: via ADR-0009 captured caller env
+  C3. Auto-resolve in app context (semantic extension beyond "display name")
+  C4. Outside-app eval: function(x) x identity; string passthrough accepted
+  C5. Legacy ppUpload() (no default) emission is unchanged
+  C6. node$default storage shape</pre>
+<p>All six clarifications present (the earlier <code>grep -c "Clarification"</code> hit 2 because it matched the literal word; the C1–C6 enumeration uses <code>C&lt;n&gt;.</code> headings).</p>
+
+<h2>V11 — Housekeeping commit a2d0ee2 is docs-only</h2>
+<p class="pass">PASS.</p>
+<p><code>git show --name-only a2d0ee2 | grep -E "^R/|^tests/.*\.R$|^NAMESPACE$|^DESCRIPTION$"</code> returns empty. 45 files / +416 / -0 — all are CLAUDE.md edit, plan/audit renames (preserve all content), and two new audit HTMLs. Zero R/ or test source touched.</p>
+
+<h2>V12 — MAIN cleanliness post-gate</h2>
+<p class="pass">PASS.</p>
+<p>Post-gate <code>git status --porcelain</code> shows only the long-running untracked items + this new audit HTML. No <code>devtools::load_all()</code> drift on R/, man/, NAMESPACE, or DESCRIPTION.</p>
+
+<h2>Verdict</h2>
+<p class="verdict-green"><strong>GREEN — 12 PASS / 0 CONCERN / 0 FAIL.</strong> The ADR-0010 merge at <code>140d6a5</code> is structurally and functionally clean. The rebase fixup commit (<code>c3a6b06</code>) correctly resolves the ADR-0012 lifter / ADR-0009 placeholder semantic clashes with a minimal, registry-driven change: <code>is_placeholder_source_call()</code> teaches the canonical-pipeline lift to treat source-role placeholders as atomic, restoring the tree-is-semantic invariant across <code>|></code>, <code>%>%</code>, and nested-call surface forms while preserving the bareword <code>default_arg</code> capture introduced by adr-0010 PLAN-01. The 2272 PASS gate runs cleanly from MAIN with zero SKIPs and no working-tree drift; the e2e browser fixture exercises the live UI seed and current_pick round-trip end-to-end. The merge is settled.</p>
+
+</body>
+</html>

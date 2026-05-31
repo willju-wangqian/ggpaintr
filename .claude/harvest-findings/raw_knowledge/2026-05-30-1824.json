@@ -1,0 +1,252 @@
+{
+  "harvested_at": "2026-05-30-1824",
+  "corpus": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md (1 transcript)",
+  "counts": {
+    "verified": 10,
+    "contradicted": 0,
+    "unconfirmable": 0
+  },
+  "findings": [
+    {
+      "id": "check-15-preexisting-failures-on-followup26",
+      "claim": "On branch followup26, `devtools::check(--as-cran)` reports FAIL 15 that are PRE-EXISTING (proven by A/B stash: identical FAIL 15 + identical failing files on the clean baseline) — registry-split (.ptr_registry env NULL in options() under the check sandbox) + pp-toggles (vignette readLines / comparator / e2e absent from the sandbox); `devtools::test()` 0/0/0 serial remains the authoritative gate, NOT check.",
+      "detail": "Reaffirms memory `rcmd-check-preexisting-failures` on this branch with the A/B method: `git stash push -u`, run check on baseline, compare FAIL count + files, `git stash pop`. PASS differs (baseline 2696 vs tree 2725) only because the change adds new passing tests; FAIL count identical = zero new failures.",
+      "scope": "campaign",
+      "feature": "partition-view",
+      "tags": "gate,rcmd-check",
+      "source": "devtools::check(--as-cran) on followup26 @ b6a2f72 parent; test-rewrite-registry.R:259-264, test-pp-toggles-vignette.R, test-pp-toggles-comparator.R, test-pp-toggles-e2e.R",
+      "verdict": "verified",
+      "verification": "Re-checked the structural basis (the FAIL-15 count itself is a point-in-time check result, not re-runnable without re-running check on the b6a2f72-parent). Confirmed against current source/repo: (a) commit b6a2f72 IS an ancestor of HEAD (git merge-base --is-ancestor -> YES); (b) branch followup26 EXISTS (git branch -a); (c) the cited registry-split test exists — tests/testthat/test-rewrite-registry.R:257 '.ptr_registry env is anchored in options() across load_all cycles' pins the env-anchoring contract and carries a source-root skip_if guard (L262-265: skips when DESCRIPTION absent, i.e. the .Rcheck sandbox), which is exactly why it 'fails'/skips under the check runner; and the pp-toggles tests exist (test-pp-toggles-comparator.R, test-pp-toggles-e2e.R). Only test-pp-toggles-vignette.R named in the source string is absent now. The durable engineering content (registry-split + pp-toggles drive the check-only failures; devtools::test() 0/0/0 is the authoritative gate, not check) holds.",
+      "checked_refs": [
+        "tests/testthat/test-rewrite-registry.R:257-273",
+        "tests/testthat/test-pp-toggles-comparator.R",
+        "tests/testthat/test-pp-toggles-e2e.R"
+      ],
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "test-gate-discipline"
+      ]
+    },
+    {
+      "id": "behavior-preserving-refactor-needs-green-regression-with-mutation-teeth",
+      "claim": "A behavior-preserving refactor needs BOTH a RED contract-test layer for the new surface (red-first proof) AND a GREEN characterization layer for the preserved top-level behavior; red-first cannot apply to preserved behavior, so the green layer's teeth must be proven by MUTATION (deliberately break each derivation, confirm the matching green test flips red).",
+      "detail": "In /plan-to-test the green regression tests must observe the behavior the refactor preserves, not the untouched machinery — else they are vacuous (a test of an untouched algorithm stays green regardless). Also: 4 negative tests came up falsely green at red-first because bare `expect_error()` caught \"could not find function\" — pin negative tests to a contract-derived message substring so absence-of-impl can't satisfy them.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "test-fidelity",
+      "source": "this session: /plan-to-test red layer (test-partition-view.R) + green layer (test-partition-view-regression.R); .claude/skills/plan-to-test",
+      "verdict": "verified",
+      "verification": "Both layers exist: test-partition-view.R (18 red contract test_thats), test-partition-view-regression.R (3 green). Mutation teeth-proof executed this session (FAIL 4/7/9 per broken derivation); 4 false-green negative tests fixed by pinning message matchers.",
+      "checked_refs": [
+        "tests/testthat/test-partition-view.R",
+        "tests/testthat/test-partition-view-regression.R"
+      ],
+      "verified_at_commit": "b6a2f7253f499f82470a0a40cfff4705fa689167",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "refactor-discipline"
+      ]
+    },
+    {
+      "id": "git-checkout-cannot-revert-untracked-new-file",
+      "claim": "`git checkout -- <file>` cannot restore an UNTRACKED new file — it errors \"pathspec did not match\", so a mutation-test loop that mutates a brand-new (uncommitted) source file and relies on git checkout to revert will silently STACK mutations instead of reverting.",
+      "detail": "Detected because the post-loop \"restored\" re-run still showed failures; recovery was rewriting the function bodies by hand. For mutation-testing a new file, back it up with `cp` first (or `git add` it once) and restore from that, not git checkout.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "tooling-gotcha",
+      "source": "this session: mutation-testing R/paintr-partition-view.R (untracked); git checkout -- <file> failed 'did not match any file(s)'",
+      "verdict": "verified",
+      "verification": "Observed this session: git checkout -- R/paintr-partition-view.R (untracked) errored 'pathspec did not match any file(s)'; the perl mutations stacked instead of reverting. Consistent with git semantics: checkout restores only index-tracked paths.",
+      "checked_refs": [
+        "(session observation)"
+      ],
+      "verified_at_commit": "b6a2f7253f499f82470a0a40cfff4705fa689167",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling",
+        "refactor-discipline"
+      ]
+    },
+    {
+      "id": "host-owned-keys-is-a-complement-set",
+      "claim": "The shared-consumer binder's `host_owned_keys` argument is the COMPLEMENT set (\"keys this surface must NOT bind because some other surface owns them\"), not the set this surface owns — the binder binds `setdiff(names(resolutions), host_owned_keys)`.",
+      "detail": "Each surface computes the complement differently: single-instance `ptr_app` → character(0) (binds every key); panel host (L2) → setdiff(consumer_keys, panel_keys) (net: binds the >=2-formula panel keys); embed instance → names(dots$shared) i.e. the coordinator's panel keys (net: binds its formula-local keys). The name reads backwards from its meaning, which is exactly why the three sites were easy to compute inconsistently.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shared-coordinator-partition",
+      "source": "R/paintr-server.R:3376 (ptr_bind_local_shared_consumers: keys <- setdiff(names(resolutions), host_owned_keys)); R/paintr-app.R:339, R/paintr-app.R:1164; R/paintr-shared-ui.R:416",
+      "verdict": "verified",
+      "verification": "Read R/paintr-server.R:3386-3398: ptr_bind_local_shared_consumers(..., host_owned_keys=character(), ...) computes keys <- setdiff(names(resolutions), host_owned_keys) (L3397), confirming host_owned_keys is the COMPLEMENT set the binder must NOT bind. Doc comment (L3375-3385) states 'EXCLUDING any keys the host already owns'. The three complement derivations match: single-instance app.R:339 = new_partition_view('single') = character(0); embed instance app.R:1166 = new_partition_view('instance', panel_keys=names(dots$shared)) = panel_keys; panel host shared-ui.R:416 = panel_host = setdiff(consumer_keys, panel_keys) (per partition-view.R partition_host_owned_keys). Cited line drifted from 3376/3390 to 3386/3397 but symbol and behaviour hold.",
+      "checked_refs": [
+        "R/paintr-server.R ptr_bind_local_shared_consumers",
+        "R/paintr-server.R:3386-3398",
+        "R/paintr-partition-view.R partition_host_owned_keys",
+        "R/paintr-app.R:339",
+        "R/paintr-app.R:1166",
+        "R/paintr-shared-ui.R:416"
+      ],
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition"
+      ]
+    },
+    {
+      "id": "partition-view-null-names-empty-list-coercion",
+      "claim": "`names()` on an empty/unnamed list returns NULL, so the embed-instance site passes `panel_keys = NULL` into new_partition_view; an `assert_that(is.character(panel_keys))` rejects NULL, so the constructor must normalize NULL→character(0) BEFORE asserting (keeping the type-check teeth for genuinely-wrong types like integer).",
+      "detail": "Caught by M-SHR.1 (bare ptr_server, no shared) which drives the empty-shared embed path — a leaf characterization test that pins exactly this NULL boundary. The original inline code tolerated NULL because setdiff(x, NULL) == setdiff(x, character(0)).",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shared-coordinator-partition",
+      "source": "R/paintr-partition-view.R (new_partition_view: panel_keys <- panel_keys %||% character()); R/paintr-app.R:1164 (names(dots$shared %||% list())); tests/testthat/test-module-server-shared.R (M-SHR.1)",
+      "verdict": "verified",
+      "verification": "Verified both code and test anchor against current source. R/paintr-partition-view.R new_partition_view normalises NULL BEFORE asserting — `panel_keys <- panel_keys %||% character()` and `consumer_keys <- consumer_keys %||% character()` precede assertthat::assert_that(is.character(panel_keys), is.character(consumer_keys)); inline comment matches verbatim ('NULL is R's empty-names sentinel (names() of an unnamed/empty list) ... normalise it to character(0) before validating, so the is.character check still rejects genuinely-wrong types (e.g. integer)'). The embed-instance call at R/paintr-app.R:1167 passes panel_keys=names(dots$shared %||% list()) (NULL when empty). The cited test M-SHR.1 EXISTS at tests/testthat/test-module-server-shared.R:14 ('M-SHR.1 bare ptr_server() self-binds formula-local shared keys'), driving the empty-shared embed path via shiny::testServer with no shared_state. Claim holds with teeth.",
+      "checked_refs": [
+        "R/paintr-partition-view.R new_partition_view",
+        "R/paintr-app.R:1167",
+        "tests/testthat/test-module-server-shared.R:14"
+      ],
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition"
+      ]
+    },
+    {
+      "id": "partition-view-unifies-three-ownership-channels",
+      "claim": "`partition_view` (internal, pure, non-reactive) is now the single origin for shared-key ownership: `new_partition_view(role, panel_keys, consumer_keys)` with role in {single, panel_host, instance}, and `partition_host_owned_keys(view)` / `partition_renders_section(view)` replace the three hand-derived host_owned_keys complements + the render_shared_section boolean.",
+      "detail": "role→complement mapping: single=character(0), panel_host=setdiff(consumer_keys,panel_keys), instance=panel_keys. The partition ALGORITHM (shared_partition / panel_keys = keys in >=2 formulas) is untouched — this seam is the CONSUMPTION side only. Behavior is byte-stable (each accessor returns exactly the literal each call site used to compute inline).",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shared-coordinator-partition",
+      "source": "R/paintr-partition-view.R (new_partition_view, partition_host_owned_keys, partition_renders_section); R/paintr-app.R:169/339/1164; R/paintr-shared-ui.R:416",
+      "verdict": "verified",
+      "verification": "Read R/paintr-partition-view.R in full. new_partition_view(role, panel_keys=character(), consumer_keys=character()) with role match.arg'd to c('single','panel_host','instance'); partition_host_owned_keys(view) switch: single->character(0), panel_host->setdiff(consumer_keys, panel_keys), instance->panel_keys (matches the claimed role->complement mapping exactly); partition_renders_section(view) <- identical(view$role,'single'). Header comment confirms 'single, pure, non-reactive origin' and 'the partition ALGORITHM (shared_partition()) is unchanged -- this seam is about the CONSUMPTION side only'. All claimed accessors and the byte-stable consumption-only framing hold.",
+      "checked_refs": [
+        "R/paintr-partition-view.R new_partition_view",
+        "R/paintr-partition-view.R partition_host_owned_keys",
+        "R/paintr-partition-view.R partition_renders_section",
+        "R/paintr-app.R:169",
+        "R/paintr-app.R:339",
+        "R/paintr-app.R:1166",
+        "R/paintr-shared-ui.R:416"
+      ],
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition"
+      ]
+    },
+    {
+      "id": "render-shared-section-true-only-single-instance",
+      "claim": "`render_shared_section = TRUE` is passed at exactly one site (app.R:169, single-instance ptr_app); every other call passes FALSE — so it is a pure function of surface role and folds to `partition_renders_section(view) == identical(role, \"single\")`.",
+      "detail": "",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shared-coordinator-partition",
+      "source": "R/paintr-app.R:169 (TRUE), :403 default FALSE, :760, :964",
+      "verdict": "verified",
+      "verification": "Verified the single TRUE site folds to role==single. R/paintr-app.R:169 passes render_shared_section=partition_renders_section(new_partition_view('single')); ptr_build_app_ui (L760) and ptr_controls_panel (L403) default render_shared_section=FALSE; ptr_ui_controls (L964) passes FALSE explicitly. partition_renders_section in R/paintr-partition-view.R returns identical(view$role,'single'). So the boolean is TRUE only for the single-instance surface, exactly as claimed (post-refactor computed via partition_renders_section rather than a literal TRUE; semantics identical). Stale source cited :403/:760/:964 which drifted slightly but the structure holds.",
+      "checked_refs": [
+        "R/paintr-app.R:169",
+        "R/paintr-partition-view.R partition_renders_section",
+        "R/paintr-app.R:403",
+        "R/paintr-app.R:760",
+        "R/paintr-app.R:964"
+      ],
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition"
+      ]
+    },
+    {
+      "id": "shared-server-partition-is-faithful-green-consumption-guard",
+      "claim": "`test-shared-server-partition.R` is a faithful GREEN top-level guard for the panel-host and embed-instance ownership surfaces with real teeth for a consumption-side refactor: S-P2.4(b) asserts panel_html owns `shared_B` but `expect_no_match` `shared_A`/`shared_C`; S-P2.2/S-P2.4(c) assert grid_html has `plot_1-shared_A` but not `plot_2-shared_A`.",
+      "detail": "Teeth come from observing the host_owned_keys-driven BINDING/RENDERING split — NOT `obj$panel_keys` (the untouched algorithm), which would stay green no matter how the consumption refactor breaks. Mutating panel_host→character(0) flipped 7 tests red; instance→character(0) flipped 9 red — confirming the discrimination.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shared-coordinator-partition,test-fidelity",
+      "source": "tests/testthat/test-shared-server-partition.R (S-P2.2, S-P2.4(b)(c)); uses ptr_app_grid_components + shiny::testServer, not bare ptr_server_internal",
+      "verdict": "verified",
+      "verification": "test-shared-server-partition.R S-P2.2 (:89), S-P2.4 (:143) use ptr_app_grid_components + grid_html expect_match plot_1-shared_A / expect_no_match plot_2-shared_A (:176-179). Mutation this session: panel_host->character(0) flipped FAIL 7, instance->character(0) flipped FAIL 9.",
+      "checked_refs": [
+        "tests/testthat/test-shared-server-partition.R:89",
+        "tests/testthat/test-shared-server-partition.R:143",
+        "tests/testthat/test-shared-server-partition.R:176-179"
+      ],
+      "verified_at_commit": "b6a2f7253f499f82470a0a40cfff4705fa689167",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition",
+        "refactor-discipline"
+      ]
+    },
+    {
+      "id": "single-instance-producer-green-guard-via-app-components",
+      "claim": "The single-instance `ptr_app` producer path (render_shared_section=TRUE @ app.R:169, host_owned_keys=character(0) @ app.R:339) had NO non-browser green guard before this work; `ptr_app_components(f)$ui` is the faithful harness — assert the inline `shared_<key>` id is present and the coordinator panel's `ptr_shared_draw_all` id is absent.",
+      "detail": "`ptr_shared_draw_all` is emitted ONLY when a standalone shared panel is built (verified: ptr_ui_shared_panel(ptr_shared(list(f1,f2))) contains it), so `expect_no_match` of it discriminates a wrongful single-instance→panel promotion. Mutating render_shared_section→FALSE flipped REG-1/REG-2 red.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shared-coordinator-partition,test-fidelity",
+      "source": "tests/testthat/test-partition-view-regression.R (REG-1/2/3); ptr_app_components(f)$ui / $server; R/paintr-app.R:169/339",
+      "verdict": "verified",
+      "verification": "Read tests/testthat/test-partition-view-regression.R. REG-1 (L43) 'single-instance renders the shared widget in its inline section [guards render_shared_section=TRUE @ app.R:169]' builds ui <- ptr_app_components(single_shared_formula)$ui and asserts expect_match(html, 'shared_g', fixed=TRUE); REG-2 (L55) additionally expect_no_match(html, 'ptr_shared_draw_all', fixed=TRUE) to discriminate a wrongful single->panel promotion; REG-3 (L68) 'guards host_owned_keys=character(0) @ app.R:339' drives shiny::testServer(parts$server, session$flushReact()) with expect_no_error. The file header (L13-16) names the mutation-teeth (set app.R:169 render_shared_section FALSE / app.R:339 host_owned_keys non-empty -> RED). The producer-path sites (app.R:169, :339=character(0)) are confirmed. Note the canonical id is 'shared_g' (formula key 'g'), not the 'shared_color'/REG ordering in the stale detail, but the harness and discriminator match the claim.",
+      "checked_refs": [
+        "tests/testthat/test-partition-view-regression.R:43",
+        "tests/testthat/test-partition-view-regression.R:55",
+        "tests/testthat/test-partition-view-regression.R:68",
+        "R/paintr-app.R:169",
+        "R/paintr-app.R:339"
+      ],
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition",
+        "refactor-discipline"
+      ]
+    },
+    {
+      "id": "source-ownership-is-not-a-fourth-channel",
+      "claim": "Panel-owned SOURCE ownership is not a separately hand-wired channel — sources derive ownership from the same `panel_keys` partition and are delivered via `panel_sources` (a reactive list from `ptr_setup_panel_sources(obj)`) threaded through the binder, not via a `host_owned_keys`-style setdiff.",
+      "detail": "This bounds the partition_view scope: its ownership PREDICATE covers consumer/value keys (the host_owned_keys + render_shared_section question); source delivery stays on panel_sources unchanged. So \"the partition is role-agnostic\" (CONTEXT.md/ADR 0023) and \"the view's predicate is consumer-key-only\" are not in conflict — panel_keys itself is the role-agnostic origin both consult.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shared-coordinator-partition",
+      "source": "R/paintr-shared-ui.R:400 (ptr_setup_panel_sources), :416 (panel_sources threaded into binder); CONTEXT.md (partition role-agnostic, ADR 0023)",
+      "verdict": "verified",
+      "verification": "shared-ui.R:400 builds panel_sources via ptr_setup_panel_sources(obj) and threads it into the binder; no host_owned_keys-style setdiff exists for sources.",
+      "checked_refs": [
+        "R/paintr-shared-ui.R:400",
+        "R/paintr-shared-ui.R:34"
+      ],
+      "verified_at_commit": "b6a2f7253f499f82470a0a40cfff4705fa689167",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition",
+        "source-binding-runtime"
+      ]
+    }
+  ]
+}

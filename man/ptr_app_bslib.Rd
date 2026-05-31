@@ -8,10 +8,10 @@ ptr_app_bslib(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  theme = NULL
+  theme = NULL,
+  spec = NULL
 )
 }
 \arguments{
@@ -24,10 +24,7 @@ the app.}
 text, and placeholders. The app title is read from
 \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr"}.}
 
-\item{checkbox_defaults}{Optional named list of initial checked states for
-layer checkboxes.}
-
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -40,7 +37,11 @@ leaves them empty. Defaults to \code{character()}.}
 bootswatch. Pass any \code{\link[bslib:bs_theme]{bslib::bs_theme()}} result to customize. This is a
 \code{bslib} passthrough and is not part of the ggpaintr public surface the
 wrapper demonstrates — wrappers are free to expose downstream-library
-args like this in addition to whatever ggpaintr primitives they compose.
+args like this in addition to whatever ggpaintr primitives they compose.}
+
+\item{spec}{An optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot. See
+\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.
 
 For the formula grammar (placeholder keywords, shared annotation,
 empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.}
@@ -54,8 +55,7 @@ A small wrapper that composes the public ggpaintr primitives
 \code{\link[=ptr_server]{ptr_server()}}) inside a \code{\link[bslib:page_sidebar]{bslib::page_sidebar()}} shell. Exported
 so users who want a quick
 \code{bslib}-themed app can call it directly, but its primary purpose is to
-illustrate the wrapper pattern documented in
-\code{vignette("ggpaintr-customization")} § "Writing your own wrapper" — the
+illustrate the wrapper pattern: the
 entire source is short enough to copy and adapt for any other layout or
 theme.
 }
@@ -64,16 +64,16 @@ For the recommended primary entry points, see \code{\link[=ptr_app]{ptr_app()}} 
 \code{\link[=ptr_app_grid]{ptr_app_grid()}}. Requires the \code{bslib} package
 (\code{install.packages("bslib")}).
 
-Single-formula \code{var(shared = "...")} coordination is not supported on this
+Single-formula \code{ppVar(shared = "...")} coordination is not supported on this
 wrapper — the auto-built shared widgets \code{ptr_app()} provides require an
 internal helper that is not part of the public API today. Use \code{\link[=ptr_app]{ptr_app()}}
-for that case, or \code{\link[=ptr_app_grid]{ptr_app_grid()}} (with explicit \verb{shared_ui =}
-builders) for multi-formula shared coordination.
+for that case, or \code{\link[=ptr_app_grid]{ptr_app_grid()}} for multi-formula shared coordination
+(the shared widgets auto-render from each placeholder's own \code{build_ui}).
 }
 \examples{
 if (interactive()) {
 ptr_app_bslib(
-  "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 )
 }
 }

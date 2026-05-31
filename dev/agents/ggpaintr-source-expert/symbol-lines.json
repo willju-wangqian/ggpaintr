@@ -1,0 +1,2538 @@
+{
+  "generated_at": "2026-05-30T23:55:37-0500",
+  "git_head": "b72ce87",
+  "n_files": 35,
+  "n_symbols": 506,
+  "symbols": {
+    "ptr_app_bslib": {
+      "file": "R/paintr-app-bslib.R",
+      "start_line": 55,
+      "end_line": 121
+    },
+    "ptr_app": {
+      "file": "R/paintr-app.R",
+      "start_line": 134,
+      "end_line": 152
+    },
+    "ptr_app_components": {
+      "file": "R/paintr-app.R",
+      "start_line": 154,
+      "end_line": 181
+    },
+    "ptr_capture_formula": {
+      "file": "R/paintr-app.R",
+      "start_line": 196,
+      "end_line": 296
+    },
+    "ptr_make_app_server": {
+      "file": "R/paintr-app.R",
+      "start_line": 302,
+      "end_line": 354
+    },
+    "shared_section_tags": {
+      "file": "R/paintr-app.R",
+      "start_line": 368,
+      "end_line": 399
+    },
+    "ptr_controls_panel": {
+      "file": "R/paintr-app.R",
+      "start_line": 401,
+      "end_line": 438
+    },
+    "code_toggle_icon": {
+      "file": "R/paintr-app.R",
+      "start_line": 450,
+      "end_line": 454
+    },
+    "error_slot_tag": {
+      "file": "R/paintr-app.R",
+      "start_line": 456,
+      "end_line": 458
+    },
+    "code_toggle_button": {
+      "file": "R/paintr-app.R",
+      "start_line": 464,
+      "end_line": 472
+    },
+    "plot_card_tag": {
+      "file": "R/paintr-app.R",
+      "start_line": 474,
+      "end_line": 488
+    },
+    "code_mode_toggle": {
+      "file": "R/paintr-app.R",
+      "start_line": 498,
+      "end_line": 510
+    },
+    "code_window_tag": {
+      "file": "R/paintr-app.R",
+      "start_line": 518,
+      "end_line": 537
+    },
+    "code_block_tag": {
+      "file": "R/paintr-app.R",
+      "start_line": 539,
+      "end_line": 559
+    },
+    "ptr_outputs_panel": {
+      "file": "R/paintr-app.R",
+      "start_line": 564,
+      "end_line": 570
+    },
+    "ptr_ui_plot": {
+      "file": "R/paintr-app.R",
+      "start_line": 598,
+      "end_line": 600
+    },
+    "ptr_ui_error": {
+      "file": "R/paintr-app.R",
+      "start_line": 618,
+      "end_line": 620
+    },
+    "ptr_ui_code": {
+      "file": "R/paintr-app.R",
+      "start_line": 644,
+      "end_line": 646
+    },
+    "ptr_ui_inline_error": {
+      "file": "R/paintr-app.R",
+      "start_line": 671,
+      "end_line": 682
+    },
+    "ptr_ui_toggle_code": {
+      "file": "R/paintr-app.R",
+      "start_line": 723,
+      "end_line": 756
+    },
+    "ptr_build_app_ui": {
+      "file": "R/paintr-app.R",
+      "start_line": 758,
+      "end_line": 792
+    },
+    "ptr_ui_header": {
+      "file": "R/paintr-app.R",
+      "start_line": 808,
+      "end_line": 818
+    },
+    "ptr_ui": {
+      "file": "R/paintr-app.R",
+      "start_line": 861,
+      "end_line": 899
+    },
+    "ptr_ui_controls": {
+      "file": "R/paintr-app.R",
+      "start_line": 951,
+      "end_line": 966
+    },
+    "ptr_ui_page": {
+      "file": "R/paintr-app.R",
+      "start_line": 996,
+      "end_line": 1002
+    },
+    "ptr_server": {
+      "file": "R/paintr-app.R",
+      "start_line": 1092,
+      "end_line": 1234
+    },
+    "ptr_app_grid": {
+      "file": "R/paintr-app.R",
+      "start_line": 1288,
+      "end_line": 1309
+    },
+    "ptr_app_grid_components": {
+      "file": "R/paintr-app.R",
+      "start_line": 1311,
+      "end_line": 1506
+    },
+    "build_ui_for": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 32,
+      "end_line": 32
+    },
+    "build_ui_for.default": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 35,
+      "end_line": 35
+    },
+    "build_ui_for.ptr_literal": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 38,
+      "end_line": 38
+    },
+    "build_ui_for.ptr_missing": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 41,
+      "end_line": 41
+    },
+    "build_ui_for.ptr_user_expr": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 44,
+      "end_line": 44
+    },
+    "build_ui_for.ptr_ph_value": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 47,
+      "end_line": 64
+    },
+    "build_ui_for.ptr_ph_data_consumer": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 67,
+      "end_line": 71
+    },
+    "build_ui_for.ptr_ph_data_source": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 74,
+      "end_line": 113
+    },
+    "build_ui_for.ptr_layer": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 118,
+      "end_line": 181
+    },
+    "build_pipeline_stage_ui": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 198,
+      "end_line": 273
+    },
+    "stage_overrides_for_entry": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 283,
+      "end_line": 294
+    },
+    "pipeline_override_for_node": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 308,
+      "end_line": 323
+    },
+    "find_nodes": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 327,
+      "end_line": 327
+    },
+    "is_shared_placeholder": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 329,
+      "end_line": 331
+    },
+    "find_layer_placeholders": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 337,
+      "end_line": 343
+    },
+    "find_layer_placeholders_with_stage": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 349,
+      "end_line": 459
+    },
+    "collect_shared_placeholders": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 470,
+      "end_line": 501
+    },
+    "collect_orphan_shared_stages": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 508,
+      "end_line": 531
+    },
+    "collect_shared_stage_keys": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 539,
+      "end_line": 557
+    },
+    "wrap_shared_widgets_with_stage_blocks": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 568,
+      "end_line": 610
+    },
+    "layer_panel_inner": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 612,
+      "end_line": 645
+    },
+    "layer_panel_content_id": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 647,
+      "end_line": 649
+    },
+    "layer_panel_default_shell_copy": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 651,
+      "end_line": 659
+    },
+    "ptr_layer_assets": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 672,
+      "end_line": 681
+    },
+    "core_assets_dep": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 693,
+      "end_line": 710
+    },
+    "ptr_user_css_assets": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 719,
+      "end_line": 750
+    },
+    "ptr_assets": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 774,
+      "end_line": 780
+    },
+    "ptr_ui_assets": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 805,
+      "end_line": 807
+    },
+    "build_ui_copy_args": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 812,
+      "end_line": 814
+    },
+    "invoke_build_ui": {
+      "file": "R/paintr-build-ui.R",
+      "start_line": 816,
+      "end_line": 878
+    },
+    "attach_help": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 17,
+      "end_line": 20
+    },
+    "ptr_builtin_text_build_ui": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 24,
+      "end_line": 42
+    },
+    "ptr_builtin_text_resolve_expr": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 44,
+      "end_line": 49
+    },
+    "strip_matched_quote_pair": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 51,
+      "end_line": 59
+    },
+    "ptr_builtin_num_build_ui": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 63,
+      "end_line": 102
+    },
+    "ptr_builtin_num_resolve_expr": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 104,
+      "end_line": 111
+    },
+    "ptr_builtin_expr_build_ui": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 115,
+      "end_line": 137
+    },
+    "ptr_builtin_expr_resolve_expr": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 139,
+      "end_line": 172
+    },
+    "ptr_builtin_var_build_ui": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 176,
+      "end_line": 203
+    },
+    "ptr_builtin_var_resolve_expr": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 205,
+      "end_line": 210
+    },
+    "ptr_builtin_var_validate_input": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 212,
+      "end_line": 220
+    },
+    "ptr_upload_accept_formats": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 225,
+      "end_line": 227
+    },
+    "ptr_builtin_upload_build_ui": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 236,
+      "end_line": 247
+    },
+    "ptr_builtin_upload_resolve_data": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 250,
+      "end_line": 252
+    },
+    "ptr_builtin_keywords": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 259,
+      "end_line": 269
+    },
+    "ptr_register_builtins": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 310,
+      "end_line": 393
+    },
+    "ppVar": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 397,
+      "end_line": 397
+    },
+    "ppNum": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 401,
+      "end_line": 401
+    },
+    "ppText": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 405,
+      "end_line": 405
+    },
+    "ppExpr": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 409,
+      "end_line": 409
+    },
+    "ppUpload": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 413,
+      "end_line": 418
+    },
+    "ppLayerOff": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 460,
+      "end_line": 467
+    },
+    "ppVerbSwitch": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 526,
+      "end_line": 550
+    },
+    ".onLoad": {
+      "file": "R/paintr-builtins.R",
+      "start_line": 552,
+      "end_line": 555
+    },
+    "ptr_classify_data": {
+      "file": "R/paintr-classify.R",
+      "start_line": 6,
+      "end_line": 11
+    },
+    "classify_walk": {
+      "file": "R/paintr-classify.R",
+      "start_line": 13,
+      "end_line": 13
+    },
+    "classify_walk.ptr_root": {
+      "file": "R/paintr-classify.R",
+      "start_line": 16,
+      "end_line": 37
+    },
+    "classify_walk.ptr_layer": {
+      "file": "R/paintr-classify.R",
+      "start_line": 40,
+      "end_line": 55
+    },
+    "classify_walk.ptr_pipeline": {
+      "file": "R/paintr-classify.R",
+      "start_line": 58,
+      "end_line": 76
+    },
+    "classify_walk.ptr_call": {
+      "file": "R/paintr-classify.R",
+      "start_line": 79,
+      "end_line": 86
+    },
+    "classify_walk.ptr_ph_data_consumer": {
+      "file": "R/paintr-classify.R",
+      "start_line": 89,
+      "end_line": 92
+    },
+    "classify_walk.ptr_ph_data_source": {
+      "file": "R/paintr-classify.R",
+      "start_line": 95,
+      "end_line": 98
+    },
+    "classify_walk.default": {
+      "file": "R/paintr-classify.R",
+      "start_line": 103,
+      "end_line": 103
+    },
+    "ptr_ui_text_component_paths": {
+      "file": "R/paintr-copy.R",
+      "start_line": 8,
+      "end_line": 20
+    },
+    "ptr_default_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 30,
+      "end_line": 145
+    },
+    "ptr_ui_text_param_aliases": {
+      "file": "R/paintr-copy.R",
+      "start_line": 154,
+      "end_line": 158
+    },
+    "ptr_ui_text_leaf_fields": {
+      "file": "R/paintr-copy.R",
+      "start_line": 164,
+      "end_line": 166
+    },
+    "ptr_ui_text_keywords": {
+      "file": "R/paintr-copy.R",
+      "start_line": 172,
+      "end_line": 174
+    },
+    "ptr_param_is_unnamed": {
+      "file": "R/paintr-copy.R",
+      "start_line": 182,
+      "end_line": 193
+    },
+    "ptr_normalize_param_key": {
+      "file": "R/paintr-copy.R",
+      "start_line": 201,
+      "end_line": 213
+    },
+    "ptr_humanize_param": {
+      "file": "R/paintr-copy.R",
+      "start_line": 221,
+      "end_line": 232
+    },
+    "ptr_interpolate_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 242,
+      "end_line": 253
+    },
+    "ptr_validate_ui_text_leaf": {
+      "file": "R/paintr-copy.R",
+      "start_line": 262,
+      "end_line": 285
+    },
+    "ptr_validate_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 293,
+      "end_line": 462
+    },
+    "ptr_normalize_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 470,
+      "end_line": 523
+    },
+    "ptr_deep_merge_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 532,
+      "end_line": 555
+    },
+    "ptr_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 612,
+      "end_line": 628
+    },
+    "ptr_compact_ui_text_branch": {
+      "file": "R/paintr-copy.R",
+      "start_line": 637,
+      "end_line": 668
+    },
+    "ptr_compact_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 676,
+      "end_line": 684
+    },
+    "ptr_resolve_ui_text": {
+      "file": "R/paintr-copy.R",
+      "start_line": 728,
+      "end_line": 787
+    },
+    "ptr_normalize_column_names": {
+      "file": "R/paintr-data.R",
+      "start_line": 31,
+      "end_line": 33
+    },
+    "ptr_normalize_tabular_data": {
+      "file": "R/paintr-data.R",
+      "start_line": 42,
+      "end_line": 68
+    },
+    "ptr_normalize_column_name_vector": {
+      "file": "R/paintr-data.R",
+      "start_line": 77,
+      "end_line": 107
+    },
+    "ptr_reserved_words": {
+      "file": "R/paintr-data.R",
+      "start_line": 135,
+      "end_line": 137
+    },
+    "ptr_constant_fold_env_get": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 67,
+      "end_line": 69
+    },
+    "ptr_register_constant_fold": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 103,
+      "end_line": 109
+    },
+    "ptr_clear_constant_fold": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 113,
+      "end_line": 127
+    },
+    "ptr_constant_fold_keywords": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 131,
+      "end_line": 133
+    },
+    "ptr_register_constant_fold_builtins": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 137,
+      "end_line": 145
+    },
+    "validate_constant_ast": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 149,
+      "end_line": 190
+    },
+    "ptr_constant_fold": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 192,
+      "end_line": 195
+    },
+    "ptr_arg_symbol_or_string": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 201,
+      "end_line": 213
+    },
+    "ptr_arg_string": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 217,
+      "end_line": 224
+    },
+    "ptr_arg_numeric": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 228,
+      "end_line": 236
+    },
+    "ptr_arg_numeric_vector": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 240,
+      "end_line": 261
+    },
+    "ptr_arg_expression": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 268,
+      "end_line": 293
+    },
+    "is_data_chain_call": {
+      "file": "R/paintr-disable.R",
+      "start_line": 22,
+      "end_line": 25
+    },
+    "data_arg_position": {
+      "file": "R/paintr-disable.R",
+      "start_line": 30,
+      "end_line": 39
+    },
+    "stage_id_from_path": {
+      "file": "R/paintr-disable.R",
+      "start_line": 41,
+      "end_line": 44
+    },
+    "assign_stage_ids": {
+      "file": "R/paintr-disable.R",
+      "start_line": 58,
+      "end_line": 75
+    },
+    "collect_stage_ids": {
+      "file": "R/paintr-disable.R",
+      "start_line": 78,
+      "end_line": 85
+    },
+    "disable_walk": {
+      "file": "R/paintr-disable.R",
+      "start_line": 89,
+      "end_line": 92
+    },
+    "disable_walk.default": {
+      "file": "R/paintr-disable.R",
+      "start_line": 95,
+      "end_line": 95
+    },
+    "disable_walk.ptr_root": {
+      "file": "R/paintr-disable.R",
+      "start_line": 98,
+      "end_line": 103
+    },
+    "disable_walk.ptr_layer": {
+      "file": "R/paintr-disable.R",
+      "start_line": 106,
+      "end_line": 116
+    },
+    "disable_walk.ptr_pipeline": {
+      "file": "R/paintr-disable.R",
+      "start_line": 119,
+      "end_line": 137
+    },
+    "disable_walk.ptr_call": {
+      "file": "R/paintr-disable.R",
+      "start_line": 140,
+      "end_line": 150
+    },
+    "is_stage_disabled": {
+      "file": "R/paintr-disable.R",
+      "start_line": 152,
+      "end_line": 157
+    },
+    "ptr_eval": {
+      "file": "R/paintr-eval.R",
+      "start_line": 9,
+      "end_line": 25
+    },
+    "layer_to_eval_expr": {
+      "file": "R/paintr-eval.R",
+      "start_line": 27,
+      "end_line": 53
+    },
+    "layer_head_lang": {
+      "file": "R/paintr-eval.R",
+      "start_line": 55,
+      "end_line": 66
+    },
+    "pipeline_to_eval_expr": {
+      "file": "R/paintr-eval.R",
+      "start_line": 68,
+      "end_line": 81
+    },
+    "desugar_pipe_to_call": {
+      "file": "R/paintr-eval.R",
+      "start_line": 93,
+      "end_line": 105
+    },
+    "node_to_lang": {
+      "file": "R/paintr-eval.R",
+      "start_line": 107,
+      "end_line": 133
+    },
+    "node_list_to_lang": {
+      "file": "R/paintr-eval.R",
+      "start_line": 135,
+      "end_line": 144
+    },
+    "ptr_exec_headless": {
+      "file": "R/paintr-headless.R",
+      "start_line": 22,
+      "end_line": 50
+    },
+    "ptr_headless_upstream_cols": {
+      "file": "R/paintr-headless.R",
+      "start_line": 59,
+      "end_line": 79
+    },
+    "ptr_default_snapshot": {
+      "file": "R/paintr-headless.R",
+      "start_line": 89,
+      "end_line": 108
+    },
+    "ptr_run_formula": {
+      "file": "R/paintr-headless.R",
+      "start_line": 113,
+      "end_line": 130
+    },
+    "ptr_hash": {
+      "file": "R/paintr-ids.R",
+      "start_line": 25,
+      "end_line": 25
+    },
+    "ptr_assign_ids": {
+      "file": "R/paintr-ids.R",
+      "start_line": 27,
+      "end_line": 40
+    },
+    "ptr_validate_reserved_shared_keys": {
+      "file": "R/paintr-ids.R",
+      "start_line": 48,
+      "end_line": 66
+    },
+    "validate_ns_fn": {
+      "file": "R/paintr-ids.R",
+      "start_line": 68,
+      "end_line": 73
+    },
+    "assign_id_to_placeholder": {
+      "file": "R/paintr-ids.R",
+      "start_line": 75,
+      "end_line": 107
+    },
+    "walk_has_placeholder": {
+      "file": "R/paintr-ids.R",
+      "start_line": 109,
+      "end_line": 121
+    },
+    "ptr_render_id": {
+      "file": "R/paintr-ids.R",
+      "start_line": 125,
+      "end_line": 128
+    },
+    "placeholder_output_id": {
+      "file": "R/paintr-ids.R",
+      "start_line": 139,
+      "end_line": 141
+    },
+    "ptr_runtime_input_spec": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 23,
+      "end_line": 65
+    },
+    "collect_layer_placeholders": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 67,
+      "end_line": 92
+    },
+    "placeholder_row": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 94,
+      "end_line": 104
+    },
+    "companion_row": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 106,
+      "end_line": 116
+    },
+    "empty_row": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 118,
+      "end_line": 128
+    },
+    "rows_to_data_frame": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 130,
+      "end_line": 148
+    },
+    "ptr_id_table": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 239,
+      "end_line": 261
+    },
+    "collect_id_table_rows": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 265,
+      "end_line": 328
+    },
+    "emit_placeholder_rows": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 335,
+      "end_line": 367
+    },
+    "walk_layer_placeholders": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 377,
+      "end_line": 411
+    },
+    "id_table_rows_to_df": {
+      "file": "R/paintr-input-spec.R",
+      "start_line": 413,
+      "end_line": 436
+    },
+    "ptr_llm_primer": {
+      "file": "R/paintr-llm.R",
+      "start_line": 20,
+      "end_line": 29
+    },
+    "ptr_llm_topics": {
+      "file": "R/paintr-llm.R",
+      "start_line": 42,
+      "end_line": 52
+    },
+    "ptr_llm_topic": {
+      "file": "R/paintr-llm.R",
+      "start_line": 72,
+      "end_line": 94
+    },
+    "ptr_llm_register": {
+      "file": "R/paintr-llm.R",
+      "start_line": 127,
+      "end_line": 194
+    },
+    "new_ptr_node": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 6,
+      "end_line": 8
+    },
+    "ptr_root": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 10,
+      "end_line": 12
+    },
+    "ptr_layer": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 14,
+      "end_line": 23
+    },
+    "ptr_pipeline": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 25,
+      "end_line": 30
+    },
+    "ptr_call": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 48,
+      "end_line": 57
+    },
+    "ptr_ph_value": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 64,
+      "end_line": 72
+    },
+    "ptr_ph_data_consumer": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 74,
+      "end_line": 83
+    },
+    "ptr_ph_data_source": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 85,
+      "end_line": 94
+    },
+    "ptr_user_expr": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 96,
+      "end_line": 98
+    },
+    "ptr_literal": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 100,
+      "end_line": 102
+    },
+    "ptr_closure": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 110,
+      "end_line": 112
+    },
+    "ptr_missing": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 114,
+      "end_line": 116
+    },
+    "is_ptr_node": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 118,
+      "end_line": 118
+    },
+    "is_ptr_root": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 119,
+      "end_line": 119
+    },
+    "is_ptr_layer": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 120,
+      "end_line": 120
+    },
+    "is_ptr_pipeline": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 121,
+      "end_line": 121
+    },
+    "is_ptr_call": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 122,
+      "end_line": 122
+    },
+    "is_ptr_ph_value": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 123,
+      "end_line": 123
+    },
+    "is_ptr_ph_data_consumer": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 124,
+      "end_line": 124
+    },
+    "is_ptr_ph_data_source": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 125,
+      "end_line": 125
+    },
+    "is_ptr_placeholder": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 126,
+      "end_line": 128
+    },
+    "is_ptr_user_expr": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 129,
+      "end_line": 129
+    },
+    "is_ptr_closure": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 130,
+      "end_line": 130
+    },
+    "is_ptr_literal": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 131,
+      "end_line": 131
+    },
+    "is_ptr_missing": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 132,
+      "end_line": 132
+    },
+    "ptr_tree_structural_equal": {
+      "file": "R/paintr-nodes.R",
+      "start_line": 146,
+      "end_line": 173
+    },
+    "ptr_options": {
+      "file": "R/paintr-options.R",
+      "start_line": 47,
+      "end_line": 87
+    },
+    "ptr_get_setting": {
+      "file": "R/paintr-options.R",
+      "start_line": 90,
+      "end_line": 92
+    },
+    "ptr_validate_setting_value": {
+      "file": "R/paintr-options.R",
+      "start_line": 95,
+      "end_line": 115
+    },
+    "new_partition_view": {
+      "file": "R/paintr-partition-view.R",
+      "start_line": 36,
+      "end_line": 57
+    },
+    "partition_host_owned_keys": {
+      "file": "R/paintr-partition-view.R",
+      "start_line": 65,
+      "end_line": 74
+    },
+    "partition_renders_section": {
+      "file": "R/paintr-partition-view.R",
+      "start_line": 79,
+      "end_line": 84
+    },
+    "ptr_prune": {
+      "file": "R/paintr-prune.R",
+      "start_line": 18,
+      "end_line": 28
+    },
+    "ptr_default_is_standalone": {
+      "file": "R/paintr-prune.R",
+      "start_line": 30,
+      "end_line": 33
+    },
+    "prune_walk": {
+      "file": "R/paintr-prune.R",
+      "start_line": 35,
+      "end_line": 37
+    },
+    "prune_walk.ptr_root": {
+      "file": "R/paintr-prune.R",
+      "start_line": 40,
+      "end_line": 50
+    },
+    "prune_walk.ptr_layer": {
+      "file": "R/paintr-prune.R",
+      "start_line": 53,
+      "end_line": 80
+    },
+    "prune_walk.ptr_call": {
+      "file": "R/paintr-prune.R",
+      "start_line": 83,
+      "end_line": 108
+    },
+    "prune_walk.ptr_pipeline": {
+      "file": "R/paintr-prune.R",
+      "start_line": 111,
+      "end_line": 121
+    },
+    "prune_walk.ptr_closure": {
+      "file": "R/paintr-prune.R",
+      "start_line": 124,
+      "end_line": 128
+    },
+    "prune_walk.ptr_user_expr": {
+      "file": "R/paintr-prune.R",
+      "start_line": 131,
+      "end_line": 131
+    },
+    "prune_walk.ptr_literal": {
+      "file": "R/paintr-prune.R",
+      "start_line": 134,
+      "end_line": 134
+    },
+    "prune_walk.ptr_missing": {
+      "file": "R/paintr-prune.R",
+      "start_line": 137,
+      "end_line": 137
+    },
+    "prune_walk.ptr_ph_value": {
+      "file": "R/paintr-prune.R",
+      "start_line": 140,
+      "end_line": 140
+    },
+    "prune_walk.ptr_ph_data_consumer": {
+      "file": "R/paintr-prune.R",
+      "start_line": 143,
+      "end_line": 145
+    },
+    "prune_walk.ptr_ph_data_source": {
+      "file": "R/paintr-prune.R",
+      "start_line": 148,
+      "end_line": 150
+    },
+    "prune_walk.default": {
+      "file": "R/paintr-prune.R",
+      "start_line": 153,
+      "end_line": 153
+    },
+    "bare_call_name": {
+      "file": "R/paintr-prune.R",
+      "start_line": 157,
+      "end_line": 169
+    },
+    "qualified_call_name": {
+      "file": "R/paintr-prune.R",
+      "start_line": 180,
+      "end_line": 200
+    },
+    "name_matches_remove_set": {
+      "file": "R/paintr-prune.R",
+      "start_line": 205,
+      "end_line": 208
+    },
+    "qualified_layer_name": {
+      "file": "R/paintr-prune.R",
+      "start_line": 213,
+      "end_line": 224
+    },
+    "check_prune_depth": {
+      "file": "R/paintr-prune.R",
+      "start_line": 230,
+      "end_line": 242
+    },
+    "controllable_region": {
+      "file": "R/paintr-region.R",
+      "start_line": 37,
+      "end_line": 51
+    },
+    "controllable_region_continuation": {
+      "file": "R/paintr-region.R",
+      "start_line": 55,
+      "end_line": 57
+    },
+    "shared_panel_header": {
+      "file": "R/paintr-region.R",
+      "start_line": 87,
+      "end_line": 103
+    },
+    "ensure_registry_initialized": {
+      "file": "R/paintr-registry.R",
+      "start_line": 32,
+      "end_line": 40
+    },
+    "ptr_registry_clear": {
+      "file": "R/paintr-registry.R",
+      "start_line": 42,
+      "end_line": 46
+    },
+    "ptr_clear_placeholder": {
+      "file": "R/paintr-registry.R",
+      "start_line": 69,
+      "end_line": 111
+    },
+    "ptr_registry_lookup": {
+      "file": "R/paintr-registry.R",
+      "start_line": 113,
+      "end_line": 119
+    },
+    "ptr_registry_keywords": {
+      "file": "R/paintr-registry.R",
+      "start_line": 121,
+      "end_line": 124
+    },
+    "ptr_registry_data_aware_keywords": {
+      "file": "R/paintr-registry.R",
+      "start_line": 126,
+      "end_line": 133
+    },
+    "validate_keyword": {
+      "file": "R/paintr-registry.R",
+      "start_line": 142,
+      "end_line": 154
+    },
+    "validate_hook": {
+      "file": "R/paintr-registry.R",
+      "start_line": 156,
+      "end_line": 180
+    },
+    "validate_keyword_no_shadow": {
+      "file": "R/paintr-registry.R",
+      "start_line": 201,
+      "end_line": 216
+    },
+    "validate_positional_arg": {
+      "file": "R/paintr-registry.R",
+      "start_line": 218,
+      "end_line": 224
+    },
+    "validate_named_args": {
+      "file": "R/paintr-registry.R",
+      "start_line": 226,
+      "end_line": 264
+    },
+    "ptr_check_keyword_lhs_drift": {
+      "file": "R/paintr-registry.R",
+      "start_line": 282,
+      "end_line": 304
+    },
+    "validate_copy_defaults": {
+      "file": "R/paintr-registry.R",
+      "start_line": 311,
+      "end_line": 337
+    },
+    "ptr_define_core": {
+      "file": "R/paintr-registry.R",
+      "start_line": 352,
+      "end_line": 421
+    },
+    "ptr_registry_register": {
+      "file": "R/paintr-registry.R",
+      "start_line": 423,
+      "end_line": 429
+    },
+    "ptr_define_placeholder_value": {
+      "file": "R/paintr-registry.R",
+      "start_line": 592,
+      "end_line": 606
+    },
+    "ptr_define_placeholder_consumer": {
+      "file": "R/paintr-registry.R",
+      "start_line": 713,
+      "end_line": 727
+    },
+    "ptr_define_placeholder_source": {
+      "file": "R/paintr-registry.R",
+      "start_line": 870,
+      "end_line": 885
+    },
+    "ptr_register_structural_keyword": {
+      "file": "R/paintr-registry.R",
+      "start_line": 905,
+      "end_line": 925
+    },
+    "ptr_signal_partial": {
+      "file": "R/paintr-registry.R",
+      "start_line": 961,
+      "end_line": 963
+    },
+    "ptr_render": {
+      "file": "R/paintr-render.R",
+      "start_line": 27,
+      "end_line": 29
+    },
+    "render_walk": {
+      "file": "R/paintr-render.R",
+      "start_line": 31,
+      "end_line": 32
+    },
+    "render_walk.ptr_root": {
+      "file": "R/paintr-render.R",
+      "start_line": 35,
+      "end_line": 45
+    },
+    "render_walk.ptr_layer": {
+      "file": "R/paintr-render.R",
+      "start_line": 48,
+      "end_line": 92
+    },
+    "render_walk.ptr_pipeline": {
+      "file": "R/paintr-render.R",
+      "start_line": 95,
+      "end_line": 97
+    },
+    "render_pipeline_body": {
+      "file": "R/paintr-render.R",
+      "start_line": 99,
+      "end_line": 167
+    },
+    "subtree_contains_placeholder": {
+      "file": "R/paintr-render.R",
+      "start_line": 174,
+      "end_line": 204
+    },
+    "first_index_where_subtree_contains_any_placeholder": {
+      "file": "R/paintr-render.R",
+      "start_line": 209,
+      "end_line": 214
+    },
+    "rebuild_nested_from_stages_typed": {
+      "file": "R/paintr-render.R",
+      "start_line": 223,
+      "end_line": 245
+    },
+    "render_pipe_chain": {
+      "file": "R/paintr-render.R",
+      "start_line": 251,
+      "end_line": 258
+    },
+    "render_walk.ptr_call": {
+      "file": "R/paintr-render.R",
+      "start_line": 261,
+      "end_line": 303
+    },
+    "is_binary_infix_op": {
+      "file": "R/paintr-render.R",
+      "start_line": 306,
+      "end_line": 312
+    },
+    "render_binary_operand": {
+      "file": "R/paintr-render.R",
+      "start_line": 317,
+      "end_line": 324
+    },
+    "render_call_text": {
+      "file": "R/paintr-render.R",
+      "start_line": 332,
+      "end_line": 348
+    },
+    "render_arg_pieces": {
+      "file": "R/paintr-render.R",
+      "start_line": 353,
+      "end_line": 363
+    },
+    "render_walk.ptr_literal": {
+      "file": "R/paintr-render.R",
+      "start_line": 366,
+      "end_line": 368
+    },
+    "render_walk.ptr_closure": {
+      "file": "R/paintr-render.R",
+      "start_line": 371,
+      "end_line": 373
+    },
+    "render_walk.ptr_user_expr": {
+      "file": "R/paintr-render.R",
+      "start_line": 376,
+      "end_line": 378
+    },
+    "render_walk.ptr_missing": {
+      "file": "R/paintr-render.R",
+      "start_line": 381,
+      "end_line": 381
+    },
+    "render_walk.ptr_ph_value": {
+      "file": "R/paintr-render.R",
+      "start_line": 384,
+      "end_line": 389
+    },
+    "render_walk.ptr_ph_data_consumer": {
+      "file": "R/paintr-render.R",
+      "start_line": 392,
+      "end_line": 397
+    },
+    "render_walk.ptr_ph_data_source": {
+      "file": "R/paintr-render.R",
+      "start_line": 400,
+      "end_line": 405
+    },
+    "render_walk.default": {
+      "file": "R/paintr-render.R",
+      "start_line": 408,
+      "end_line": 411
+    },
+    "stamp_current_pick_walk": {
+      "file": "R/paintr-render.R",
+      "start_line": 422,
+      "end_line": 423
+    },
+    "stamp_current_pick_walk.default": {
+      "file": "R/paintr-render.R",
+      "start_line": 426,
+      "end_line": 426
+    },
+    "stamp_current_pick_walk.ptr_root": {
+      "file": "R/paintr-render.R",
+      "start_line": 429,
+      "end_line": 434
+    },
+    "stamp_current_pick_walk.ptr_layer": {
+      "file": "R/paintr-render.R",
+      "start_line": 437,
+      "end_line": 445
+    },
+    "stamp_current_pick_walk.ptr_call": {
+      "file": "R/paintr-render.R",
+      "start_line": 448,
+      "end_line": 453
+    },
+    "stamp_current_pick_walk.ptr_pipeline": {
+      "file": "R/paintr-render.R",
+      "start_line": 456,
+      "end_line": 461
+    },
+    "stamp_current_pick_walk.ptr_closure": {
+      "file": "R/paintr-render.R",
+      "start_line": 464,
+      "end_line": 467
+    },
+    ".snapshot_value_is_set": {
+      "file": "R/paintr-render.R",
+      "start_line": 477,
+      "end_line": 484
+    },
+    "stamp_current_pick_walk.ptr_ph_value": {
+      "file": "R/paintr-render.R",
+      "start_line": 487,
+      "end_line": 493
+    },
+    "stamp_current_pick_walk.ptr_ph_data_consumer": {
+      "file": "R/paintr-render.R",
+      "start_line": 496,
+      "end_line": 502
+    },
+    "stamp_current_pick_walk.ptr_ph_data_source": {
+      "file": "R/paintr-render.R",
+      "start_line": 505,
+      "end_line": 522
+    },
+    "render_placeholder_preserved": {
+      "file": "R/paintr-render.R",
+      "start_line": 535,
+      "end_line": 549
+    },
+    "format_placeholder_value": {
+      "file": "R/paintr-render.R",
+      "start_line": 555,
+      "end_line": 576
+    },
+    "format_bareword": {
+      "file": "R/paintr-render.R",
+      "start_line": 578,
+      "end_line": 583
+    },
+    "format_string": {
+      "file": "R/paintr-render.R",
+      "start_line": 585,
+      "end_line": 589
+    },
+    "format_numeric": {
+      "file": "R/paintr-render.R",
+      "start_line": 591,
+      "end_line": 595
+    },
+    "format_expr": {
+      "file": "R/paintr-render.R",
+      "start_line": 597,
+      "end_line": 604
+    },
+    "layer_is_piped": {
+      "file": "R/paintr-render.R",
+      "start_line": 609,
+      "end_line": 615
+    },
+    "layer_head_text": {
+      "file": "R/paintr-render.R",
+      "start_line": 620,
+      "end_line": 630
+    },
+    "call_head_text": {
+      "file": "R/paintr-render.R",
+      "start_line": 632,
+      "end_line": 636
+    },
+    "ptr_resolve_upstream": {
+      "file": "R/paintr-resolve.R",
+      "start_line": 9,
+      "end_line": 70
+    },
+    "ptr_normalize_columns": {
+      "file": "R/paintr-resolve.R",
+      "start_line": 75,
+      "end_line": 100
+    },
+    "ptr_complete_expr_safe": {
+      "file": "R/paintr-safe.R",
+      "start_line": 17,
+      "end_line": 67
+    },
+    "ptr_format_runtime_message": {
+      "file": "R/paintr-safe.R",
+      "start_line": 73,
+      "end_line": 82
+    },
+    "fail_result": {
+      "file": "R/paintr-safe.R",
+      "start_line": 85,
+      "end_line": 91
+    },
+    "ptr_assemble_plot_safe": {
+      "file": "R/paintr-safe.R",
+      "start_line": 93,
+      "end_line": 113
+    },
+    "ptr_validate_plot_render_safe": {
+      "file": "R/paintr-safe.R",
+      "start_line": 115,
+      "end_line": 125
+    },
+    "ptr_validate_tree_safety": {
+      "file": "R/paintr-safety.R",
+      "start_line": 8,
+      "end_line": 15
+    },
+    "walk_ptr_safety": {
+      "file": "R/paintr-safety.R",
+      "start_line": 17,
+      "end_line": 19
+    },
+    "walk_ptr_safety.ptr_root": {
+      "file": "R/paintr-safety.R",
+      "start_line": 22,
+      "end_line": 27
+    },
+    "walk_ptr_safety.ptr_layer": {
+      "file": "R/paintr-safety.R",
+      "start_line": 30,
+      "end_line": 34
+    },
+    "walk_ptr_safety.ptr_pipeline": {
+      "file": "R/paintr-safety.R",
+      "start_line": 37,
+      "end_line": 41
+    },
+    "walk_ptr_safety.ptr_call": {
+      "file": "R/paintr-safety.R",
+      "start_line": 44,
+      "end_line": 48
+    },
+    "walk_ptr_safety.ptr_literal": {
+      "file": "R/paintr-safety.R",
+      "start_line": 51,
+      "end_line": 55
+    },
+    "walk_ptr_safety.ptr_user_expr": {
+      "file": "R/paintr-safety.R",
+      "start_line": 58,
+      "end_line": 62
+    },
+    "walk_ptr_safety.ptr_ph_value": {
+      "file": "R/paintr-safety.R",
+      "start_line": 65,
+      "end_line": 67
+    },
+    "walk_ptr_safety.ptr_ph_data_consumer": {
+      "file": "R/paintr-safety.R",
+      "start_line": 70,
+      "end_line": 72
+    },
+    "walk_ptr_safety.ptr_ph_data_source": {
+      "file": "R/paintr-safety.R",
+      "start_line": 75,
+      "end_line": 77
+    },
+    "walk_ptr_safety.ptr_missing": {
+      "file": "R/paintr-safety.R",
+      "start_line": 80,
+      "end_line": 82
+    },
+    "walk_ptr_safety.default": {
+      "file": "R/paintr-safety.R",
+      "start_line": 85,
+      "end_line": 90
+    },
+    "ptr_init_state": {
+      "file": "R/paintr-server.R",
+      "start_line": 91,
+      "end_line": 377
+    },
+    "ptr_spec_defaults_from_state": {
+      "file": "R/paintr-server.R",
+      "start_line": 388,
+      "end_line": 417
+    },
+    "ptr_spec_from_snapshot": {
+      "file": "R/paintr-server.R",
+      "start_line": 425,
+      "end_line": 442
+    },
+    "ptr_spec_combine": {
+      "file": "R/paintr-server.R",
+      "start_line": 450,
+      "end_line": 470
+    },
+    "format_spec_for_panel": {
+      "file": "R/paintr-server.R",
+      "start_line": 477,
+      "end_line": 488
+    },
+    "ptr_validate_state": {
+      "file": "R/paintr-server.R",
+      "start_line": 494,
+      "end_line": 513
+    },
+    "apply_spec_at_boot": {
+      "file": "R/paintr-server.R",
+      "start_line": 546,
+      "end_line": 705
+    },
+    "apply_spec_entry": {
+      "file": "R/paintr-server.R",
+      "start_line": 726,
+      "end_line": 748
+    },
+    "ptr_server_internal": {
+      "file": "R/paintr-server.R",
+      "start_line": 808,
+      "end_line": 872
+    },
+    "set_resolve_error": {
+      "file": "R/paintr-server.R",
+      "start_line": 881,
+      "end_line": 898
+    },
+    "is_bare_data_source_layer": {
+      "file": "R/paintr-server.R",
+      "start_line": 900,
+      "end_line": 904
+    },
+    "bind_source_value": {
+      "file": "R/paintr-server.R",
+      "start_line": 918,
+      "end_line": 939
+    },
+    "register_active_upload": {
+      "file": "R/paintr-server.R",
+      "start_line": 947,
+      "end_line": 990
+    },
+    "clear_active_upload": {
+      "file": "R/paintr-server.R",
+      "start_line": 992,
+      "end_line": 1001
+    },
+    "vacate_source_binding": {
+      "file": "R/paintr-server.R",
+      "start_line": 1020,
+      "end_line": 1040
+    },
+    "emit_upload_prologue": {
+      "file": "R/paintr-server.R",
+      "start_line": 1045,
+      "end_line": 1064
+    },
+    "is_syntactic_name": {
+      "file": "R/paintr-server.R",
+      "start_line": 1103,
+      "end_line": 1106
+    },
+    "panel_source_canonical_name": {
+      "file": "R/paintr-server.R",
+      "start_line": 1108,
+      "end_line": 1110
+    },
+    "panel_owned_binding_name": {
+      "file": "R/paintr-server.R",
+      "start_line": 1112,
+      "end_line": 1148
+    },
+    "is_panel_owned_id": {
+      "file": "R/paintr-server.R",
+      "start_line": 1155,
+      "end_line": 1157
+    },
+    "wire_panel_owned_source": {
+      "file": "R/paintr-server.R",
+      "start_line": 1167,
+      "end_line": 1181
+    },
+    "try_bind_source_default": {
+      "file": "R/paintr-server.R",
+      "start_line": 1201,
+      "end_line": 1273
+    },
+    "resolve_upload_source": {
+      "file": "R/paintr-server.R",
+      "start_line": 1307,
+      "end_line": 1438
+    },
+    "try_bind_source_default_resolved": {
+      "file": "R/paintr-server.R",
+      "start_line": 1447,
+      "end_line": 1515
+    },
+    "ptr_setup_pipelines": {
+      "file": "R/paintr-server.R",
+      "start_line": 1517,
+      "end_line": 1650
+    },
+    "ptr_bind_source_mutex": {
+      "file": "R/paintr-server.R",
+      "start_line": 1678,
+      "end_line": 1685
+    },
+    "ptr_setup_producer_inputs": {
+      "file": "R/paintr-server.R",
+      "start_line": 1693,
+      "end_line": 1708
+    },
+    "record_eval_time": {
+      "file": "R/paintr-server.R",
+      "start_line": 1724,
+      "end_line": 1770
+    },
+    "ptr_setup_stage_enabled": {
+      "file": "R/paintr-server.R",
+      "start_line": 1778,
+      "end_line": 1801
+    },
+    "ptr_setup_shared_stage_enabled": {
+      "file": "R/paintr-server.R",
+      "start_line": 1811,
+      "end_line": 1837
+    },
+    "ptr_setup_runtime": {
+      "file": "R/paintr-server.R",
+      "start_line": 1843,
+      "end_line": 1952
+    },
+    "ptr_error_ui": {
+      "file": "R/paintr-server.R",
+      "start_line": 1958,
+      "end_line": 1970
+    },
+    "inject_resolved_data": {
+      "file": "R/paintr-server.R",
+      "start_line": 1977,
+      "end_line": 1982
+    },
+    "inject_resolved_data_list": {
+      "file": "R/paintr-server.R",
+      "start_line": 1987,
+      "end_line": 1998
+    },
+    "ptr_setup_layer_picker": {
+      "file": "R/paintr-server.R",
+      "start_line": 2003,
+      "end_line": 2012
+    },
+    "ptr_setup_layer_panel_classes": {
+      "file": "R/paintr-server.R",
+      "start_line": 2020,
+      "end_line": 2042
+    },
+    "runtime_upstream_data": {
+      "file": "R/paintr-server.R",
+      "start_line": 2056,
+      "end_line": 2124
+    },
+    "runtime_upstream_cols": {
+      "file": "R/paintr-server.R",
+      "start_line": 2129,
+      "end_line": 2132
+    },
+    "runtime_upstream_data_frames": {
+      "file": "R/paintr-server.R",
+      "start_line": 2140,
+      "end_line": 2143
+    },
+    "ptr_setup_value_uis": {
+      "file": "R/paintr-server.R",
+      "start_line": 2167,
+      "end_line": 2290
+    },
+    "ptr_setup_source_uis": {
+      "file": "R/paintr-server.R",
+      "start_line": 2304,
+      "end_line": 2453
+    },
+    "boot_seed_selected": {
+      "file": "R/paintr-server.R",
+      "start_line": 2504,
+      "end_line": 2506
+    },
+    "consumer_seed_decision": {
+      "file": "R/paintr-server.R",
+      "start_line": 2508,
+      "end_line": 2565
+    },
+    "consumer_upstream_source_state": {
+      "file": "R/paintr-server.R",
+      "start_line": 2582,
+      "end_line": 2648
+    },
+    "consumer_clear_for_new_source": {
+      "file": "R/paintr-server.R",
+      "start_line": 2672,
+      "end_line": 2678
+    },
+    "ptr_setup_consumer_uis": {
+      "file": "R/paintr-server.R",
+      "start_line": 2680,
+      "end_line": 2957
+    },
+    "ptr_bind_shared_consumer_uis": {
+      "file": "R/paintr-server.R",
+      "start_line": 2969,
+      "end_line": 3373
+    },
+    "ptr_bind_local_shared_consumers": {
+      "file": "R/paintr-server.R",
+      "start_line": 3386,
+      "end_line": 3415
+    },
+    "pending_data_source_keywords": {
+      "file": "R/paintr-server.R",
+      "start_line": 3420,
+      "end_line": 3429
+    },
+    "collect_upstream_ids": {
+      "file": "R/paintr-server.R",
+      "start_line": 3434,
+      "end_line": 3441
+    },
+    "find_consumer_ids_in_upstream": {
+      "file": "R/paintr-server.R",
+      "start_line": 3445,
+      "end_line": 3447
+    },
+    "find_producer_ids_in_upstream": {
+      "file": "R/paintr-server.R",
+      "start_line": 3453,
+      "end_line": 3455
+    },
+    "find_source_companion_ids_in_upstream": {
+      "file": "R/paintr-server.R",
+      "start_line": 3464,
+      "end_line": 3473
+    },
+    "find_source_self_ids_in_upstream": {
+      "file": "R/paintr-server.R",
+      "start_line": 3482,
+      "end_line": 3492
+    },
+    "ptr_register_last_ok_cache": {
+      "file": "R/paintr-server.R",
+      "start_line": 3512,
+      "end_line": 3521
+    },
+    "ptr_register_plot": {
+      "file": "R/paintr-server.R",
+      "start_line": 3523,
+      "end_line": 3544
+    },
+    "ptr_register_error": {
+      "file": "R/paintr-server.R",
+      "start_line": 3546,
+      "end_line": 3575
+    },
+    "format_code_with_extras": {
+      "file": "R/paintr-server.R",
+      "start_line": 3586,
+      "end_line": 3601
+    },
+    "ptr_register_code": {
+      "file": "R/paintr-server.R",
+      "start_line": 3603,
+      "end_line": 3656
+    },
+    "ptr_extract_plot": {
+      "file": "R/paintr-server.R",
+      "start_line": 3691,
+      "end_line": 3691
+    },
+    "ptr_extract_error": {
+      "file": "R/paintr-server.R",
+      "start_line": 3695,
+      "end_line": 3695
+    },
+    "ptr_extract_code": {
+      "file": "R/paintr-server.R",
+      "start_line": 3699,
+      "end_line": 3704
+    },
+    "ptr_gg_extra": {
+      "file": "R/paintr-server.R",
+      "start_line": 3732,
+      "end_line": 3747
+    },
+    "shared_partition": {
+      "file": "R/paintr-shared-coordinator.R",
+      "start_line": 28,
+      "end_line": 51
+    },
+    "shared_upstream_source_signature": {
+      "file": "R/paintr-shared-coordinator.R",
+      "start_line": 74,
+      "end_line": 98
+    },
+    "shared_assert_panel_consumer_sources": {
+      "file": "R/paintr-shared-coordinator.R",
+      "start_line": 104,
+      "end_line": 161
+    },
+    "ptr_shared": {
+      "file": "R/paintr-shared-coordinator.R",
+      "start_line": 245,
+      "end_line": 342
+    },
+    "shared_panel_body_tag": {
+      "file": "R/paintr-shared-coordinator.R",
+      "start_line": 350,
+      "end_line": 434
+    },
+    "ptr_shared_panel": {
+      "file": "R/paintr-shared-coordinator.R",
+      "start_line": 464,
+      "end_line": 478
+    },
+    "ptr_ui_shared_panel": {
+      "file": "R/paintr-shared-coordinator.R",
+      "start_line": 502,
+      "end_line": 507
+    },
+    "new_ptr_shared_state": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 20,
+      "end_line": 38
+    },
+    "validate_ptr_shared_state": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 40,
+      "end_line": 94
+    },
+    "print.ptr_shared_state": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 97,
+      "end_line": 113
+    },
+    "normalize_shared_formulas": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 130,
+      "end_line": 151
+    },
+    "shared_translate_formulas": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 153,
+      "end_line": 156
+    },
+    "shared_first_nodes": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 160,
+      "end_line": 170
+    },
+    "shared_consumer_representatives": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 175,
+      "end_line": 196
+    },
+    "ptr_shared_server": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 260,
+      "end_line": 485
+    },
+    "ptr_setup_panel_sources": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 513,
+      "end_line": 727
+    },
+    "apply_spec_at_boot_host": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 753,
+      "end_line": 859
+    },
+    "ptr_setup_panel_values": {
+      "file": "R/paintr-shared-ui.R",
+      "start_line": 878,
+      "end_line": 943
+    },
+    "ptr_shared_bind": {
+      "file": "R/paintr-shared.R",
+      "start_line": 6,
+      "end_line": 11
+    },
+    "collect_then_rewrite_shared": {
+      "file": "R/paintr-shared.R",
+      "start_line": 13,
+      "end_line": 33
+    },
+    "canonical_shared_id": {
+      "file": "R/paintr-shared.R",
+      "start_line": 35,
+      "end_line": 35
+    },
+    "shared_ns": {
+      "file": "R/paintr-shared.R",
+      "start_line": 45,
+      "end_line": 52
+    },
+    "shared_stage_input_id": {
+      "file": "R/paintr-shared.R",
+      "start_line": 60,
+      "end_line": 62
+    },
+    "contains_placeholder": {
+      "file": "R/paintr-shared.R",
+      "start_line": 131,
+      "end_line": 147
+    },
+    "extract_source_leaf": {
+      "file": "R/paintr-shared.R",
+      "start_line": 152,
+      "end_line": 174
+    },
+    "truncate_upstream_at_placeholder": {
+      "file": "R/paintr-shared.R",
+      "start_line": 180,
+      "end_line": 211
+    },
+    "collect_shared_consumer_occurrences": {
+      "file": "R/paintr-shared.R",
+      "start_line": 216,
+      "end_line": 229
+    },
+    "shared_widget_base_label": {
+      "file": "R/paintr-shared.R",
+      "start_line": 235,
+      "end_line": 240
+    },
+    "shared_widget_label": {
+      "file": "R/paintr-shared.R",
+      "start_line": 249,
+      "end_line": 261
+    },
+    "shared_widget_default": {
+      "file": "R/paintr-shared.R",
+      "start_line": 270,
+      "end_line": 273
+    },
+    "resolve_shared_consumer": {
+      "file": "R/paintr-shared.R",
+      "start_line": 276,
+      "end_line": 317
+    },
+    "ptr_resolve_shared_consumers": {
+      "file": "R/paintr-shared.R",
+      "start_line": 320,
+      "end_line": 324
+    },
+    "rewrite_shared": {
+      "file": "R/paintr-shared.R",
+      "start_line": 326,
+      "end_line": 364
+    },
+    "ptr_substitute": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 16,
+      "end_line": 29
+    },
+    "substitute_walk": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 31,
+      "end_line": 31
+    },
+    "substitute_walk.ptr_root": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 34,
+      "end_line": 39
+    },
+    "substitute_walk.ptr_layer": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 42,
+      "end_line": 56
+    },
+    "substitute_walk.ptr_call": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 59,
+      "end_line": 64
+    },
+    "substitute_walk.ptr_pipeline": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 67,
+      "end_line": 72
+    },
+    "substitute_walk.ptr_closure": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 75,
+      "end_line": 78
+    },
+    "substitute_walk.ptr_user_expr": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 81,
+      "end_line": 81
+    },
+    "substitute_walk.ptr_literal": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 84,
+      "end_line": 84
+    },
+    "substitute_walk.ptr_missing": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 87,
+      "end_line": 87
+    },
+    "substitute_walk.ptr_ph_value": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 90,
+      "end_line": 129
+    },
+    "substitute_walk.ptr_ph_data_consumer": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 132,
+      "end_line": 176
+    },
+    "substitute_walk.ptr_ph_data_source": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 179,
+      "end_line": 246
+    },
+    "substitute_walk.default": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 249,
+      "end_line": 249
+    },
+    "read_placeholder_value": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 253,
+      "end_line": 263
+    },
+    "is_missing_value_input": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 265,
+      "end_line": 285
+    },
+    "validate_resolve_expr_return": {
+      "file": "R/paintr-substitute.R",
+      "start_line": 287,
+      "end_line": 313
+    },
+    "ptr_first_pipe_op": {
+      "file": "R/paintr-translate.R",
+      "start_line": 12,
+      "end_line": 19
+    },
+    "ptr_translate": {
+      "file": "R/paintr-translate.R",
+      "start_line": 21,
+      "end_line": 120
+    },
+    "ptr_assert_no_surviving_structural_wrappers": {
+      "file": "R/paintr-translate.R",
+      "start_line": 128,
+      "end_line": 158
+    },
+    "ptr_classify_calls": {
+      "file": "R/paintr-translate.R",
+      "start_line": 168,
+      "end_line": 184
+    },
+    "build_pipeline_from_lift": {
+      "file": "R/paintr-translate.R",
+      "start_line": 192,
+      "end_line": 217
+    },
+    "desugar_pipes_to_nested": {
+      "file": "R/paintr-translate.R",
+      "start_line": 230,
+      "end_line": 254
+    },
+    "resugar_pipeline_stages": {
+      "file": "R/paintr-translate.R",
+      "start_line": 264,
+      "end_line": 302
+    },
+    "rebuild_nested_from_stages": {
+      "file": "R/paintr-translate.R",
+      "start_line": 308,
+      "end_line": 327
+    },
+    "is_placeholder_call": {
+      "file": "R/paintr-translate.R",
+      "start_line": 342,
+      "end_line": 357
+    },
+    "try_lift_to_pipeline": {
+      "file": "R/paintr-translate.R",
+      "start_line": 379,
+      "end_line": 396
+    },
+    "check_translate_depth": {
+      "file": "R/paintr-translate.R",
+      "start_line": 400,
+      "end_line": 413
+    },
+    "split_top_plus": {
+      "file": "R/paintr-translate.R",
+      "start_line": 417,
+      "end_line": 423
+    },
+    "dedupe_layer_names": {
+      "file": "R/paintr-translate.R",
+      "start_line": 427,
+      "end_line": 441
+    },
+    "translate_layer": {
+      "file": "R/paintr-translate.R",
+      "start_line": 445,
+      "end_line": 475
+    },
+    "layer_call_name": {
+      "file": "R/paintr-translate.R",
+      "start_line": 480,
+      "end_line": 500
+    },
+    "is_pipe_head": {
+      "file": "R/paintr-translate.R",
+      "start_line": 504,
+      "end_line": 508
+    },
+    "pipe_op_from_symbol": {
+      "file": "R/paintr-translate.R",
+      "start_line": 510,
+      "end_line": 513
+    },
+    "preprocess_native_pipe": {
+      "file": "R/paintr-translate.R",
+      "start_line": 522,
+      "end_line": 543
+    },
+    "translate_plain_layer": {
+      "file": "R/paintr-translate.R",
+      "start_line": 554,
+      "end_line": 575
+    },
+    "extract_call_data_arg": {
+      "file": "R/paintr-translate.R",
+      "start_line": 577,
+      "end_line": 594
+    },
+    "translate_layer_children": {
+      "file": "R/paintr-translate.R",
+      "start_line": 596,
+      "end_line": 617
+    },
+    "translate_node": {
+      "file": "R/paintr-translate.R",
+      "start_line": 621,
+      "end_line": 671
+    },
+    "translate_call": {
+      "file": "R/paintr-translate.R",
+      "start_line": 673,
+      "end_line": 683
+    },
+    "detect_placeholder": {
+      "file": "R/paintr-translate.R",
+      "start_line": 687,
+      "end_line": 702
+    },
+    "placeholder_keyword": {
+      "file": "R/paintr-translate.R",
+      "start_line": 704,
+      "end_line": 715
+    },
+    "abort_translate": {
+      "file": "R/paintr-translate.R",
+      "start_line": 724,
+      "end_line": 726
+    },
+    "is_structural_keyword_call": {
+      "file": "R/paintr-translate.R",
+      "start_line": 733,
+      "end_line": 737
+    },
+    "validate_pp_off_hide": {
+      "file": "R/paintr-translate.R",
+      "start_line": 746,
+      "end_line": 767
+    },
+    "unwrap_pp_layer_off": {
+      "file": "R/paintr-translate.R",
+      "start_line": 775,
+      "end_line": 797
+    },
+    "validate_pp_verb_switch_switch_on": {
+      "file": "R/paintr-translate.R",
+      "start_line": 807,
+      "end_line": 828
+    },
+    "validate_pp_verb_switch_label": {
+      "file": "R/paintr-translate.R",
+      "start_line": 838,
+      "end_line": 860
+    },
+    "unwrap_pp_verb_switch_stage": {
+      "file": "R/paintr-translate.R",
+      "start_line": 870,
+      "end_line": 895
+    },
+    "extract_placeholder_args": {
+      "file": "R/paintr-translate.R",
+      "start_line": 903,
+      "end_line": 957
+    },
+    "extract_shared_value": {
+      "file": "R/paintr-translate.R",
+      "start_line": 962,
+      "end_line": 971
+    },
+    "detect_pipe_layer_misuse": {
+      "file": "R/paintr-translate.R",
+      "start_line": 979,
+      "end_line": 987
+    },
+    "pipe_layer_warnings_for_layer": {
+      "file": "R/paintr-translate.R",
+      "start_line": 989,
+      "end_line": 1006
+    },
+    "is_ggplot_call_node": {
+      "file": "R/paintr-translate.R",
+      "start_line": 1008,
+      "end_line": 1019
+    },
+    "pipe_stage_display_name": {
+      "file": "R/paintr-translate.R",
+      "start_line": 1021,
+      "end_line": 1032
+    },
+    "pipe_layer_misuse_msg": {
+      "file": "R/paintr-translate.R",
+      "start_line": 1034,
+      "end_line": 1040
+    },
+    "build_placeholder_node": {
+      "file": "R/paintr-translate.R",
+      "start_line": 1042,
+      "end_line": 1060
+    },
+    "ptr_validate_shared_roles": {
+      "file": "R/paintr-translate.R",
+      "start_line": 1066,
+      "end_line": 1086
+    },
+    "collect_shared_occurrences": {
+      "file": "R/paintr-translate.R",
+      "start_line": 1090,
+      "end_line": 1100
+    },
+    "ptr_make_valid_name": {
+      "file": "R/paintr-upload.R",
+      "start_line": 15,
+      "end_line": 27
+    },
+    "ptr_upload_default_name": {
+      "file": "R/paintr-upload.R",
+      "start_line": 35,
+      "end_line": 37
+    },
+    "ptr_read_uploaded_data": {
+      "file": "R/paintr-upload.R",
+      "start_line": 45,
+      "end_line": 65
+    },
+    "ptr_unsupported_upload_message": {
+      "file": "R/paintr-upload.R",
+      "start_line": 69,
+      "end_line": 71
+    },
+    "ptr_check_upload_dimensions": {
+      "file": "R/paintr-upload.R",
+      "start_line": 75,
+      "end_line": 83
+    },
+    "ptr_read_csv_upload": {
+      "file": "R/paintr-upload.R",
+      "start_line": 87,
+      "end_line": 98
+    },
+    "ptr_read_tsv_upload": {
+      "file": "R/paintr-upload.R",
+      "start_line": 100,
+      "end_line": 111
+    },
+    "ptr_read_rds_upload": {
+      "file": "R/paintr-upload.R",
+      "start_line": 113,
+      "end_line": 124
+    },
+    "ptr_read_excel_upload": {
+      "file": "R/paintr-upload.R",
+      "start_line": 126,
+      "end_line": 142
+    },
+    "ptr_read_json_upload": {
+      "file": "R/paintr-upload.R",
+      "start_line": 144,
+      "end_line": 176
+    },
+    "ptr_resolve_upload_info": {
+      "file": "R/paintr-upload.R",
+      "start_line": 187,
+      "end_line": 217
+    },
+    "reader_fn_name_for_ext": {
+      "file": "R/paintr-upload.R",
+      "start_line": 229,
+      "end_line": 241
+    },
+    "ptr_validate_shared_bindings": {
+      "file": "R/paintr-utils.R",
+      "start_line": 54,
+      "end_line": 133
+    },
+    "drop_null": {
+      "file": "R/paintr-utils.R",
+      "start_line": 137,
+      "end_line": 137
+    },
+    "find_layer_by_name": {
+      "file": "R/paintr-utils.R",
+      "start_line": 145,
+      "end_line": 153
+    },
+    "find_stage_call_by_id": {
+      "file": "R/paintr-utils.R",
+      "start_line": 160,
+      "end_line": 173
+    },
+    "handle_duplicate_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 181,
+      "end_line": 194
+    },
+    "default_drop_when_empty": {
+      "file": "R/paintr-utils.R",
+      "start_line": 211,
+      "end_line": 224
+    },
+    "ggplot2_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 227,
+      "end_line": 239
+    },
+    "dplyr_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 242,
+      "end_line": 269
+    },
+    "tidyr_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 272,
+      "end_line": 287
+    },
+    "tibble_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 290,
+      "end_line": 294
+    },
+    "pillar_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 298,
+      "end_line": 302
+    },
+    "purrr_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 305,
+      "end_line": 335
+    },
+    "stringr_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 338,
+      "end_line": 352
+    },
+    "forcats_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 355,
+      "end_line": 370
+    },
+    "lubridate_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 373,
+      "end_line": 394
+    },
+    "hms_drop_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 397,
+      "end_line": 401
+    },
+    "validate_safe_to_remove": {
+      "file": "R/paintr-utils.R",
+      "start_line": 417,
+      "end_line": 467
+    },
+    "is_pruneable_operator_call": {
+      "file": "R/paintr-utils.R",
+      "start_line": 475,
+      "end_line": 480
+    },
+    "resolve_expr_check": {
+      "file": "R/paintr-utils.R",
+      "start_line": 555,
+      "end_line": 587
+    },
+    "extract_fn_names": {
+      "file": "R/paintr-utils.R",
+      "start_line": 598,
+      "end_line": 612
+    },
+    "validate_expr_safety": {
+      "file": "R/paintr-utils.R",
+      "start_line": 624,
+      "end_line": 727
+    },
+    "ptr_walk": {
+      "file": "R/paintr-walk.R",
+      "start_line": 16,
+      "end_line": 32
+    },
+    "ptr_collect": {
+      "file": "R/paintr-walk.R",
+      "start_line": 37,
+      "end_line": 46
+    },
+    "ptr_cursor": {
+      "file": "R/paintr-walk.R",
+      "start_line": 64,
+      "end_line": 72
+    },
+    "ptr_cursor_descend": {
+      "file": "R/paintr-walk.R",
+      "start_line": 77,
+      "end_line": 114
+    },
+    "ptr_rewrite_pre": {
+      "file": "R/paintr-walk.R",
+      "start_line": 120,
+      "end_line": 159
+    },
+    "ptr_assert_ids_assigned": {
+      "file": "R/paintr-walk.R",
+      "start_line": 171,
+      "end_line": 184
+    },
+    "ptr_assert_classified": {
+      "file": "R/paintr-walk.R",
+      "start_line": 192,
+      "end_line": 202
+    },
+    "ptr_assert_no_placeholders": {
+      "file": "R/paintr-walk.R",
+      "start_line": 205,
+      "end_line": 216
+    },
+    "ptr_assert_no_missing": {
+      "file": "R/paintr-walk.R",
+      "start_line": 219,
+      "end_line": 227
+    },
+    "ptr_assert_acyclic": {
+      "file": "R/paintr-walk.R",
+      "start_line": 232,
+      "end_line": 244
+    }
+  }
+}

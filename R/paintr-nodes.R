@@ -13,12 +13,12 @@ ptr_root <- function(layers, expr = NULL) {
 
 ptr_layer <- function(name, expr, data_arg = NULL, children = list(),
                      active_input_id = NULL, default_active = TRUE,
-                     active = TRUE) {
+                     active = TRUE, source_pipe_op = NULL) {
   new_ptr_node(
     "ptr_layer",
     name = name, expr = expr, data_arg = data_arg, children = children,
     active_input_id = active_input_id, default_active = default_active,
-    active = active
+    active = active, source_pipe_op = source_pipe_op
   )
 }
 
@@ -29,33 +29,67 @@ ptr_pipeline <- function(stages, op, expr) {
   new_ptr_node("ptr_pipeline", stages = stages, op = op, expr = expr)
 }
 
-ptr_call <- function(fun, args, expr) {
-  new_ptr_node("ptr_call", fun = fun, args = args, expr = expr)
+# `default_stage_enabled` (ADR 0020 §2 / ADR 0021) is the formula-derived
+# boot state of this call's stage-enabled checkbox: TRUE when the user
+# wrote the stage as a normal verb (or `ppVerbSwitch(verb, switch_on = TRUE)`),
+# FALSE when the user wrapped the stage in
+# `ppVerbSwitch(.data, verb_expr, switch_on = FALSE)`. The slot is present
+# on every `ptr_call` even when no stage-id has been assigned yet, because
+# downstream readers (Plan 02) consume `node$default_stage_enabled` without
+# first checking `node$stage_id`; defaulting to TRUE keeps non-chain calls
+# (e.g. layer-arg leaves) inert.
+#
+# `has_user_control` and `stage_label` (ADR 0021 §Decision) are sibling
+# UI-metadata fields stamped by the translator on carrier `ptr_call`s that
+# arose from a `ppVerbSwitch(...)` wrapper. They are read by the UI emitter
+# (Plan 05) and the extended gate (Plan 04), and like `stage_id` they are
+# routing/labelling metadata — never load-bearing pieces of the execution
+# AST. The comparator below therefore excludes all three together.
+ptr_call <- function(fun, args, expr = NULL, default_stage_enabled = TRUE,
+                     has_user_control = FALSE, stage_label = NULL) {
+  new_ptr_node(
+    "ptr_call",
+    fun = fun, args = args, expr = expr,
+    default_stage_enabled = default_stage_enabled,
+    has_user_control = has_user_control,
+    stage_label = stage_label
+  )
 }
 
+# Placeholder nodes carry two additive slots populated by the registry/parser
+# (PLAN-06): `default` (the validated positional default-arg value, or NULL)
+# and `named_args` (a named list of validated named-argument values, empty
+# when none). The constructors store whatever they are given; shape-checking
+# happens upstream.
 ptr_ph_value <- function(id = NA_character_, keyword, param = NA_character_,
-                       expr, shared = NULL) {
+                       expr, shared = NULL,
+                       default = NULL, named_args = list()) {
   new_ptr_node(
     "ptr_ph_value",
-    id = id, keyword = keyword, param = param, expr = expr, shared = shared
+    id = id, keyword = keyword, param = param, expr = expr, shared = shared,
+    default = default, named_args = named_args
   )
 }
 
 ptr_ph_data_consumer <- function(id = NA_character_, keyword, param = NA_character_,
-                                expr, shared = NULL, upstream = NULL) {
+                                expr, shared = NULL, upstream = NULL,
+                                default = NULL, named_args = list()) {
   new_ptr_node(
     "ptr_ph_data_consumer",
     id = id, keyword = keyword, param = param, expr = expr,
-    shared = shared, upstream = upstream
+    shared = shared, upstream = upstream,
+    default = default, named_args = named_args
   )
 }
 
 ptr_ph_data_source <- function(id = NA_character_, keyword, param = NA_character_,
-                              expr, shared = NULL, companion_id = NULL) {
+                              expr, shared = NULL, shortcut_id = NULL,
+                              default = NULL, named_args = list()) {
   new_ptr_node(
     "ptr_ph_data_source",
     id = id, keyword = keyword, param = param, expr = expr,
-    shared = shared, companion_id = companion_id
+    shared = shared, shortcut_id = shortcut_id,
+    default = default, named_args = named_args
   )
 }
 
@@ -96,3 +130,44 @@ is_ptr_user_expr <- function(x) inherits(x, "ptr_user_expr")
 is_ptr_closure <- function(x) inherits(x, "ptr_closure")
 is_ptr_literal <- function(x) inherits(x, "ptr_literal")
 is_ptr_missing <- function(x) inherits(x, "ptr_missing")
+
+# Structural equality of two typed-tree nodes, ignoring non-structural metadata
+# (`$op`, `$expr`). The canonical-pipeline-lift contract (ADR 0012 §1) requires
+# that `|>`, `%>%`, and nested-call surface forms produce trees that compare
+# equal *structurally* — but `$op` is surface-pipe metadata and `$expr` is the
+# original-AST hint duplicated alongside the load-bearing `$fun`/`$args`/
+# `$stages` fields. Both legitimately diverge across surface forms.
+#
+# `ptr_literal` is the one exception: its `$expr` slot *is* the load-bearing
+# value (a literal has no other content), so we compare it. Lists are walked
+# element-wise with name equality; leaves via `identical()`.
+#
+# Internal helper; not exported.
+ptr_tree_structural_equal <- function(a, b) {
+  if (is_ptr_node(a) || is_ptr_node(b)) {
+    if (!is_ptr_node(a) || !is_ptr_node(b)) return(FALSE)
+    if (!identical(class(a), class(b))) return(FALSE)
+    if (is_ptr_literal(a)) {
+      return(identical(a$expr, b$expr))
+    }
+    names_a <- setdiff(names(a), c("op", "expr", "default_active", "default_stage_enabled", "stage_id", "has_user_control", "stage_label"))
+    names_b <- setdiff(names(b), c("op", "expr", "default_active", "default_stage_enabled", "stage_id", "has_user_control", "stage_label"))
+    if (!setequal(names_a, names_b)) return(FALSE)
+    for (nm in names_a) {
+      if (!ptr_tree_structural_equal(a[[nm]], b[[nm]])) return(FALSE)
+    }
+    return(TRUE)
+  }
+  if (is.list(a) || is.list(b)) {
+    if (!is.list(a) || !is.list(b)) return(FALSE)
+    if (length(a) != length(b)) return(FALSE)
+    na <- names(a) %||% rep_len("", length(a))
+    nb <- names(b) %||% rep_len("", length(b))
+    if (!identical(na, nb)) return(FALSE)
+    for (i in seq_along(a)) {
+      if (!ptr_tree_structural_equal(a[[i]], b[[i]])) return(FALSE)
+    }
+    return(TRUE)
+  }
+  identical(a, b)
+}

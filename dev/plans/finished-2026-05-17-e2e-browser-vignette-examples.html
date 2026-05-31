@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>E2E browser test of vignette examples (#E2E)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head><body>
+
+<h1>E2E browser test of vignette examples (pass #E2E)</h1>
+<p class="meta">Created 2026-05-17. Depends on: the <em>vignette-prose-sweep</em> plan (examples must already be on the shipped API). Authority: ADR 0005 · <code>.claude/rules/testing.md</code> · project memory (<code>testServer != ptr_app</code>; <code>htmlDependency resource prefix</code>; benign shinytest2 globals warning).</p>
+
+<div class="crit"><strong>Hard ordering:</strong> run only <em>after</em> the vignette-prose-sweep lands. An e2e test that boots an example still calling a removed symbol fails on construction and tells you nothing new. This plan assumes every runnable example already composes the shipped L1/L2/L3 API.</div>
+
+<h2>Goal</h2>
+<p>Knitting proves a vignette's chunks <em>evaluate</em>; it does not prove the generated Shiny app <em>works in a browser</em> (inputs render, the plot/code/error wire up, an interaction re-renders). Deliver an automated <strong>shinytest2</strong> suite that boots every runnable vignette example in a real (headless Chromium) browser and asserts it functions. <code>shinytest2</code> drives a real browser from R, so the artifact is repeatable and CI-gateable; <code>claude-in-chrome</code> is an <em>authoring aid only</em> (discover selectors / eyeball the plotly/ggiraph/bslib flows) and is never the committed test.</p>
+
+<h2>Scope — example inventory (enumerate precisely during impl; re-grep)</h2>
+<ul>
+<li><code>ggpaintr-use-cases.Rmd</code> — canonical L1 (<code>ptr_app</code>), L1-grid (<code>ptr_app_grid</code>), L2 (<code>ptr_module_ui</code>+<code>ptr_module_server</code>), L2 coordinator (<code>ptr_shared</code>/<code>ptr_shared_panel</code>/<code>ptr_shared_server</code>), L3 (bare pieces + combinators), L3 custom render (<code>moduleServer(id)</code> + <code>state$runtime()</code>).</li>
+<li><code>ggpaintr-gallery.Rmd</code> — the worked plotly + ggiraph custom-render examples (the realistic L3 patterns users copy).</li>
+<li><code>ggpaintr-customization.Rmd</code> — the bslib <code>page_sidebar</code> wrapper (post-sweep, on <code>ptr_module_ui</code>), the <code>ui_text</code> example, and the placeholder-author examples (value/consumer/source) that build runnable apps.</li>
+<li><strong>Excluded (documented):</strong> non-app prose chunks and <code>ggpaintr-safety.Rmd</code> (no interactive app); any chunk that is intrinsically display-only and not an app — list each with the reason in the test file header.</li>
+</ul>
+
+<h2>Deliverables</h2>
+<ul>
+<li><code>tests/testthat/helper-vignette-apps.R</code> (or <code>tests/testthat/fixtures/vignette-apps.R</code>) — one factory per example returning a <code>shiny.appobj</code>. For <code>eval=FALSE</code> display chunks, the app-constructing code is lifted verbatim-equivalent into a factory so the test exercises the <em>same</em> code the vignette shows.</li>
+<li><code>tests/testthat/test-e2e-vignette-examples-shinytest2.R</code> — one <code>test_that</code> per example: boot via <code>shinytest2::AppDriver$new()</code>, wait for idle, assert the documented input ids exist, perform one minimal interaction (set an input / click <em>Update plot</em> or the draw-all), assert the plot output rendered (an <code>&lt;img&gt;</code> / plotly / girafe node) and the generated-code output is non-empty, and assert no inline error is shown on the happy path.</li>
+<li>A short header comment block enumerating every vignette example and its disposition (covered / excluded + why) — the audit trail.</li>
+</ul>
+
+<h2>Success criteria</h2>
+<ul>
+<li>Every runnable example in the inventory has a passing <code>shinytest2</code> test that (a) boots without error, (b) renders the documented inputs, (c) survives one real interaction with the plot + code outputs updating, (d) shows no inline error on the happy path.</li>
+<li>With <code>shinytest2</code> + <code>chromote</code> installed the suite is fully green; without them every test <code>skip</code>s cleanly (<code>skip_on_cran()</code> + <code>skip_if_not_installed("shinytest2")</code>) — no spurious failure.</li>
+<li>The factories construct the <em>same</em> app code the vignette presents (incl. lifted <code>eval=FALSE</code> chunks) — a reviewer can diff factory ⇄ vignette and see equivalence.</li>
+<li>The project Authoritative Gate (<code>NOT_CRAN=true devtools::test()</code>) holds at <code>FAIL 0 / ERROR 0 / SKIP 0</code>; this plan adds passing browser tests — no new failures and no new skips under the authoritative gate.</li>
+<li>Excluded chunks are enumerated with a stated reason; nothing runnable is silently dropped.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>testthat edition 3; group by example/behavior; <code>withr::local_*</code> for temp state. Every test starts <code>skip_on_cran(); skip_if_not_installed("shinytest2")</code>.</li>
+<li>Wrap <code>AppDriver$new()</code> in <code>suppressWarnings()</code> (scoped) — the "Failed to locate globals" / htmlDependency-prefix warnings are benign and already documented in project memory; do not let them fail the test, but do not blanket-suppress assertion output.</li>
+<li>Do <strong>not</strong> assert via a bare <code>ptr_server</code> <code>testServer</code> as a faithful proxy (project memory) — boot the real <code>shiny.appobj</code> the vignette builds.</li>
+<li>Bound runtime: explicit <code>AppDriver</code> load/idle timeouts; keep the suite to a few minutes; prefer DOM/value assertions over screenshot snapshots (brittle across machines) unless a screenshot is the only signal.</li>
+<li>Do not modify the vignettes (the prose-sweep plan owns them); if an example cannot be made runnable, exclude + document — do not silently rewrite the vignette here.</li>
+<li><code>shinytest2</code> is already in <code>DESCRIPTION</code> Suggests (added Step 02); confirm <code>chromote</code> resolves in the dev env, otherwise the suite is all-skip and that is acceptable but must be reported, not hidden.</li>
+<li><code>claude-in-chrome</code> may be used while authoring to find selectors / verify the gallery/bslib flows; nothing from it is committed — the committed artifact is pure shinytest2.</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: Vignette example apps work in a real browser
+
+  Scenario: Canonical L1/L2/L3 apps boot and render
+    Given the ptr_app, ptr_module_ui+server, bare-pieces, and coordinator
+          factories harvested from ggpaintr-use-cases.Rmd
+    When each is booted with shinytest2::AppDriver
+    Then the documented input ids are present in the DOM
+      And the plot output and generated-code output render
+      And no inline error is shown on the happy path
+
+  Scenario: An interaction re-renders the outputs
+    Given a booted use-cases L1 app
+    When a var/num input is set and Update plot is clicked
+    Then the plot output updates
+      And the generated-code text reflects the new input
+
+  Scenario: Coordinator example drives both plots from the panel
+    Given the ptr_shared coordinator example app (>= 2 formulas)
+    When the single shared panel widget is changed
+    Then every plot tile re-renders against the new value
+
+  Scenario: Gallery custom-render examples produce their host output
+    Given the plotly and ggiraph custom-render example apps
+    When booted and interacted with
+    Then the plotly / girafe node is present and updates
+
+  Scenario: Suite skips cleanly without the browser stack
+    Given an environment without shinytest2/chromote
+    When the suite runs
+    Then every test skips with a clear reason
+      And devtools::test() reports no failure from this file
+
+  Scenario: Coverage is auditable
+    Given the test file header
+    Then every vignette example is listed as covered or excluded-with-reason
+      And no runnable example is omitted silently</div>
+
+<h2>Definition of Done (authoritative)</h2>
+<pre>NOT_CRAN=true Rscript -e 'devtools::test()'   # == project CLAUDE.md Authoritative Gate
+# EXPECTED: FAIL 0 / ERROR 0 / SKIP 0 / PASS N   (0/0/0 is the invariant; N grows with the suite)
+# Plan-scoped subset: NOT_CRAN=true Rscript -e 'devtools::test(filter="e2e-vignette-examples-shinytest2")' -> 0/0/0/100
+# authoring aid only (never committed): claude-in-chrome to discover selectors for gallery/bslib flows</pre>
+<p class="crit"><strong>Proxy trap (do not be fooled):</strong> a raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> (no <code>NOT_CRAN</code>) and <code>R CMD check --as-cran</code> both make <code>skip_on_cran()</code> fire, so every shinytest2 test silently SKIPs. A "green, SKIP n" from that harness is NOT the gate (it masked a real lockstep ERROR for this entire effort). Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> is authoritative.</p>
+<p><strong>Independence:</strong> any implementer/agent "done / green / scope-clean" report — including this plan's ✅ status block — is a claim to verify, never proof. The integrator independently re-runs the Definition-of-Done command and reads the ledger; the status block is not evidence.</p>
+<p><strong>Baseline / drift:</strong> the invariant is <code>FAIL 0 / ERROR 0 / SKIP 0</code> from the project Authoritative Gate (the PASS count grows with the suite — do not hardcode N). The earlier "<code>SKIP 1 / PASS 1481</code>" baseline was the proxy-masked number — the SKIP <em>was</em> a hidden ERROR; resolved at commit <code>77a927e</code>. Pre-existing reds, if any, are tracked in <code>dev/notes/</code>, never silently rebaselined.</p>
+
+<div style="border-left:4px solid #2e8b57;background:#eafaf1;padding:.7rem 1rem;margin:1.4rem 0;border-radius:0 5px 5px 0">
+<h2 style="border:0;margin-top:0">✅ COMPLETE</h2>
+<p class="meta">2026-05-17 · branch <code>l2l3-followup-e2e</code> (base <code>22c84c7</code>) · test-only, additive diff: three new untracked artifacts (<code>tests/testthat/test-e2e-vignette-examples-shinytest2.R</code>, <code>tests/testthat/helper-vignette-apps.R</code>, <code>tests/testthat/fixtures/vignette-apps/</code> — 16 app dirs). No <code>R/</code>, <code>vignettes/</code>, <code>NAMESPACE</code>, <code>man/</code>, or other-plan change (<code>git status</code> shows only the new paths).</p>
+<p><strong>Done &amp; verified:</strong></p>
+<ul>
+<li><strong>Precondition confirmed.</strong> <code>grep -rnE 'ptr_controls_ui|ptr_outputs_ui|ptr_ui_code_toggle|ptr_shared_ui' vignettes/*.Rmd</code> → only two hits, both explicit "removed (ADR 0005)" historical notes in <code>ggpaintr-customization.Rmd</code> (L130 prose, L163 in-source comment) — no live call in a runnable chunk. Prose-sweep landed; examples are on the shipped L1/L2/L3 API.</li>
+<li><strong>16 runnable examples covered, fully green with the browser stack.</strong> <code>Rscript -e 'devtools::test(filter="e2e-vignette-examples-shinytest2")'</code> → <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS 100</strong>. Each test boots the real <code>shiny.appobj</code> in headless Chromium, asserts the documented ids, performs one real interaction (valid placeholder inputs → Update/Draw-all), and asserts plot + generated-code render with no inline error on the happy path. use-cases: app-basic (+BDD re-render), app-grid-shared-added, module-app, single-instance-shared, l2-shared (+BDD: one panel widget drives both tiles), l3-pieces, l3-pieces-toggle (combinators), l3-plotly (own-the-render-path), l3-gg-extra. gallery: plotly-paintr §5.1, ggiraph-paintr §5.2. customization: ui-text-example, bslib (lifted from the eval=FALSE <code>ptr-app-bslib-source</code> → exported <code>ptr_app_bslib()</code>), value-range, consumer-colvars, source-dataset.</li>
+<li><strong>Clean all-skip without the browser stack.</strong> Simulated CRAN env (<code>NOT_CRAN=false</code>) → <strong>FAIL 0 / SKIP 16 / PASS 0</strong> (reason "On CRAN"). Every test starts <code>skip_on_cran(); skip_if_not_installed("shinytest2")</code> (+ <code>chromote</code> + per-example extension pkg). No spurious failure.</li>
+<li><strong>Factory ⇄ vignette equivalence reviewable by diff.</strong> Each <code>fixtures/vignette-apps/&lt;slug&gt;/app.R</code> carries a <code>&gt;&gt;&gt;</code> marker block that is verbatim-equivalent to the named <code>.Rmd</code> chunk; the only non-vignette lines are the documented boot scaffolding (see next).</li>
+<li><strong>Coverage auditable.</strong> The test-file header enumerates every vignette example as covered or excluded-with-reason (non-app/setup chunks, <code>*-original</code> graphics, code fragments, structurally-redundant L1 recipes incl. all gallery §3/§4/§6 with named representatives, and safety/llm vignettes). Nothing runnable is dropped silently.</li>
+<li><strong>Architecture decision (flagged).</strong> Used the shinytest2-canonical <strong>app-directory + <code>pkgload::load_all()</code></strong> pattern, not parent-built <code>shiny.appobj</code> serialization. Reason discovered empirically: a stale pre-redesign <code>ggpaintr 0.9.1</code> is installed system-wide; an appobj run in shinytest2's child process resolves <code>library(ggpaintr)</code> to that stale install (e.g. an old <code>ptr_shared_server</code> calling <code>shared_translate_formulas</code> → coordinator boot crash), so a serialized-appobj suite would silently test dead code. The app-dir pattern makes the child build the app fresh against dev source in one process — matching real use, no global side effect, and still verbatim-diffable. <code>get_values()</code> is also avoided (it 500s on the custom-renderer examples whose host output is in a pre-draw <code>shiny.silent.error</code> state); all assertions are targeted DOM/single-output reads.</li>
+</ul>
+<p><strong>⚠ Caveat — pre-existing failure (out of scope, reported not hidden):</strong> the plan's whole-suite baseline ("FAIL 0 / ERROR 0 / SKIP 1 / PASS 1481") was measured where the lone other shinytest2 test skipped for lack of a browser. With chromote present, <code>devtools::test()</code> is <strong>FAIL 1 / SKIP 0 / PASS 1581</strong> — the +100 are this plan's (all pass); the single FAIL is <code>test-shared-lockstep-shinytest2.R:64</code> (<code>Expected count_id("shared_B") to equal 1</code>), which <strong>fails identically in isolation</strong> (<code>devtools::test(filter="shared-lockstep-shinytest2")</code> → FAIL 1 / PASS 1) with my files not even loaded. That file is committed in <code>30b24ca</code> (redesign Step 02), unmodified here, and the sibling <em>vignette-prose-sweep</em> plan's own status block already documents this same failure as <strong>pre-existing on base <code>a6ccbb4</code></strong>. Fixing it is forbidden by this plan's constraints (no <code>R/</code> / other-plan edits; redesign Steps 01–10 own that surface). <strong>Zero failures attributable to this change.</strong> Browser stack confirmed resolvable in the dev env (shinytest2 + chromote + Chrome at <code>/Applications/Google Chrome.app</code>).</p>
+</div>
+<!-- implementable: PASS date=2026-05-17 gate="NOT_CRAN=true devtools::test()" hash=8b8532ef5c3c -->
+</body></html>

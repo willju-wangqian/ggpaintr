@@ -5,8 +5,14 @@
 #' feedback, upload support for `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, and `.json` files, copy customization, and
 #' per-app custom placeholder registries. It also provides lower-level helpers
 #' for runtime inspection and column-name normalization for data used with the
-#' built-in `var` placeholder.
+#' built-in `ppVar` placeholder.
 #'
 #' @import ggplot2
+#' @importFrom rlang "%||%"
 #' @keywords internal
 "_PACKAGE"
+
+# `:=` is used unqualified for dynamic argument names in desugar_pipe_to_call()
+# (`rlang::call2(rhs, !!nm := lhs)`, R/paintr-eval.R). Register it so R CMD check's
+# codetools does not flag it as an undefined global (no behaviour change).
+utils::globalVariables(":=")

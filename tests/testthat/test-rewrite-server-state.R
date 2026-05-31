@@ -17,14 +17,22 @@ test_that("ptr_init_state returns a typed-state structure", {
   expect_true(is.function(state$tree))  # reactiveVal is a function
 })
 
-test_that("ptr_init_state resolves checkbox_defaults", {
-  state <- ptr_init_state(
-    "ggplot(mtcars) + geom_point() + geom_smooth()",
-    checkbox_defaults = list(geom_smooth = FALSE),
-    envir = .server_test_env()
+test_that("ptr_init_state honors ppLayerOff(geom, TRUE) via node$default_active", {
+  # ADR 0020 / Plan 04: replaces the deleted `checkbox_defaults = ...`
+  # test. The formula-side `ppLayerOff()` now carries the bit; the layer's
+  # default-checked state is read from `node$default_active` (stamped on
+  # the carrier in `ptr_translate()`).
+  tree <- ptr_translate(
+    "ggplot(mtcars) + ppLayerOff(geom_smooth(), TRUE) + geom_point()"
   )
-  expect_equal(state$checkbox_defaults[["geom_point"]], TRUE)
-  expect_equal(state$checkbox_defaults[["geom_smooth"]], FALSE)
+  smooth_layer <- tree$layers[[which(vapply(
+    tree$layers, function(l) identical(l$name, "geom_smooth"), logical(1)
+  ))]]
+  point_layer <- tree$layers[[which(vapply(
+    tree$layers, function(l) identical(l$name, "geom_point"), logical(1)
+  ))]]
+  expect_false(isTRUE(smooth_layer$default_active %||% TRUE))
+  expect_true(isTRUE(point_layer$default_active %||% TRUE))
 })
 
 test_that("ptr_init_state builds resolved_data slots only for bare-data-source layers", {
@@ -33,7 +41,7 @@ test_that("ptr_init_state builds resolved_data slots only for bare-data-source l
   # bare-data-source layers (e.g., `ggplot(data = upload, ...)`) keep a
   # `resolved_data` slot for the upload reactive observer to write into.
   state <- ptr_init_state(
-    "mtcars |> head(num) |> ggplot() + geom_point()",
+    "mtcars |> head(ppNum) |> ggplot() + geom_point()",
     envir = .server_test_env()
   )
   expect_equal(length(state$resolved_data), 0L)
@@ -124,37 +132,6 @@ test_that("ptr_extract_* surface the runtime fields", {
     expect_s3_class(ptr_extract_plot(state), "ggplot")
     expect_match(ptr_extract_code(state), "geom_point")
     expect_null(ptr_extract_error(state))
-  })
-})
-
-test_that("runtime is gated: no eval until Update Plot click (BDD G11.12)", {
-  # Spec G11.12: plot is not rendered until the user clicks Update Plot.
-  # Specifically, no expression evaluation happens at all on first launch
-  # — `state$runtime()` stays NULL until the trigger fires, so the plot,
-  # code, and error outputs all render blank.
-  e <- .server_test_env()
-  server <- function(input, output, session) {
-    session$userData$state <- ptr_server_internal(
-      input, output, session,
-      "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()",
-      envir = e
-    )
-  }
-  shiny::testServer(server, {
-    state <- session$userData$state
-    expect_null(state$runtime())
-
-    # Picking vars without clicking Update Plot must still leave runtime NULL.
-    session$setInputs(ggplot_1_1_var_NA = "mpg", ggplot_1_2_var_NA = "hp")
-    session$flushReact()
-    expect_null(state$runtime())
-
-    # First click fires the runtime.
-    session$setInputs(ptr_update_plot = 1L)
-    session$flushReact()
-    res <- state$runtime()
-    expect_true(isTRUE(res$ok))
-    expect_match(res$code_text, "aes\\(x = mpg, y = hp\\)")
   })
 })
 

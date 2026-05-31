@@ -1,6 +1,6 @@
 # Level 2 — copy overrides with `ui_text`
 
-`ui_text` is the single argument for customising every user-visible string ggpaintr renders. Pass it to `ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_module_ui()`, `ptr_module_server()`, `ptr_init_state()`, `ptr_server()`, the L3 bare piece `ptr_ui_controls()`, or the coordinator `ptr_shared()` (which threads it into the shared panel and each module).
+`ui_text` is the single argument for customising every user-visible string ggpaintr renders. Pass it to `ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_ui()`, `ptr_server()`, `ptr_init_state()`, the L3 bare piece `ptr_ui_controls()`, or the coordinator `ptr_shared()` (which threads it into the shared panel and each module). The cascade keys are the **placeholder keywords** (`ppVar`, `ppText`, …).
 
 ## The four leaf fields
 
@@ -9,9 +9,9 @@
 | `label`       | Primary widget label (above the input).           |
 | `help`        | Help text rendered below the widget.              |
 | `placeholder` | Grey hint inside a text input.                    |
-| `empty_text`  | Fallback text when a `var` picker is empty.       |
+| `empty_text`  | Fallback text when a `ppVar` picker is empty.     |
 
-Unused fields are ignored (e.g. `empty_text` on a `text` widget is accepted but never rendered).
+Unused fields are ignored (e.g. `empty_text` on a `ppText` widget is accepted but never rendered).
 
 ## Top-level sections
 
@@ -25,11 +25,11 @@ Chrome sections (**1-to-1** mapping, no cascade):
 | `shell$layer_picker`           | Layer-select dropdown.                            |
 | `shell$data_subtab`            | "Data" subtab label inside a layer panel.         |
 | `shell$controls_subtab`        | "Controls" subtab label inside a layer panel.     |
-| `upload$file`                  | `upload` keyword's file picker.                   |
-| `upload$name`                  | `upload` keyword's "Optional dataset name" input. |
+| `upload$file`                  | `ppUpload` keyword's file picker.                 |
+| `upload$name`                  | `ppUpload` keyword's "Optional dataset name" input. |
 | `layer_checkbox`               | Per-layer "include this layer" toggle.            |
 
-Three per-placeholder sections (**cascade** — least specific → most):
+Three per-placeholder sections (**cascade** — least specific → most), keyed by keyword:
 
 1. `defaults[[keyword]]`
 2. `params[[param_key]][[keyword]]`  (param_key = canonical arg name)
@@ -46,16 +46,16 @@ library(ggpaintr)
 
 ui_text <- list(
   defaults = list(
-    text = list(label = "Enter text", help = "Generic help")
+    ppText = list(label = "Enter text", help = "Generic help")
   ),
   params = list(
     title = list(
-      text = list(label = "Plot title", help = "Arg-specific help")
+      ppText = list(label = "Plot title", help = "Arg-specific help")
     )
   ),
   layers = list(
     labs = list(
-      text = list(
+      ppText = list(
         title = list(
           label       = "labs(title = …)",
           help        = "Layer-specific help",
@@ -67,10 +67,10 @@ ui_text <- list(
 )
 ```
 
-Resolution for `labs(title = text)` picks the `layers` entry; for `geom_text(label = text)` it falls back to `defaults` (no param/layer match). Inspect with `ptr_resolve_ui_text()`:
+Resolution for `labs(title = ppText)` picks the `layers` entry; for `geom_text(label = ppText)` it falls back to `defaults` (no param/layer match). Inspect with `ptr_resolve_ui_text()`:
 
 ```r
-ptr_resolve_ui_text("control", keyword = "text",
+ptr_resolve_ui_text("control", keyword = "ppText",
                     param = "title", layer_name = "labs",
                     ui_text = ui_text)
 ```
@@ -108,24 +108,24 @@ library(shiny); library(ggpaintr)
 ui_text <- list(
   shell  = list(title = list(label = "mtcars explorer"),
                 draw_button = list(label = "Redraw")),
-  params = list(x = list(var = list(label = "X-axis column"))),
-  layers = list(labs = list(text = list(title = list(
+  params = list(x = list(ppVar = list(label = "X-axis column"))),
+  layers = list(labs = list(ppText = list(title = list(
     label = "Plot title", placeholder = "e.g. Weight vs MPG"))))
 )
 
-formula <- "ggplot(data = mtcars, aes(x = var, y = var)) +
-              geom_point() + labs(title = text)"
+formula <- "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) +
+              geom_point() + labs(title = ppText)"
 
 ui <- fluidPage(
   titlePanel(ptr_resolve_ui_text("title", ui_text = ui_text)$label),
-  ptr_module_ui("p", formula, ui_text = ui_text)
+  ptr_ui(formula, "p", ui_text = ui_text)
 )
 
 server <- function(input, output, session) {
-  ptr_module_server("p", formula, ui_text = ui_text)
+  ptr_server(formula, "p", ui_text = ui_text)
 }
 
 shinyApp(ui, server)
 ```
 
-Pass the same `ui_text` to both the UI and the server — `ptr_module_ui()` builds the widget labels from it; `ptr_module_server()` forwards it to `ptr_init_state()` so any server-side renders (validation messages, dynamic widget refreshes) read the same merged tree. At L3 the same `ui_text` goes to `ptr_ui_controls(id, formula, ui_text = ...)` and the matching `ptr_server(..., ui_text = ...)`; for multi-instance shared widgets, set it once on `ptr_shared(formulas, ui_text = ...)`.
+Pass the same `ui_text` to both the UI and the server — `ptr_ui()` builds the widget labels from it; `ptr_server()` forwards it to `ptr_init_state()` so any server-side renders (validation messages, dynamic widget refreshes) read the same merged tree. At L3 the same `ui_text` goes to `ptr_ui_controls(formula, id, ui_text = ...)` and the matching `ptr_server(..., ui_text = ...)`; for multi-instance shared widgets, set it once on `ptr_shared(formulas, ui_text = ...)`.

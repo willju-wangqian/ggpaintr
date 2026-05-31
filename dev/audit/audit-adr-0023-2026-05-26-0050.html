@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit-adr — ADR 0023 — PASS — 2026-05-26 00:50</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<h1>audit-adr — ADR 0023 panel-owned-shared-sources-end-to-end (post-amendment)</h1>
+<p class="meta">Target: <code>dev/adr/0023-panel-owned-shared-sources-end-to-end.html</code> · Verdict: <strong>PASS</strong> · Audited: 2026-05-26 00:50 · Auditor: general-purpose/opus/high</p>
+
+<h2>Verdict</h2>
+<p><strong>PASS — 0 findings.</strong> The one-sentence amendment in Decision §5 mentioning the <code>has_rendered</code> closure-flag pattern and commit <code>401804c</code> verifies cleanly. The flag init appears at <code>R/paintr-server.R:1574, 1647, 1802, 2027</code> (four <code>invoke_build_ui</code> call sites: <code>ptr_setup_value_uis()</code> non-shared + shared loops, <code>ptr_setup_consumer_uis()</code>, <code>ptr_bind_shared_consumer_uis()</code>) with <code>has_rendered &lt;&lt;- TRUE</code> at the parallel exits (1608, 1668, 1962, 2150); the "first-render-omits-<code>selected</code> / subsequent-render-passes-<code>current %||% character(0)</code>-verbatim" pattern is implemented at <code>R/paintr-server.R:1592-1598</code> and three parallel sites. Commit <code>401804c</code> exists with the quoted subject. All 16+ prior baseline claims (symbols, signatures, line citations, bundle / state fields) still verify post-merge.</p>
+
+<h2>Verified claims</h2>
+
+<table>
+  <thead><tr><th>Category</th><th>Claim</th><th>Evidence</th></tr></thead>
+  <tbody>
+    <tr><td>amendment (new)</td><td>Commit <code>401804c</code> exists with subject "fix(seed): preserve user-emptied widgets across renderUI re-fires"</td><td><code>git log 401804c -1</code> — verbatim match</td></tr>
+    <tr><td>amendment (new)</td><td><code>has_rendered</code> closure-flag pattern at four <code>invoke_build_ui</code> call sites</td><td>R/paintr-server.R:1574, 1647, 1802, 2027 (init) + 1608, 1668, 1962, 2150 (<code>&lt;&lt;- TRUE</code>)</td></tr>
+    <tr><td>amendment (new)</td><td>Four call sites: <code>ptr_setup_value_uis()</code> non-shared + shared loops, <code>ptr_setup_consumer_uis()</code>, <code>ptr_bind_shared_consumer_uis()</code></td><td><code>ptr_setup_value_uis</code> 1549–1678 (contains 1574 + 1647); <code>ptr_setup_consumer_uis</code> 1781–1974 (contains 1802); <code>ptr_bind_shared_consumer_uis</code> 1986–2172 (contains 2027)</td></tr>
+    <tr><td>amendment (new)</td><td>"first-render-omits-<code>selected</code> and subsequent-render-passes-<code>current %||% character(0)</code>-verbatim" pattern</td><td>R/paintr-server.R:1592-1598 + parallel sites: <code>selected_arg &lt;- if (has_rendered) { seed %||% current %||% character(0) } else { seed }</code> followed by <code>if (!is.null(selected_arg)) extra$selected &lt;- selected_arg</code></td></tr>
+    <tr><td>signature</td><td><code>ptr_ui(formula, id = NULL, …)</code> — every ADR call passes formula first</td><td>R/paintr-app.R:843</td></tr>
+    <tr><td>signature</td><td><code>ptr_server(formula, id = NULL, …, shared_state = NULL, spec = NULL)</code></td><td>R/paintr-app.R:1074</td></tr>
+    <tr><td>field</td><td><code>panel$formulas</code> on <code>ptr_shared_spec</code></td><td>R/paintr-shared-coordinator.R:171</td></tr>
+    <tr><td>symbol</td><td><code>ptr_init_state()</code></td><td>R/paintr-server.R:84</td></tr>
+    <tr><td>symbol</td><td><code>ptr_setup_source_uis()</code></td><td>R/paintr-server.R:1693</td></tr>
+    <tr><td>symbol</td><td><code>ptr_setup_pipelines()</code> per-source observer near line 1001</td><td>R/paintr-server.R:907 (def); 1004 (loop)</td></tr>
+    <tr><td>symbol</td><td><code>ptr_bind_shared_consumer_uis()</code> with <code>state = NULL</code></td><td>R/paintr-server.R:1986+</td></tr>
+    <tr><td>symbol</td><td><code>ptr_bind_local_shared_consumers()</code> called host-side without <code>state =</code></td><td>R/paintr-server.R:2186 (def); R/paintr-shared-ui.R:305 (call)</td></tr>
+    <tr><td>symbol</td><td><code>validate_ptr_shared_state()</code></td><td>R/paintr-shared-ui.R:33</td></tr>
+    <tr><td>symbol</td><td><code>shared_panel_body_tag()</code></td><td>R/paintr-shared-coordinator.R:195</td></tr>
+    <tr><td>symbol</td><td><code>try_bind_source_default()</code> (eyeball-play)</td><td>R/paintr-server.R:874 (def); 937, 1021 (calls)</td></tr>
+    <tr><td>field</td><td><code>obj$panel_keys</code></td><td>R/paintr-shared-coordinator.R:19, 42, 47, 99, 109, 175, 194, 311, 346</td></tr>
+    <tr><td>fields</td><td><code>shared_state$shared</code>, <code>$shared_resolutions</code>, <code>$draw_trigger</code>, <code>$shared_stage_enabled</code></td><td>R/paintr-shared-ui.R:20-29 (constructor); 38, 50, 53, 57 (validator)</td></tr>
+    <tr><td>fields</td><td><code>state$resolved_data</code>, <code>$resolved_sources</code>, <code>$bound_names</code>, <code>$eval_env</code>, <code>$spec_seed</code></td><td>R/paintr-server.R:144, 172, 186, 221, 281</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:166–170</code> <code>pipeline_source_ids</code> logic</td><td>exact match</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:574–575, 588–590</code> apply_spec_at_boot eligibility</td><td>verbatim comment + predicate match</td></tr>
+    <tr><td>lines</td><td><code>R/paintr-server.R:311–319</code> input-spec collector drops source_companion rows</td><td><code>setdiff(names(snapshot), companioned)</code></td></tr>
+    <tr><td>symbol</td><td><code>ptr_define_placeholder_source()</code> (example 6)</td><td>R/paintr-registry.R</td></tr>
+    <tr><td>symbol</td><td><code>ptr_default_string()</code> (example 6)</td><td>R/paintr-default-args.R:217</td></tr>
+    <tr><td>commit</td><td>Cut 1 commit <code>d71893b</code></td><td><code>git log d71893b -1</code> — subject matches</td></tr>
+    <tr><td>commit</td><td>eyeball-play <code>a3d1636</code></td><td><code>git log a3d1636 -1</code> — subject matches</td></tr>
+  </tbody>
+</table>
+
+<h2>Aspirational symbols recorded</h2>
+
+<ul>
+  <li><code>panel_sources</code> field — Decision §1/§4/§5/§7. Aspirational.</li>
+  <li><code>ptr_setup_panel_sources()</code> — Decision §2. Aspirational.</li>
+  <li><code>resolve_upload_source()</code> — Decision §3. Aspirational.</li>
+  <li><code>dots$panel_sources</code> branch in <code>ptr_setup_pipelines()</code> — Decision §4. Aspirational.</li>
+  <li><code>panel_sources</code> arg on <code>ptr_bind_shared_consumer_uis</code> / <code>ptr_bind_local_shared_consumers</code> — Decision §5. Aspirational.</li>
+  <li>Partition-aware skip <code>if (s$id %in% names(dots$panel_sources %||% list())) next</code> — Decision §7. Aspirational.</li>
+  <li>R1 parse-time abort error message text. Aspirational (wording can vary).</li>
+  <li><code>shared_state = list(panel_sources = list(shared_ds = my_df))</code> manual-override shape — R4. Aspirational.</li>
+  <li><code>ptr_shared_errors</code> slot — borderline; tense leans aspirational. Not flagged.</li>
+</ul>
+
+<h2>Behavioral-claim evidence types</h2>
+
+<ul>
+  <li><strong><code>has_rendered</code> pattern introduced by 401804c</strong> — direct (git-log + source pattern verified at four call sites).</li>
+  <li><strong>first-render-omit / subsequent-render-pass-current verbatim</strong> — direct (source snippet at R/paintr-server.R:1592–1598 literally implements the pattern).</li>
+  <li><strong>State / bundle / source / consumer symbols and fields</strong> — direct source-read; previously verified, still hold post-merge.</li>
+  <li>"single-instance shared source works on this branch's HEAD already" (example 4) — inconclusive (no test-citation in the ADR; gate-green provides circumstantial evidence). Recommendation, not a finding: cite <code>tests/testthat/test-shared-source-rendering.R::"single-instance ppUpload(shared='ds') renders the fileInput at boot"</code>.</li>
+  <li>"L1 grid path internally constructs ptr_shared/ptr_shared_server in the same shape" — inconclusive; not chased.</li>
+</ul>
+
+<h2>Worked-examples structural check</h2>
+
+<p><strong>VERDICT: complete.</strong> Both <code>&lt;h2&gt;</code> sections present; 7 positive (§1–§7) + 5 rejected (R1–R5); each has a lead summary paragraph + at least one <code>&lt;pre&gt;&lt;code&gt;</code> block. The amendment to §5 did not change the example shape (per pre-audit analysis with the user — the <code>has_rendered</code> invariant is implementation-level, not user-observable in initial-render-only examples).</p>
+
+<details>
+<summary>Audit manifest (machine-readable)</summary>
+<pre>
+manifest:
+  adr_path: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  adr_hash_pre_stamp: f61528e6d383
+  audited_files:
+    - path: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+      sha256: f61528e6d383
+    - path: R/paintr-app.R
+      sha256: f017150142d0
+    - path: R/paintr-shared-coordinator.R
+      sha256: aa59fa88e599
+    - path: R/paintr-shared-ui.R
+      sha256: 764997e6725d
+    - path: R/paintr-server.R
+      sha256: 7b4719c6e1ff
+    - path: R/paintr-default-args.R
+      sha256: 4452baabaeae
+    - path: R/paintr-registry.R
+      sha256: a9d0683bab3d
+    - path: R/paintr-build-ui.R
+      sha256: 0cd1f76e0423
+  audited_at: 2026-05-26 00:50
+  auditor:
+    agent: general-purpose
+    model: opus
+    effort: high
+  verdict: PASS
+  findings_count: 0
+  worked_examples_verdict: complete
+  amendment_scope: Decision §5 — has_rendered + 401804c reference
+  supersedes_prior_stamp: f3b2da2ebf62 (audit-adr-0023-2026-05-26-0028.html)
+</pre>
+</details>
+
+</body>
+</html>

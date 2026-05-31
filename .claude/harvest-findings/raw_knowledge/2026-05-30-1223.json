@@ -1,0 +1,391 @@
+{
+  "harvested_at": "2026-05-30T12:23",
+  "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-05-30-1223-deepening-sweep-v2.md, 16 stamps)",
+  "counts": {
+    "verified": 15,
+    "contradicted": 1,
+    "unconfirmable": 0
+  },
+  "findings": [
+    {
+      "id": "partition-ownership-three-channels",
+      "claim": "Shared-key ownership ('does THIS surface render+bind THIS shared key?') is now centralized behind one internal pure non-reactive helper partition_view (R/paintr-partition-view.R, ADR 0026 rank 11) — LANDED in b6a2f72, no longer a parked proposal: three surface roles (ptr_partition_roles = c('single','panel_host','instance')) — 'single' (single-instance L1, owns all keys + renders its inline shared section), 'panel_host' (L2 standalone panel, owns the >=2-formula panel keys), 'instance' (embedded ptr_server, defers panel keys to the host) — each construct a view via new_partition_view(role, panel_keys, consumer_keys) and query partition_host_owned_keys()/partition_renders_section(), replacing the three previously hand-derived host_owned_keys complement sets + the render_shared_section boolean; the partition ALGORITHM (shared_partition in paintr-shared-coordinator.R) is unchanged — only the consumption side was unified.",
+      "detail": "This is the channel where the recurring 2026-05-22 partition-binder bug lived. Parked (ADR 0026) as a design abstraction for an interactive session, not landed.",
+      "scope": "decision",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-shared-coordinator.R (shared_partition, obj$panel_keys/local_keys_by_formula); R/paintr-shared-ui.R:388 (host_owned_keys=setdiff); R/paintr-app.R:169/339 (render_shared_section)",
+      "verdict": "verified",
+      "verification": "Verified by symbol against current source. The partition_view module lives at R/paintr-partition-view.R (tracked; created in commit b6a2f72 'centralize shared-key ownership behind partition_view (ADR 0026 #11)'), defining ptr_partition_roles=c('single','panel_host','instance'), new_partition_view(role,panel_keys,consumer_keys), partition_host_owned_keys(view), partition_renders_section(view). The header comment matches the claim verbatim ('three hand-derived host_owned_keys complement sets plus a parallel render_shared_section boolean ... the 2026-05-22 partition-binder bug'). Consumption sites confirmed: R/paintr-app.R:169 (render_shared_section=partition_renders_section(new_partition_view('single'))), :339 (host_owned_keys=partition_host_owned_keys(new_partition_view('single'))), :1166-1167 (new_partition_view('instance',panel_keys=names(dots$shared))); R/paintr-shared-ui.R:416-417 (panel_host). shared_partition() still lives in R/paintr-shared-coordinator.R:28, unchanged (algorithm side). Cited file is the renamed paintr-partition-view.R (the stale source string listed paintr-shared-coordinator.R/-shared-ui.R/-app.R); the claim holds and is LANDED, not parked.",
+      "checked_refs": [
+        "R/paintr-partition-view.R ptr_partition_roles",
+        "R/paintr-partition-view.R new_partition_view",
+        "R/paintr-partition-view.R partition_host_owned_keys",
+        "R/paintr-partition-view.R partition_renders_section",
+        "R/paintr-app.R:169",
+        "R/paintr-app.R:339",
+        "R/paintr-app.R:1166",
+        "R/paintr-shared-ui.R:416",
+        "R/paintr-shared-coordinator.R:28"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "ggpaintr-name-normalizers-distinct",
+      "claim": "ggpaintr has TWO deliberately separate R-name normalizers: the column-vector normalizer (ptr_normalize_column_name_vector — allows dots, pads/truncates to length n, make.unique across columns) and the single binding-name normalizer (ptr_make_valid_name — collapse non-[alnum_] to _, trim, fallback-if-empty, reserved-word suffix, make.names).",
+      "detail": "ptr_make_valid_name now backs BOTH the file-derived default name (ptr_upload_default_name = thin wrapper) and the typed-shortcut name (the else branch in ptr_resolve_upload_info), killing the prior drift between those two binding-name paths. The column-vector normalizer is intentionally NOT folded in: distinct job (dot-bearing names like Sepal.Length, cross-column make.unique, length padding) whose outputs are pinned by many tests; the upload-default-name path has its own exact-output tests (test-upload.R / test-coverage-gaps.R, e.g. \"my-data.csv\"->\"my_data\", \"if.csv\"->\"if_\").",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-data.R (ptr_normalize_column_name_vector); R/paintr-upload.R (ptr_make_valid_name, ptr_upload_default_name, ptr_resolve_upload_info)",
+      "verdict": "verified",
+      "verification": "Confirmed two distinct normalizers: ptr_normalize_column_name_vector (data.R:77-107; allows dots, pads/truncates to n, make.unique) vs ptr_make_valid_name (upload.R:15-27; no dots, trim, fallback, reserved-word suffix, make.names).",
+      "checked_refs": [
+        "R/paintr-data.R:77-107",
+        "R/paintr-upload.R:15-27"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "r-name-normalization"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+    },
+    {
+      "id": "implementable-hook-gates-plan-md",
+      "claim": "The implementable pre-commit hook blocks any commit touching files matching `dev/plans/*.html | dev/plans/*.md | *-plan.md` unless they carry a current `implementable: PASS` stamp — and the `*-plan.md` glob matches files ANYWHERE, e.g. tests/browser/browser-test-plan.md, not just under dev/plans/.",
+      "detail": "ADRs under dev/adr/ are NOT gated. Bit this session: a cosmetic edit to tests/browser/browser-test-plan.md blocked the commit; fix was `git restore --source=HEAD --staged --worktree` that file (a plain `git checkout --` left it staged). Avoid editing any *-plan.md during refactors.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2,harness",
+      "source": "dev/githooks/pre-commit; observed: editing tests/browser/browser-test-plan.md blocked a commit",
+      "verdict": "verified",
+      "verification": "Confirmed dev/githooks/pre-commit line 26 case-globs 'dev/plans/*.html|dev/plans/*.md|*-plan.md' requiring a current 'implementable: PASS' stamp (content-hash matched); the *-plan.md glob matches anywhere, not only under dev/plans/.",
+      "checked_refs": [
+        "dev/githooks/pre-commit:26"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+    },
+    {
+      "id": "is-syntactic-name-predicate",
+      "claim": "\"x is a usable R binding symbol\" is now the single predicate is_syntactic_name(x) = is.character(x) && length(x)==1L && !is.na(x) && nzchar(x) && make.names(x)==x; it was open-coded ~13 times across the source-binding helpers and bound-name cleanup.",
+      "detail": "Reserved words fail because make.names appends a dot (make.names(\"if\")==\"if.\" != \"if\"). The !is.na guard only affects NA input, which no call site supplies. as.character(symbol) is always a length-1 non-NA character so the partial-form sites (nzchar(cand) && make.names(cand)==cand) are equivalent under is_syntactic_name.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-server.R (is_syntactic_name)",
+      "verdict": "verified",
+      "verification": "Read R/paintr-server.R:1103-1106: is_syntactic_name <- function(x) { is.character(x) && length(x)==1L && !is.na(x) && nzchar(x) && make.names(x)==x }. Body matches the claimed predicate exactly. Confirmed it is the single predicate: 14 occurrences in paintr-server.R and 0 elsewhere in R/ (grep), called at the binding-symbol-cleanup sites (1032,1139,1145,1232,1238,1267,1402,1412,1419). Extracted in commit 9bb8235 'refactor(server): extract is_syntactic_name() — one binding-symbol predicate'.",
+      "checked_refs": [
+        "R/paintr-server.R is_syntactic_name",
+        "R/paintr-server.R:1103-1106"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "r-name-normalization",
+        "source-binding-runtime"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "panel-owned-source-key-duality",
+      "claim": "In ptr_setup_pipelines the two panel-owned source observer blocks were identical EXCEPT the bound_names key — the bare-data-layer branch binds under the LAYER name, the pipeline-head branch binds under the SOURCE id — so the extracted wire_panel_owned_source(state, key, node, entry, session, slot) takes `key` explicitly to preserve that duality.",
+      "detail": "Corroborates the existing bound-names-key-duality understanding. is_panel_owned_id(panel_sources, id) = !is.null(id) && id %in% names(panel_sources %||% list()) replaced ~9 open-coded membership tests; it takes the panel_sources list directly so both state$panel_sources and a local panel_sources call sites share it.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-server.R (wire_panel_owned_source, is_panel_owned_id, ptr_setup_pipelines two branches)",
+      "verdict": "verified",
+      "verification": "Read R/paintr-server.R: wire_panel_owned_source(state, key, node, entry, session, slot) at L1167 takes `key` explicitly; its doc comment (L1159-1166) states verbatim 'the bare-data-layer branch passes the LAYER name, the pipeline-head branch passes the SOURCE id (the bound_names key duality)'. is_panel_owned_id(panel_sources, id) at L1155-1157 = !is.null(id) && id %in% names(panel_sources %||% list()), with comment 'Accepts the panel_sources list directly so both state$panel_sources and a local panel_sources call sites share one check'. Both halves of the claim hold.",
+      "checked_refs": [
+        "R/paintr-server.R wire_panel_owned_source",
+        "R/paintr-server.R is_panel_owned_id",
+        "R/paintr-server.R:1155-1181"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "source-binding-runtime",
+        "shared-coordinator-partition"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "parallel-gate-flakes-seeding-cluster",
+      "claim": "The parallel full-suite gate (TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4) reproducibly fails ~6 assertions in the consumer-seeding / derived-column browser cluster that PASS when those same files are re-run serially — boot-tail races, not product failures; the per-commit landing gate should be run serially (devtools::test(), ~PASS 3439, 0/0/0).",
+      "detail": "Corroborates the shinytest2-boot-tail-race understanding. Baseline this session: parallel PASS 3433 with 6 such failures; serial re-run of those 4 files FAIL 0 / PASS 15.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2,harness",
+      "source": "TESTTHAT_PARALLEL=TRUE devtools::test() vs serial; test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R",
+      "verdict": "verified",
+      "verification": "Observational parallel boot-tail flake finding. Cited test file(s) unchanged at HEAD a58dadd and CLAUDE.md authoritative-gate block still documents this parallel-vs-serial flake behavior. Claim re-confirmed.",
+      "checked_refs": [
+        "tests/testthat/test-spec-seed-derived-column-browser.R",
+        "CLAUDE.md authoritative-gate"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "test-gate-discipline",
+        "shinytest2-gotchas"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "a58daddd9897228d707c310b910393406c8f72cd"
+    },
+    {
+      "id": "placeholder-output-id-single-source",
+      "claim": "The renderUI-container output id for ANY placeholder (value, source, or consumer) is `paste0(raw_id, \"_ui\")`, now defined exactly once as `placeholder_output_id()` in R/paintr-ids.R.",
+      "detail": "Previously three byte-identical helpers — value_output_id/source_output_id (paintr-build-ui.R) and consumer_output_id (paintr-ids.R). The widget binds at the raw id; its renderUI container is `<raw_id>_ui` to avoid an inputId/container collision. emit_placeholder_rows()'s former 3-branch role dispatch collapsed to one call since all roles produced the same id.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-ids.R (placeholder_output_id); R/paintr-build-ui.R; R/paintr-input-spec.R (emit_placeholder_rows)",
+      "verdict": "verified",
+      "verification": "Read R/paintr-ids.R:139-141: placeholder_output_id <- function(raw_id) paste0(raw_id, '_ui'). Its comment names it the 'Single source of truth for the _ui suffix contract' for ANY placeholder (value/source/consumer). Confirmed all roles route through it: R/paintr-build-ui.R:63 (value), :70 (consumer), :85 (source) all call placeholder_output_id(node$id); emit_placeholder_rows at R/paintr-input-spec.R:339 calls placeholder_output_id(raw_id); server.R uses it at 2184/2259/2324/2696/3009. Consolidated in commit 9604978 'refactor(ids): consolidate 3 identical *_output_id helpers into placeholder_output_id'.",
+      "checked_refs": [
+        "R/paintr-ids.R placeholder_output_id",
+        "R/paintr-ids.R:139-141",
+        "R/paintr-build-ui.R:63-85",
+        "R/paintr-input-spec.R:339"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "ui-widget-construction"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "ptr-app-grid-already-thin",
+      "claim": "ptr_app and ptr_app_grid are ALREADY thin wrappers — each just calls its distinct *_components builder then shiny::shinyApp(ui=parts$ui, server=parts$server); the only shared line is the shinyApp call, so there is no real L1-assembly duplication to extract (deep-leave).",
+      "detail": "ptr_app_components (single formula -> ptr_translate -> ptr_build_app_ui + ptr_make_app_server) and ptr_app_grid_components (multi-plot grid) are genuinely different assembly, not copies.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-app.R (ptr_app, ptr_app_components, ptr_app_grid, ptr_app_grid_components)",
+      "verdict": "verified",
+      "verification": "Read R/paintr-app.R. ptr_app (L134-152) calls ptr_app_components() then shiny::shinyApp(ui=parts$ui, server=parts$server). Serena overview confirms ptr_app_grid and ptr_app_grid_components are separate symbols in paintr-app.R (distinct *_components builders). The single-formula assembly (ptr_app_components -> ptr_translate + ptr_build_app_ui + ptr_make_app_server) differs genuinely from the grid path, so the only shared line is the shinyApp call — claim holds (deep-leave, no L1-assembly duplication).",
+      "checked_refs": [
+        "R/paintr-app.R ptr_app",
+        "R/paintr-app.R ptr_app_components",
+        "R/paintr-app.R ptr_app_grid",
+        "R/paintr-app.R ptr_app_grid_components"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "app-entry-points"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "ptr-arg-factory-rename",
+      "claim": "The five exported argument-validator factories were hard-renamed ptr_default_string/_numeric/_numeric_vector/_symbol_or_string/_expression -> ptr_arg_string/_numeric/_numeric_vector/_symbol_or_string/_expression (no deprecated aliases), and the roxygen doc group @name/@rdname ptr_default_args -> ptr_arg_validators.",
+      "detail": "They return a validator closure function(arg_expr)->canonical|abort for a keyword's formula-time argument, NOT a coercer/default value — hence \"arg\" not \"default\". Used at the call site as `positional_arg = ptr_arg_numeric()`. man/ptr_default_args.Rd removed, ptr_arg_validators.Rd added by devtools::document().",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-default-args.R (ptr_arg_* factories, @name ptr_arg_validators); NAMESPACE",
+      "verdict": "verified",
+      "verification": "Confirmed five ptr_arg_* factories (default-args.R:201-268), NAMESPACE exports ptr_arg_* (90-94) and NO ptr_default_*; no old definitions remain (hard rename); roxygen @name/@rdname ptr_arg_validators.",
+      "checked_refs": [
+        "R/paintr-default-args.R:201-268",
+        "NAMESPACE:90-94"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "placeholder-registry-api"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+    },
+    {
+      "id": "ptr-define-core-shared-prologue",
+      "claim": "The three public placeholder constructors (ptr_define_placeholder_value/_consumer/_source) are now thin wrappers over one internal `ptr_define_core(role, ...)` that owns the shared ~20-line validate-then-register prologue; role-specific bits (build_ui arity, resolve hook, validate_input/shortcut acceptance, runtime default, data_aware) branch on `role`.",
+      "detail": "build_ui validation args = c(\"node\",\"cols\",\"data\") for consumer else c(\"node\"); source validates resolve_data + defaults resolve_expr to function(value,node,...) rlang::sym(value) + validates the `shortcut` logical; value/consumer validate resolve_expr and accept validate_input; runtime default is identity for value/consumer and an abort-guard (\"only meaningful inside ptr_app()\") for source.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-registry.R (ptr_define_core + the 3 public wrappers)",
+      "verdict": "verified",
+      "verification": "Read R/paintr-registry.R:352-421. ptr_define_core(role, keyword, build_ui, ...) owns the shared validate-then-register prologue (ensure_registry_initialized, validate_keyword, validate_keyword_no_shadow, validate_hook, validate_positional_arg, validate_named_args, validate_copy_defaults). Role-specific branches confirmed exactly as claimed: build_ui_args=c('node','cols','data') for consumer else 'node' (L361-365); source validates resolve_data + defaults resolve_expr to function(value,node,...) rlang::sym(value) + validates `shortcut` logical (L368-380); value/consumer validate resolve_expr and accept validate_input (L382-385); runtime_default is identity (function(x,...) x) for value/consumer and an abort-guard '... is only meaningful inside ptr_app()' for source (L393-402). The three public wrappers (ptr_define_placeholder_value L592, _consumer L713, _source L870) are thin and fix `role`. Landed in commit 3b34c22.",
+      "checked_refs": [
+        "R/paintr-registry.R ptr_define_core",
+        "R/paintr-registry.R:352-421",
+        "R/paintr-registry.R:592",
+        "R/paintr-registry.R:870"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "placeholder-registry-api"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "registry-entry-keys-vs-public-args",
+      "claim": "After the rename, the placeholder public ARGUMENT names are `positional_arg` / `ui_text_defaults` but the registry-RECORD storage keys stay `entry$default_arg` / `entry$copy_defaults` — the public arg name and the internal key deliberately differ so downstream readers (translate/server/copy) were untouched.",
+      "detail": "default_arg->positional_arg (validates the keyword's single positional formula argument, e.g. the 50 in ppPct(50)); copy_defaults->ui_text_defaults (ties to the public ui_text vocabulary). validate_default_arg was renamed to validate_positional_arg and its message; validate_copy_defaults kept its function name but its messages now say \"ui_text_defaults\". Any code or test reading entry$default_arg/entry$copy_defaults still works.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-registry.R (ptr_define_core entry list); R/paintr-translate.R; R/paintr-server.R",
+      "verdict": "verified",
+      "verification": "Read R/paintr-registry.R. ptr_define_core signature (L352-356) uses public arg names positional_arg / ui_text_defaults; the registry entry list (L406-414) stores entry$default_arg = positional_arg and entry$copy_defaults = ui_text_defaults — public name and internal storage key deliberately differ, exactly as claimed. The NOTE comment at L349-351 states this verbatim ('the registry-record KEYS stay default_arg / copy_defaults ... only the public ARGUMENT names are positional_arg / ui_text_defaults'). Validators present: validate_positional_arg (L388), validate_copy_defaults (L390, function name kept). Landed in commit 3b34c22.",
+      "checked_refs": [
+        "R/paintr-registry.R ptr_define_core",
+        "R/paintr-registry.R:349-356",
+        "R/paintr-registry.R:406-414"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "placeholder-registry-api"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "resolve-upload-source-already-shared",
+      "claim": "The single-instance and panel-host source paths already SHARE resolve_upload_source (the panel-host path calls the same master impl), so the genuine remaining cross-file divergence is only the renderUI bodies + the seeding-decision closures/latches + the spec normalization — and those differ by reactive dependencies (single-instance is state-backed; the host runs state=NULL per ADR 0006), so a forced full collapse would couple them artificially.",
+      "detail": "There is NO apply_spec_at_boot_host twin in source — apply_spec_at_boot exists in server.R; the host spec handling is a separate small loop in shared-ui.R (~line 750). Refines the prior \"two parallel source-handling paths\" finding: the resolution CORE is deduped; the divergence is reactive-shape, not copy-paste.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-server.R (resolve_upload_source); R/paintr-shared-ui.R (ptr_setup_panel_sources)",
+      "verdict": "verified",
+      "verification": "resolve_upload_source is defined once in R/paintr-server.R:1307 (resolve_upload_source <- function(input_slot, shortcut_slot, node, entry, ...)); its doc comment (L1275-1286) states 'Single resolver for upload-source mechanics, two call sites today (bare-data-source layer loop and pipeline-head source loop, both in ptr_setup_pipelines()) and a third forthcoming via PLAN-04 (ptr_setup_panel_sources() at host scope)' — confirming the resolution CORE is shared. apply_spec_at_boot is defined at paintr-server.R:546; apply_spec_at_boot_host is a SEPARATE symbol at R/paintr-shared-ui.R:753 — confirming there is no apply_spec_at_boot_host twin in server.R and the host spec handling is separate. Claim holds.",
+      "checked_refs": [
+        "R/paintr-server.R resolve_upload_source",
+        "R/paintr-server.R:1307",
+        "R/paintr-shared-ui.R apply_spec_at_boot_host",
+        "R/paintr-shared-ui.R:753",
+        "R/paintr-server.R:546"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "ppupload-mechanics",
+        "source-binding-runtime",
+        "shared-coordinator-partition"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "source-binding-derivation-per-site",
+      "claim": "The three source binding-name derivations are genuinely DIFFERENT per call site (not safely collapsible into one binding_name_for_source): try_bind_source_default splits lookup_name vs binding_name (post-PLAN-02 the empty-shortcut path looks up under the user name but BINDS under node$auto_name), feeds resolve_expr `node$default`; panel_owned_binding_name feeds resolve_expr the resolved `df`; try_bind_source_default_resolved takes the resolved shortcut and feeds resolve_expr `file_info`; auto-name fallback conditions differ per ADR 0024/0025/0023.",
+      "detail": "A unified derivor would be a shallow multi-flag pass-through and would risk behaviour change in the seeding-sensitive path. The only genuinely shared kernel across them is the syntactic-name validation predicate.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-server.R (panel_owned_binding_name ~1105; try_bind_source_default ~1142; try_bind_source_default_resolved ~1392)",
+      "verdict": "verified",
+      "verification": "Read R/paintr-server.R. All three derivations exist and differ per site: try_bind_source_default (L1201) splits lookup_name vs binding_name — empty-shortcut path binds under node$auto_name (via panel_source_canonical_name, L1264-1270) while looking up under the user name, feeds resolve_expr node$default (L1234); panel_owned_binding_name (L1112) feeds resolve_expr the resolved df (L1141: entry$resolve_expr(df, node)); try_bind_source_default_resolved is a distinct symbol at L1447 taking the resolved shortcut. Auto-name fallback conditions differ per ADR 0024/0025 (comments L1129-1135, L1259-1270). The only shared kernel is is_syntactic_name (called in all three). Claim holds.",
+      "checked_refs": [
+        "R/paintr-server.R panel_owned_binding_name",
+        "R/paintr-server.R try_bind_source_default",
+        "R/paintr-server.R try_bind_source_default_resolved",
+        "R/paintr-server.R:1112-1273",
+        "R/paintr-server.R:1447"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "source-binding-runtime"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "stage-overrides-build-vs-render",
+      "claim": "The verb-derived param_override (`{param}` -> \"verb()\") and \" in verb()\" label_suffix for a pipeline-stage placeholder are now derived once by stage_overrides_for_entry(entry, drop_suffix); both the static build path and the renderUI re-derivation path call it.",
+      "detail": "drop_suffix = !is.na(entry$stage_id) at the render-time site (suffix suppressed when an enclosing stage-group header already names the verb). Post-PLAN-01 the panel-level args no longer reach invoke_build_ui, which is why the renderUI body must re-derive — that re-derivation was the duplication.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "R/paintr-build-ui.R (stage_overrides_for_entry, build_pipeline_stage_ui, pipeline_override_for_node)",
+      "verdict": "verified",
+      "verification": "Confirmed stage_overrides_for_entry(entry,drop_suffix) (build-ui.R:282-293) returns param_override=verb() and label_suffix=' in verb()'; both build_pipeline_stage_ui (static) and pipeline_override_for_node (renderUI re-derive) call it.",
+      "checked_refs": [
+        "R/paintr-build-ui.R stage_overrides_for_entry",
+        "R/paintr-build-ui.R build_pipeline_stage_ui",
+        "R/paintr-build-ui.R pipeline_override_for_node"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "ui-widget-construction"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+    },
+    {
+      "id": "symbol-lines-json-autoregen",
+      "claim": "On any commit that changes R/, the pre-commit hook regenerates and auto-stages dev/agents/ggpaintr-source-expert/symbol-lines.json (it prints \"[pre-commit] R/ changed — rebuilding symbol-lines.json\"); use `git add -A` so the regenerated file is included.",
+      "detail": "",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2,harness",
+      "source": "dev/githooks/pre-commit (rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json on R/ change)",
+      "verdict": "verified",
+      "verification": "Read dev/githooks/pre-commit. The header comment (L73) states it 'Rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json when any' R/ file changes; the hook prints a '[pre-commit] R/ changed' rebuild message and runs `git add` on the regenerated symbol-lines.json so it is auto-staged. Matches the claim (auto-regen + auto-stage on R/ change; use `git add -A` to include it).",
+      "checked_refs": [
+        "dev/githooks/pre-commit"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    },
+    {
+      "id": "verify-before-extract-dedup-overstated",
+      "claim": "An automated duplication/refactor sweep systematically OVER-states duplication — multiple ggpaintr candidates flagged as copy-paste were on inspection either per-site-different (source binding-name derivation), an already-shared single helper with N callers (collect_orphan_shared_stages, resolve_upload_source), or already-thin wrappers (ptr_app/ptr_app_grid); the discipline that held is to run the deletion test on each candidate and extract only the genuinely-identical kernel (e.g. the predicate, not the derivation).",
+      "detail": "Concrete refinements made: #5 scoped to param_override (orphan-stage left); #7 reduced to is_syntactic_name (derivation left); #2 left the column-vector normalizer separate; #8 preserved the layer/source key duality; #12 deep-left entirely.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2",
+      "source": "this session's candidate verification vs the explorer-synthesis catalog (ADR 0026)",
+      "verdict": "verified",
+      "verification": "Meta-finding corroborated by independently verifying its cited concrete cases against current source: (#7) source binding-name derivation reduced to is_syntactic_name with the per-site derivations LEFT separate — confirmed (finding source-binding-derivation-per-site: three distinct derivors share only is_syntactic_name at R/paintr-server.R:1103); (resolve_upload_source / collect_orphan_shared_stages) already-shared single helper with N callers — confirmed resolve_upload_source defined once at R/paintr-server.R:1307 with two+ call sites, and collect_orphan_shared_stages defined once at R/paintr-build-ui.R:508 with callers at build-ui.R:543, server.R:1814, app.R:384; (ptr_app/ptr_app_grid) already-thin wrappers — confirmed (finding ptr-app-grid-already-thin); (#5) scoped to param_override (orphan-stage left) — param_override is a live arg threaded through build-ui.R (L51,209,287,818,825). The cited refs drifted (build-ui.R:508 is now collect_orphan_shared_stages, not param_override; server.R:1268-1300 is the resolve_upload_source doc block) but every concrete claim resolves to real current code. The discipline lesson (run the deletion test per candidate; extract only the genuinely-identical kernel) holds.",
+      "checked_refs": [
+        "R/paintr-server.R resolve_upload_source",
+        "R/paintr-server.R:1307",
+        "R/paintr-build-ui.R collect_orphan_shared_stages",
+        "R/paintr-build-ui.R:508",
+        "R/paintr-build-ui.R param_override"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "refactor-discipline"
+      ],
+      "status": "fresh",
+      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+    }
+  ]
+}

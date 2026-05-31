@@ -14,13 +14,13 @@ app_ui_html <- function(app) {
   paste(as.character(e$ui), collapse = "")
 }
 
-test_that("BUG-A1: aes `var` pickers refresh through pds -> diamonds -> colvars subset", {
+test_that("BUG-A1: aes `ppVar` pickers refresh through pds -> diamonds -> colvars subset", {
   # Mirrors the App-1 scenario the audit flagged: a pipeline-head custom
   # source (`pds`, companion-less) followed by `select(colvars)` (custom
   # multi-column consumer), `mutate(var + log(var))`, `filter(var > num)`,
   # then `ggplot(aes(x = var, y = var, color = var))`. The audit's
   # observation was that switching `pds` from mpg to diamonds left the
-  # three aes pickers (`ggplot_1_*_var_NA`) with empty options while the
+  # three aes pickers (`ggplot_1_*_ppVar_NA`) with empty options while the
   # mutate/filter pickers refreshed. This test pins the R-side invariant:
   # every var consumer downstream of the pipeline must receive the
   # upstream columns at each step of the pds -> diamonds -> colvars-subset
@@ -80,10 +80,10 @@ test_that("BUG-A1: aes `var` pickers refresh through pds -> diamonds -> colvars 
   withr::defer(suppressWarnings(ptr_register_builtins()))
 
   formula <- sprintf(paste(
-    "%s |> head(num) |> dplyr::select(%s) |>",
-    "dplyr::mutate(metric = var + log(var)) |>",
-    "dplyr::filter(var > num) |>",
-    "ggplot(aes(x = var, y = var, color = var))"
+    "%s |> head(ppNum) |> dplyr::select(%s) |>",
+    "dplyr::mutate(metric = ppVar + log(ppVar)) |>",
+    "dplyr::filter(ppVar > ppNum) |>",
+    "ggplot(aes(x = ppVar, y = ppVar, color = ppVar))"
   ), src_kw, cv_kw)
 
   shiny::testServer(function(input, output, session) {
@@ -98,7 +98,7 @@ test_that("BUG-A1: aes `var` pickers refresh through pds -> diamonds -> colvars 
     var_consumers <- Filter(
       function(n) is.null(n$shared),
       find_nodes(st$tree(), function(n) {
-        is_ptr_ph_data_consumer(n) && identical(n$keyword, "var")
+        is_ptr_ph_data_consumer(n) && identical(n$keyword, "ppVar")
       })
     )
     aes_var_ids <- vapply(
@@ -149,20 +149,20 @@ test_that("BUG-A1: aes `var` pickers refresh through pds -> diamonds -> colvars 
                    info = sprintf("var %s after colvars subset", cn$id))
     }
     expect_true(length(aes_var_ids) >= 1L,
-                info = "aes var pickers must be present in the tree")
+                info = "aes ppVar pickers must be present in the tree")
   })
 })
 
-test_that("BUG-A2: ui_text$defaults$num overrides reach the shared num widget", {
+test_that("BUG-A2: ui_text$defaults$ppNum overrides reach the shared num widget", {
   # First a unit-level check on `ptr_resolve_ui_text` with `param = NULL` --
   # the resolver must fall through to `defaults$<keyword>` for help/empty_text
   # when the caller has no specific param to key off.
-  ui_text <- ptr_ui_text(list(defaults = list(num = list(
+  ui_text <- ptr_ui_text(list(defaults = list(ppNum = list(
     help = "Any number works here.",
     empty_text = "No number yet"
   ))))
   copy <- ptr_resolve_ui_text("control",
-                              keyword = "num",
+                              keyword = "ppNum",
                               param = NULL,
                               layer_name = NULL,
                               ui_text = ui_text)
@@ -170,21 +170,32 @@ test_that("BUG-A2: ui_text$defaults$num overrides reach the shared num widget", 
   expect_equal(copy$empty_text, "No number yet")
 
   # End-to-end: a shared `num` widget across two geom_point args (alpha and
-  # size) is rendered statically into the sidebar by `ptr_app()` /
-  # `ptr_app_bslib()`. The widget's help / empty_text leaves must come from
-  # `ui_text$defaults$num`, not from the alpha-specific built-in copy --
-  # otherwise multi-param widgets inherit alpha's "0 and 1" hint.
+  # size). Pre-PLAN-01 the widget was rendered statically into the sidebar
+  # and `app_ui_html(app)` carried its help / placeholder. After ADR 0012 /
+  # PLAN-01 (Bug B) `build_ui_for.ptr_ph_value` emits a uiOutput container
+  # and the widget itself is composed inside `ptr_setup_value_uis()`'s new
+  # shared-key renderUI -- so the assertion drives the app under
+  # `shiny::testServer` and reads the post-flush HTML out of the
+  # `shared_lvl_ui` output slot. The contract is unchanged: the resolved
+  # copy must come from `defaults$ppNum`, not from the alpha-specific
+  # built-in (which would leak the "0 and 1" hint).
   formula <- paste0(
     "ggplot(mtcars, aes(x = mpg, y = hp)) + ",
-    "geom_point(alpha = num(shared = 'lvl'), size = num(shared = 'lvl'))"
+    "geom_point(alpha = ppNum(shared = 'lvl'), size = ppNum(shared = 'lvl'))"
   )
-  app <- ptr_app(formula, ui_text = ui_text, expr_check = FALSE)
-  rendered <- app_ui_html(app)
-  expect_true(grepl("Any number works here.", rendered, fixed = TRUE),
-              info = "defaults$num$help must reach the shared num widget")
-  expect_true(grepl("No number yet", rendered, fixed = TRUE),
-              info = "defaults$num$empty_text must reach the shared num widget (as `placeholder` on the underlying <input>)")
-  expect_false(grepl("Enter a value between 0 and 1.", rendered, fixed = TRUE),
+  env <- new.env(parent = globalenv()); env$mtcars <- mtcars
+  app <- ptr_app(formula, ui_text = ui_text, expr_check = FALSE, envir = env)
+  widget_html <- NULL
+  shiny::testServer(app, {
+    session$flushReact()
+    widget_html <<- paste(as.character(session$getOutput("shared_lvl_ui")),
+                          collapse = "\n")
+  })
+  expect_true(grepl("Any number works here.", widget_html, fixed = TRUE),
+              info = "defaults$ppNum$help must reach the shared num widget")
+  expect_true(grepl("No number yet", widget_html, fixed = TRUE),
+              info = "defaults$ppNum$empty_text must reach the shared num widget (as `placeholder` on the underlying <input>)")
+  expect_false(grepl("Enter a value between 0 and 1.", widget_html, fixed = TRUE),
                info = "alpha-specific built-in help must not bleed into shared widget")
 })
 

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr vignette rewrite plan</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<main>
+
+<h1>ggpaintr vignette rewrite plan</h1>
+<p class="meta">
+  Drafted 2026-05-13 on branch <code>core-rewrite-impl</code> · output of a <code>/grill-me</code> design session ·
+  status: <strong>plan locked, implementation pending</strong>
+</p>
+
+<div class="callout">
+  README has been rewritten in ggplot2 style (short Overview / Installation / Usage / More topics). This plan
+  covers the <em>vignette set</em> that the README's "More topics" section points at, plus the man-page and
+  <code>NEWS.md</code> hand-offs for content that doesn't belong in a vignette.
+</div>
+
+<h2>Locked design decisions</h2>
+
+<table>
+  <thead>
+    <tr><th style="width: 26%;">Decision</th><th style="width: 30%;">Choice</th><th>Why</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Vignette role vs. e-book</td>
+        <td>Self-contained mini-tutorials</td>
+        <td>Package must be usable without the (still-unwritten) e-book. Some overlap with the e-book is the accepted cost.</td></tr>
+    <tr><td>Intro / "Getting Started" vignette</td>
+        <td>None — README is the only intro</td>
+        <td>Every vignette is advanced / scoped to one user question. README's Usage block does the from-zero work.</td></tr>
+    <tr><td>Granularity</td>
+        <td>5 vignettes total (3 new + 2 existing)</td>
+        <td>One per user-question cluster. Coarser would bury sections; finer would duplicate setup boilerplate.</td></tr>
+    <tr><td>Customization scope</td>
+        <td><code>ui_text</code> + custom placeholders</td>
+        <td>Same audience ("change ggpaintr's defaults"). Plot-injection helpers (<code>ptr_gg_extra</code>, custom <code>renderPlot</code>) live in use-cases L3, not here.</td></tr>
+    <tr><td>L3 ("Level 3") meaning</td>
+        <td>In-Shiny custom rendering via extract accessors</td>
+        <td>L3 is NOT headless. It is the pattern of calling <code>ptr_extract_plot()</code> inside your own <code>renderPlotly()</code> / <code>renderGirafe()</code> / custom UI. All L3 examples are full running apps.</td></tr>
+    <tr><td>Headless workflow</td>
+        <td>Internal-only, never appears in any vignette</td>
+        <td>The headless runtime in <code>R/paintr-headless.R</code> is for the reactive runtime observer and dev-side regression tests. Public surface is real Shiny session only.</td></tr>
+    <tr><td><code>testServer</code> in vignettes</td>
+        <td>Banned</td>
+        <td>The extract accessors do not actually render under <code>testServer</code>. Public surface is real Shiny session only; vignettes must reflect that.</td></tr>
+    <tr><td>Formula grammar reference home</td>
+        <td><code>?ptr_app</code> man page; compact tour in use-cases L1</td>
+        <td>Reference content goes where R users reach (<code>?fn</code>). Vignette reproduces just enough table to teach in-line. Mirrors ggplot2's <code>?aes</code> strategy.</td></tr>
+    <tr><td>Safety story home</td>
+        <td>Dedicated <code>ggpaintr-safety</code> vignette</td>
+        <td>"Can I share this publicly?" is a coherent user question cutting across L1/L2/L3. Folding it inside another vignette would bury it.</td></tr>
+    <tr><td>pkgdown nav order</td>
+        <td>use-cases → customization → safety → gallery → llm</td>
+        <td>User-journey order. Use-cases first (dominant landing question); safety after customization (most users hit it only when going public).</td></tr>
+  </tbody>
+</table>
+
+<h2>Vignette set</h2>
+
+<div class="grid2">
+
+  <div class="card">
+    <h3>1. <code>ggpaintr-use-cases</code> <span class="pill new">new</span></h3>
+    <p><em>User question:</em> How do I use ggpaintr for my situation?</p>
+    <p><em>Opens with:</em> compact formula tour (5 placeholders, one table, one worked example). Full grammar lives at <code>?ptr_app</code>.</p>
+    <p><em>Three levels:</em></p>
+    <ul>
+      <li><strong>L1 — All-in-one entry point.</strong> <code>ptr_app()</code> / <code>ptr_app_bslib()</code> / <code>ptr_app_grid()</code>. The empty-call cleanup rule shown by example. Local data with non-syntactic columns via <code>ptr_normalize_column_names()</code>.</li>
+      <li><strong>L2 — Embed in your own Shiny app.</strong> Non-module path: <code>ptr_controls_ui</code> + <code>ptr_outputs_ui</code> + <code>ptr_server</code>. Module path: <code>ptr_module_ui</code> + <code>ptr_module_server</code>. Split outputs with <code>ptr_register_plot</code> / <code>_code</code> / <code>_error</code>. Optional <code>ptr_init_state</code> for advanced init.</li>
+      <li><strong>L3 — Custom rendering via extract accessors.</strong> <code>ptr_extract_plot(state)</code> inside <code>renderPlotly()</code>, <code>renderGirafe()</code>, or any custom renderer. <code>ptr_extract_code(state)</code> for your own code panel. <code>ptr_extract_error(state)</code> for custom error UI. <code>ptr_gg_extra(state, ...)</code> for host-app layer injection. <strong>All examples are full running apps — no <code>testServer</code>.</strong></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>2. <code>ggpaintr-customization</code> <span class="pill new">new</span></h3>
+    <p><em>User question:</em> How do I tailor ggpaintr's defaults?</p>
+    <ul>
+      <li><strong>Rewriting copy with <code>ui_text</code>.</strong> Six-section override catalog, merge precedence rules. Helpers: <code>ptr_ui_text</code>, <code>ptr_resolve_ui_text</code>.</li>
+      <li><strong>Adding a new widget type.</strong> Hook contract across <code>ptr_define_placeholder_value</code> / <code>_consumer</code> / <code>_source</code>. Full worked example (absorbs gallery §3).</li>
+      <li><strong>Sharing one widget across two plots.</strong> The shared-placeholder pattern (absorbs gallery §8).</li>
+      <li><strong>Unregistering.</strong> <code>ptr_clear_placeholder</code> for cleanup between sessions / examples.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>3. <code>ggpaintr-safety</code> <span class="pill new">new</span></h3>
+    <p><em>User question:</em> How do I share this with untrusted users?</p>
+    <ul>
+      <li><code>expr_check</code> flag — what it does, when (never) to turn it off.</li>
+      <li>The denylist boundary — ~151 entries, treated as complete. The AST walker is the actual safety mechanism (not the denylist alone).</li>
+      <li>Upload trust model — what's accepted, where normalization happens, what the host can / can't restrict.</li>
+      <li>Public-deployment recipe — shinyapps.io / Posit Connect checklist; what to lock down at each level.</li>
+      <li>Trade-off table: L1 vs L2 vs L3 deployment, default settings, additional surface a host introduces.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>4. <code>ggpaintr-gallery</code> <span class="pill surg">kept, surgery</span></h3>
+    <p><em>User question:</em> What does a real ggplot look like as a ggpaintr formula?</p>
+    <p>Stays as a recipe collection. Sections retained (renumber after deletions):</p>
+    <ul>
+      <li>§4 — A realistic ggplot2 graphic, parameterized</li>
+      <li>§5 — Data-cleaning pipelines into <code>ggplot()</code></li>
+      <li>§6 — Interactive output packages (plotly, ggiraph) <em>— now the canonical L3 worked examples; cross-link from use-cases</em></li>
+      <li>§7 — ggplot2 extension packages (ggpcp, ggridges, ggrepel, ggalluvial, ggdist)</li>
+    </ul>
+    <p>Surgery removes §3, §8, §9 (see "Gallery surgery checklist" below).</p>
+  </div>
+
+  <div class="card">
+    <h3>5. <code>ggpaintr-llm</code> <span class="pill keep">kept, unchanged</span></h3>
+    <p><em>User question:</em> How do I plug an LLM into this?</p>
+    <p>No changes. Already covers ellmer integration, primer + tool split, provider/model swap, manual registration, token-free testing.</p>
+  </div>
+
+</div>
+
+<h2>Non-vignette homes</h2>
+
+<table>
+  <thead>
+    <tr><th>Destination</th><th>Owns</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>?ptr_app</code> / <code>?ptr_app_bslib</code> / <code>?ptr_app_grid</code> <span class="pill man">man</span></td>
+        <td>Canonical formula grammar table; 5-placeholder catalog; empty-call cleanup list; <code>expr_check</code> flag; <code>safe_to_remove</code> opt-in. Use-cases L1's compact tour links here.</td></tr>
+    <tr><td><code>?ptr_options</code> <span class="pill man">man</span></td>
+        <td>Global knobs (<code>verbose</code>, <code>checkbox_default_all_other_layer</code>) and base-<code>options()</code> semantics.</td></tr>
+    <tr><td><code>?ptr_define_placeholder_value</code> family <span class="pill man">man</span></td>
+        <td>Full hook signatures (<code>build_ui</code>, <code>resolve_expr</code>, <code>resolve_input</code>, <code>bind_ui</code>, <code>prepare_eval_env</code>) — reference content for the customization vignette to link to.</td></tr>
+    <tr><td><code>?ptr_normalize_column_names</code> <span class="pill man">man</span></td>
+        <td>Behavior + when uploads apply it automatically vs. when user calls it manually.</td></tr>
+    <tr><td><code>NEWS.md</code></td>
+        <td>Rewrite breaking changes: dropped <code>placeholders=</code> argument (registry is now process-global); placeholder hook signature change (<code>node$id</code>); removed <code>ptr_input_ui</code> / <code>ptr_output_ui</code> / <code>ptr_build_ids</code> / <code>ptr_parse_formula</code> / <code>ptr_exec</code> (latter two never existed under those names but might appear in user notes).</td></tr>
+  </tbody>
+</table>
+
+<h2>Gallery surgery checklist</h2>
+
+<table>
+  <thead>
+    <tr><th style="width: 28%;">Current section</th><th style="width: 16%;">Action</th><th>Destination</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>§3 — Three reusable custom placeholders</td>
+        <td><span class="pill surg">move</span></td>
+        <td><code>ggpaintr-customization</code> (placeholder authoring section). Replace in-gallery with one-paragraph "see customization" link.</td></tr>
+    <tr><td>§4 — A realistic ggplot2 graphic, parameterized</td>
+        <td><span class="pill keep">keep</span></td>
+        <td>Stays. Renumber.</td></tr>
+    <tr><td>§5 — Data-cleaning pipelines into <code>ggplot()</code></td>
+        <td><span class="pill keep">keep</span></td>
+        <td>Stays. Renumber.</td></tr>
+    <tr><td>§6 — Interactive output packages (plotly, ggiraph)</td>
+        <td><span class="pill keep">keep</span></td>
+        <td>Stays; becomes the canonical worked-example reference for use-cases L3.</td></tr>
+    <tr><td>§7 — ggplot2 extension packages</td>
+        <td><span class="pill keep">keep</span></td>
+        <td>Stays. Renumber.</td></tr>
+    <tr><td>§8 — Shared placeholders</td>
+        <td><span class="pill surg">move</span></td>
+        <td><code>ggpaintr-customization</code> (shared-placeholder pattern, depends on §3 anyway).</td></tr>
+    <tr><td>§9 — Programmatic extras and headless extraction</td>
+        <td><span class="pill del">delete</span></td>
+        <td>Headless is internal-only; <code>testServer</code> is banned from vignettes. The <code>ptr_gg_extra</code> material that's actually public moves to use-cases L3.</td></tr>
+    <tr><td>§10 — Where to go next</td>
+        <td><span class="pill surg">rewrite</span></td>
+        <td>Update cross-links to the new vignette set; drop references to <code>feature-sweep.R</code> from user-facing copy.</td></tr>
+  </tbody>
+</table>
+
+<h2>Cross-linking convention</h2>
+<ul>
+  <li>Each vignette opens by stating its one user question and naming the others in one sentence.</li>
+  <li>The README's "More topics" section gets two new bullets (customization, safety) plus the two existing (gallery, llm).</li>
+  <li>Gallery §6 (plotly/ggiraph) gets a backlink from use-cases L3 as the worked-example reference.</li>
+  <li>Customization's placeholder section gets a backlink from gallery's old §3 stub paragraph.</li>
+</ul>
+
+<h2>Verification trail</h2>
+
+<p>Every API name in this plan was checked against <code>NAMESPACE</code> and source on 2026-05-13. Highlights:</p>
+
+<table>
+  <thead>
+    <tr><th>Claim</th><th>Status</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>ptr_register_plot</code> / <code>_code</code> / <code>_error</code> are exported</td><td class="ok">Confirmed — <code>export(...)</code> lines in NAMESPACE</td></tr>
+    <tr><td><code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code> are the L2 UI helpers</td><td class="ok">Confirmed — exported; <code>ptr_input_ui</code> / <code>ptr_output_ui</code> do not exist at all</td></tr>
+    <tr><td>Headless runtime is internal-only</td><td class="ok">Confirmed — <code>R/paintr-headless.R</code> header reads "INTERNAL ONLY … Nothing here is exported"</td></tr>
+    <tr><td>L3 extract accessors render under <code>testServer</code></td><td class="danger">Refuted — verified empty <code>plot</code> / <code>code</code> / <code>error</code> even with <code>ptr_update_plot</code> input set. L3 examples must be full apps.</td></tr>
+    <tr><td><code>ptr_parse_formula</code> / <code>ptr_exec</code> exist</td><td class="danger">Refuted — names do not exist anywhere. Replacements are internal <code>ptr_translate</code> / <code>ptr_exec_headless</code> / <code>ptr_run_formula</code>.</td></tr>
+    <tr><td>Gallery section line numbers</td><td class="ok">Confirmed — §3 at L52, §6 at L183, §8 at L454, §9 at L518</td></tr>
+  </tbody>
+</table>
+
+<h2>Risks &amp; open questions</h2>
+
+<ul>
+  <li><strong>L3 ergonomics without <code>testServer</code>.</strong> Authors of host apps can't unit-test their L3 integrations through ggpaintr's accessors. This is now an accepted constraint (public surface = real Shiny session). If users push back, the response is "promote a slice of the internal headless API with a settled name."</li>
+  <li><strong>Safety vignette content depth.</strong> The denylist + walker discussion is technical. Open: how deep to go on the AST walker without crossing into developer-notes territory.</li>
+  <li><strong>Customization vignette length.</strong> <code>ui_text</code> + 3 placeholder constructors + shared-placeholder recipe is substantial. May need a clear TOC at the top to keep it scannable.</li>
+  <li><strong>E-book hand-off.</strong> When the e-book lands, the vignettes' tutorial framing will overlap. Plan: keep vignettes as scoped how-tos; e-book owns linear pedagogy. Revisit if duplication becomes painful.</li>
+</ul>
+
+<h2>Implementation sequence (suggested)</h2>
+
+<ol>
+  <li>Write the three new vignette skeletons (file + frontmatter + section headings) under <code>vignettes/</code>.</li>
+  <li>Excise gallery §3 / §8 / §9, renumber, update §10 cross-links. Land as one commit.</li>
+  <li>Port §3 + §8 content into <code>ggpaintr-customization</code> verbatim, then expand to add <code>ui_text</code>.</li>
+  <li>Fill use-cases L1 / L2 / L3 sections, with L3 cross-linking to gallery §6 for plotly/ggiraph.</li>
+  <li>Draft <code>ggpaintr-safety</code> from scratch.</li>
+  <li>Update man pages (<code>?ptr_app</code> for grammar, <code>?ptr_options</code>, <code>?ptr_define_placeholder_*</code>).</li>
+  <li>Update <code>NEWS.md</code> with rewrite-era breaking changes.</li>
+  <li>Re-render pkgdown site; verify nav order matches plan.</li>
+</ol>
+
+<hr>
+<p class="meta">Generated 2026-05-13 · ggpaintr <code>core-rewrite-impl</code> · plan author Claude (Opus 4.7)</p>
+
+</main>
+</body>
+</html>

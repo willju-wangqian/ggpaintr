@@ -13,10 +13,10 @@ formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point()"
 
 ui <- fluidPage(
   actionButton("add_log", "Toggle log-scale"),
-  ptr_module_ui("p", formula)
+  ptr_ui(formula, "p")
 )
 server <- function(input, output, session) {
-  state <- ptr_module_server("p", formula)
+  state <- ptr_server(formula, "p")
   shiny::observeEvent(input$add_log, {
     ptr_gg_extra(state, ggplot2::scale_x_log10())
   })
@@ -25,28 +25,28 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-`ptr_module_server()` returns `state` (the `ptr_state` from `ptr_init_state()`); the bundled `ptr_plot` pane and the `ptr_code` pane both reflect the extras after the next runtime cycle.
+`ptr_server()` returns `state` (the `ptr_state` from `ptr_init_state()`); the bundled `ptr_plot` pane and the `ptr_code` pane both reflect the extras after the next runtime cycle.
 
 ## Contract — memorise these four points
 
 1. **Replace, not append.** Each call overwrites the previously captured extras. Pass every component you want layered on in a single call.
 2. **Atomic update.** Eval errors from the captured expressions leave the existing extras untouched.
 3. **Suppressed on failure.** When the runtime reports `ok = FALSE`, the code binder ignores extras — stale values from a prior successful draw never leak into a failed-draw code pane.
-4. **Works with the bundled UI.** You do *not* need a custom `renderPlot()` — `ptr_module_ui()` / `ptr_module_server()` (or `ptr_app()`) honor extras through the standard plot pane and code pane.
+4. **Works with the bundled UI.** You do *not* need a custom `renderPlot()` — `ptr_ui()` / `ptr_server()` (or `ptr_app()`) honor extras through the standard plot pane and code pane.
 
 ## With a custom renderer
 
 If you also own the plot renderer (Plotly, ggiraph, …), the same `ptr_gg_extra()` call updates `state$runtime()$code_text` *and* `state$runtime()$plot`. Read `state$runtime()` inside your renderer — the extras are already folded in:
 
 ```r
-output$custom_plot <- plotly::renderPlotly({
+output[[shiny::NS("p")("custom_plot")]] <- plotly::renderPlotly({
   res <- state$runtime()
   shiny::req(isTRUE(res$ok), res$plot)
   plotly::ggplotly(res$plot)
 })
 ```
 
-For the full custom-render scaffold (the `moduleServer(id)` + `ptr_server()` pattern, `NS(id)` in the UI), see `level3_custom_render`.
+For the full custom-render scaffold (`state <- ptr_server(formula, id)` + `shiny::NS(id)` in the UI), see `level3_custom_render`.
 
 ## Custom code pane
 

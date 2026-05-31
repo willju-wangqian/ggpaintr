@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — Bundle gains panel_sources field (from ADR 0023)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: bundle-panel-sources-field
+  source_adr: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — Bundle gains <code>panel_sources</code> field</h1>
+<p class="meta">Source: ADR 0023 · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0023 §1 (Decision): <em>"<code>ptr_shared_state</code> (returned by <code>ptr_shared_server()</code>) carries one new field: <code>panel_sources</code>, a named list of reactive <code>data.frame</code> values keyed by canonical shared id (<code>shared_&lt;key&gt;</code>), populated for exactly the panel-owned source keys (intersect of <code>obj$panel_keys</code> with source-role keys). The bundle stays "signals + payloads"; <code>shared_resolutions</code> is already a payload, so this is the same shape."</em></p>
+
+<p>This plan adds the new field to the value-type constructor, validator, and printer — AND surfaces it onto the per-instance <code>state</code> object via <code>ptr_init_state()</code>, because that is the channel through which <code>ptr_setup_pipelines()</code> / <code>ptr_setup_source_uis()</code> read bundle fields (the <code>dots</code> variable is local to <code>ptr_server()</code> at <code>R/paintr-server.R:756</code> and flows into <code>ptr_init_state()</code> via <code>do.call(ptr_init_state, c(list(formula, envir), dots))</code> at <code>R/paintr-server.R:781</code>). Downstream Plans 05/06/07 read <code>state$panel_sources</code>, not <code>dots$panel_sources</code> — the ADR's <code>dots$</code> pseudocode is shorthand for "the bundle field via the existing per-instance channel". Nothing else changes in this plan.</p>
+
+<h2>Governing principle</h2>
+<p>The bundle channel between <code>ptr_shared_server()</code> and per-instance <code>ptr_server()</code> is the <strong>single channel</strong> for cross-server payloads (signals + resolved data). ADR-0006 forbids a separate top-level state object; ADR 0023 enforces this by growing the existing bundle rather than inventing a new lookup chain. <code>panel_sources</code> sits beside <code>shared</code> and <code>shared_resolutions</code> as one more payload of the same shape: a named list of reactives keyed by canonical id. Any future cross-scope payload follows the same rule.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>new_ptr_shared_state(shared = list(), draw_trigger = NULL, shared_resolutions = list(), shared_stage_enabled = list(), panel_sources = list())</code> constructs a <code>ptr_shared_state</code> whose <code>$panel_sources</code> slot is the supplied named list of reactives. Default value is <code>list()</code> (empty). Verified by <code>testthat::expect_equal(names(x$panel_sources), c("shared_ds"))</code> on a constructed instance.</li>
+  <li><code>validate_ptr_shared_state(x)</code> rejects <code>panel_sources</code> values that are not Shiny reactives, with <code>rlang::abort()</code> error message <code>"\`shared_state$panel_sources\` values must be Shiny reactives."</code>. Verified by <code>testthat::expect_error(validate_ptr_shared_state(bad), "must be Shiny reactives")</code>.</li>
+  <li><code>validate_ptr_shared_state(x)</code> rejects a non-list <code>panel_sources</code> with <code>"\`shared_state$panel_sources\` must be a (possibly empty) named list of reactives."</code>.</li>
+  <li><code>validate_ptr_shared_state(x)</code> rejects <code>panel_sources</code> with duplicate / empty names with <code>"\`shared_state$panel_sources\` must have unique non-empty names."</code>.</li>
+  <li><code>print.ptr_shared_state(x)</code> emits one new line: <code>"  panel source keys :"</code> followed by the canonical ids (or <code>&lt;none&gt;</code> when empty).</li>
+  <li><code>ptr_init_state()</code> in <code>R/paintr-server.R</code> accepts a new keyword arg <code>panel_sources = list()</code>, positioned after existing args so byte-stable callers need no edits, and stores it on the returned state list as <code>state$panel_sources</code>. Verified by <code>state &lt;- ptr_init_state(formula, envir, panel_sources = list(shared_ds = r1)); expect_identical(state$panel_sources, list(shared_ds = r1))</code>.</li>
+  <li>The existing <code>do.call(ptr_init_state, c(list(formula, envir), dots))</code> call inside <code>ptr_server()</code> (at <code>R/paintr-server.R:781</code>) propagates the bundle's <code>panel_sources</code> field into <code>state$panel_sources</code> without code change at the call site — the new arg flows through the existing <code>dots</code> list. Verified by <code>testServer</code>: passing <code>shared_state = list(panel_sources = list(shared_ds = r1))</code> to <code>ptr_server()</code> results in <code>state$panel_sources$shared_ds</code> being identical to <code>r1</code>.</li>
+  <li>An embedder constructing <code>shared_state</code> manually (the escape-hatch path noted in ADR 0023 worked-example R4) can pass <code>list(panel_sources = list(shared_ds = my_df))</code> and have it validate cleanly when <code>my_df</code> is a <code>shiny::reactiveVal()</code>.</li>
+  <li>All criteria verified by running <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> and observing FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ 8 (six bundle-shape scenarios + two ptr_init_state propagation scenarios).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-shared-ui.R</code> (constructor + validator + print method), <code>R/paintr-server.R</code> (only <code>ptr_init_state()</code>'s signature + the state-list slot for <code>panel_sources</code>; nothing else in that file), <code>tests/testthat/test-ptr-shared-state-panel-sources.R</code> (new test file).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-server.R</code> beyond the single <code>ptr_init_state()</code> signature + state-list edit — specifically NOT <code>ptr_setup_pipelines()</code> (Plan 05), NOT <code>ptr_setup_source_uis()</code> (Plan 06), NOT <code>ptr_bind_shared_consumer_uis()</code> (Plan 07); <code>R/paintr-shared-coordinator.R</code> (parser invariant — Plan 03); any vignette or fixture.</li>
+  <li>The new field is added as a <strong>keyword-only argument</strong> to <code>new_ptr_shared_state()</code>, defaulting to <code>list()</code>, positioned AFTER existing args so byte-stable callers (the existing <code>ptr_shared_server()</code> call) need no edits.</li>
+  <li>No call to <code>ptr_shared_server()</code> changes in this plan — it still passes no <code>panel_sources</code>, so the default <code>list()</code> applies and the bundle's observable shape is unchanged for the existing test suite.</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code>.</li>
+  <li>Tidyverse style, snake_case, 2-space indent, <code>rlang::abort()</code> for errors (per project CLAUDE.md / <code>.claude/rules/coding.md</code>).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: ptr_shared_state carries a panel_sources payload
+
+Scenario: Constructor stores supplied panel_sources reactives under canonical ids
+  Given a reactive r1 = shiny::reactiveVal(mtcars)
+  When state &lt;- new_ptr_shared_state(shared = list(), draw_trigger = NULL,
+                                     shared_resolutions = list(),
+                                     panel_sources = list(shared_ds = r1))
+  Then state$panel_sources has names == c("shared_ds")
+  And  state$panel_sources$shared_ds is identical to r1
+  And  inherits(state, "ptr_shared_state") is TRUE
+
+Scenario: Default constructor argument yields an empty panel_sources slot
+  Given no panel_sources argument supplied
+  When state &lt;- new_ptr_shared_state(shared = list(), draw_trigger = NULL,
+                                     shared_resolutions = list())
+  Then state$panel_sources is identical to list()
+
+Scenario: Validator rejects non-reactive values in panel_sources
+  Given state with panel_sources = list(shared_ds = mtcars)
+  When validate_ptr_shared_state(state) is called
+  Then it aborts with a message containing "must be Shiny reactives"
+
+Scenario: Validator rejects duplicate / empty names in panel_sources
+  Given state with panel_sources = list(shared_ds = r1, shared_ds = r2)
+  When validate_ptr_shared_state(state) is called
+  Then it aborts with a message containing "unique non-empty names"
+
+Scenario: Print method names the panel source keys
+  Given state with panel_sources = list(shared_ds = r1)
+  When capture.output(print(state)) is run
+  Then the captured text contains "panel source keys" and "shared_ds"
+
+Scenario: ADR worked example R4 (escape-hatch) — embedder-supplied reactive validates
+  Given my_df &lt;- shiny::reactiveVal(mtcars)
+  And  state &lt;- list(shared = list(), draw_trigger = NULL,
+                     shared_resolutions = list(),
+                     shared_stage_enabled = list(),
+                     panel_sources = list(shared_ds = my_df))
+  And  class(state) &lt;- c("ptr_shared_state", "list")
+  When validate_ptr_shared_state(state) is called
+  Then it returns invisibly without error
+
+Scenario: ptr_init_state() accepts panel_sources arg and stores it on state
+  Given a parsed formula tree and an envir
+  And  r1 &lt;- shiny::reactiveVal(mtcars)
+  When state &lt;- ptr_init_state(formula, envir, panel_sources = list(shared_ds = r1))
+  Then state$panel_sources is identical to list(shared_ds = r1)
+  And  no other observable field of state has changed shape
+
+Scenario: bundle panel_sources propagates to state via existing do.call channel
+  Given shared_state = list(panel_sources = list(shared_ds = shiny::reactiveVal(mtcars)))
+  And  shared_state is validated and class()ed as ptr_shared_state
+  When testServer runs ptr_server(formula, "p1", shared_state = shared_state)
+  Then state$panel_sources$shared_ds is identical to shared_state$panel_sources$shared_ds
+  And  no edit was required at the do.call(ptr_init_state, c(list(formula, envir), dots)) call site
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                               | kind     | summary (one line)                                                                  | Scenario in this plan                            |
+|----------------------------------------------------------|----------|-------------------------------------------------------------------------------------|--------------------------------------------------|
+| Worked examples — what is rejected by design #R4         | negative | Embedder constructs shared_state manually with panel_sources — bundle accepts it     | ADR worked example R4 — embedder-supplied reactive validates |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate" — copy verbatim:</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with PASS rising by ≥ 8 (one per BDD scenario above) versus the pre-plan baseline.</p>
+<p><strong>Plan-specific gate risks</strong>: none. No browser fixture, no spec-seed path, no shinytest2 surface; the proxy traps in CLAUDE.md (raw Rscript without NOT_CRAN, devtools::check as a gate) apply to this plan but introduce no new way to be silently fooled.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-shared-ui.R</code>, <code>tests/testthat/test-ptr-shared-state-panel-sources.R</code>. R's <code>NAMESPACE</code> and <code>man/</code> are regenerated by an integration step (<code>devtools::document()</code>), not this plan — the new field is internal-helper-only and adds no exported function, so no doc regeneration is required.</p>
+<p>Branch convention: this plan lives on branch <code>0023-bundle-panel-sources-field</code> in a worktree at <code>.claude/worktrees/0023-panel-owned-shared-sources-end-to-end/bundle-panel-sources-field/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies the expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>shared-id-upgrade</code> at <code>099d33c</code> (the ADR PASS stamp). Pre-existing failures: none expected (FAIL 0 / ERROR 0 / SKIP 0 / PASS ≥ 2876 as recorded in the handoff). The implementer must record the actual baseline PASS count in the worktree's first commit message so the auditor can confirm "PASS rose by ≥ 8, FAIL/ERROR/SKIP unchanged at 0."</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Drift findings in <code>R/paintr-server.R</code> (per-instance pipeline source-resolution code) or <code>R/paintr-shared-coordinator.R</code> (parse-time invariant) are recorded in the audit report — they are owned by Plans 02–07. Out-of-scope work becomes a follow-up plan, not a silent edit.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: none. Provides for: <strong>04</strong> (host-side <code>ptr_setup_panel_sources()</code> writes into this field), <strong>05</strong> (per-instance pipelines read from this field), <strong>06</strong> (partition-aware skip reads <code>names(dots$panel_sources)</code>), <strong>07</strong> (consumer-picker dep reads from this field).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=b89ac15b49e8 -->
+</body>
+</html>

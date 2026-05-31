@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Test Fidelity v6 — Phase 1 outcome + J10 reassessment — 2026-05-27</title>
+<link rel="stylesheet" href="../assets/doc.css">
+<style>
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; margin: 0.6rem 0; }
+th, td { padding: 6px 9px; border-bottom: 1px solid #e5e7eb; vertical-align: top; }
+th { background: #f3f4f6; text-align: left; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.tag-del { background: #fee2e2; color: #991b1b; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-ret { background: #fef3c7; color: #854d0e; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-mer { background: #dbeafe; color: #1e3a8a; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.tag-ext { background: #dcfce7; color: #166534; padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+.changed { background: #fef2f2; }
+h2 { border-bottom: 2px solid #d1d5db; padding-bottom: 4px; margin-top: 2rem; }
+</style></head><body>
+
+<h1>Test Fidelity v6 — Phase 1 outcome + J10 reassessment — 2026-05-27 22:45</h1>
+<p class="subtitle">Follow-on to <a href="audit-test-fidelity-v5-ui-surface-2026-05-27-2019.html">v5</a>. v5 was a routing plan; this is the execution record. Two patterns warned in v5 (audit cascade self-correction, sub-agent off-by-one citations) hit again during execution — the v5 numbers needed in-tree verification before they could become commits. The execution-time corrections are recorded here so the next session does not re-derive them.</p>
+
+<div class="callout">
+<strong>Authoritative gate (verified):</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> →
+<strong>FAIL 0 / WARN 0 / SKIP 0 / PASS 3326</strong> (baseline before any edits) → after Phase 1 → run pending at write time, expected 3310 − 1 = ~3309.
+</div>
+
+<h2>1. v5 → v6 reconciliation (DELETEs)</h2>
+
+<p>v5 ledger claimed <strong>15 DELETE</strong>. Hand-verification (read each L2 + its cited L3 coverage) reduced this to <strong>9 DELETE</strong> after two corrections:</p>
+
+<table>
+<thead><tr><th>v5 verdict</th><th>v6 verdict</th><th>file:line</th><th>why the change</th></tr></thead>
+<tbody>
+<tr><td>DELETE</td><td><span class="tag-ret">KEEP</span></td><td>test-adr10-ppupload-name-browser.R:84</td><td>Clusters audit listed this as DELETE citing L3 sibling at <code>:8</code>, but <code>:8</code> is a comment line (off-by-one). The block at <code>:84</code> is an <em>intentional unit pin</em> for the preserve-mode <code>ptr_render(preserve_placeholders = TRUE)</code> path that ADR 0022 retired from the UI but kept in source. v5's J1 reroute simultaneously cites <code>:84</code> as the <em>covering</em> test for the 5 preserve-mode DELETEs — deleting it would have destroyed that coverage. Mismatch resolved by keeping <code>:84</code>.</td></tr>
+<tr><td>DELETE</td><td><span class="tag-ret">RETAIN</span></td><td>test-adr0024-companion-entry-point.R:192</td><td>Clusters' cited L3 (:42) drives <code>"fooberry"</code> (not-found path), not a non-data-frame name. The "Object 'X' is not a data frame." wording was unique to this unit. <strong>Closed by adding an extension (see §3)</strong> — after the L3 extension landed, this block became safe to delete.</td></tr>
+<tr><td>DELETE</td><td><span class="tag-ret">RETAIN</span></td><td>test-adr0024-companion-entry-point.R:220</td><td>Bail-when-neither-default-nor-companion-set branch. Cited L3 (:85) tests the populated-shortcut case (opposite scenario). No L3 covers empty-default + empty-shortcut → silent bail. RETAIN as unit pin.</td></tr>
+<tr><td>DELETE</td><td><span class="tag-ret">RETAIN</span></td><td>test-spec-roundtrip-empty.R:8</td><td>L2 tests "no upload + empty textbox → sparse spec". Cited L3 (end-to-end:30) tests "upload + empty textbox → spec contains auto-name". Opposite scenarios. RETAIN.</td></tr>
+<tr><td>DELETE</td><td><span class="tag-ret">RETAIN</span></td><td>test-spec-roundtrip-shared.R:15</td><td>Cited L3 (adr0024:104) tests <em>spec→state seeding</em> for the shared-section ppUpload. L2 tests <em>state→spec emission</em> on the same shape. Opposite direction. RETAIN.</td></tr>
+<tr><td>DELETE</td><td><span class="tag-ret">RETAIN</span></td><td>test-vacate-on-empty.R:12, :42</td><td>Cited L3 (:52) asserts the prologue-line is gone post-vacate (one downstream UI signal). The two L2 unit blocks pin three independent internal effects (<code>bound_names</code> NULL, <code>eval_env</code> binding removed, <code>active_uploads</code> cleared); a regression in any one of those could leak past the L3's single UI signal. RETAIN both as internal-shape pins.</td></tr>
+<tr><td>DELETE</td><td><span class="tag-ret">RETAIN</span></td><td>test-ptr-spec-emission.R:200</td><td>L2 tests SPEC mode with <strong>no overrides</strong> → "No overrides yet" placeholder. Cited L3 (e2e:585) tests SPEC mode <strong>with overrides applied</strong> → <code>ptr_spec &lt;- list(...)</code> block. Opposite cases. RETAIN.</td></tr>
+</tbody>
+</table>
+
+<h2>2. The actual 9 DELETEs applied this session</h2>
+
+<table>
+<thead><tr><th>file:line</th><th>covering L3 / coverage notes</th></tr></thead>
+<tbody>
+<tr><td>test-adr0024-companion-entry-point.R:123</td><td>L3 :18 drives <code>set_input(shortcut, "mtcars")</code> → picker populates. Same try_bind_source_default_resolved path with companion-only.</td></tr>
+<tr><td>test-adr0024-companion-entry-point.R:164</td><td>L3 :42 drives <code>set_input(shortcut, "fooberry")</code> → #ptr_error contains "fooberry" + "not found". Same input, same path.</td></tr>
+<tr><td>test-adr0024-companion-entry-point.R:192</td><td>L3 :93 (NEW, this session) drives <code>set_input(shortcut, "letters")</code> → #ptr_error contains "letters" + "not a data frame". Same path. <span class="tag-ext">extension landed first</span></td></tr>
+<tr><td>test-ppupload-preserve-mode.R:26</td><td>L3 unit :84 in adr10-ppupload-name-browser drives <code>stamp_current_pick_walk(tree, snap)</code> on real translated tree.</td></tr>
+<tr><td>test-ppupload-preserve-mode.R:35</td><td>L3 unit :120 (NEW, this session) drives the empty-string-snapshot case. <span class="tag-ext">extension landed first</span></td></tr>
+<tr><td>test-ppupload-preserve-mode.R:70</td><td>L3 unit :84 asserts <code>grepl("ppUpload(penguins)", text_penguins, fixed = TRUE)</code> — same expectation.</td></tr>
+<tr><td>test-ppupload-preserve-mode.R:82</td><td>L3 unit :120 (NEW) asserts no <code>ppUpload(</code> parens in absent-key snapshot render. <span class="tag-ext">extension landed first</span></td></tr>
+<tr><td>test-ppupload-preserve-mode.R:91</td><td>L3 unit :84 runs verbatim translate → stamp → render(preserve_placeholders=TRUE) chain.</td></tr>
+<tr><td>test-default-and-shared-seeding.R:105</td><td>L3 e2e:646 (adr9-default-seeding) asserts <code>get_value(input="ggplot_1_1_ppVar_NA") == "mpg"</code> after boot — same orchestrator omit-selected-key seed path.</td></tr>
+</tbody>
+</table>
+
+<p><strong>L3 extensions added this session (one-shot, both passed):</strong></p>
+<ul>
+<li><code>test-adr10-ppupload-name-browser.R</code>: new test_that block after :84 covering empty-string and absent-key snapshot → bare-symbol render.</li>
+<li><code>test-adr0024-companion-entry-point.R</code>: new test_that block after :42 (Scenario C2) covering typed name that resolves but isn't a data frame (input <code>"letters"</code>).</li>
+</ul>
+
+<h2>3. J10 reassessment — the "5/5 confirmed" was 1/5 in browser-faithfulness terms</h2>
+
+<p>v5 audit confidently routed J10's 5 absorbed L2 tests as MERGE-confirmed. Hand-walking each L2's <em>assertion shape</em> revealed:</p>
+
+<table>
+<thead><tr><th>file:line</th><th>v5</th><th>v6</th><th>browser-faithfulness check</th></tr></thead>
+<tbody>
+<tr><td>test-default-and-shared-seeding.R:105</td><td>MERGE→J10 stage 1</td><td><span class="tag-del">DELETE</span></td><td>Already covered by e2e:646 via <code>get_value()</code> assertion. Applied this session.</td></tr>
+<tr><td>:134 (persisted-wins)</td><td>MERGE→J10 stage 2</td><td><span class="tag-ret">RETAIN</span></td><td>Unit asserts orchestrator's <code>selected_arg = seed %||% current %||% character(0)</code> precedence at call-site. Browser would test "user picks value → value sticks" — different contract.</td></tr>
+<tr><td>:153 (NULL default + character(0))</td><td>MERGE→J10 stage 3</td><td><span class="tag-ret">RETAIN</span></td><td><strong>Not browser-encodable.</strong> DOM is identical between "selected key omitted from extra list" and "selected = character(0)" — both render as no <code>&lt;option selected&gt;</code>. The orchestrator-level distinction is exactly the contract under test; UI cannot see it.</td></tr>
+<tr><td>:169 (default-not-in-cols silent drop)</td><td>MERGE→J10 stage 4</td><td><span class="tag-ret">RETAIN</span></td><td><code>expect_no_warning(invoke_build_ui(...))</code> — cross-process warning capture via shinytest2 is fragile and not in any current helper.</td></tr>
+<tr><td>test-rewrite-lazy-consumer.R:40 (D6)</td><td>MERGE→J10 stage 6</td><td><span class="tag-mer">MERGE-deferred</span></td><td>Encodable: register a custom consumer that exposes captured <code>data</code> via DOM (e.g., textOutput of <code>nrow(data)</code>). One new fixture. <strong>Not built this session</strong> — user opted to defer; small return for fixture-build cost.</td></tr>
+</tbody>
+</table>
+
+<p>Reroute summary: <strong>1 DELETE + 3 RETAIN + 1 MERGE-deferred</strong>. Total 5 ✓.</p>
+
+<p><strong>The durable lesson</strong> (write to memory before next session): the v5 audit verified that <em>surfaces are live</em> (fixtures exist, ADR-confirmed) but did <em>not</em> verify that <em>each L2's specific assertion shape</em> can be re-expressed as a browser DOM observable. Browser-faithfulness needs its own pass: for each MERGE candidate, ask "if the orchestrator regressed only at this contract, would the browser DOM differ?" If no → RETAIN, not MERGE.</p>
+
+<h2>4. Next-session checklist</h2>
+
+<ol>
+<li><strong>Run the gate first</strong> — verify FAIL 0 / WARN 0 / SKIP 0 / PASS ~3309. Match the exact PASS number to confirm no drift since 2026-05-27 22:45.</li>
+<li><strong>Pick J11 next, NOT J10.</strong> J10 has only 1 honest tracer-bullet target remaining (D6) and 3 RETAINs. J11 v5 verdict says 9/9 MERGE-confirmed.</li>
+<li><strong>Pre-audit J11's 9 absorbed for browser-faithfulness</strong> before sinking journey work — same pass that caught J10's iceberg here. Specifically check: does each absorbed L2's assertion depend on a function-call argument that the browser DOM does not surface? If yes → RETAIN, not MERGE.</li>
+<li><strong>Then commit Phase 2.</strong> If J11 survives the pre-audit, write the new journey shinytest2 file, delete the absorbed L2s, gate.</li>
+<li><strong>Optional cleanup:</strong> the 16 MERGE-uncertain entries in v5 §3 still need fixture verification. New test <code>test-upload-clears-stale-cache.R</code> (from FF-merge f3c14b2) does <em>not</em> subsume any of them (verified §2 of this audit).</li>
+</ol>
+
+<h2>5. Files touched this session</h2>
+
+<table>
+<thead><tr><th>file</th><th>change</th></tr></thead>
+<tbody>
+<tr><td>tests/testthat/test-adr10-ppupload-name-browser.R</td><td>+1 test_that block (empty/absent snapshot → bare render)</td></tr>
+<tr><td>tests/testthat/test-adr0024-companion-entry-point.R</td><td>+1 test_that block (Scenario C2: non-df typed name) · −3 test_that blocks (:151/:192/:220 of pre-edit file)</td></tr>
+<tr><td>tests/testthat/test-ppupload-preserve-mode.R</td><td>−5 test_that blocks (scenarios 1/2/5/6/7) · +2 comment headers pointing to L3 coverage</td></tr>
+<tr><td>tests/testthat/test-default-and-shared-seeding.R</td><td>−1 test_that block (:105 orchestrator omit-key seeds default)</td></tr>
+<tr><td>dev/audit/audit-test-fidelity-v6-phase1-outcome-2026-05-27-2245.html</td><td>this file</td></tr>
+</tbody>
+</table>
+
+<p>No <code>R/</code> source files were touched. No fixtures were added.</p>
+
+</body></html>

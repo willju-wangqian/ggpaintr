@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Bug-B pre-merge audit (r4F3Yu50jQ) — 2026-05-22</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>Bug-B pre-merge audit — <code>bug-b-spec-apply-uniform → vignette-review</code></h1>
+<p>Run by general-purpose Opus auditor, 2026-05-22, handoff token <code>r4F3Yu50jQ</code>. Read-only. No edits to any tracked file.</p>
+
+<h2>Header</h2>
+<table>
+  <tr><th>What</th><th>Value</th></tr>
+  <tr><td>Bug-B branch tip</td><td><code>eb769fa</code> — <em>0012b: close H1 (collapse apply_spec_entry placeholder branches) + audit addenda</em></td></tr>
+  <tr><td>Bug-B worktree</td><td><code>/Users/willju/Research/ggpaintr-rewrite-vignette-review/.claude/worktrees/bug-b-spec-apply-uniform</code></td></tr>
+  <tr><td>vignette-review tip (MAIN)</td><td><code>343e518</code> — <em>docs: fix drift left behind by ADR-0009/0012 merges</em></td></tr>
+  <tr><td>MAIN worktree</td><td><code>/Users/willju/Research/ggpaintr-rewrite-vignette-review</code></td></tr>
+  <tr><td>Merge-base</td><td><code>a76310a</code></td></tr>
+  <tr><td>Pre-merge gate (bug-b worktree, V7)</td><td><code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code> in <strong>110 s</strong></td></tr>
+  <tr><td>Post-merge gate (V8 sim)</td><td><strong>NOT RUN</strong> — merge produced 3 conflicts and was aborted</td></tr>
+  <tr><td>Overall verdict</td><td><span class="verdict-yellow"><strong>YELLOW — merge is NOT clean.</strong> Three real conflicts in <code>R/paintr-server.R</code>, <code>tests/testthat/test-adr12-spec-roundtrip.R</code>, and <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code>. Resolution is semantically tractable but cannot be done blind by <code>git merge</code>.</span></td></tr>
+</table>
+
+<h2>V1 — Branch tips + working-tree cleanliness</h2>
+<p class="pass">PASS.</p>
+<ul>
+  <li>Bug-B HEAD = <code>eb769fa</code> (matches handoff). Worktree status: only <code>?? .claude/worktrees/</code> untracked.</li>
+  <li>MAIN HEAD = <code>343e518</code> (the handoff said "session start was <code>343e518</code>"; that is still the tip). MAIN status: only the long-running untracked items (<code>.claude/worktrees/</code>, <code>.codex/</code>, two <code>dev/notes/0012-exec-plan-*</code> files). No leaked <code>M</code>/<code>??</code> lines. No contamination.</li>
+</ul>
+
+<h2>V2 — Cross-overlap with current vignette-review HEAD</h2>
+<p class="concern">CONCERN — vignette-review has advanced significantly since merge-base; numerical baseline in the handoff is stale.</p>
+
+<h3>Commits on vignette-review not yet in bug-b (13 commits since merge-base)</h3>
+<pre>343e518 docs: fix drift left behind by ADR-0009/0012 merges
+2a092f7 ADR-0012 followup: flip §5 OQ2 to RESOLVED + drop now-dead `layer_pipe_op`
+8a8b964 Merge branch 'pipe-op-preserve-20260522-161445' into vignette-review
+fabd2e1 Merge branch 'worktree-diagnose-bare-keyword-render' into vignette-review
+1d662b6 exec-plan: merge PLAN-01 pipe-op-preservation (ADR 0012 §5 OQ2)
+9da79ad Merge branch 'todo7-ns-fn-investigation' into vignette-review
+8235d8a render(preserve): drop empty parens, emit bare ppX when no pick + no shared
+4e6bad5 PLAN-01 collateral: flip stale $op assertions in three pre-existing tests
+c4de3ed PLAN-01: pipe-op preservation in preserve-mode (closes ADR 0012 §5 OQ2)
+983604b chore(state): drop dead `state$ns_fn` alias
+38549fa fix(ids): drop dead `node$ns_fn` slot so structurally-equal trees compare equal
+6c0f315 ADR-0012 followup: sweep one more stale GATE-0 comment
+6ac1df1 ADR-0012 followup: drop single-stage lift gate (drift #1)</pre>
+
+<h3>Commits on bug-b not on vignette-review (4)</h3>
+<pre>eb769fa 0012b: close H1 (collapse apply_spec_entry placeholder branches) + audit addenda
+efbf793 exec-plan: merge 0012b spec-seed-and-renderui-emission (combined PLAN-01+02)
+c5f6cae 0012b: spec-apply uniform via build_ui — PLAN-01 + PLAN-02 combined
+33ddcd6 0012b plan: bug-b spec-apply uniform via build_ui — stamped</pre>
+
+<h3>Vignette-review tip's gate counts (per commit bodies)</h3>
+<ul>
+  <li><code>2a092f7</code>: <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 2209</code> — the ADR 0012 §5 OQ2 deferrals were RESOLVED.</li>
+  <li><code>343e518</code>: <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 2209</code> — unchanged (docs-only).</li>
+</ul>
+
+<h3>Semantic drift between branches</h3>
+<p>Bug-b is unchanged on a number of files that vignette-review heavily modified (<code>R/paintr-render.R</code> +63/-27, <code>R/paintr-ids.R</code> +7/-2, <code>tests/testthat/test-rewrite-render.R</code> +109/-67). Those will arrive at the merged tree as the vignette-review version. Therefore the following bug-b-internal-grep hits are NOT post-merge concerns (they vanish from the merged file because bug-b did not touch those files):</p>
+<ul>
+  <li><code>R/paintr-render.R:55</code> and <code>:583</code> on bug-b reference <code>layer_pipe_op</code> — vignette-review's <code>2a092f7</code> deletes this. After merge, the file is vignette-review's; no leftover references.</li>
+  <li><code>R/paintr-ids.R:19</code> on bug-b assigns <code>node$ns_fn &lt;- ns_fn</code> — vignette-review's <code>38549fa</code> removes this. After merge, the file is vignette-review's.</li>
+</ul>
+<p>The only files where both branches diverged from the merge-base and a real merge must happen are the three conflict files. See V3.</p>
+
+<h3>Post-merge gate count prediction</h3>
+<ul>
+  <li>vignette-review tip: <code>PASS 2209 / SKIP 0</code>.</li>
+  <li>Bug-b new test files added since merge-base: <code>test-adr12b-renderui-emission.R</code> (+124 lines, ~6–10 <code>test_that</code> blocks), <code>test-adr12b-spec-custom-keyword.R</code> (+118 lines, ~4–6 <code>test_that</code> blocks); bug-b also touched 6 other test files with mixed +/- changes.</li>
+  <li>Bug-b's two SKIPs are at <code>test-rewrite-render.R:40, :53</code>; on vignette-review that file has been rewritten and those <code>skip()</code> calls are gone. The merged tree takes the vignette-review version → expected SKIP 0 post-merge.</li>
+  <li><strong>Predicted post-merge:</strong> <code>FAIL 0 / WARN 0 / SKIP 0 / PASS ~2220–2235</code>.</li>
+  <li>The handoff's <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code> is the <em>pre-merge</em> gate on the bug-b worktree only — it is NOT the post-merge expectation. The handoff carries an outdated mental model of <code>vignette-review</code>'s baseline.</li>
+</ul>
+
+<h2>V3 — Merge-tree cleanness (no actual merge)</h2>
+<p class="fail">FAIL — initial run was inconclusive due to the wrong <code>merge-tree</code> form; V8 (real merge sim) confirmed 3 conflicts.</p>
+<p>Two-arg <code>git merge-tree &lt;base&gt; &lt;a&gt; &lt;b&gt;</code> emits a textual 3-way diff that does NOT surface <code>&lt;&lt;&lt;&lt;&lt;&lt;&lt;</code> markers, so the initial V3 "looks clean" verdict was a false-negative. The authoritative check is V8 (real merge in a scratch worktree). V8 found three conflicts.</p>
+
+<h2>V4 — <code>eb769fa</code> commit-body claims</h2>
+<p class="pass">PASS.</p>
+<ul>
+  <li><code>apply_spec_entry</code> body at <code>R/paintr-server.R:620–642</code> on bug-b HEAD has exactly: layer_checkbox/stage_enabled → <code>updateCheckboxInput</code>; source_companion → <code>updateTextInput</code>; ppUpload → silent skip; terminal <code>FALSE</code>. The four per-placeholder branches (ppText / ppNum / ppExpr / ppVar) are <strong>deleted</strong>, confirmed by direct read.</li>
+  <li>The <code>ppText|ppNum|ppExpr|ppVar</code> string literals at <code>R/paintr-server.R:545, 548, 560, 568</code> live inside <code>apply_spec_at_boot</code> (seed-write path), not inside <code>apply_spec_entry</code> — those are the seed-loop's value-coercion arms, which are the new (PLAN-01) primary write path. Handoff is consistent.</li>
+  <li>PLAN-02 SC-1 literal verification command (extracted verbatim from <code>dev/plans/0012b-spec-apply-uniform/02-collapse-apply-spec-entry-and-revert-workarounds.html:52</code>) returns <strong><code>0</code></strong> at <code>eb769fa</code>. Was 5 pre-fix.</li>
+  <li><code>update*Input</code> calls in entire <code>R/paintr-server.R</code> at bug-b HEAD: lines 630 (<code>updateCheckboxInput</code>), 635 (<code>updateTextInput</code>, source_companion), 937 (<code>updateTextInput</code> on companion auto-fill — unrelated). Other <code>updateXyzInput</code>s are in prose/docstrings (lines 434, 577, 580).</li>
+  <li>Docstring rewritten — confirmed (lines 601–620 of <code>R/paintr-server.R</code>).</li>
+</ul>
+
+<h2>V5 — Addendum line citations</h2>
+<p class="concern">CONCERN — one off-by-2 citation, otherwise correct.</p>
+<table>
+  <tr><th>Addendum claim</th><th>HEAD reality</th><th>Status</th></tr>
+  <tr><td><code>test-adr12b-spec-custom-keyword.R:91</code> (HTML matcher <code>&lt;option value="b" selected&gt;</code>)</td><td>line <strong>93</strong></td><td><span class="concern">OFF BY 2</span></td></tr>
+  <tr><td><code>test-adr12b-spec-custom-keyword.R:91–98</code> (HTML matcher block)</td><td>line <strong>93–98</strong></td><td><span class="concern">OFF BY 2 on start line</span></td></tr>
+  <tr><td><code>test-adr12b-spec-custom-keyword.R:77–80</code> (<code>state$spec_seed</code> assertion)</td><td>line <strong>78</strong> (within the 77–80 range — accurate)</td><td><span class="pass">OK</span></td></tr>
+  <tr><td><code>test-adr12b-renderui-emission.R:56–57</code> (HTML matchers)</td><td>lines <strong>56–57</strong></td><td><span class="pass">EXACT</span></td></tr>
+  <tr><td><code>test-adr12b-renderui-emission.R:48–49</code> (env-shape, block 1)</td><td>lines <strong>48–49</strong></td><td><span class="pass">EXACT</span></td></tr>
+  <tr><td><code>test-adr12b-renderui-emission.R:84–85</code> (env-shape, block 2)</td><td>lines <strong>84–85</strong></td><td><span class="pass">EXACT</span></td></tr>
+  <tr><td><code>test-adr12b-renderui-emission.R:43</code> (<code>testServer</code> call)</td><td>line <strong>43</strong></td><td><span class="pass">EXACT</span></td></tr>
+</table>
+<p>LOW-severity flag: the HTML-matcher in <code>test-adr12b-spec-custom-keyword.R</code> is two lines later than the addendum cites (93 vs 91). Per memory <code>feedback-verify-subagent-claims</code>, audit sub-agents have been off-by-N on line numbers; this addendum carried the error forward by two lines on one of its citations. Not a blocker.</p>
+
+<h2>V6 — <code>index.md</code> "Deferred to future rounds" section</h2>
+<p class="pass">PASS.</p>
+<p>Section present at <code>dev/plans/0012b-spec-apply-uniform/index.md</code> with all named items:</p>
+<ul>
+  <li><strong>M2</strong> ("shinytest2 dynamic-input round-trip test (drift-audit M2)") — present, with recipe + open question.</li>
+  <li>Step C (framework-internal widgets to renderUI) — present.</li>
+  <li>Per-plot vs combined spec accessor (ADR 0012 §5 OQ3) — present.</li>
+  <li>shinyWidgets HTML-divergence investigation — present.</li>
+  <li>ppUpload <code>source_companion</code> seed-write coverage (M3 addendum follow-up) — present.</li>
+</ul>
+
+<h2>V7 — Authoritative gate in bug-b worktree</h2>
+<p class="pass">PASS.</p>
+<pre>cd /Users/willju/Research/ggpaintr-rewrite-vignette-review/.claude/worktrees/bug-b-spec-apply-uniform
+NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+
+== Results ============================================
+Duration: 108.9 s
+SKIPs (2):
+  • test-rewrite-render.R:40:3 — deferred to ADR 0012 §5 OQ2 (%>% preservation)
+  • test-rewrite-render.R:53:3 — deferred to ADR 0012 §5 OQ2 (mixed %>%/|> preservation)
+[ FAIL 0 | WARN 0 | SKIP 2 | PASS 2194 ]
+Duration: 110s</pre>
+<p>Matches handoff's claim exactly. Both SKIPs are the pre-existing ADR 0012 §5 OQ2 deferrals — on vignette-review HEAD these have been RESOLVED (commit <code>c4de3ed</code> / <code>2a092f7</code>) so the merged tree will carry SKIP 0.</p>
+
+<h2>V8 — Sandbox post-merge gate</h2>
+<p class="fail">FAIL — merge has 3 conflicts; gate was NOT run on the merged tree.</p>
+
+<h3>Steps</h3>
+<pre>SCRATCH=/tmp/ggpaintr-merge-sim-12376
+git worktree add -B merge-sim-12376 "$SCRATCH" vignette-review        # HEAD = 343e518
+git -C "$SCRATCH" merge --no-ff bug-b-spec-apply-uniform -m "sim"
+# → CONFLICT (content) in 3 files. Merge aborted. Worktree + scratch branch removed.</pre>
+
+<h3>Conflict files</h3>
+<table>
+  <tr><th>File</th><th>Conflict region (post-merge)</th><th>Cause</th></tr>
+  <tr>
+    <td><code>R/paintr-server.R</code></td>
+    <td>lines 247–269</td>
+    <td>vignette-review's <code>983604b</code> removed the dead <code>ns_fn = server_ns,</code> entry in the <code>ptr_state</code> constructor; bug-b's PLAN-01 added <code>spec_seed = new.env(parent = emptyenv())</code> as a new state slot. Same surrounding context. <strong>Resolution:</strong> drop the bug-b <code>ns_fn = server_ns,</code> line (vignette-review's intent wins), keep bug-b's <code>spec_seed</code> line + its long comment.</td>
+  </tr>
+  <tr>
+    <td><code>tests/testthat/test-adr12-spec-roundtrip.R</code></td>
+    <td>lines 59–78</td>
+    <td>Both sides rewrote the ppNum-at-boot assertion. vignette-review uses <code>app$get_value(input = "geom_point_2_1_2_ppNum_NA")</code>; bug-b uses <code>app$get_html("#geom_point_2_2_ppNum_NA")</code> matching <code>value="5"</code>. Input id differs (id-naming churn between branches) AND assertion shape differs. <strong>Resolution:</strong> bug-b's version is the post-PLAN-01 correct shape — the dynamic <code>numericInput</code> created by <code>renderUI</code> doesn't push its initial value back to the server, so <code>get_value</code> returns NULL; <code>get_html</code> is the literal contract. Bug-b's bare id of <code>geom_point_2_2_ppNum_NA</code> matches the post-PLAN-01 id scheme but needs sanity-checking against the merged <code>R/paintr-build-ui.R</code> bare-id computation at <code>343e518</code>.</td>
+  </tr>
+  <tr>
+    <td><code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code></td>
+    <td>lines 31–54</td>
+    <td>Comment + spec-list id divergence. vignette-review uses <code>geom_point_0_stage_enabled</code> and <code>geom_point_2_2_ppNum_NA</code> ids and describes "renderUI with <code>suspendWhenHidden = FALSE</code>"; bug-b uses <code>geom_point_2_stage_enabled</code> and <code>geom_point_2_1_2_ppNum_NA</code> and describes a "bare tagList" + "deferred dispatch". <strong>Resolution:</strong> The fixture is paired with the test — pick whichever id scheme the merged production code uses; the prose comment must match the merged behavior. Likely take bug-b's id scheme (post-PLAN-01) plus a manual reconciliation of which stage indexes are correct under the merged code, then verify by running the fixture.</td>
+  </tr>
+</table>
+
+<p>None of these conflicts touch the load-bearing <code>apply_spec_entry</code> dead-branch deletion (H1 close) — that landed cleanly in bug-b's <code>R/paintr-server.R</code> and the conflict is in a different region of the same file.</p>
+
+<h2>V9 — MAIN contamination re-check after V8</h2>
+<p class="pass">PASS.</p>
+<p>After <code>git merge --abort</code>, <code>git worktree remove --force</code>, and <code>git branch -D merge-sim-12376</code>, MAIN's <code>git status --short</code> matches the initial snapshot exactly:</p>
+<pre>?? .claude/worktrees/
+?? .codex/
+?? dev/notes/0012-exec-plan-deferred-questions-2026-05-22T07-46-14Z.jsonl
+?? dev/notes/0012-exec-plan-report-2026-05-22T07-46-14Z.html</pre>
+<p>MAIN HEAD unchanged at <code>343e518</code>. No leaked edits. (No <code>mcp__serena__*</code> edit tools were used at any point in this audit.)</p>
+
+<h2>V10 — Stamps on addenda</h2>
+<p class="pass">PASS — neither addendum carries an <code>implementable: PASS</code> line, as the handoff stated.</p>
+<pre>$ grep -l "implementable: PASS" \
+    dev/plans/0012b-spec-apply-uniform/01-addendum-ppupload-silent.html \
+    dev/plans/0012b-spec-apply-uniform/01-addendum-bdd-input-and-env-wording.html
+(no PASS stamps — as handoff claimed)</pre>
+
+<h2>Discrepancies between handoff and reality</h2>
+<ul>
+  <li><strong>Post-merge baseline is wrong in the handoff.</strong> Handoff predicts <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code> as the expected post-merge gate. That is the <em>pre-merge</em> gate on bug-b in isolation. Vignette-review tip is <code>PASS 2209 / SKIP 0</code> per commit-body claims of <code>2a092f7</code> and <code>343e518</code> (those skip-deferrals were resolved upstream on vignette-review; bug-b never picked up the resolution). Realistic post-merge: <code>SKIP 0 / PASS ~2220–2235</code>.</li>
+  <li><strong>"Merge is mechanical" framing is wrong.</strong> Handoff says "The merge itself is mechanical; the only non-trivial step is the post-merge gate verification". <code>git merge --no-ff</code> from a fresh worktree off <code>vignette-review</code> produced <em>three</em> content conflicts that require semantic resolution (state-constructor slot churn, id-naming churn, fixture/test pairing). Each is independently understandable but none is trivially "ours" / "theirs". The merge needs an attentive human or a follow-up session, not a one-liner.</li>
+  <li><strong>One addendum line citation is off by 2.</strong> <code>test-adr12b-spec-custom-keyword.R:91</code> for the HTML matcher is actually line <code>93</code>. Same flavor of off-by-N error the addendum itself was created to correct. Cosmetic.</li>
+  <li><strong>Handoff's "MAIN was clean at session start" is true now too.</strong> No drift to flag.</li>
+</ul>
+
+<h2>Merge recommendation</h2>
+<p class="verdict-yellow"><strong>YELLOW.</strong> Bug-b is internally consistent (V1/V4/V6/V7/V10 all PASS; V5 has one harmless off-by-2 citation), but the merge to <code>vignette-review</code> at its current tip <code>343e518</code> is <strong>not</strong> a clean fast-merge — three semantic conflicts must be resolved by hand, and the handoff's predicted post-merge counts are stale. Do NOT run an unattended <code>git merge --no-ff</code> + immediate gate; the merge will produce a tree with conflict markers and the gate would either fail to load <code>R/paintr-server.R</code> or run on an unmerged tree. The right path is: a focused session that (a) resolves the three conflicts with both branches' intent preserved (drop dead <code>ns_fn</code>, keep <code>spec_seed</code>; pick the merged id scheme for the spec-roundtrip test+fixture), (b) re-runs the gate from MAIN's checkout post-merge, (c) updates the post-merge expectations to vignette-review's <code>PASS 2209</code>-based baseline + bug-b's added tests.</p>
+
+<p>Confidence: <strong>92</strong>.</p>
+
+</body>
+</html>

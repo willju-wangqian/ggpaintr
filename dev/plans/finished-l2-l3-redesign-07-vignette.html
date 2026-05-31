@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 07: use-cases vignette rewrite (#DOC)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head><body>
+
+<h1>Step 07 — <code>vignette("ggpaintr-use-cases")</code> rewrite (pass #DOC)</h1>
+<p class="meta">Phase 7 (after code lands: Steps 01–06). Large, separate. Authority: ADR 0005 · <code>CONTEXT.md</code>. Target: <code>vignettes/ggpaintr-use-cases.Rmd</code>.</p>
+
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-17, branch <code>l2l3-step-07-vignette</code> @ <code>e4dc145</code>.
+L2/L3 halves rewritten to the ADR 0005 / <code>CONTEXT.md</code> model: L2 = self-contained <code>ptr_module_*</code> + the multi-instance shared trio (<code>ptr_shared</code> → <code>ptr_shared_panel</code>/<code>ptr_shared_server</code>); a dedicated subsection teaches the partition rule (single-instance = L1 <code>ptr_app()</code>, no coordinator ever; multi-instance builds <code>obj</code> once); custom render moved under L3 with the canonical <code>moduleServer(id){ ptr_server(…) }</code> + <code>NS(id)</code> pattern (never <code>state$server_ns_fn</code>, no headless/<code>testServer</code>); L3 bare pieces flag-free, behaviour via the nestable combinators <code>ptr_ui_inline_error</code>/<code>ptr_ui_toggle_code</code>, <code>ptr_ui_page</code> optional shell, <code>ptr_ui_assets</code> navbar/bslib escape hatch only.
+Success criteria met: zero references to removed symbols (<code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>, <code>ptr_ui_code_toggle</code>, <code>ptr_shared_ui</code>, <code>ptr_ui_plot</code> flags) — verified by grep on source + rendered HTML; <code>?ptr_css</code> kept. All 22 executable <code>{r}</code> chunks construct against the real post-Step-06 package under <code>devtools::load_all()</code> (knitr-faithful shared-env harness); the 5 parse-only snippets are the unchanged interactive-fragment convention. Under <code>devtools::document()</code> (transient regen, restored — Step 10 owns the doc tree) <code>R CMD check</code> reports <em>checking re-building of vignette outputs … OK</em> / <em>files in vignettes … OK</em> / <em>examples … OK</em>: the vignette introduces zero new failures.
+Plan-sanctioned inherited fallout (NOT vignette-caused; Step 10 #TEST owns it): <code>R CMD check</code> is not yet 0/0 because the test suite still calls removed symbols (13 fails: <code>ptr_controls_ui</code>/<code>ptr_outputs_ui</code>/<code>ptr_shared_ui</code>/<code>ptr_ui_code_toggle</code>/old <code>ptr_shared_server(formulas,…)</code>) and <code>ptr_css.Rd</code>/<code>ptr_server.Rd</code> roxygen still <code>\link{ptr_shared_ui}</code> (1 WARNING); 2 NOTEs (<code>.git</code>, <code>CONTEXT.md</code>) are environmental. Doc-only cannot reach 0/0 — Step 10 is the global gate (<code>devtools::test()</code> green + doc-tree/pkgdown retier).</p>
+
+<h2>Goal</h2>
+<p>Rewrite the vignette to the new L2/L3 model. Every runnable chunk must execute against the post-Step-06 API.</p>
+
+<h2>Sections to rewrite (line refs are pre-rewrite anchors)</h2>
+<ul>
+<li><strong>L2 split narrative</strong> (~192–231): remove <code>ptr_controls_ui</code>/<code>ptr_outputs_ui</code> entirely; L2 = <code>ptr_module_ui</code>/<code>ptr_module_server</code> (+ shared trio for multi-instance).</li>
+<li><strong>Custom render</strong> (~309–352): reclassify L2→L3; teach the canonical pattern (<code>ptr_server</code> inside the user's own <code>moduleServer(id)</code>); never reference <code>state$server_ns_fn</code>.</li>
+<li><strong>L3 shared</strong> (~541–572) and <strong>shared-driven custom renderers</strong> (~352): replace with the coordinator model (<code>ptr_shared</code> → <code>obj</code>; <code>ptr_ui_shared_panel(obj)</code>; partition rule; single-instance ⇒ inline, no coordinator).</li>
+<li><strong>L3 pieces table</strong> (~451–576): bare pieces have no flags; add combinators; <code>ptr_ui_page</code> is the optional shell; <code>ptr_ui_assets</code> is the navbar/bslib escape hatch only.</li>
+<li>Remove all prose/links to <code>ptr_ui_code_toggle</code>; replace with the combinator recipe.</li>
+</ul>
+
+<h2>Success criteria</h2>
+<ul>
+<li>No reference (prose, chunk, or <code>[fn()]</code> link) to a removed symbol: <code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>, <code>ptr_ui_code_toggle</code>, <code>ptr_shared_ui</code>, the <code>ptr_ui_plot</code> flags.</li>
+<li>The L1/L2/L3 framing matches <code>CONTEXT.md</code> verbatim in intent (levels, convention, partition rule, single vs multi instance).</li>
+<li>Every <code>{r}</code> chunk runs under <code>rmarkdown::render("README"-style)</code> against the new API (no eval errors).</li>
+<li>The canonical custom-render snippet uses <code>moduleServer(id, \(i,o,s){ state &lt;- ptr_server(...); o$x &lt;- render…(state$runtime()…) })</code> + <code>NS(id)</code> in the UI.</li>
+<li><code>devtools::check()</code> still 0/0 (vignette builds).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>Do not promise a headless / <code>testServer</code> user path (project memory prohibition stands).</li>
+<li>Markdown/Rmd: no hard-wrap (one paragraph one line) per project CLAUDE.md.</li>
+<li>Do not edit the vignette before Steps 01–06 land — chunks must run against real code, not aspirational API.</li>
+<li>Keep `?ptr_css` references intact (deliberate roxygen-only topic; never "fix the dangling link").</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: Vignette reflects the shipped API
+
+  Scenario: No removed symbols survive
+    When the rendered vignette HTML is searched
+    Then it contains none of: ptr_controls_ui, ptr_outputs_ui,
+         ptr_ui_code_toggle, ptr_shared_ui
+      And no ptr_ui_plot(... error = / code_toggle = ...) call
+
+  Scenario: Every code chunk executes
+    When the vignette is knitted against the post-Step-06 package
+    Then all chunks evaluate with no error
+      And ptr_shared(...) / ptr_ui_shared_panel(...) / combinators appear in L3 examples
+
+  Scenario: Custom render is taught as L3 with the safe pattern
+    Given the custom-renderer section
+    Then it lives under the L3 heading
+      And the wiring nests ptr_server inside the reader's own moduleServer(id)
+      And it never tells the reader to use state$server_ns_fn
+
+  Scenario: Single vs multi instance shared is explained
+    Then a single-instance example uses no coordinator (keys inline)
+      And a multi-instance example builds obj once and passes it to panel + modules</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::load_all("."); rmarkdown::render("vignettes/ggpaintr-use-cases.Rmd")'
+Rscript -e 'devtools::check(document=FALSE, manual=FALSE, args=c("--as-cran","--no-manual"))'</pre>
+</body></html>

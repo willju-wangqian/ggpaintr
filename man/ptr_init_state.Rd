@@ -8,7 +8,6 @@ ptr_init_state(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
   shared = list(),
@@ -19,6 +18,7 @@ ptr_init_state(
   auto_bind_shared = FALSE,
   shared_resolutions = list(),
   shared_stage_enabled = list(),
+  panel_sources = list(),
   plots = NULL
 )
 }
@@ -30,10 +30,7 @@ ptr_init_state(
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
 
-\item{checkbox_defaults}{Optional named list of initial checked states for
-layer checkboxes.}
-
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -48,7 +45,7 @@ outer wrapper such as \code{\link[=ptr_app_grid]{ptr_app_grid()}}. Defaults to \
 (e.g. the grid app's "Draw all" button).}
 
 \item{producer_debounce_ms}{Optional. Controls the debounce window applied
-to producer-style placeholder inputs (\code{text}, \code{num}, \code{expr}) before they
+to producer-style placeholder inputs (\code{ppText}, \code{ppNum}, \code{ppExpr}) before they
 invalidate downstream consumer caches. \code{NULL} (default) enables auto
 mode: window starts at 0 ms and the runtime flips to 300 ms after three
 consecutive upstream resolutions exceed 150 ms (and back to 0 after five
@@ -66,7 +63,7 @@ scope. Relaxes the "missing-from-bindings" check in
 \code{ptr_validate_shared_bindings()} (the host auto-binds instead).}
 
 \item{shared_resolutions}{Named list (keyed by raw shared key) of
-host-computed resolutions for shared data-consumer (\code{var}) widgets,
+host-computed resolutions for shared data-consumer (\code{ppVar}) widgets,
 as returned by \code{ptr_resolve_shared_consumers()}. When an entry is
 present, the runtime validates that key's selection against the
 host-resolved upstream (the same data the host picker was built
@@ -79,6 +76,14 @@ reactives, each returning a logical, that toggle the orphan pipeline
 stages owned by that shared key (as carried in a
 \code{\link[=ptr_shared_server]{ptr_shared_server()}} bundle). A missing or unset entry leaves the
 stage enabled. Defaults to \code{list()}.}
+
+\item{panel_sources}{Named list (keyed by source-node id) of reactives,
+each returning the host-loaded data for a panel-owned shared source
+(ADR 0023). Populated by the host's \code{ptr_setup_panel_sources()} and
+threaded through a \code{\link[=ptr_shared_server]{ptr_shared_server()}} bundle so per-instance binders
+read the host's primed data (\code{state$panel_sources[[node$id]]}) instead
+of re-wiring their own source UI. Defaults to \code{list()} (single-plot /
+per-instance context — no panel-owned sources).}
 
 \item{plots}{Optional list of formula strings for grid contexts. When
 supplied (typically by \code{\link[=ptr_app_grid]{ptr_app_grid()}}), the validator for \code{shared}
@@ -109,7 +114,7 @@ drive the typed tree programmatically or exercise ggpaintr under
 \examples{
 shiny::isolate({
   state <- ptr_init_state(
-    "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+    "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   )
   is.list(state)
 })

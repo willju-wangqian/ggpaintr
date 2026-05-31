@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-customization.Rmd chunk `source-dataset`
+# >>> verbatim: archive/retired_vignettes/ggpaintr-customization.Rmd chunk `source-dataset`
 #     (registration) + chunk `source-dataset-app` (the app) >>>
 ptr_define_placeholder_source(
   keyword       = "dataset",
@@ -21,8 +21,8 @@ ptr_define_placeholder_source(
            economics = ggplot2::economics,
            NULL)
   },
-  copy_defaults = list(label = "Built-in dataset for {param}")
+  ui_text_defaults = list(label = "Built-in dataset for {param}")
 )
 
-ptr_app("ggplot(dataset, aes(var, var)) + geom_point()")
+ptr_app("ggplot(dataset, aes(ppVar, ppVar)) + geom_point()")
 # <<<

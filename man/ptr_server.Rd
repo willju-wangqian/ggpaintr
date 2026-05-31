@@ -9,11 +9,16 @@ ptr_server(
   id = NULL,
   envir = parent.frame(),
   ...,
-  shared_state = NULL
+  shared_state = NULL,
+  spec = NULL
 )
 }
 \arguments{
-\item{formula}{A single formula string with \code{ggpaintr} placeholders.}
+\item{formula}{Either a single character scalar containing a ggplot
+expression with \code{ggpaintr} placeholders, or an unquoted ggplot
+expression supplied directly. See \code{\link[=ptr_app]{ptr_app()}} for the full contract
+(expression capture via \code{\link[rlang:defusing-advanced]{rlang::enexpr()}}, symbol resolution,
+wrapper unwrap, and the native-pipe caveat in expression mode).}
 
 \item{id}{Optional module id; must match the id passed to \code{\link[=ptr_ui]{ptr_ui()}} or
 to the bare L3 pieces. Defaults to \code{NULL} (identity namespace,
@@ -29,6 +34,10 @@ single-instance use).}
 formula declares a \code{shared = "..."} placeholder driven by a
 cross-formula \code{\link[=ptr_shared_panel]{ptr_shared_panel()}} and the equivalent \code{...} arguments
 are not supplied directly.}
+
+\item{spec}{An optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot. See
+\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
 }
 \value{
 The \code{ptr_state} list from \code{\link[=ptr_init_state]{ptr_init_state()}}. This is the
@@ -45,7 +54,7 @@ wires the whole reactive engine, registers the built-in \code{ptr_plot} /
 harmless no-op), and \strong{returns the \code{ptr_state}} so you can drive a
 custom renderer. Additional arguments are forwarded to \code{\link[=ptr_init_state]{ptr_init_state()}}
 (e.g. \code{shared}, \code{draw_trigger}, \code{expr_check}, \code{safe_to_remove},
-\code{ui_text}, \code{checkbox_defaults}).
+\code{ui_text}).
 }
 \section{Custom render (L3)}{
 
@@ -63,7 +72,7 @@ output$my_plot <- plotly::renderPlotly(state$runtime()$plot)
 
 \code{state$runtime()} is reactive; \verb{$plot} is the built ggplot/ggplot-like
 object, \verb{$code} the generated source string, \verb{$error} any inline error.
-See \code{vignette("ggpaintr-use-cases")}.
+See \code{vignette("ggpaintr-tutorial")}.
 
 For cross-formula coordination — multiple ggpaintr instances driven by
 one widget — build the coordinator with \code{\link[=ptr_shared_server]{ptr_shared_server()}} and pass
@@ -78,7 +87,7 @@ declared key under its own namespace, matching what \code{\link[=ptr_app]{ptr_ap
 
 \examples{
 if (interactive()) {
-  f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+  f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   # L2: default layout
   shiny::shinyApp(
     ui = shiny::fluidPage(ptr_ui(f, "p")),

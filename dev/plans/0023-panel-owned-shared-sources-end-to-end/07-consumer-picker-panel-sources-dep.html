@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-07 — Consumer-picker dep at host scope reads panel-owned sources (from ADR 0023)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 07
+  slug: consumer-picker-panel-sources-dep
+  source_adr: dev/adr/0023-panel-owned-shared-sources-end-to-end.html
+  depends_on: [04]
+  parallel_group: G6
+  status: draft
+-->
+
+<h1>PLAN-07 — Consumer-picker dep reads panel-owned sources (preserves <code>has_rendered</code>)</h1>
+<p class="meta">Source: ADR 0023 · Depends on: 04 · Parallel group: G6 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0023 §5 (Decision, amended): <em>"<code>ptr_bind_shared_consumer_uis()</code> (and <code>ptr_bind_local_shared_consumers()</code> when invoked at host scope by <code>ptr_shared_server()</code>) gains a <code>panel_sources</code> arg. When the consumer's resolved upstream source id sits in <code>names(panel_sources)</code>, the renderUI takes a dep on <code>panel_sources[[sid]]()</code> instead of (or in addition to) <code>state$resolved_sources</code> / <code>state$resolved_data</code>. The existing <code>if (!is.null(state))</code> gate (which today excludes the host path) is replaced with a <code>panel_sources</code>-aware path. One resolution code path, partition-routed. <strong>Cut 2 must preserve the <code>has_rendered</code> closure-flag pattern introduced by commit 401804c</strong> — first-render-omits-<code>selected</code> and subsequent-render-passes-<code>current %||% character(0)</code>-verbatim are independent invariants that Cut 2's <code>panel_sources</code> dep wiring must not regress; the <code>panel_sources</code>-aware path threads <em>through</em> the existing <code>has_rendered</code> closure, not around it."</em></p>
+
+<p>The current code is in <code>R/paintr-server.R</code>: <code>ptr_bind_shared_consumer_uis</code> at line 1987 and <code>ptr_bind_local_shared_consumers</code> at line 2186. The <code>has_rendered</code> closure-flag lives at line 2027 (declared FALSE), is consulted at line 2135 (<code>if (has_rendered) seed %||% current %||% character(0)</code>), and flipped to TRUE at line 2150 (after the picker is built). All three sites must survive this plan unchanged.</p>
+
+<h2>Governing principle</h2>
+<p>The consumer-picker reactive must wake when its upstream source resolves — regardless of which scope owns the source. Today it watches per-instance <code>state$resolved_sources</code> / <code>state$resolved_data</code>; when the source is panel-owned, that per-instance slot only mirrors the panel reactive (Plan 05), so depending on <em>only</em> the per-instance slot still works but routes the signal through one extra hop. Depending directly on <code>panel_sources[[sid]]</code> shortens the chain and makes the dep explicit at the host scope (where there is no per-instance <code>state</code> to read). <strong>Equally important</strong>: the <code>has_rendered</code> closure-flag pattern from commit <code>401804c</code> is an <em>orthogonal</em> invariant — it preserves a user's emptied widget across renderUI re-fires by omitting <code>selected</code> on the first render and passing <code>current %||% character(0)</code> verbatim thereafter. Adding a new dep changes <em>when</em> the renderUI re-fires; it must not change the closure-flag logic. The ADR explicitly amends the decision to spell this out because the natural rewriting temptation is to consolidate the gate region wholesale.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>ptr_bind_shared_consumer_uis()</code> in <code>R/paintr-server.R</code> gains a new keyword argument <code>panel_sources = list()</code>, positioned after <code>state = NULL</code> in the signature so existing call sites are byte-stable (they pass the default).</li>
+  <li><code>ptr_bind_local_shared_consumers()</code> gains the same <code>panel_sources = list()</code> argument and threads it into its single call to <code>ptr_bind_shared_consumer_uis()</code>.</li>
+  <li><code>ptr_shared_server()</code> (Plan 04 already populates <code>panel_sources</code>) passes the populated list to <code>ptr_bind_local_shared_consumers()</code> when it binds consumer pickers at host scope. Existing per-instance call sites pass <code>panel_sources = list()</code> (the default).</li>
+  <li>Inside the renderUI body, for each consumer's resolved upstream source id <code>sid</code>: if <code>sid %in% names(panel_sources)</code>, the renderUI calls <code>panel_sources[[sid]]()</code> to take a reactive dep (in addition to the existing <code>state$resolved_sources</code> / <code>state$resolved_data</code> deps, which remain because formula-local consumers under panel-owned sources still route through the per-instance mirror). For a host-scope invocation where <code>state = NULL</code>, the panel_sources dep is the sole signal.</li>
+  <li>The renderUI body's <code>snap</code> snapshot (for <code>upstream_source_companion_ids</code> and <code>upstream_source_self_ids</code>) reads top-level (un-namespaced) input ids for panel-owned source ids — i.e., <code>input[[paste0("shared_", key, "_name")]]</code>, NOT <code>input[[ns(...)]]</code> — matching the panel's global id convention.</li>
+  <li><strong>has_rendered invariant is preserved verbatim</strong>: the closure-flag declaration (today line 2027), the <code>selected_arg &lt;- if (has_rendered) seed %||% current %||% character(0) else seed</code> ternary (today line 2135), and the post-picker flip to TRUE (today line 2150) all survive unchanged. The auditor checks this by diffing the three regions against the pre-Cut-2 HEAD; any change other than re-indentation MUST be flagged.</li>
+  <li>All criteria verified by <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ 3. <strong>Specifically</strong>: the regression test in <code>test-shared-source-rendering.R</code> for the <code>401804c</code> user-emptied-widget invariant (introduced post-add-expr merge) MUST continue to PASS — this is the auditor's primary signal that <code>has_rendered</code> survived.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-server.R</code> (specifically <code>ptr_bind_shared_consumer_uis()</code> and <code>ptr_bind_local_shared_consumers()</code>), <code>R/paintr-shared-ui.R</code> (only the call site inside <code>ptr_shared_server()</code> where the new arg is passed), <code>tests/testthat/test-consumer-picker-panel-sources-dep.R</code>.</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-shared-coordinator.R</code> (Plan 03), <code>ptr_setup_pipelines()</code> (Plan 05), <code>ptr_setup_source_uis()</code> (Plan 06).</li>
+  <li><strong>has_rendered closure-flag region is read-only</strong>: do not refactor it, do not consolidate it with the new dep, do not move it. The new dep is added as a separate line near the top of the renderUI body (with the other <code>for (rv in state$resolved_sources) rv()</code> deps), not inside the <code>selected_arg</code> ternary.</li>
+  <li>The new arg is added with a non-NULL default (<code>list()</code>) so existing direct callers (single-instance host, per-instance modules, every test that calls these helpers directly) don't need updating.</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code>.</li>
+  <li>Tidyverse style, snake_case, 2-space indent.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: consumer-picker reactive depends on panel-owned source reactives
+
+Scenario: Empty panel_sources is a no-op (existing dep chain runs as today)
+  Given panel_sources = list()
+  And  a single-instance consumer picker over a non-shared upload
+  When the upload fires
+  Then the picker re-renders (existing path)
+  And  the renderUI body did not call panel_sources[[...]]() (no new dep)
+
+Scenario: Panel-owned source dep wakes the consumer picker
+  Given panel_sources = list(shared_ds = shiny::reactiveVal(mtcars))
+  And  a consumer with upstream resolved to a ppUpload(shared='ds') source
+  When testServer runs ptr_bind_shared_consumer_uis(..., panel_sources = panel_sources)
+  And  the panel_sources$shared_ds reactive updates to penguins
+  Then output[[consumer_output_id]] re-fires
+  And  the new picker's choices come from names(penguins)
+
+Scenario: has_rendered invariant — first render omits `selected` even with panel_sources
+  Given a fresh renderUI invocation (has_rendered starts FALSE)
+  And  panel_sources = list(shared_ds = reactiveVal(mtcars))
+  And  no spec_seed for this consumer id
+  When the renderUI body runs once
+  Then the resulting picker is built WITHOUT a `selected` extra
+       (selected_arg resolves to NULL on this branch)
+  And  has_rendered is now TRUE
+
+Scenario: has_rendered invariant — subsequent render preserves a user-emptied widget
+  Given has_rendered = TRUE (one prior render fired)
+  And  the user has cleared the picker (input slot is character(0))
+  And  panel_sources reactive fires again
+  When the renderUI body re-runs
+  Then selected_arg = character(0) (the user-emptied value, NOT the seed default)
+  And  the rendered picker has no selected items
+
+Scenario: Host-scope invocation (state = NULL) with populated panel_sources still wires the dep
+  Given state = NULL and panel_sources = list(shared_ds = rv)
+  When ptr_bind_shared_consumer_uis(state = NULL, panel_sources = panel_sources, ...)
+  And  rv() updates
+  Then output[[consumer_output_id]] re-fires
+       (the new path replaces the legacy `if (!is.null(state))` exclusion)
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                               | kind     | summary (one line)                                                                  | Scenario in this plan                            |
+|----------------------------------------------------------|----------|-------------------------------------------------------------------------------------|--------------------------------------------------|
+| (none — internal mechanism; the user-visible "shared picker populates from panel-shared source" composition is asserted by Plan 08's e2e fixture) | -        | -                                                                                   | -                                                |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate" — copy verbatim:</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong>, with PASS rising by ≥ 5.</p>
+<p><strong>Plan-specific gate risks</strong>: (a) The <code>has_rendered</code> regression test from post-add-expr merge is the canonical alarm — if it FAILs, the closure-flag region was regressed. The auditor MUST run it specifically (<code>NOT_CRAN=true Rscript -e 'devtools::load_all(); testthat::test_file("tests/testthat/test-shared-source-rendering.R")'</code>) in addition to the full gate. (b) Adding a new dep can cause spurious re-renders that look benign in <code>testServer</code> but produce visible flicker in a browser; the e2e fixture in Plan 08 is the ultimate check for that, not this plan.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-server.R</code> (specifically <code>ptr_bind_shared_consumer_uis()</code> + <code>ptr_bind_local_shared_consumers()</code> signatures and bodies), the single call site in <code>R/paintr-shared-ui.R::ptr_shared_server()</code>, <code>tests/testthat/test-consumer-picker-panel-sources-dep.R</code>. <code>NAMESPACE</code> regeneration is an integration concern — internal-only change.</p>
+<p>Branch convention: this plan lives on branch <code>0023-consumer-picker-panel-sources-dep</code> in a worktree at <code>.claude/worktrees/0023-panel-owned-shared-sources-end-to-end/consumer-picker-panel-sources-dep/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the DoD command and verifies the expected output before any merge. The auditor ALSO runs the <code>has_rendered</code>-targeted file specifically (see Plan-specific gate risks).</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>shared-id-upgrade</code> at HEAD after Plan 04 is merged. Pre-existing failures: none expected. Implementer records actual baseline PASS in the worktree's first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Per-instance pipeline substitution (decision §4) is Plan 05. Partition-aware skip in <code>ptr_setup_source_uis()</code> (decision §7) is Plan 06. End-to-end fixture is Plan 08. Findings outside this plan's owned region are surfaced in the audit report.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>04</strong> (the host populates <code>panel_sources</code> on the bundle; without it, this plan adds an arg with nothing to read). Provides for: <strong>08</strong> (end-to-end fixture asserts the full chain wakes correctly in a browser).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=a753eb41fae5 -->
+</body>
+</html>

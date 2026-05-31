@@ -27,7 +27,7 @@
 # ---- P6.6 / P6.7 — Data sub-tab presence gated on pipeline placeholders ----
 
 test_that("P6.6 layer panel includes Data sub-tab when pipeline placeholders present", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
   # Look for tabsetPanel containing two tabPanels (Data + Controls)
@@ -37,7 +37,7 @@ test_that("P6.6 layer panel includes Data sub-tab when pipeline placeholders pre
 })
 
 test_that("P6.7 layer panel omits Data sub-tab when no pipeline placeholders", {
-  tree <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
+  tree <- ptr_translate("ggplot(mtcars, aes(x = ppVar)) + geom_point()")
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
   rendered <- as.character(panel)
@@ -65,37 +65,39 @@ test_that("P6.12 ggplot layer has no checkbox", {
 
 # ---- P6.9 / P6.10 — checkbox default state ----
 
-test_that("P6.9 checkbox defaults to TRUE when key absent", {
+test_that("P6.9 checkbox defaults to TRUE when ppLayerOff is not used", {
+  # ADR 0020: default-active reads from `node$default_active`. A bare
+  # geom_point() leaves the field unset, so the carrier's effective value
+  # is TRUE -> the static panel renders the checkbox `checked="checked"`.
   tree <- ptr_translate("ggplot(mtcars) + geom_point()")
   layer <- .layer_by_name(tree, "geom_point")
-  panel <- build_ui_for(
-    layer,
-    checkbox_defaults = c(geom_smooth = FALSE)  # no geom_point key
-  )
+  panel <- build_ui_for(layer)
   rendered <- as.character(panel)
   expect_match(rendered, 'checked="checked"', fixed = TRUE)
 })
 
-test_that("P6.10 checkbox defaults to FALSE when key set FALSE", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point()")
+test_that("P6.10 checkbox defaults to FALSE via ppLayerOff(geom, TRUE)", {
+  # ADR 0020 / Plan 04 rewrite of the deleted `checkbox_defaults =` test.
+  # `ppLayerOff(geom_point(), TRUE)` stamps `default_active = FALSE` on
+  # the carrier ptr_layer; `build_ui_for.ptr_layer` reads that field
+  # directly to set the checkbox state and the disabled-class on the
+  # layer content wrapper.
+  tree <- ptr_translate("ggplot(mtcars) + ppLayerOff(geom_point(), TRUE)")
   layer <- .layer_by_name(tree, "geom_point")
-  panel <- build_ui_for(
-    layer,
-    checkbox_defaults = c(geom_point = FALSE)
-  )
+  panel <- build_ui_for(layer)
   rendered <- as.character(panel)
   expect_no_match(rendered, 'checked="checked"', fixed = TRUE)
 })
 
 # ---- P6.11 — content div carries ptr-layer-disabled when FALSE ----
 
-test_that("P6.11 layer toggle FALSE adds ptr-layer-disabled class", {
-  tree <- ptr_translate("ggplot(mtcars) + geom_point()")
+test_that("P6.11 ppLayerOff(geom, TRUE) adds ptr-layer-disabled class", {
+  # ADR 0020 / Plan 04 rewrite: same source-of-truth as P6.10 above; the
+  # static panel's content div picks up `ptr-layer-disabled` when the
+  # carrier's `default_active` is FALSE.
+  tree <- ptr_translate("ggplot(mtcars) + ppLayerOff(geom_point(), TRUE)")
   layer <- .layer_by_name(tree, "geom_point")
-  panel <- build_ui_for(
-    layer,
-    checkbox_defaults = c(geom_point = FALSE)
-  )
+  panel <- build_ui_for(layer)
   disabled_divs <- .find_tags2(panel, has_class = "ptr-layer-disabled")
   expect_true(length(disabled_divs) > 0L)
 })
@@ -123,45 +125,58 @@ test_that("layer panel namespaces ids via ns_fn", {
 # ---- Phase 4.1 — pipeline-stage placeholder labels name the verb ----
 
 test_that("pipeline-stage placeholder label names the verb via {param}", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
-  layer <- .layer_by_name(tree, "ggplot")
-  panel <- build_ui_for(layer)
+  # ADR 0012 / PLAN-01 (Bug B): the widget label now resolves inside the
+  # renderUI body in `ptr_setup_value_uis()` (the static layer panel only
+  # holds a uiOutput container). The label assertion drives testServer +
+  # `session$getOutput()` to capture the post-flush HTML.
+  formula <- "mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))"
+  html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA")
   # Default copy is "Enter a number for {param}"; for an unnamed positional arg
   # the verb fills {param}, giving "...for head()" -- and we do NOT also append
   # " in head()" on top of that.
-  expect_match(as.character(panel), "Enter a number for head\\(\\)")
-  expect_no_match(as.character(panel), "head\\(\\) in head\\(\\)")
+  expect_match(html, "Enter a number for head\\(\\)")
+  expect_no_match(html, "head\\(\\) in head\\(\\)")
 })
 
 test_that("unnamed-arg pipeline placeholder uses 'verb()' as the copy param key", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  # Hybrid: the stage-group header ("<code>head()</code>") is composed in
+  # the static layer panel via `controllable_region()`, so `build_ui_for`
+  # still observes it. The widget's resolved label (custom override) lives
+  # in the renderUI -> `.render_widget_html`.
+  formula <- "mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))"
+  tree <- ptr_translate(formula)
   layer <- .layer_by_name(tree, "ggplot")
-  panel <- as.character(build_ui_for(
-    layer,
-    ui_text = list(params = list(`head()` = list(num = list(label = "How many rows"))))
-  ))
+  static_panel <- as.character(build_ui_for(layer))
+  expect_match(static_panel, "<code>head\\(\\)</code>")
+
+  ui_text <- list(params = list(`head()` = list(ppNum = list(label = "How many rows"))))
+  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA", ui_text = ui_text)
   # the `head()` param key still resolves the custom label ...
-  expect_match(panel, "How many rows")
+  expect_match(widget_html, "How many rows")
   # ... but the verb is named once, by the stage-group header -- not as a
   # per-widget " in head()" suffix.
-  expect_match(panel, "<code>head\\(\\)</code>")
-  expect_no_match(panel, "How many rows in head")
+  expect_no_match(widget_html, "How many rows in head")
 })
 
 test_that("a pipeline placeholder's widget no longer carries the ' in verb()' suffix", {
-  tree <- ptr_translate("mtcars |> transform(n = num) |> ggplot(aes(x = var))")
+  formula <- "mtcars |> transform(n = ppNum) |> ggplot(aes(x = ppVar))"
+  tree <- ptr_translate(formula)
   layer <- .layer_by_name(tree, "ggplot")
-  panel <- as.character(build_ui_for(layer))
-  expect_match(panel, "ptr-stage-head")
-  expect_match(panel, "<code>transform\\(\\)</code>")
-  expect_no_match(panel, "in transform\\(\\)")
+  static_panel <- as.character(build_ui_for(layer))
+  # Stage-group scaffolding from the static panel.
+  expect_match(static_panel, "ptr-stage-head")
+  expect_match(static_panel, "<code>transform\\(\\)</code>")
+  # The widget label itself (composed inside the renderUI body) does NOT
+  # carry the redundant " in transform()" suffix.
+  widget_html <- .render_widget_html(formula, raw_id = "ggplot_2_1_ppNum_NA")
+  expect_no_match(widget_html, "in transform\\(\\)")
 })
 
 # ---- pipeline-stage groups ----
 
 test_that("pipeline stages render as .ptr-stage groups with a verb-labelled checkbox", {
   tree <- ptr_translate(
-    "mtcars |> subset(mpg > num) |> head(num) |> ggplot(aes(x = var))"
+    "mtcars |> subset(mpg > ppNum) |> head(ppNum) |> ggplot(aes(x = ppVar))"
   )
   layer <- .layer_by_name(tree, "ggplot")
   panel <- build_ui_for(layer)
@@ -177,11 +192,13 @@ test_that("pipeline stages render as .ptr-stage groups with a verb-labelled chec
 test_that("placeholder nested in a sub-expression names the stage verb, not the inner call", {
   # `text` is the RHS of `Species == text`, itself an argument to `subset()`.
   # The label/copy key must report the stage verb `subset()`, never `==()`.
-  tree <- ptr_translate("iris |> subset(Species == text) |> ggplot(aes(x = var))")
-  layer <- .layer_by_name(tree, "ggplot")
-  panel <- as.character(build_ui_for(layer))
-  expect_match(panel, "Enter a value for subset\\(\\)")
-  expect_no_match(panel, "==\\(\\)")
+  # ADR 0012 / PLAN-01 (Bug B): widget label resolves inside the renderUI
+  # body in `ptr_setup_value_uis()`; assert via `.render_widget_html`.
+  formula <- "iris |> subset(Species == ppText) |> ggplot(aes(x = ppVar))"
+  html <- .render_widget_html(formula, raw_id = "ggplot_2_1_2_ppText_NA",
+                              envir = list2env(list(iris = iris), parent = globalenv()))
+  expect_match(html, "Enter a value for subset\\(\\)")
+  expect_no_match(html, "==\\(\\)")
 })
 
 # ---- Phase 3 — layer-disabled visual cue ----

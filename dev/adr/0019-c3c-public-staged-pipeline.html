@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0019 — C3c: Public staged pipeline (drop the 222 :::)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0019 — C3c: Public staged pipeline (drop the 222 <code>:::</code>)</h1>
+
+<p><strong>Status:</strong> <em>Proposed.</em> Promoted from <a href="0017-deepening-opportunities-catalog.html">ADR-0017</a> C3 grill session on 2026-05-24. Independent of ADR-0018; can land first.</p>
+
+<p><strong>Date:</strong> 2026-05-24</p>
+
+<p><strong>Parent:</strong> <a href="0017-deepening-opportunities-catalog.html">ADR-0017</a> (deepening opportunities catalog), candidate C3c.</p>
+
+<p><strong>Relates to:</strong> <a href="0018-c3a-eliminate-pass-walker-boilerplate.html">ADR-0018</a> (C3a — orthogonal; either may land first), <a href="0012-role-based-tree-and-ptr-spec.html">ADR-0012</a> (canonical typed-tree decision).</p>
+
+<h2>Context</h2>
+
+<p>The translate→render pipeline has nine files (<code>nodes</code>, <code>walk</code>, <code>translate</code>, <code>classify</code>, <code>prune</code>, <code>substitute</code>, <code>resolve</code>, <code>eval</code>, <code>render</code>) and only two public entry points: <code>ptr_translate(formula, ...)</code> and <code>ptr_eval</code> / <code>ptr_render</code>.</p>
+
+<p>Tests routinely need to assert that an intermediate-stage tree has a specific shape (e.g. "after <code>ptr_prune</code>, this disabled layer is gone"; "after <code>ptr_substitute</code>, this placeholder has been replaced with a literal"). Because no public path reaches the intermediate stages, tests reach in with <code>ggpaintr:::</code>.</p>
+
+<h3>Verified facts (2026-05-24)</h3>
+
+<ul>
+  <li><strong>222 <code>ggpaintr:::</code> lines across 21 test files</strong> in <code>tests/testthat/</code>.</li>
+  <li>Files affected include <code>test-adr12-consumer-uniformity.R</code>, <code>test-adr12-spec-roundtrip.R</code>, <code>test-classify-calls-lift.R</code>, <code>test-expression-mode.R</code>, <code>test-ppupload-name-e2e.R</code>, <code>test-ppupload-preserve-mode.R</code>, <code>test-prune-bare-pipe-stage.R</code>, <code>test-ptr-spec-emission.R</code>, <code>test-ptr-tree-structural-equal.R</code>, <code>test-regression-bugs-2026-05-12.R</code>, <code>test-regression-bugs-2026-05-13.R</code>, <code>test-rename-coverage.R</code>, <code>test-render-prefix-collapse.R</code>, <code>test-resugar-pipeline.R</code>, <code>test-rewrite-server-state.R</code>, <code>test-shared-server-partition.R</code>, <code>test-shared-stage-checkbox.R</code>, <code>test-ui-pieces.R</code>, <code>test-upload-unsupported-extension.R</code>, <code>test-validate-input-ctx.R</code>, <code>test-validate-input-retain.R</code>.</li>
+  <li>The pass functions themselves (<code>ptr_classify_data</code>, <code>ptr_prune</code>, <code>ptr_substitute</code>, <code>ptr_render</code>) are <strong>unexported</strong> today — that's the only reason tests use <code>:::</code>. Their bodies are stable contracts in the project's internal vocabulary.</li>
+</ul>
+
+<h2>Problem statement</h2>
+
+<p>222 <code>:::</code> calls is sustained, visible evidence that the public surface doesn't fit the project's testing reality. Beyond the aesthetic cost, every <code>:::</code> use is a soft contract: changing an internal name silently breaks tests. The package gives no public way to ask "what tree does this formula produce after substitution?"</p>
+
+<p>This is shallow-interface shape: the pipeline has a clearly-named intermediate-stage tree (the typed AST per ADR-0012), but no public way to <em>get one</em> at a chosen stage.</p>
+
+<h2>Decision (direction, not interface)</h2>
+
+<p>Add a single public staged-pipeline entry point — provisional name <code>ptr_pipeline(formula, ..., stop_after = c("translate", "classify", "prune", "substitute", "render"))</code> — that runs the pipeline up to the named stage and returns whatever that stage's natural output is (a typed tree for the intermediate stages; the rendered text for <code>"render"</code>). No behavioural change; pure redirection plus tests.</p>
+
+<p>Migrate the 21 test files from <code>ggpaintr:::ptr_X(tree)</code> to <code>ptr_pipeline(formula, stop_after = "X")</code> where shape-equivalent. Where the test needs to inject a hand-built tree (rather than start from a formula), keep <code>:::</code> — those are testing internal contracts, not pipeline behaviour, and that's a fair use.</p>
+
+<p><strong>Out of scope for this ADR:</strong> the exact return-type contract per <code>stop_after</code> value; whether <code>stop_after = "translate"</code> already exists as <code>ptr_translate</code> (it does — they may converge); whether to expose <code>ptr_pipeline</code> as a single-arg-defaults convenience (e.g. default <code>stop_after = "render"</code> ≡ <code>ptr_render</code>). These are interface design questions for the grilling session.</p>
+
+<h2>Consequences</h2>
+
+<h3>What this buys</h3>
+
+<ul>
+  <li>222 <code>:::</code> uses become <code>ptr_pipeline(...)</code> calls. The public surface and the test surface align. Internal renames stop silently breaking tests.</li>
+  <li>The intermediate-tree question ("what shape does this formula take at stage X?") gets a public, documentable answer. Useful for embedders too (an L3 user could inspect the resolved tree before letting ggpaintr render it).</li>
+  <li>The pipeline gains <strong>one</strong> named, documented entry point that exposes its full staged shape — better than the current two-entry-point façade that hides everything in between.</li>
+</ul>
+
+<h3>What this does NOT buy</h3>
+
+<ul>
+  <li>No reduction in pass-file size or boilerplate (that is C3a / ADR-0018).</li>
+  <li>No type-level guarantee that a wrong-stage tree can't reach a wrong consumer (that is C3b).</li>
+  <li>No new behaviour — pure redirection layer.</li>
+</ul>
+
+<h3>Risks</h3>
+
+<ul>
+  <li><strong>Public-API commitment.</strong> Once <code>ptr_pipeline</code> is exported, its return-type contract per <code>stop_after</code> is load-bearing. If C3a or C3b later changes intermediate-stage shapes, this entry point's contract is the bottleneck.</li>
+  <li><strong>Migration tedium.</strong> 222 sites across 21 files. Most are mechanical, but some tests reach for genuinely-internal helpers (not pass entry points), and those must stay on <code>:::</code>. Triage required.</li>
+  <li><strong>Vignette / docs pressure.</strong> An exported entry point usually demands a roxygen page + example. That's small per CRAN's standards but non-zero.</li>
+</ul>
+
+<h2>Open questions for the grilling session</h2>
+
+<ol>
+  <li><strong>Convergence with <code>ptr_translate</code>.</strong> <code>stop_after = "translate"</code> would do exactly what <code>ptr_translate</code> already does. Either deprecate <code>ptr_translate</code> in favour of <code>ptr_pipeline</code>, or keep both as documented synonyms. Pick.</li>
+  <li><strong>Return-type per stage.</strong> Always a tree for non-render stages? Or per-stage natural type (rendered text for <code>"render"</code>, an R language object for <code>"eval"</code>)?</li>
+  <li><strong>Stage names.</strong> Match the file names (<code>classify</code>, <code>prune</code>, <code>substitute</code>) or use more user-facing names (<code>typed</code>, <code>active</code>, <code>resolved</code>)? CONTEXT.md vocabulary should govern.</li>
+  <li><strong>Coverage of the 222 sites.</strong> A quick triage: which <code>:::</code> calls are pass entry points (migratable) vs internal helpers (must stay <code>:::</code>)? Eyeball before locking the migration plan.</li>
+</ol>
+
+<h2>Definition of Done (for the eventual implementation plan)</h2>
+
+<p>Per <code>CLAUDE.md</code> authoritative gate:</p>
+
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+</code></pre>
+
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (current N = 1583+).</p>
+
+<p>Plus: post-migration <code>ggpaintr:::</code> count in <code>tests/testthat/</code> drops measurably (target: ≥ 75 % of the 222 sites migrated; remaining sites documented as "internal helper, not pass entry").</p>
+
+<p>Plus: roxygen page for <code>ptr_pipeline</code> with one runnable example per <code>stop_after</code> value; NAMESPACE export added; <code>devtools::check(--as-cran)</code> clean (0 errors / 0 warnings).</p>
+
+<h2>Process from here</h2>
+
+<ol>
+  <li>This ADR can be grilled and locked independently of ADR-0018. The two are orthogonal.</li>
+  <li>Once locked, <code>/decision-to-plan</code> emits the implementation plan; <code>/exec-plan</code> runs it.</li>
+</ol>
+
+</body>
+</html>

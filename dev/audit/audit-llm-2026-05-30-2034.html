@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ggpaintr LLM-assist surface — audit (2026-05-30)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ggpaintr LLM-assist surface — audit</h1>
+<p><strong>Date:</strong> 2026-05-30 20:34 &middot; <strong>Branch:</strong> llm-update &middot;
+<strong>Method:</strong> static introspection of the source package (<code>pkgload::load_all</code>) vs. the shipped
+<code>inst/llm/</code> corpus, via the new linter <code>dev/build-llm.R lint</code>. Read-only audit; no content edited yet.</p>
+
+<p class="lead"><strong>Verdict:</strong> the LLM-assist content is the four file-reader functions in <code>R/paintr-llm.R</code>
+(sound) plus a 13-file markdown corpus under <code>inst/llm/</code> that has <strong>systemically drifted</strong> behind
+several shipped API changes. <strong>101 HARD</strong> + <strong>21 WARN</strong> machine-verified breakages across all 13 files:
+an LLM following the primer/topics today emits R that fails on nonexistent function names, swapped argument order,
+removed arguments, renamed arguments, and non-parsing placeholder tokens. The four R functions need no behavioral
+change — only the bundled content (and a generation/gate mechanism so it cannot drift silently again).</p>
+
+<h2>1. Surface inventory — every LLM item in the package</h2>
+
+<h3>R source — <code>R/paintr-llm.R</code> (194 lines, 4 exported file-reader fns)</h3>
+<table>
+<thead><tr><th>Function</th><th>Role</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td><code>ptr_llm_primer()</code></td><td>reads <code>inst/llm/primer.md</code></td><td>mechanism sound; payload drifted</td></tr>
+<tr><td><code>ptr_llm_topics()</code></td><td>lists <code>topics/*.md</code></td><td>sound</td></tr>
+<tr><td><code>ptr_llm_topic(name)</code></td><td>reads <code>topics/&lt;name&gt;.md</code></td><td>mechanism sound; payload drifted</td></tr>
+<tr><td><code>ptr_llm_register(chat, tool_name)</code></td><td>registers an ellmer tool wrapping <code>ptr_llm_topic</code>; snapshots topic enum</td><td>sound (tool-enum text is the one correct copy of the API names)</td></tr>
+</tbody>
+</table>
+
+<h3>Bundled content — <code>inst/llm/</code> (1 primer + 12 topics)</h3>
+<p><code>primer.md</code> and <code>topics/</code>:
+overview, formula_syntax, custom_placeholder, level1_ptr_app, level1_ptr_options, level2_module, level2_shared,
+level2_custom_ids, level2_ui_text, level3_custom_render, level3_gg_extra, level3_layout. <strong>All 13 carry drift.</strong></p>
+
+<h3>Docs / packaging</h3>
+<ul>
+<li><code>man/ptr_llm_*.Rd</code> (4, generated) &middot; <code>NAMESPACE:107-110</code> (4 exports)</li>
+<li><code>_pkgdown.yml:61-67,76</code> — "LLM tooling" reference section + vignette</li>
+<li><code>vignettes/ggpaintr-llm.Rmd</code> (243 lines) &middot; <code>DESCRIPTION:51</code> — <code>ellmer</code> in Suggests</li>
+<li><strong>Tests: zero.</strong> No file under <code>tests/</code> references <code>ptr_llm</code> — the entire surface is untested.</li>
+</ul>
+
+<h2>2. Drift findings (machine-verified)</h2>
+
+<table>
+<thead><tr><th>#</th><th>Class</th><th>Hits</th><th>Severity</th><th>What's wrong</th><th>Fix</th></tr></thead>
+<tbody>
+<tr>
+<td>1</td><td>Ghost function names + swapped arg order</td><td>73</td><td>critical</td>
+<td><code>ptr_module_ui</code>/<code>ptr_module_server</code> do not exist (never defined in <code>R/</code>, not exported).
+Real pair is <code>ptr_ui</code>/<code>ptr_server</code>, and <strong>arg order is swapped</strong>:
+<code>ptr_module_ui(id, formula)</code> &rarr; <code>ptr_ui(formula, id = NULL, …)</code>. A blind rename would pass the id string
+<em>as the formula</em>. Also <code>ptr_translate()</code> (level3_layout) — real but not exported.</td>
+<td>Rewrite every L2/L3 example to <code>ptr_ui(formula, id = "…")</code> / <code>ptr_server(formula, id = "…")</code>;
+inject signatures from <code>formals()</code>.</td>
+</tr>
+<tr>
+<td>2</td><td>Removed / renamed arguments</td><td>25</td><td>critical</td>
+<td><code>checkbox_defaults =</code> — <strong>removed feature</strong>, absent from all of <code>R/</code> (5 files, incl. a whole primer paragraph).
+<code>shared_ui =</code> — <strong>explicitly removed</strong> (<code>R/paintr-app.R:1248</code> <code>@section Removed shared_ui</code>; 6 files).
+<code>copy_defaults =</code> / <code>companion_id_fn =</code> — wrong placeholder-constructor arg names; real tail is
+<code>validate_input, positional_arg, named_args, runtime, ui_text_defaults</code> (custom_placeholder, 2 each).</td>
+<td>Delete the removed-feature prose; rewrite constructor examples against real <code>formals()</code>.</td>
+</tr>
+<tr>
+<td>3</td><td>Pre-<code>pp*</code> placeholder tokens</td><td>21 (WARN)</td><td>high</td>
+<td>Bare <code>var(</code>/<code>num(</code> in formula code (6 files). Post ADR-0009 the tokens are
+<code>ppVar</code>/<code>ppNum</code>/…; <code>ptr_registry_lookup("var")</code> is <code>FALSE</code> — bare forms no longer parse.</td>
+<td><code>var(</code>&rarr;<code>ppVar(</code>, <code>num(</code>&rarr;<code>ppNum(</code> inside formula strings only.</td>
+</tr>
+<tr>
+<td>4</td><td>Internal generic sold as public</td><td>3</td><td>medium</td>
+<td>level3_layout calls <code>build_ui_for()</code> "the <em>exported</em> S3 generic" + walks <code>ptr_translate(formula)$layers</code>.
+NAMESPACE only has <code>S3method(build_ui_for, …)</code>, never <code>export()</code>; neither is callable without <code>:::</code>.</td>
+<td><strong>Remove the section</strong> (decision locked) — keep the corpus within the real public surface.</td>
+</tr>
+<tr>
+<td>5</td><td>Hand-typed signature drift (prose)</td><td>—</td><td>high</td>
+<td>Not lint-visible but confirmed vs <code>formals()</code>: <code>ptr_app_bslib(title=)</code> and <code>ptr_app_grid(title=)</code> —
+no such arg; <code>ptr_app</code> omits <code>spec</code>; <code>ptr_app_grid</code> omits <code>ncol/nrow/ui_text/spec</code>.
+primer line 24 rationalizes the ghost <code>ptr_module_*</code> names as a "deliberate exception."</td>
+<td>Replace hand-typed signature lines with <code>formals()</code>-injected managed blocks; rewrite the naming-convention prose.</td>
+</tr>
+</tbody>
+</table>
+
+<p><strong>Root cause:</strong> the content is a second, hand-synced copy of the API contract written before
+ADR-0009 (<code>pp*</code> rename), the <code>module</code>&rarr;<code>ptr_ui</code>/<code>ptr_server</code> rename, the
+<code>shared_ui</code> removal, the <code>checkbox_defaults</code> removal, and the placeholder-constructor signature change.
+Nothing checked the copy against the source, so it rotted silently.</p>
+
+<h2>3. Mechanism built during the audit</h2>
+<p><code>dev/build-llm.R lint</code> — loads the source package and asserts, against live introspection:
+every <code>ptr_*()</code> call names a real export (drift class 1); no removed/renamed argument appears in <code>arg =</code>
+position (class 2); no pre-<code>pp*</code> bare token appears in call position (class 3, WARN); no internal
+(non-exported) S3 generic is documented as a call (class 4); the 5 user tokens are all registered.
+Exit 1 on any HARD violation. This is the worklist producer for the rewrite and the seed of the sync gate.</p>
+
+<h2>4. Proposed rewrite (build-time generation — decisions locked)</h2>
+<p><strong>Locked:</strong> managed-block injection (keep the 13 markdown files as prose source; regenerate only the
+volatile factual blocks from introspection) + <strong>remove</strong> the <code>build_ui_for</code> section.</p>
+<ol>
+<li><strong>Content correctness</strong> — rewrite all 13 files to clear lint to 0 HARD: classes 1&ndash;5 above.</li>
+<li><strong>Managed blocks</strong> — sentinel-delimited regions for signatures (<code>formals()</code>), the token table
+(<code>ptr_registry_keywords()</code>), and the topic index (files on disk); <code>dev/build-llm.R generate</code> +
+<code>verify</code> (the <code>document()</code>-style "regenerate &rArr; no diff" gate).</li>
+<li><strong>Tests</strong> — <code>tests/testthat/test-llm.R</code>: lint-clean, topic-list == files, token table == registry,
+sync-gate no-diff, plus the four functions' behavioral contracts (currently zero coverage).</li>
+<li><strong>Gate wiring</strong> — add the lint + verify to the pre-commit hook alongside <code>document()</code>.</li>
+</ol>
+<p><strong>Definition of Done:</strong> <code>Rscript dev/build-llm.R lint</code> &rarr; 0 HARD; <code>verify</code> &rarr; no diff;
+<code>devtools::test(filter="llm")</code> &rarr; FAIL 0 / ERROR 0; full authoritative gate unchanged.</p>
+
+<h2>Appendix — full lint output</h2>
+<pre id="lint-output">== ggpaintr LLM corpus lint ==
+exports introspected: 45 ptr_* of 52 total
+
+-- HARD: ptr_*() calls naming a non-export --
+  inst/llm/primer.md:40  ptr_module_ui()
+  inst/llm/primer.md:40  ptr_module_server()
+  inst/llm/primer.md:40  ptr_module_server()
+  inst/llm/primer.md:43  ptr_module_server()
+  inst/llm/primer.md:44  ptr_module_server()
+  inst/llm/primer.md:44  ptr_module_server()
+  inst/llm/primer.md:60  ptr_module_server()
+  inst/llm/primer.md:67  ptr_module_ui()
+  inst/llm/primer.md:67  ptr_module_server()
+  inst/llm/primer.md:82  ptr_module_ui()
+  inst/llm/primer.md:85  ptr_module_server()
+  inst/llm/topics/custom_placeholder.md:21  ptr_module_server()
+  inst/llm/topics/level1_ptr_app.md:90  ptr_module_ui()
+  inst/llm/topics/level1_ptr_app.md:90  ptr_module_server()
+  inst/llm/topics/level1_ptr_app.md:92  ptr_module_server()
+  inst/llm/topics/level2_custom_ids.md:5  ptr_module_ui()
+  inst/llm/topics/level2_custom_ids.md:5  ptr_module_server()
+  inst/llm/topics/level2_custom_ids.md:14  ptr_module_ui()
+  inst/llm/topics/level2_custom_ids.md:15  ptr_module_ui()
+  inst/llm/topics/level2_custom_ids.md:19  ptr_module_server()
+  inst/llm/topics/level2_custom_ids.md:20  ptr_module_server()
+  inst/llm/topics/level2_module.md:5  ptr_module_ui()
+  inst/llm/topics/level2_module.md:5  ptr_module_server()
+  inst/llm/topics/level2_module.md:7  ptr_module_ui()
+  inst/llm/topics/level2_module.md:7  ptr_module_server()
+  inst/llm/topics/level2_module.md:18  ptr_module_ui()
+  inst/llm/topics/level2_module.md:22  ptr_module_server()
+  inst/llm/topics/level2_module.md:28  ptr_module_server()
+  inst/llm/topics/level2_module.md:39  ptr_module_server()
+  inst/llm/topics/level2_module.md:44  ptr_module_server()
+  inst/llm/topics/level2_module.md:44  ptr_module_server()
+  inst/llm/topics/level2_module.md:58  ptr_module_server()
+  inst/llm/topics/level2_shared.md:5  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:5  ptr_module_server()
+  inst/llm/topics/level2_shared.md:14  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:18  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:26  ptr_module_server()
+  inst/llm/topics/level2_shared.md:28  ptr_module_server()
+  inst/llm/topics/level2_shared.md:44  ptr_module_server()
+  inst/llm/topics/level2_shared.md:61  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:62  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:68  ptr_module_server()
+  inst/llm/topics/level2_shared.md:69  ptr_module_server()
+  inst/llm/topics/level2_shared.md:100  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:101  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:106  ptr_module_server()
+  inst/llm/topics/level2_shared.md:107  ptr_module_server()
+  inst/llm/topics/level2_shared.md:115  ptr_module_ui()
+  inst/llm/topics/level2_shared.md:115  ptr_module_server()
+  inst/llm/topics/level2_shared.md:120  ptr_module_server()
+  inst/llm/topics/level2_ui_text.md:3  ptr_module_ui()
+  inst/llm/topics/level2_ui_text.md:3  ptr_module_server()
+  inst/llm/topics/level2_ui_text.md:121  ptr_module_ui()
+  inst/llm/topics/level2_ui_text.md:125  ptr_module_server()
+  inst/llm/topics/level2_ui_text.md:131  ptr_module_ui()
+  inst/llm/topics/level2_ui_text.md:131  ptr_module_server()
+  inst/llm/topics/level3_custom_render.md:5  ptr_module_server()
+  inst/llm/topics/level3_custom_render.md:59  ptr_module_ui()
+  inst/llm/topics/level3_custom_render.md:59  ptr_module_server()
+  inst/llm/topics/level3_custom_render.md:59  ptr_module_ui()
+  inst/llm/topics/level3_gg_extra.md:16  ptr_module_ui()
+  inst/llm/topics/level3_gg_extra.md:19  ptr_module_server()
+  inst/llm/topics/level3_gg_extra.md:28  ptr_module_server()
+  inst/llm/topics/level3_gg_extra.md:35  ptr_module_ui()
+  inst/llm/topics/level3_gg_extra.md:35  ptr_module_server()
+  inst/llm/topics/level3_layout.md:27  ptr_module_ui()
+  inst/llm/topics/level3_layout.md:29  ptr_module_server()
+  inst/llm/topics/level3_layout.md:58  ptr_module_ui()
+  inst/llm/topics/level3_layout.md:145  ptr_translate()
+  inst/llm/topics/overview.md:13  ptr_module_ui()
+  inst/llm/topics/overview.md:13  ptr_module_server()
+  inst/llm/topics/overview.md:33  ptr_module_ui()
+  inst/llm/topics/overview.md:33  ptr_module_server()
+
+-- WARN: pre-pp* bare placeholder token in call position --
+  inst/llm/topics/formula_syntax.md:62  var(
+  inst/llm/topics/formula_syntax.md:62  var(
+  inst/llm/topics/level1_ptr_app.md:58  var(
+  inst/llm/topics/level1_ptr_app.md:60  var(
+  inst/llm/topics/level1_ptr_app.md:67  num(
+  inst/llm/topics/level1_ptr_app.md:67  var(
+  inst/llm/topics/level1_ptr_app.md:75  var(
+  inst/llm/topics/level1_ptr_app.md:75  var(
+  inst/llm/topics/level2_custom_ids.md:52  var(
+  inst/llm/topics/level2_shared.md:41  var(
+  inst/llm/topics/level2_shared.md:50  var(
+  inst/llm/topics/level2_shared.md:51  var(
+  inst/llm/topics/level2_shared.md:83  var(
+  inst/llm/topics/level2_shared.md:83  var(
+  inst/llm/topics/level2_shared.md:84  num(
+  inst/llm/topics/level2_shared.md:85  var(
+  inst/llm/topics/level2_shared.md:86  num(
+  inst/llm/topics/level3_custom_render.md:93  var(
+  inst/llm/topics/level3_custom_render.md:94  var(
+  inst/llm/topics/level3_layout.md:114  var(
+  inst/llm/topics/level3_layout.md:115  var(
+
+-- HARD: internal (non-exported) generic documented as a call --
+  inst/llm/topics/level3_layout.md:143  build_ui_for()
+  inst/llm/topics/level3_layout.md:145  build_ui_for()
+  inst/llm/topics/level3_layout.md:145  build_ui_for()
+
+-- HARD: removed/renamed argument documented in `arg =` position --
+  inst/llm/primer.md:31  checkbox_defaults =
+  inst/llm/primer.md:33  shared_ui =
+  inst/llm/primer.md:33  shared_ui =
+  inst/llm/primer.md:40  checkbox_defaults =
+  inst/llm/primer.md:41  shared_ui =
+  inst/llm/primer.md:47  checkbox_defaults =
+  inst/llm/topics/custom_placeholder.md:59  copy_defaults =
+  inst/llm/topics/custom_placeholder.md:87  copy_defaults =
+  inst/llm/topics/custom_placeholder.md:112  copy_defaults =
+  inst/llm/topics/custom_placeholder.md:143  copy_defaults =
+  inst/llm/topics/custom_placeholder.md:153  companion_id_fn =
+  inst/llm/topics/level1_ptr_app.md:12  checkbox_defaults =
+  inst/llm/topics/level1_ptr_app.md:21  shared_ui =
+  inst/llm/topics/level1_ptr_app.md:39  shared_ui =
+  inst/llm/topics/level1_ptr_app.md:49  shared_ui =
+  inst/llm/topics/level1_ptr_app.md:63  shared_ui =
+  inst/llm/topics/level1_ptr_app.md:67  shared_ui =
+  inst/llm/topics/level1_ptr_options.md:22  checkbox_defaults =
+  inst/llm/topics/level1_ptr_options.md:61  checkbox_defaults =
+  inst/llm/topics/level2_module.md:28  checkbox_defaults =
+  inst/llm/topics/level2_shared.md:41  shared_ui =
+  inst/llm/topics/level2_shared.md:55  shared_ui =
+  inst/llm/topics/level2_shared.md:91  shared_ui =
+  inst/llm/topics/level3_custom_render.md:98  shared_ui =
+  inst/llm/topics/level3_layout.md:119  shared_ui =
+
+-- registry: USER_TOKENS present in ptr_registry_keywords() --
+  all present
+
+HARD violations: 101   WARN: 21
+</pre>
+
+</body>
+</html>

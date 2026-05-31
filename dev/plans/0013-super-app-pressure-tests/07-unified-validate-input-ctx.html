@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-07 — Unified validate_input(value, ctx) hook for value + consumer placeholders</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 07
+  slug: unified-validate-input-ctx
+  source_adr: follow-up surfaced by ADR 0013 /exec-plan run (2026-05-23); not part of ADR-0013's original scope
+  depends_on: []
+  provides_for: [03, 06]
+  parallel_group: G0 (pre-G2 — must merge before 03 and 06 to unblock them)
+  status: draft
+-->
+
+<h1>PLAN-07 — Unified <code>validate_input(value, ctx)</code> hook for value + consumer placeholders</h1>
+<p class="meta">Source: follow-up A from the 2026-05-23 ADR-0013 <code>/exec-plan</code> session (handoff document at <code>/var/folders/.../handoff-XXXXXX.md</code>). Depends on: — · Provides for: PLAN-03, PLAN-06 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>The 2026-05-23 <code>/exec-plan</code> on ADR-0013 merged PLAN-01, PLAN-02, PLAN-05 and left PLAN-03, PLAN-04, PLAN-06 BLOCKED. Two of those blockers (PLAN-03 + PLAN-06) share one root cause: <code>ptr_define_placeholder_value()</code> (<code>R/paintr-registry.R:412-440</code>) has no <code>validate_input</code> parameter. Only <code>ptr_define_placeholder_consumer()</code> (<code>R/paintr-registry.R:508-541</code>) supports the hook today.</p>
+
+<p>A narrower fix — just bolt <code>validate_input</code> onto <code>ptr_define_placeholder_value()</code> with the consumer's existing <code>function(value, upstream_cols)</code> signature — was considered and rejected. Two problems with the narrow shape:</p>
+
+<ol>
+  <li><strong><code>upstream_cols</code> is meaningless for a value placeholder.</strong> A value placeholder has no upstream column scope (<code>data_aware = FALSE</code> on its registry entry, <code>R/paintr-registry.R:432</code>). Passing an always-NULL second arg is dishonest and confuses the contract.</li>
+  <li><strong>The consumer's hook is itself too narrow.</strong> The substitute walker has the upstream data frame in scope (<code>ctx</code> at <code>R/paintr-substitute.R:18-25</code>) but only forwards a character vector of column <em>names</em> to the validator (<code>R/paintr-substitute.R:124-127</code>). Authors who want to validate by column type / range / uniqueness / NA-fraction can't — they're forced into <code>build_ui</code>-time choice filtering (loses the "inline error message" UX) or silent <code>resolve_expr → NULL</code> pruning.</li>
+</ol>
+
+<p>This plan adopts a single unified hook signature for both roles: <code>function(value, ctx)</code>, where <code>ctx</code> is a plain list with stable named fields. Each role populates the subset of fields that makes sense:</p>
+
+<table>
+  <thead>
+    <tr><th>ctx field</th><th>type</th><th>value role</th><th>consumer role</th><th>meaning</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>node</code></td><td>list (ptr placeholder AST node)</td><td>populated</td><td>populated</td><td>The placeholder node itself; carries <code>$id</code>, <code>$keyword</code>, <code>$args</code>, etc.</td></tr>
+    <tr><td><code>keyword</code></td><td>character(1)</td><td>populated</td><td>populated</td><td>Convenience alias for <code>node$keyword</code>.</td></tr>
+    <tr><td><code>upstream_cols</code></td><td>character or NULL</td><td><strong>NULL</strong></td><td>populated when upstream resolved; else NULL</td><td>Upstream column names; same value the consumer's <code>build_ui</code> receives as <code>cols</code>.</td></tr>
+    <tr><td><code>data</code></td><td>data.frame or NULL</td><td><strong>NULL</strong></td><td>populated when upstream resolved; else NULL</td><td>Upstream data frame; same object the consumer's <code>build_ui</code> receives as <code>data</code>.</td></tr>
+  </tbody>
+</table>
+
+<p>This closes both gaps in one move: PLAN-03 + PLAN-06 unblock because <code>ptr_define_placeholder_value()</code> finally has a hook; future data-aware consumer validators (column-type checks, range checks, …) work because <code>ctx$data</code> reaches the validator.</p>
+
+<h2>Governing principle</h2>
+
+<p><strong>One signature, two roles, no shims.</strong> ggpaintr is pre-1.0 (<code>DESCRIPTION</code> version &lt; 1.0.0); a hard cutover on the consumer's <code>validate_input</code> signature is acceptable. The migration cost is exactly one in-tree built-in (ppVar, <code>R/paintr-builtins.R:201-209</code>) plus the doc example in <code>ptr_define_placeholder_consumer()</code>'s roxygen (<code>R/paintr-registry.R:502-505</code>). Any out-of-tree custom placeholders that used the old signature will fail registration loudly via <code>validate_hook()</code> (<code>R/paintr-registry.R:132-156</code>) — that loud failure IS the correct migration UX, not a regression.</p>
+
+<p>Dual-signature support (auto-detect formals at call time, branch between old and new) is explicitly rejected: it adds a permanent code path that is hard to reason about, hard to test exhaustively, and leaves the codebase carrying two contracts forever. Hard cutover with a clear error message is cleaner.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>Constructor: <code>ptr_define_placeholder_value()</code>.</strong> Gains a <code>validate_input = NULL</code> parameter (mirror the consumer's slot). When non-NULL, validates the hook via <code>validate_hook(validate_input, "validate_input", c("value", "ctx"))</code>. Stored on the registry entry as <code>entry$validate_input</code>.</li>
+
+  <li><strong>Constructor: <code>ptr_define_placeholder_consumer()</code>.</strong> The hook contract check changes from <code>c("value", "upstream_cols")</code> to <code>c("value", "ctx")</code> (one-line edit at <code>R/paintr-registry.R:522</code>). Storage and downstream call shape unchanged.</li>
+
+  <li><strong>Substitute walker — value role.</strong> In <code>substitute_walk.ptr_ph_value()</code> (<code>R/paintr-substitute.R:88-107</code>), insert a <code>validate_input</code> call between the missing-value guard and the <code>resolve_expr</code> call, mirroring the consumer's pattern (<code>R/paintr-substitute.R:124-137</code>). Build the hook ctx as <code>hook_ctx &lt;- list(node = node, keyword = node$keyword, upstream_cols = NULL, data = NULL)</code> (the local name <code>hook_ctx</code> avoids shadowing the walker's own <code>ctx</code> arg). On a single character return, <code>rlang::abort(paste0("Invalid value for placeholder `", node$keyword, "`: ", ok))</code>. <code>TRUE</code>/<code>NULL</code> accept.</li>
+
+  <li><strong>Substitute walker — consumer role.</strong> Replace the existing call site (<code>R/paintr-substitute.R:124-137</code>): build <code>hook_ctx &lt;- list(node = node, keyword = node$keyword, upstream_cols = ctx$upstream_cols[[node$id %||% ""]], data = ctx$upstream_data[[node$id %||% ""]])</code> and pass that as the 2nd positional arg to <code>entry$validate_input</code>. The error-surfacing branch (<code>rlang::abort</code> on character return) is unchanged. The <code>ctx$upstream_data</code> slot is a NEW addition to the walker's incoming context — see the plumbing items below.</li>
+
+  <li><strong>Walker ctx — new <code>upstream_data</code> slot.</strong> <code>ptr_substitute()</code> (<code>R/paintr-substitute.R:16-27</code>) gains a new parameter <code>upstream_data = list()</code>, defaulting to an empty named list. The constructed <code>ctx</code> at lines 20-25 gains a new field <code>upstream_data = upstream_data</code>. Shape parallels <code>upstream_cols</code>: a named list keyed by consumer node id, values are the resolved upstream <code>data.frame</code> (or absent when upstream has not resolved yet).</li>
+
+  <li><strong>Server plumbing — expose the per-consumer data frames.</strong> Add a sibling wrapper to <code>runtime_upstream_cols()</code> (<code>R/paintr-server.R:1331-1334</code>):
+<pre>runtime_upstream_data_frames &lt;- function(state, snapshot = list()) {
+  res &lt;- runtime_upstream_data(state, snapshot)
+  lapply(res, function(x) x$data)
+}</pre>
+  No new resolution work — <code>runtime_upstream_data()</code> already returns <code>list(&lt;id&gt; = list(cols = ..., data = ...))</code> per consumer (<code>R/paintr-server.R:1273-1325</code>, especially line 1302 / line 1322: <code>out[[c$id]] &lt;- list(cols = names(df), data = df)</code>). The new wrapper just extracts the data slot, symmetric to how <code>runtime_upstream_cols()</code> extracts cols.</li>
+
+  <li><strong>Server call-site forwarding.</strong> At <code>R/paintr-server.R:1148-1159</code> the existing <code>ptr_exec_headless(..., upstream_cols = upstream_cols)</code> call gains a sibling argument <code>upstream_data = runtime_upstream_data_frames(state, snapshot)</code>. (Both wrappers share one underlying call — implementers may refactor to compute <code>runtime_upstream_data(state, snapshot)</code> ONCE and project to cols/data twice, instead of calling it twice. Either shape is acceptable.)</li>
+
+  <li><strong>Headless plumbing.</strong> <code>ptr_exec_headless()</code> (<code>R/paintr-headless.R:22-32</code> signature; line 39 body interior pass; line 128 recursive call) gains a new parameter <code>upstream_data = NULL</code> alongside the existing <code>upstream_cols</code>, plumbs it through identically. Note: <code>ptr_exec_headless</code> does NOT call <code>ptr_substitute()</code> directly — it calls <code>ptr_complete_expr_safe()</code> (<code>R/paintr-safe.R:17+</code>), which is where the real <code>ptr_substitute()</code> call lives. The new arg flows: <code>ptr_exec_headless(upstream_data = X) → ptr_complete_expr_safe(upstream_data = X) → ptr_substitute(upstream_data = X)</code>.</li>
+
+  <li><strong>Safe-substitute plumbing.</strong> <code>ptr_complete_expr_safe()</code> (<code>R/paintr-safe.R:17</code> signature opens; line 22 final formal; line 31 forwards to <code>ptr_substitute</code>) gains the same <code>upstream_data = list()</code> parameter and forwards it to <code>ptr_substitute()</code>.</li>
+
+  <li><strong>Built-in migration: ppVar.</strong> <code>ptr_builtin_var_validate_input()</code> (<code>R/paintr-builtins.R:201-209</code>) migrates from <code>function(value, upstream_cols)</code> to <code>function(value, ctx)</code>. Body reads <code>ctx$upstream_cols</code>. Behavior unchanged: <code>length(value) != 1L</code> → <code>"Expected a single column; got &lt;n&gt;."</code>; <code>!value %in% ctx$upstream_cols</code> → <code>"Column `&lt;col&gt;` is not in the data."</code>; otherwise <code>TRUE</code>.</li>
+
+  <li><strong>Doc-example migration.</strong> The <code>@examples</code> block in <code>ptr_define_placeholder_consumer()</code>'s roxygen (<code>R/paintr-registry.R:489-507</code>) updates its <code>validate_input = function(value, upstream_cols) ...</code> to <code>function(value, ctx) ... ctx$upstream_cols ...</code>.</li>
+
+  <li><strong>Roxygen — consumer.</strong> The <code>@param validate_input</code> on <code>ptr_define_placeholder_consumer()</code> (<code>R/paintr-registry.R:465-469</code>) updates its argument-name from <code>function(value, upstream_cols)</code> to <code>function(value, ctx)</code>, and gains a new sentence enumerating <code>ctx</code> fields (node, keyword, upstream_cols, data) and that <code>ctx$upstream_cols</code> / <code>ctx$data</code> may be NULL while upstream is pending.</li>
+
+  <li><strong>Roxygen — value.</strong> New <code>@param validate_input</code> stanza on <code>ptr_define_placeholder_value()</code> mirroring the consumer's prose, but explicitly noting that <code>ctx$upstream_cols</code> and <code>ctx$data</code> are always NULL for the value role (value placeholders have no upstream column scope by definition).</li>
+
+  <li><strong><code>devtools::document()</code> clean.</strong> Regenerates <code>man/ptr_define_placeholder_value.Rd</code> and <code>man/ptr_define_placeholder_consumer.Rd</code> without warnings. NAMESPACE unchanged.</li>
+
+  <li><strong>New unit-test coverage in <code>tests/testthat/test-placeholder-registry.R</code> (or a new <code>test-validate-input-ctx.R</code>).</strong> At least 6 new <code>test_that</code> blocks, each with a focused assertion:
+    <ol>
+      <li><code>ptr_define_placeholder_value()</code> with <code>validate_input = function(value, ctx) TRUE</code> registers successfully and the registry entry stores it.</li>
+      <li><code>ptr_define_placeholder_value()</code> with <code>validate_input = function(value, upstream_cols) TRUE</code> fails registration with the message from <code>validate_hook()</code> ("must accept argument(s): ctx").</li>
+      <li><code>ptr_define_placeholder_consumer()</code> with the new <code>function(value, ctx)</code> signature registers; with the legacy <code>function(value, upstream_cols)</code> signature fails registration loudly.</li>
+      <li>Value-role substitute walk: registering a value placeholder whose <code>validate_input</code> returns the string <code>"bad"</code> for a specific input causes substitution of that input to abort with a message containing both the literal <code>bad</code> and the placeholder's keyword.</li>
+      <li>Consumer-role substitute walk: a custom consumer whose validator returns a string when <code>!is.numeric(ctx$data[[value]])</code> rejects a non-numeric column choice with that exact string when <code>data</code> is present in ctx. (This is the data-aware consumer-validation case that was previously impossible.)</li>
+      <li>ppVar built-in regression: length-not-1 returns the documented string; unknown column returns the documented string; a valid column resolves to its <code>rlang::sym(value)</code> form.</li>
+    </ol>
+    Use existing helpers in <code>tests/testthat/helper-*.R</code> where applicable; do not invent a new test-file location convention.
+  </li>
+
+  <li><strong>NEWS/changelog entry.</strong> If <code>NEWS.md</code> exists at the package root, add a "Breaking changes" bullet documenting the consumer <code>validate_input</code> signature change and the new value-role hook. If <code>NEWS.md</code> does not exist, no other file is touched in lieu — this constraint applies only when the file already exists.</li>
+
+  <li><strong>Authoritative gate</strong> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + N_new)</code> where <code>N_new</code> ≥ 6 (the new tests above; more is fine).</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-registry.R</code> (constructors + roxygen on both)</li>
+      <li><code>R/paintr-substitute.R</code> (<code>ptr_substitute</code> signature + ctx construction + value-role <code>validate_input</code> invocation + consumer-role hook ctx)</li>
+      <li><code>R/paintr-server.R</code> (NEW wrapper <code>runtime_upstream_data_frames()</code> sibling of <code>runtime_upstream_cols()</code> at line 1331; new <code>upstream_data =</code> arg passed in the <code>ptr_exec_headless()</code> call at line 1148-1159; nothing else)</li>
+      <li><code>R/paintr-safe.R</code> (<code>ptr_complete_expr_safe()</code> gains <code>upstream_data</code> arg + forwards it to <code>ptr_substitute()</code>; nothing else)</li>
+      <li><code>R/paintr-headless.R</code> (<code>ptr_exec_headless()</code> gains <code>upstream_data</code> arg + forwards it; nothing else)</li>
+      <li><code>R/paintr-builtins.R</code> (ppVar validator migration — ONLY <code>ptr_builtin_var_validate_input</code>; do not touch the rest of the file)</li>
+      <li><code>tests/testthat/test-placeholder-registry.R</code> OR a new <code>tests/testthat/test-validate-input-ctx.R</code> (implementer chooses; one OR the other, not both)</li>
+      <li><code>man/ptr_define_placeholder_value.Rd</code>, <code>man/ptr_define_placeholder_consumer.Rd</code> — regenerated by <code>devtools::document()</code>; never hand-edited</li>
+      <li><code>NEWS.md</code> if and only if it already exists</li>
+    </ul>
+  </li>
+
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Any other <code>R/paintr-*.R</code> file — including <code>R/paintr-utils.R</code> (denylist), <code>R/paintr-resolve.R</code>, <code>R/paintr-runtime.R</code>, <code>R/paintr-default-args.R</code>, <code>R/paintr-render.R</code>, <code>R/paintr-app.R</code>, <code>R/paintr-build-ui.R</code>, etc. If the implementer believes a fix in one of those files is required, that is a scope escalation — STOP and report.</li>
+      <li>Any function in <code>R/paintr-server.R</code> OTHER than the addition of <code>runtime_upstream_data_frames()</code> at the line 1330 location and the one-arg-addition at the <code>ptr_exec_headless()</code> call site (line 1148-1159). <code>runtime_upstream_data()</code>, <code>runtime_upstream_cols()</code>, and every other function in that file must remain byte-identical except those two specific additions.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code></li>
+      <li><code>tests/testthat/test-super-pressure.R</code> (owned by PLANs 01-06)</li>
+      <li>Any <code>tests/testthat/fixtures/</code> subdirectory</li>
+      <li>Any <code>vignettes/*.Rmd</code> — vignette text updates are a follow-up plan, not in this scope; the doc-truth lives in roxygen + NEWS for this round</li>
+      <li>Any <code>dev/</code> file other than this plan itself</li>
+    </ul>
+  </li>
+
+  <li><strong>Hook-signature policy: hard cutover.</strong> Do not add formals-introspection at the call site. Do not accept both signatures. <code>validate_hook(..., c("value", "ctx"))</code> is the single contract; signatures that don't match fail loudly at registration via the existing message in <code>validate_hook()</code>.</li>
+
+  <li><strong>ctx is a plain list with named fields.</strong> Do not introduce an S3 class for it in this plan. (If a future plan wants to wrap it, the field names defined here become its slots.)</li>
+
+  <li><strong>ctx fields are stable.</strong> The four fields (<code>node</code>, <code>keyword</code>, <code>upstream_cols</code>, <code>data</code>) are the entire schema for this plan. Adding more fields (e.g. <code>mode</code>, <code>snapshot</code>) is out of scope and must not be done opportunistically.</li>
+
+  <li><strong>Source-role placeholders are out of scope.</strong> <code>ptr_define_placeholder_source()</code> does not gain <code>validate_input</code> in this plan. Its existing rejection paths (<code>resolve_data</code> returning NULL; hardcoded <code>make.names()</code> guard at <code>R/paintr-substitute.R:156-160</code>) stay untouched.</li>
+
+  <li><strong>Do not extend <code>unsafe_expr_denylist</code>.</strong> Memory <code>project-denylist-complete</code> still applies.</li>
+
+  <li><strong>Do not add <code>ensure_registry_initialized()</code> to constructors.</strong> That is follow-up C (separate plan), not this one — even though touching the constructors might tempt it.</li>
+
+  <li><strong>Substitute walker — do not invent ctx slots.</strong> The consumer-role <code>ctx$snapshot_data[[node$id]]</code> reference above is a guess at the slot name based on the existing <code>ctx$upstream_cols[[node$id]]</code> shape. Read <code>substitute_walk_run()</code> (or whatever assembles <code>ctx</code> at <code>R/paintr-substitute.R:11-30</code>) before committing. If no per-consumer upstream-data slot exists, the implementer's first task is to add one upstream of the walker (still inside <code>R/paintr-substitute.R</code>, not <code>resolve.R</code>) — that addition is in scope for this plan.</li>
+
+  <li><strong>Style.</strong> Snake_case, 2-space indent, <code>rlang::abort()</code> not <code>stop()</code>, <code>cli::cli_*</code> for messages, roxygen2 for docs. See <code>.claude/rules/coding.md</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: validate_input on value placeholders
+
+Scenario: Value placeholder registers a validate_input hook
+  Given a fresh placeholder registry
+  When I call ptr_define_placeholder_value(
+        keyword = "ppPositive",
+        build_ui = function(node, ...) shiny::numericInput(node$id, NULL, 0),
+        resolve_expr = function(value, node, ...) value,
+        validate_input = function(value, ctx) if (value > 0) TRUE else "must be positive")
+  Then registration succeeds without error
+  And the registry entry for "ppPositive" has a non-null validate_input field
+
+Scenario: Value placeholder rejects legacy (value, upstream_cols) signature
+  Given a fresh placeholder registry
+  When I call ptr_define_placeholder_value(
+        keyword = "ppPositive",
+        build_ui = ...,
+        resolve_expr = ...,
+        validate_input = function(value, upstream_cols) TRUE)
+  Then registration fails with rlang::abort
+  And the error message mentions both "validate_input" and "ctx"
+
+Scenario: Invalid value surfaces as inline error, not silent prune
+  Given a value placeholder "ppPositive" registered with validate_input rejecting <= 0
+  And a Shiny app substituting ppPositive's value into a formula
+  When the substitute walker visits the ppPositive node with value -1
+  Then rlang::abort is raised
+  And the message contains the literal string "must be positive"
+  And the message contains the keyword "ppPositive"
+
+Scenario: Value-role ctx omits upstream_cols and data
+  Given a value placeholder whose validate_input is function(value, ctx) {
+        stopifnot(is.null(ctx$upstream_cols), is.null(ctx$data)); TRUE }
+  When the substitute walker visits that placeholder
+  Then the stopifnot does not trigger
+  And validation returns TRUE
+
+Feature: validate_input on consumer placeholders via ctx
+
+Scenario: Consumer validator reads ctx$data to check column type
+  Given a consumer placeholder whose validate_input rejects when ctx$data[[value]] is non-numeric
+  And upstream data is a data.frame with one numeric column "x" and one character column "g"
+  When the consumer's value is set to "g"
+  Then rlang::abort is raised with the validator's rejection message
+  When the consumer's value is set to "x"
+  Then validation accepts and resolve_expr is reached
+
+Scenario: Consumer validator with legacy (value, upstream_cols) signature fails registration
+  Given a fresh placeholder registry
+  When I call ptr_define_placeholder_consumer with
+        validate_input = function(value, upstream_cols) TRUE
+  Then registration fails with rlang::abort
+  And the error message mentions both "validate_input" and "ctx"
+
+Scenario: Consumer ctx$upstream_cols matches what build_ui was passed as cols
+  Given a consumer placeholder whose build_ui stashes its `cols` arg into a parent-process env
+  And the same placeholder's validate_input stashes ctx$upstream_cols into the same env
+  When both have run for the same node
+  Then the two stashed character vectors are identical
+
+Feature: ppVar built-in migrated to ctx signature, behavior unchanged
+
+Scenario: ppVar rejects length != 1 with the documented message
+  Given upstream data with columns c("mpg", "wt")
+  When the ppVar node's value is c("mpg", "wt")
+  Then validate_input returns the literal string "Expected a single column; got 2."
+
+Scenario: ppVar rejects unknown column with the documented message
+  Given upstream data with columns c("mpg", "wt")
+  When the ppVar node's value is "hp"
+  Then validate_input returns the literal string "Column `hp` is not in the data."
+
+Scenario: ppVar accepts a valid column
+  Given upstream data with columns c("mpg", "wt")
+  When the ppVar node's value is "mpg"
+  Then validate_input returns TRUE
+  And the resolved expression equals rlang::sym("mpg")
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + N_new)</strong> with <code>N_new ≥ 6</code>.</p>
+
+<p>Plus <strong><code>devtools::document()</code></strong> must complete without warnings, and the regenerated <code>.Rd</code> files for the two affected constructors must be staged into the same commit as the source changes (never separately).</p>
+
+<p><strong>Proxy traps — do not be fooled (verbatim from <code>CLAUDE.md</code>):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file ERRORing, that guard regressed — harness defect, not a product failure, and never the gate.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> runs the browser tests. That alone is the gate. Never claim the suite green, merge, mark a step done, or clear context off the skipping/erroring harness.</li>
+  <li><strong>Plan-specific trap.</strong> The two existing super-app fixtures (PLAN-02's super-1 + PLAN-05's super-3) register a <code>ppRange</code> custom value placeholder in their <code>app.R</code>. If this plan accidentally breaks the value-role substitute path or alters the value-role signature in a way the fixtures don't follow, the super-1/super-3 tests will FAIL even though their <code>app.R</code> never declared <code>validate_input</code>. Verify both fixtures still PASS post-edit before claiming green.</li>
+</ul>
+
+<h2>Scope guard / ownership</h2>
+
+<p>Owns: the six files listed in <em>Constraints → Files this plan owns</em>. Out-of-tree custom placeholders that previously registered with the legacy <code>function(value, upstream_cols)</code> signature will now fail registration. That is the intended migration UX — not a regression.</p>
+
+<p>Branch convention: this plan lives on branch <code>0013-unified-validate-input-ctx</code> in a sibling worktree at <code>.claude/worktrees/0013-super-app-pressure-tests/unified-validate-input-ctx/</code> (per project memory <code>feedback-parallel-worktree-workflow</code> — sibling worktree, fresh session, NOT EnterWorktree). Merge via <code>--no-ff</code> into the orchestrator branch <strong>before</strong> PLAN-03 and PLAN-06 are re-run.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor independently:</p>
+<ol>
+  <li>Re-runs the authoritative gate and verifies <code>PASS ≥ baseline + 6</code>.</li>
+  <li>Reads each of the new <code>test_that</code> blocks and confirms it asserts the literal messages / behavior named in the corresponding BDD scenario — no weakened "validation rejected" presence proxy in place of the documented strings <code>"Expected a single column; got &lt;n&gt;."</code> and <code>"Column `&lt;col&gt;` is not in the data."</code>.</li>
+  <li>Reads <code>R/paintr-substitute.R</code> to confirm the value-role validate_input invocation is genuinely between the missing-value guard and the <code>resolve_expr</code> call, not elsewhere (e.g. inside <code>resolve_expr</code>'s body, which would not pass the <code>node</code>/<code>keyword</code> shape).</li>
+  <li>Reads <code>R/paintr-builtins.R:201-209</code> to confirm the body reads <code>ctx$upstream_cols</code> not a bare <code>upstream_cols</code> symbol (a partial migration would leave a NULL-vs-undef bug latent for ppVar).</li>
+  <li>Confirms NAMESPACE is byte-identical to pre-edit and <code>man/</code> files are regenerated, not hand-edited.</li>
+  <li>Confirms no file outside the owned-files list was modified (<code>git diff --name-only</code> against the orchestrator branch).</li>
+</ol>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Baseline = orchestrator branch HEAD <code>b442727</code> (post PLAN-05 merge, pre this plan). PASS at baseline = <strong>2316</strong> (verified 2026-05-23). This plan's net effect: PASS = 2316 + N_new where N_new ≥ 6.</p>
+
+<p>Reference reads (verified 2026-05-23; the implementer's first inspection MUST agree with these or report a drift before editing):</p>
+<ul>
+  <li><code>ptr_define_placeholder_value</code> body: <code>R/paintr-registry.R:412-440</code> — currently has no <code>validate_input</code> param.</li>
+  <li><code>ptr_define_placeholder_consumer</code> body: <code>R/paintr-registry.R:508-541</code> — currently calls <code>validate_hook(validate_input, "validate_input", c("value", "upstream_cols"))</code> at line 522.</li>
+  <li>Value-role substitute walk: <code>R/paintr-substitute.R:88-107</code> (<code>substitute_walk.ptr_ph_value</code>) — currently has no <code>validate_input</code> invocation; goes straight from missing-value guard to <code>resolve_expr</code>.</li>
+  <li>Consumer-role substitute walk: <code>R/paintr-substitute.R:110-143</code> — line 125 reads <code>cols &lt;- ctx$upstream_cols[[node$id %||% ""]]</code>; <code>validate_input</code> invocation at lines 124-137.</li>
+  <li><code>ptr_substitute</code> signature: <code>R/paintr-substitute.R:16-27</code>. Current parameters: <code>node, input_snapshot = list(), shared_bindings = list(), eval_env = parent.frame(), upstream_cols = list()</code>. The ctx assembled at lines 20-25 has 4 fields: <code>snapshot</code>, <code>shared</code>, <code>eval_env</code>, <code>upstream_cols</code>. NO <code>upstream_data</code> slot exists today — adding it is in scope.</li>
+  <li><code>runtime_upstream_data()</code> body: <code>R/paintr-server.R:1274-1326</code>. <strong>Already produces per-consumer data frames</strong> via <code>out[[c$id]] &lt;- list(cols = names(df), data = df)</code> at lines 1303 (shared-resolution path) and 1323 (per-position path). This plan does NOT alter that function — it just adds a wrapper that extracts the <code>data</code> slot, symmetric to the existing <code>cols</code> wrapper.</li>
+  <li><code>runtime_upstream_cols()</code> wrapper: <code>R/paintr-server.R:1331-1334</code>. The new <code>runtime_upstream_data_frames()</code> sibling lands adjacent to this.</li>
+  <li>Server call site: <code>R/paintr-server.R:1148-1159</code> — currently calls <code>ptr_exec_headless(..., upstream_cols = upstream_cols)</code>. The new <code>upstream_data =</code> argument is added here.</li>
+  <li><code>ptr_exec_headless()</code> signature + plumbing: <code>R/paintr-headless.R:22-32</code> (signature), line 39 (body interior pass to <code>ptr_complete_expr_safe</code>), line 128 (recursive call). All three sites parallel the existing <code>upstream_cols</code> handling.</li>
+  <li><code>ptr_complete_expr_safe()</code> signature + call: <code>R/paintr-safe.R:17-29</code> (signature, final formal at line 22), line 31 (call to <code>ptr_substitute</code>).</li>
+  <li>ppVar built-in validator: <code>R/paintr-builtins.R:201-209</code>.</li>
+  <li><code>validate_hook</code> contract enforcer: <code>R/paintr-registry.R:132-156</code>.</li>
+  <li><strong>Historical note</strong>: <code>R/paintr-server.R:1913-1923</code> documents that an earlier per-layer fast-path that mirrored <code>runtime_upstream_data</code>'s per-consumer slot was deleted (ADR 0012 §3.7 / PLAN-04). This plan does <strong>not</strong> resurrect that fast-path — it leaves per-position resolution as the single canonical pipeline and just exposes the data frame that pipeline already produces.</li>
+</ul>
+
+<p class="warn"><strong>Naming clash to be aware of</strong>: <code>R/paintr-substitute.R:8</code> has a comment beginning "PLAN-07 invariant" — this is an existing pipeline-stage label ("P8 substitute, PLAN-07 = the parser default invariant from a prior round"), unrelated to this plan's PLAN-07 number. Do not edit that comment. The two "PLAN-07"s share a name in different namespaces (source-code stage label vs ADR-0013 plan-directory sequence).</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>If the implementer discovers any of the following, STOP and escalate (do not absorb into this plan):</p>
+<ul>
+  <li>Adding <code>upstream_data</code> to <code>ptr_substitute()</code> requires touching <code>R/paintr-resolve.R</code>. Note: <code>R/paintr-resolve.R:24-29</code> calls <code>ptr_substitute()</code> WITHOUT <code>upstream_cols</code> (uses defaults). The implementer must NOT "tidy up" that call to also pass an <code>upstream_data</code> — leaving it at default is correct (this code path resolves upstream data itself; no consumer validators run inside it).</li>
+  <li>The two <code>ptr_substitute()</code> callers in the owned set (<code>paintr-safe.R</code>, <code>paintr-headless.R</code>) and the server's <code>ptr_exec_headless()</code> caller (<code>paintr-server.R</code>) turn out NOT to be the only call sites — i.e. a fourth caller exists. Search via <code>grep -rn "ptr_substitute(" R/ --include="*.R"</code> verifies only 2 call sites today (<code>paintr-resolve.R:24</code>, <code>paintr-safe.R:25</code>) — if a third lands during implementation, that's a drift to report.</li>
+  <li>ppVar's runtime invocation (the plain-R call shape from <code>aes(x = ppVar(mpg))</code>) reaches into <code>validate_input</code> with the old signature in some path other than <code>substitute_walk</code> (would mean a second migration site). Grep verification: <code>grep -rn "validate_input" R/ --include="*.R"</code> currently shows 11 lines across 3 files; the implementer should re-grep before claiming done and confirm every site references the new shape.</li>
+  <li>A vignette example demonstrates the old <code>validate_input</code> signature (vignette text updates are out of scope; flag as follow-up doc plan).</li>
+  <li>The existing <code>app.R</code> fixtures for super-1 / super-3 (PLAN-02 / PLAN-05) reference the old signature anywhere (they shouldn't — they declare custom <code>ppRange</code> as a value placeholder, and value placeholders had no validate_input before; verify).</li>
+  <li>Source-role placeholders' own validation paths regress under the new ctx-passing in substitute (they shouldn't — source is dispatched separately at <code>R/paintr-substitute.R:146+</code> and never invokes <code>validate_input</code>).</li>
+  <li><code>runtime_upstream_data()</code> at <code>R/paintr-server.R:1273</code> turns out NOT to populate <code>data</code> for every consumer at runtime (e.g. lazy resolution stub). Verification: lines 1302 and 1322 both write <code>list(cols = names(df), data = df)</code>, so the <code>data</code> field is always populated together with <code>cols</code>. If somehow it isn't in practice (defensive null check fires), that's a runtime invariant violation worth reporting — not silently fixable here.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: nothing. This plan can be drafted, audited, and implemented in a sibling worktree branched directly off <code>post-add-expr</code> at <code>b442727</code>.</p>
+
+<p>Provides for: PLAN-03 and PLAN-06 (which were BLOCKED on the missing value-role <code>validate_input</code>). After PLAN-07 merges into <code>post-add-expr</code>, those two plans land verbatim — no plan-text edit required, because they already reference <code>validate_input = function(v, ...) ...</code> (their <code>function(v, ...)</code> shape satisfies the new <code>c("value", "ctx")</code> requirement via the <code>...</code> escape hatch in <code>validate_hook</code>).</p>
+
+<p class="note">PLAN-04 is NOT unblocked by this plan. Its root cause is a separate defect (layer-aes ppVar nested under layer-data ppUpload — consumer-discovery walker classification gap). That needs its own follow-up plan.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=5462c8cefa17 -->
+</body>
+</html>

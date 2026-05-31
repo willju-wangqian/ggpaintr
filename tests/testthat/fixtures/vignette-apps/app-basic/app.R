@@ -4,8 +4,8 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `app-basic` >>>
+# >>> verbatim: archive/retired_vignettes/ggpaintr-use-cases.Rmd chunk `app-basic` >>>
 ptr_app(
-  "ggplot(iris, aes(var, var, color = var)) + geom_point() + labs(title = text)"
+  "ggplot(iris, aes(ppVar, ppVar, color = ppVar)) + geom_point() + labs(title = ppText)"
 )
 # <<<

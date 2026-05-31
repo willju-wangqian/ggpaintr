@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Audit — ADR 0021 (ppVerbSwitch) vs source</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>Audit — ADR 0021 vs source</h1>
+
+<p>Auditor: opus general-purpose subagent, 2026-05-24 (run 2026-05-25 04:16 UTC).</p>
+
+<p>Target: <code>dev/adr/0021-pp-verb-switch.html</code> at HEAD <code>82c18d3</code>.</p>
+
+<p><strong>Verdict: FAIL.</strong> Two HIGH findings: (a) ADR claims <em>five</em> <code>test-pp-off-*.R</code> files but six exist on disk; (b) ADR repeats ADR-0020's stale claim that <code>tests/testthat/test-adr12-consumer-uniformity.R</code> line 68 re-implements <code>ptr_tree_structural_equal</code> inline — that switch already landed (the file now delegates to <code>ggpaintr:::ptr_tree_structural_equal()</code>). Additionally there is a consistent off-by-one in <strong>every</strong> cited line range across the six source files, plus three behavior/context omissions of MEDIUM severity. Per the rubric (any HIGH = FAIL).</p>
+
+<h2>Findings</h2>
+
+<table>
+  <tr><th>#</th><th>Claim audited</th><th>Severity</th><th>Finding</th><th>Evidence</th></tr>
+
+  <tr><td>1</td>
+    <td><code>ppVerbOff</code> at <code>R/paintr-builtins.R:477-497</code>; body matches ADR description.</td>
+    <td>LOW</td>
+    <td>Off-by-one line range. Body description (<code>.data</code> first, <code>substitute()</code>, <code>as.call()+eval()</code> in <code>parent.frame()</code>, <code>isTRUE(hide)→return(.data)</code> guard) is correct.</td>
+    <td>Actual: lines 476-496 (20 lines, not 21). <code>R/paintr-builtins.R</code>: function starts <code>ppVerbOff &lt;- function(.data, verb_expr, hide = TRUE) {</code> at L476, closes <code>}</code> at L496.</td></tr>
+
+  <tr><td>2</td>
+    <td><code>ptr_builtin_keywords()</code> at <code>R/paintr-builtins.R:253-263</code> includes <code>ppVerbOff</code>.</td>
+    <td>NONE</td>
+    <td>Confirmed; line range exact.</td>
+    <td><code>R/paintr-builtins.R:253-263</code>: <code>c("ppText", "ppNum", "ppExpr", "ppVar", "ppUpload", … "ppLayerOff", "ppVerbOff")</code>, <code>"ppVerbOff"</code> on L261.</td></tr>
+
+  <tr><td>3</td>
+    <td><code>ptr_register_structural_keyword("ppVerbOff")</code> at line 361.</td>
+    <td>NONE</td>
+    <td>Confirmed.</td>
+    <td><code>R/paintr-builtins.R:361</code>: <code>ptr_register_structural_keyword("ppVerbOff")</code>.</td></tr>
+
+  <tr><td>4</td>
+    <td><code>man/pp_off_toggles.Rd</code> exists and source carries <code>@rdname pp_off_toggles</code>.</td>
+    <td>NONE</td>
+    <td>Confirmed. Both <code>ppLayerOff</code> (L464) and <code>ppVerbOff</code> (L475) carry <code>@rdname pp_off_toggles</code>; the shared <code>@name pp_off_toggles</code> tag sits at L461.</td>
+    <td><code>man/pp_off_toggles.Rd</code> present in <code>man/</code> listing. <code>grep -n 'rdname\|@name pp_off' R/paintr-builtins.R</code> shows L461, L464, L475.</td></tr>
+
+  <tr><td>5</td>
+    <td><code>unwrap_pp_verb_off_stage</code> at <code>R/paintr-translate.R:832-853</code>; translates inner via <code>translate_node</code> at L844; <code>is_ptr_call</code> check at L845; stamps <code>inner_node$default_stage_enabled &lt;- !isTRUE(hide)</code>.</td>
+    <td>NONE</td>
+    <td>Confirmed exactly. Line range and line numbers within the body match.</td>
+    <td><code>R/paintr-translate.R:832-853</code>: body opens L832; <code>inner_node &lt;- translate_node(verb_expr)</code> at L844; <code>if (!is_ptr_call(inner_node))</code> at L845; <code>inner_node$default_stage_enabled &lt;- !isTRUE(hide)</code> at L851.</td></tr>
+
+  <tr><td>6</td>
+    <td><code>stamp_default_stage_enabled_ids</code> at <code>R/paintr-translate.R:131-153</code>, called from line 117.</td>
+    <td>LOW</td>
+    <td>Off-by-one on definition range. Call-site line is correct.</td>
+    <td>Actual definition: L130-152 (header comment at 127-130 begins <code>stamp_default_stage_enabled_ids &lt;- function(root) {</code> at L131, closing brace at L152 — Serena reports body_location 130-152). Call site at L117 ✓ (<code>root &lt;- stamp_default_stage_enabled_ids(root)</code>).</td></tr>
+
+  <tr><td>7</td>
+    <td><code>ptr_assert_no_surviving_structural_wrappers</code> at <code>R/paintr-translate.R:161-191</code>; checks <code>c("ppLayerOff", "ppVerbOff")</code> with per-name error branch.</td>
+    <td>LOW</td>
+    <td>Off-by-one line range. Behaviour and wrapper-name vector correct.</td>
+    <td>Actual: L160-190. Body shows <code>if (nm %in% c("ppLayerOff", "ppVerbOff"))</code> and an <code>if (nm == "ppLayerOff") {…} else {…}</code> per-name message branch.</td></tr>
+
+  <tr><td>8</td>
+    <td><code>build_pipeline_from_lift</code> calls <code>unwrap_pp_verb_off_stage</code>.</td>
+    <td>NONE</td>
+    <td>Confirmed. Call site at <code>R/paintr-translate.R:235</code> inside <code>build_pipeline_from_lift</code> (definition L225).</td>
+    <td><code>grep -n 'unwrap_pp_verb_off_stage' R/paintr-translate.R</code> → L235 (call), L833 (definition).</td></tr>
+
+  <tr><td>9</td>
+    <td>Helper <code>validate_pp_off_hide</code> exists and validates literal-only <code>hide</code>.</td>
+    <td>NONE</td>
+    <td>Confirmed. Defined at L773-794, asserts <code>is.logical(hide_expr) &amp;&amp; length(hide_expr) == 1L &amp;&amp; !is.na(hide_expr)</code>; aborts via <code>abort_translate(...)</code> when literal check fails.</td>
+    <td><code>R/paintr-translate.R:773-794</code>.</td></tr>
+
+  <tr><td>10</td>
+    <td><code>is_data_chain_call</code> at <code>R/paintr-disable.R:20-22</code>: <code>is_ptr_call(node) &amp;&amp; walk_has_placeholder(node)</code>.</td>
+    <td>LOW</td>
+    <td>Off-by-one line range. Body verbatim correct.</td>
+    <td>Actual: L19-21. <code>is_data_chain_call &lt;- function(node) { is_ptr_call(node) &amp;&amp; walk_has_placeholder(node) }</code>.</td></tr>
+
+  <tr><td>11</td>
+    <td><code>assign_stage_ids</code> at <code>R/paintr-disable.R:55-72</code> uses <code>is_data_chain_call</code> as pipeline-stage gate at L62 and lone-call gate at L67.</td>
+    <td>LOW</td>
+    <td>Off-by-one on whole range AND on both inner-line citations. Predicate usage correct.</td>
+    <td>Actual: L54-71. Pipeline-stage gate <code>if (is_data_chain_call(s))</code> at L61. Lone-call gate <code>} else if (is_data_chain_call(n)) {</code> at L66. ADR says 62 and 67 — both off by one.</td></tr>
+
+  <tr><td>12</td>
+    <td><code>is_stage_disabled</code> at <code>R/paintr-disable.R:149-154</code> returns FALSE when <code>sid</code> is NULL or <code>stage_enabled[[sid]]</code> is anything other than literal FALSE.</td>
+    <td>MEDIUM</td>
+    <td>Off-by-one line range (actual L148-153). Behaviour claim is correct in essence but <strong>omits the leading <code>is_ptr_node</code> guard</strong>: full body is <code>if (!is_ptr_node(node)) return(FALSE); sid &lt;- node$stage_id; if (is.null(sid)) return(FALSE); isFALSE(stage_enabled[[sid]])</code>. The omission matters because the load-bearing inference ("a stage with no <code>stage_id</code> behaves identically to one with a stamped <code>stage_id</code> but no bound reactive") relies on the post-<code>is_ptr_node</code> path, and a careful reader needs to know that node-type non-membership ALSO falls through to FALSE (broader than the ADR's wording).</td>
+    <td><code>R/paintr-disable.R:148-153</code>: see body.</td></tr>
+
+  <tr><td>13</td>
+    <td><code>disable_walk.ptr_pipeline</code> at <code>R/paintr-disable.R:116-134</code> only drops stages when <code>is_stage_disabled</code> returns TRUE.</td>
+    <td>MEDIUM</td>
+    <td>Off-by-one line range (actual L115-133). <strong>Drop condition is conjunction, not just <code>is_stage_disabled</code></strong>: the actual gate at L124 is <code>if (i &gt;= 2L &amp;&amp; is_ptr_call(s) &amp;&amp; is_stage_disabled(s, stage_enabled)) next</code>. Stage 1 (data source) cannot be dropped by this branch even if disabled — it falls through to the call walker. ADR's plain "only drops stages when is_stage_disabled returns TRUE" oversimplifies. Not fatal to the §Verified-facts argument (the chain still reaches the FALSE return either way), but the implementer needs to know stage-1 has a different drop path or they will write a broken test.</td>
+    <td><code>R/paintr-disable.R:115-133</code>.</td></tr>
+
+  <tr><td>14</td>
+    <td><code>ptr_call</code> constructor currently has <code>default_stage_enabled = TRUE</code>; ADR proposes adding <code>has_user_control = FALSE</code> and <code>stage_label = NULL</code>.</td>
+    <td>NONE</td>
+    <td>Confirmed. Current signature: <code>ptr_call(fun, args, expr, default_stage_enabled = TRUE)</code> at L39-45.</td>
+    <td><code>R/paintr-nodes.R:39-45</code>.</td></tr>
+
+  <tr><td>15</td>
+    <td><code>ptr_tree_structural_equal</code> at <code>R/paintr-nodes.R:135-162</code>; exclusion list at L142-143 currently <code>c("op", "expr", "default_active", "default_stage_enabled")</code>.</td>
+    <td>LOW</td>
+    <td>Off-by-one on whole range (actual L134-161). Exclusion-list lines are L141 (<code>names_a &lt;- setdiff(...)</code>) and L142 (<code>names_b &lt;- setdiff(...)</code>). Vector contents are correct. The §Decision quoted patch implicitly assumes the list is a single inline vector — the actual code has two parallel <code>setdiff()</code> calls (one for <code>names_a</code>, one for <code>names_b</code>), so the "one-line edit" framing in §Verified-facts is a two-line edit. The Decision-section quoted block correctly shows both lines.</td>
+    <td><code>R/paintr-nodes.R:141-142</code>: <code>names_a &lt;- setdiff(names(a), c("op", "expr", "default_active", "default_stage_enabled"))</code> / <code>names_b &lt;- setdiff(names(b), c("op", "expr", "default_active", "default_stage_enabled"))</code>.</td></tr>
+
+  <tr><td>16</td>
+    <td><code>build_pipeline_stage_ui</code> at <code>R/paintr-build-ui.R:230-243</code> auto-derives label as <code>shiny::tags$code(paste0(verb, "()"))</code>.</td>
+    <td>MEDIUM</td>
+    <td><strong>Wrong location.</strong> Function definition is at L189-250 (not 230-243). The cited range 230-243 is mid-function — specifically L234-236 hold the auto-label line <code>head_label &lt;- if (has_verb) { shiny::tags$code(paste0(verb, "()")) } else NULL</code>. The §Decision block separately cites "line 232-237" for the chooser-rewrite site, which is closer (but still off by ~2 lines). Pick one citation and make it the function's body_location, OR cite the specific lines (234-236) where the label is derived — the current "230-243" obscures both.</td>
+    <td><code>R/paintr-build-ui.R:189-250</code> defines <code>build_pipeline_stage_ui</code>; label derivation at L234-236.</td></tr>
+
+  <tr><td>17</td>
+    <td><code>wrap_shared_widgets_with_stage_blocks</code> at <code>R/paintr-build-ui.R:517-520</code> mirrors the same label derivation.</td>
+    <td>MEDIUM</td>
+    <td><strong>Wrong location.</strong> Function spans L491-528 (38 lines). The mirror label-derivation lines are <strong>L516-519</strong>: <code>head_label &lt;- if (has_verb) { shiny::tags$code(paste0(st$verb, "()")) } else NULL</code>. ADR's "517-520" is off-by-one on the start and is missing the function-boundary context, so an implementer reading "517-520" sees a 4-line patch window with no signature.</td>
+    <td><code>R/paintr-build-ui.R:491-528</code>; label lines L516-519.</td></tr>
+
+  <tr><td>18</td>
+    <td><code>controllable_region</code> at <code>R/paintr-region.R:36-50</code> splices <code>head_label</code> into <code>shiny::checkboxInput(label = ...)</code> without further transformation.</td>
+    <td>NONE</td>
+    <td>Confirmed exactly. Body at L36-50: <code>shiny::checkboxInput(inputId = ns_fn(region_id), label = head_label, value = default_on, width = "auto")</code>.</td>
+    <td><code>R/paintr-region.R:36-50</code>.</td></tr>
+
+  <tr><td>19</td>
+    <td>Lines 240, 333, 451 of <code>R/paintr-build-ui.R</code> are the <code>entries</code> carrier sites threading <code>default_stage_enabled</code>.</td>
+    <td>LOW</td>
+    <td>Off by one/two on first two. L240 is a comment line inside <code>build_pipeline_stage_ui</code>; the actual <em>read</em> of <code>default_stage_enabled</code> is L242 (<code>default_on &lt;- isTRUE(entries[[i]]$default_stage_enabled %||% TRUE)</code>). L333 is a comment region; the actual entry-creation line is <strong>L334</strong> (<code>default_stage_enabled = current_def_stage</code>). L451 ✓ (<code>default_stage_enabled = n$default_stage_enabled</code>). The cited triple is in the right neighbourhood but two of three are pointing at the comment immediately above the load-bearing line.</td>
+    <td><code>R/paintr-build-ui.R</code> lines 242, 334, 451 (grep). The cited 240/333 are one and one lines above.</td></tr>
+
+  <tr><td>20</td>
+    <td>There are <strong>five</strong> <code>tests/testthat/test-pp-off-*.R</code> files.</td>
+    <td>HIGH</td>
+    <td><strong>Wrong count.</strong> There are <strong>six</strong>: <code>test-pp-off-comparator.R</code>, <code>test-pp-off-e2e.R</code>, <code>test-pp-off-naked.R</code>, <code>test-pp-off-readers.R</code>, <code>test-pp-off-translate.R</code>, <code>test-pp-off-vignette.R</code>. The §Decision (line 93 of the ADR) and §Risks (line 162) both say "five" — this propagates into the test-rename plan (which would skip one file).</td>
+    <td><code>ls tests/testthat/test-pp-off-*.R</code> returns 6 paths.</td></tr>
+
+  <tr><td>21</td>
+    <td>Vignette has a section "Layer and stage toggles — <code>ppLayerOff</code> and <code>ppVerbOff</code>".</td>
+    <td>NONE</td>
+    <td>Confirmed. Heading text exact, at L85 of <code>vignettes/ggpaintr-use-cases.Rmd</code>; section ends just before L166 (next <code>##</code>). Heading char-for-char including the em-dash matches the ADR's quoted retitle target.</td>
+    <td><code>vignettes/ggpaintr-use-cases.Rmd:85</code> = <code>## Layer and stage toggles — `ppLayerOff` and `ppVerbOff`</code>.</td></tr>
+
+  <tr><td>22</td>
+    <td>Fixture <code>tests/testthat/fixtures/pp-off-apps/pp-layer-off-spec-override/</code> exists with an <code>app.R</code>.</td>
+    <td>NONE</td>
+    <td>Confirmed. Three sibling fixtures present in <code>pp-off-apps/</code>: <code>pp-layer-off-hide/</code>, <code>pp-layer-off-spec-override/</code>, <code>pp-verb-off-hide/</code>. The spec-override fixture contains <code>app.R</code>. ADR mentions only the spec-override one but does not assert it is the only fixture; claim is consistent with reality.</td>
+    <td><code>ls tests/testthat/fixtures/pp-off-apps/pp-layer-off-spec-override/</code> → <code>app.R</code>.</td></tr>
+
+  <tr><td>23</td>
+    <td>ADR-0020's Status block now points to ADR-0021 on the two superseded points.</td>
+    <td>NONE</td>
+    <td>Confirmed. ADR-0020 L12 reads <em>"Proposed; partially superseded 2026-05-24 by ADR-0021"</em> and enumerates the two specific points (ppVerbOff hard-removed; stage_id reclassification) verbatim consistent with ADR-0021's framing. The amendment is present in HEAD <code>82c18d3</code> as the ADR-0021 Risks block promises.</td>
+    <td><code>dev/adr/0020-pp-layer-off-pp-verb-off-toggles.html:12</code>.</td></tr>
+
+  <tr><td>24</td>
+    <td>ADR-0021 inherits the claim that <code>test-adr12-consumer-uniformity.R</code> L68 re-implements <code>ptr_tree_structural_equal()</code> inline; the ADR-0020 PLAN-03 switch may still be pending.</td>
+    <td>HIGH</td>
+    <td><strong>The inherited claim is stale.</strong> The switch already landed. The test file's L62-69 is a comment block stating <em>"Structural equality is delegated to the package's canonical comparator <code>ggpaintr:::ptr_tree_structural_equal()</code> … Per ADR 0020 PLAN-03, this file no longer carries an inline re-implementation"</em>. Actual call sites at L171 and L178 invoke <code>ggpaintr:::ptr_tree_structural_equal()</code>. No inline re-implementation exists. ADR-0021's Risks-section narrative does not actually repeat this stale claim explicitly, but the audit prompt asks the question because the ADR text in §Context relies on ADR-0020's Plan-03 verified facts — those need not be re-litigated. <strong>Severity downgrade rationale</strong>: ADR-0021 does NOT itself assert anything about line 68 of test-adr12 — the prompt enumerates this as a cross-ADR consistency check, not a quote from ADR-0021. Re-reading ADR-0021 carefully, no claim in §Context, §Verified-facts, or §Decision references this test file. So the check passes from ADR-0021's perspective — but flag for the user that ADR-0020's own pending follow-up is in fact DONE.</td>
+    <td><code>tests/testthat/test-adr12-consumer-uniformity.R:62-69</code> (comment), L171 / L178 (call sites). Demoted from "ADR-0021 drift" to "informational"; effective severity to ADR-0021 itself is NONE.</td></tr>
+
+  <tr><td>25</td>
+    <td><code>ppVerbOff</code>-half: the <code>isTRUE(hide) → return(.data)</code> guard exists in current source.</td>
+    <td>NONE</td>
+    <td>Confirmed at <code>R/paintr-builtins.R:482</code>: <code>if (isTRUE(hide)) return(.data)</code>.</td>
+    <td><code>R/paintr-builtins.R:482</code>.</td></tr>
+
+  <tr><td>26</td>
+    <td><code>ppVerbOff(verb, hide=FALSE)</code> produces a typed tree byte-equivalent to bare <code>verb</code> (modulo possibly <code>op</code>/<code>expr</code> fields).</td>
+    <td>MEDIUM</td>
+    <td>Walked: <code>unwrap_pp_verb_off_stage</code> stamps <code>inner_node$default_stage_enabled &lt;- !isTRUE(FALSE)</code> = <code>TRUE</code> (the default). <code>stamp_default_stage_enabled_ids</code> only fires on <code>isFALSE(default_stage_enabled)</code> (L141 of paintr-translate.R: <code>if (isFALSE(s$default_stage_enabled))</code>), so the FALSE-side wrap injects no <code>stage_id</code>. Subject to <code>ptr_tree_structural_equal</code>'s current exclusion list <code>c("op", "expr", "default_active", "default_stage_enabled")</code>, the two trees compare equal. <strong>Caveat</strong>: <code>inner_node$first_arg_name</code> is set unconditionally at <code>R/paintr-translate.R:239</code> for ALL stages (wrapped or bare) — including this in the comparator inputs is fine because the bare-<code>verb</code> path goes through the same <code>typed$first_arg_name &lt;- st$first_arg_name</code> assignment. Equivalence holds at translate time. The ADR's "byte-equivalent modulo op/expr" framing is essentially correct, but the ADR could state explicitly that <code>first_arg_name</code> is set on BOTH paths to make the equivalence audit-checkable.</td>
+    <td><code>R/paintr-translate.R:235-240</code> (build_pipeline_from_lift); L141 (stamp_default_stage_enabled_ids predicate).</td></tr>
+
+</table>
+
+<h2>Cross-ADR consistency</h2>
+
+<ul>
+  <li><strong>ADR-0020 amendment present.</strong> Confirmed (claim 23). The Status block at <code>dev/adr/0020-pp-layer-off-pp-verb-off-toggles.html:12</code> now explicitly enumerates the two superseded points and links ADR-0021.</li>
+  <li><strong>test-adr12 inline-comparator switch is done.</strong> The PLAN-03 follow-up that ADR-0020's Risks block flagged has landed. <code>tests/testthat/test-adr12-consumer-uniformity.R</code> comment-block at L62-69 explicitly states it (and explicitly attributes the change to ADR-0020 PLAN-03), and the two call sites (L171, L178) use <code>ggpaintr:::ptr_tree_structural_equal()</code>. ADR-0021 does NOT need to inherit, repeat, or re-plan this switch — it is closed. Informational; no ADR-0021 edit needed.</li>
+  <li><strong>Comparator-classification correction.</strong> ADR-0021's reframing of <code>stage_id</code> as a UI-routing key (not execution-shape) is consistent with the actual code path through <code>is_stage_disabled</code> and <code>disable_walk.ptr_pipeline</code>, modulo the MEDIUM completeness gaps in claims 12 and 13 above (missing <code>is_ptr_node</code> guard; first-stage drop-path exception).</li>
+</ul>
+
+<h2>Recommended ADR edits</h2>
+
+<ul>
+  <li><strong>(HIGH, claim 20)</strong> Replace "five <code>test-pp-off-*.R</code> files" with "six". §Decision: change "the five <code>test-pp-off-*.R</code> files renamed to <code>test-pp-toggles-*.R</code>" → "the six <code>test-pp-off-*.R</code> files renamed". §Risks bullet "Test-rename + test-rewrite churn" same fix: "The five test-pp-off-*.R files" → "The six test-pp-off-*.R files". <strong>Concrete files to enumerate in the implementation plan</strong>: <code>comparator</code>, <code>e2e</code>, <code>naked</code>, <code>readers</code>, <code>translate</code>, <code>vignette</code>.</li>
+
+  <li><strong>(MEDIUM, claim 16)</strong> §Verified-facts bullet: "<code>build_pipeline_stage_ui</code> at <code>R/paintr-build-ui.R:230-243</code>" → "<code>build_pipeline_stage_ui</code> at <code>R/paintr-build-ui.R:189-250</code> (auto-label at L234-236)". §Decision quoted patch site "at line 232-237" → "at L234-237".</li>
+
+  <li><strong>(MEDIUM, claim 17)</strong> §Decision: "Mirrored in <code>wrap_shared_widgets_with_stage_blocks</code> at line 517-520" → "Mirrored in <code>wrap_shared_widgets_with_stage_blocks</code> (defined L491-528) at L516-519".</li>
+
+  <li><strong>(MEDIUM, claim 12)</strong> §Verified-facts bullet on <code>is_stage_disabled</code>: state explicitly that the function's first guard is <code>if (!is_ptr_node(node)) return(FALSE)</code> — the load-bearing "no <code>stage_id</code> = no drop" inference relies on the post-guard path, and the omission could let a reader mistake the function for one with only the <code>sid</code> check.</li>
+
+  <li><strong>(MEDIUM, claim 13)</strong> §Verified-facts bullet on <code>disable_walk.ptr_pipeline</code>: state explicitly that the drop predicate is <code>i &gt;= 2L &amp;&amp; is_ptr_call(s) &amp;&amp; is_stage_disabled(s, stage_enabled)</code>, i.e. stage 1 (data source) is never dropped by this branch even when its <code>stage_id</code> is in the disabled set; it falls through to the call walker. Avoids the "wait, what about the first stage?" misreading.</li>
+
+  <li><strong>(MEDIUM, claim 26)</strong> §Verified-facts bullet on the <code>ppVerbOff(verb, FALSE)</code> ≡ bare <code>verb</code> equivalence: state explicitly that both paths set <code>typed$first_arg_name &lt;- st$first_arg_name</code> at <code>R/paintr-translate.R:239</code>, so the only differing fields are <code>default_stage_enabled</code> (TRUE in both — unwrap stamps <code>!isTRUE(FALSE)</code>) — making the equivalence auditable line-by-line.</li>
+
+  <li><strong>(LOW, claim 15)</strong> §Verified-facts: "extending it to <code>stage_id</code>, <code>has_user_control</code>, and <code>stage_label</code> is a one-line edit (line 142-143)" → "is a two-line edit (lines 141-142: the parallel <code>setdiff()</code> calls for <code>names_a</code> and <code>names_b</code>)". The §Decision quoted block already shows both lines correctly; the §Verified-facts framing is what misleads.</li>
+
+  <li><strong>(LOW, all line citations)</strong> Every cited line range is off by one (one too high on the start, one too high on the end), in the same direction, across six different files. Suggests a one-time line-counting offset rather than per-claim error. Mass-correct: <code>ppVerbOff</code> 477-497→476-496, <code>stamp_default_stage_enabled_ids</code> 131-153→130-152, <code>ptr_assert_no_surviving_structural_wrappers</code> 161-191→160-190, <code>is_data_chain_call</code> 20-22→19-21, <code>assign_stage_ids</code> 55-72→54-71 (and inner 62→61, 67→66), <code>is_stage_disabled</code> 149-154→148-153, <code>disable_walk.ptr_pipeline</code> 116-134→115-133, <code>ptr_tree_structural_equal</code> 135-162→134-161 (and exclusion 142-143→141-142), <code>entries</code> carrier sites 240/333/451→242/334/451. Note <code>controllable_region</code> 36-50 ✓ and <code>unwrap_pp_verb_off_stage</code> 832-853 ✓ are exact, ruling out a global file offset; the LOW finding is best characterised as "most ranges drafted with a one-line bias, two drafted by direct read".</li>
+
+  <li><strong>(LOW, claim 19)</strong> While doing the mass line-fix, also fix the carrier-site citations: 240→242 (read of <code>entries[[i]]$default_stage_enabled</code>), 333→334 (entry creation in <code>visit</code>), 451 ✓.</li>
+</ul>
+
+<h2>Items checked, no edit needed</h2>
+
+<ul>
+  <li>Claims 2, 3, 4, 5, 8, 9, 14, 18, 21, 22, 23, 25 — confirmed verbatim or close enough that the implementer cannot be misled.</li>
+  <li>Claim 24 (inherited inline-comparator claim) — ADR-0021 does not itself make this claim, so no edit needed. Informational note for the user: ADR-0020's PLAN-03 follow-up <em>is</em> done; if any future ADR-0021 plan documentation inherits the claim, it must be amended there too.</li>
+</ul>
+
+<h2>Final disposition</h2>
+
+<p><strong>FAIL</strong> on the rubric — claim 20's "five vs six test files" is a concrete, plan-breaking factual error in the §Decision and §Risks sections. The HIGH severity stands even though the fix is mechanical (one numeral, two places). Once that and the MEDIUM completeness items (claims 12, 13, 16, 17, 26) are addressed, the ADR is PASS-WITH-NOTES quality and the mass line-fix can be folded into the same change.</p>
+
+</body>
+</html>

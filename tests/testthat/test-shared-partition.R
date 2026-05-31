@@ -2,9 +2,9 @@
 # coordinator and its two panel renderers. The partition is net-new:
 # nothing before this counted cross-formula key occurrence.
 
-f1 <- 'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), alpha = num(shared = "B"), size = num(shared = "A"))'
-f2 <- 'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), alpha = num(shared = "B"), size = num(shared = "C"))'
-f_single <- 'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), alpha = num(shared = "A"), size = num(shared = "A"))'
+f1 <- 'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), alpha = ppNum(shared = "B"), size = ppNum(shared = "A"))'
+f2 <- 'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), alpha = ppNum(shared = "B"), size = ppNum(shared = "C"))'
+f_single <- 'ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), alpha = ppNum(shared = "A"), size = ppNum(shared = "A"))'
 
 count_matches <- function(html, pattern) {
   m <- gregexpr(pattern, html, fixed = TRUE)[[1]]

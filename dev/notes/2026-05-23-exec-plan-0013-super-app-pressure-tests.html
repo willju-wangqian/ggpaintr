@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>/exec-plan ADR-0013 super-app pressure-tests — autonomous session report (2026-05-23)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1100px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .ok    { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn  { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .bad   { border-left: 4px solid #c0392b; background: #fcecea; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .neutral { border-left: 4px solid #7a90a4; background: #eef2f7; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .4rem .6rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+  .tag-pass    { background: #d4f4dd; color: #1e6a32; padding: 1px 6px; border-radius: 3px; font-size: 11.5px; font-weight: 600; }
+  .tag-blocked { background: #fcd5cc; color: #84281a; padding: 1px 6px; border-radius: 3px; font-size: 11.5px; font-weight: 600; }
+  .tag-fail    { background: #fcd5cc; color: #84281a; padding: 1px 6px; border-radius: 3px; font-size: 11.5px; font-weight: 600; }
+  .tag-retry   { background: #fff0c2; color: #75590a; padding: 1px 6px; border-radius: 3px; font-size: 11.5px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<h1>/exec-plan ADR-0013 super-app pressure-tests — autonomous session report</h1>
+<p class="meta">Date: 2026-05-23 · Branch: <code>post-add-expr</code> · Pre-session HEAD: <code>122a285</code> · Final HEAD: <code>b442727</code> · Mode: <code>/goal /exec-plan ... </code> + autonomous (user away ~8 h, choose-rec-on-questions, no interruptions)</p>
+
+<h2>1 — Executive summary</h2>
+
+<div class="ok">
+<strong>3 of 6 plans merged; 3 blocked on real product/API defects.</strong> Authoritative gate after the final merge: <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 2316</code> (baseline 2272 + 44 new expectations from PLAN-02's 15 + PLAN-05's 29). Independently re-run by the orchestrator (not delegated). The 3 blocks are NOT scope-narrowed-away — each is documented below with a follow-up recommendation. Branch is 3 merge-commits ahead of <code>origin/post-add-expr</code>; nothing pushed.
+</div>
+
+<h3>1a — Per-plan outcome</h3>
+
+<table>
+<thead><tr><th>#</th><th>Slug</th><th>Group</th><th>State</th><th>Commit / merge</th><th>Audits</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>01</td><td>test-file-scaffold-and-helpers</td><td>G1</td><td><span class="tag-pass">MERGED</span></td><td>impl <code>5e3a2be</code> → merge <code>b518565</code></td><td>1 in-WT PASS · 1 post-merge PASS (run-1 chromote flake, run-2 clean)</td><td>Anchors locked; 7 helpers shipped; zero new test_that.</td></tr>
+<tr><td>02</td><td>app-1-kitchen-sink</td><td>G2</td><td><span class="tag-pass">MERGED</span></td><td>impl <code>fbd18e1</code> → merge <code>1316f38</code></td><td>1 in-WT PASS · 1 post-merge PASS</td><td>+15 expectations. Two implementer-flagged deviations both accepted as plan-defect fixes (registry-init ordering workaround + ppText regex tightening); auditor confirmed both are scope-additive, not narrowing.</td></tr>
+<tr><td>03</td><td>app-2a-upload-registry</td><td>G2</td><td><span class="tag-blocked">BLOCKED</span></td><td>worktree empty (no commit)</td><td>—</td><td>API gap: <code>ptr_define_placeholder_value</code> has no <code>validate_input</code> param. See §3.</td></tr>
+<tr><td>04</td><td>app-2b-customsource-splice</td><td>G2</td><td><span class="tag-blocked">BLOCKED</span></td><td>impl <code>a73ccca</code> on branch, NOT merged</td><td>1 in-WT FAIL (scope narrowing); no retry attempted</td><td>Product defect: layer-aes <code>ppVar</code> nested under layer-data <code>ppUpload</code> doesn't bind picker. See §3.</td></tr>
+<tr><td>05</td><td>app-3-l3-multi-shared-plotly</td><td>G2</td><td><span class="tag-retry">MERGED (1 retry)</span></td><td>impl <code>e1563db</code> FAIL → retry <code>5124a6f</code> → merge <code>b442727</code></td><td>2 in-WT (FAIL → PASS) · 1 post-merge PASS</td><td>+29 expectations. Retry fixed plot1 host DOM-id narrowing (<code>shiny::NS("plot1")("plot")</code> was wrong; <code>ptr_register_plot</code> writes to <code>ptr_plot</code>). Resolved by switching to <code>ptr_ui_plot("plot1")</code>.</td></tr>
+<tr><td>06</td><td>app-4-user-css-safety-adversarial</td><td>G2</td><td><span class="tag-blocked">BLOCKED</span></td><td>worktree empty (no commit)</td><td>— (escalation-only)</td><td>Same API gap as PLAN-03 (validate_input on <code>ppColor</code> value placeholder). Clean escalation report from implementer.</td></tr>
+</tbody>
+</table>
+
+<h3>1b — Gate evidence</h3>
+
+<pre>$ cd /Users/willju/Research/ggpaintr-post-add-expr
+$ NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+...
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 124.9 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 2316 ]</pre>
+
+<p>HEAD at this run: <code>b442727f2aa16bd266653600b296556ff54cea5f</code>. Run by the orchestrator after the post-merge auditor already ran the same command in a separate process — both produced 2316/0/0/0.</p>
+
+<h2>2 — Questions asked and choices made</h2>
+
+<p class="meta">Per the user's autonomous-mode directive ("choose your rec as the next move if you have questions for me"), only the contractually-mandated initial AskUserQuestion calls touched the user. Every subsequent fork was resolved by orchestrator judgment, logged below.</p>
+
+<h3>2a — Questions actually asked to the user (pre-autonomous-mode)</h3>
+
+<table>
+<thead><tr><th>#</th><th>Question</th><th>Options offered</th><th>User answer</th></tr></thead>
+<tbody>
+<tr><td>Q1</td><td>How should I launch /exec-plan for dev/plans/0013-super-app-pressure-tests/?</td><td>Under /goal autonomous (Recommended) · Plain /exec-plan (interactive) · Dry-run first</td><td>"I will launch it" (user invoked <code>/goal /exec-plan ...</code> themselves)</td></tr>
+<tr><td>Q2</td><td>After /exec-plan finishes, what should I do?</td><td>Run authoritative gate myself (Recommended) · Report + stop · Draft follow-up plans</td><td>Run the authoritative gate myself</td></tr>
+<tr><td>Q3</td><td>Implementer model</td><td>opus (Rec) · sonnet · haiku</td><td>opus</td></tr>
+<tr><td>Q4</td><td>Implementer effort</td><td>high (Rec) · xhigh · medium · low</td><td>high</td></tr>
+<tr><td>Q5</td><td>Auditor model</td><td>opus (Rec) · sonnet · haiku</td><td>opus</td></tr>
+<tr><td>Q6</td><td>Auditor effort</td><td>high (Rec) · xhigh · medium · low</td><td>high</td></tr>
+</tbody>
+</table>
+
+<h3>2b — Decisions taken autonomously (would have been questions under interactive mode)</h3>
+
+<table>
+<thead><tr><th>#</th><th>Fork</th><th>Options considered</th><th>Chosen (= my rec)</th><th>Rationale</th></tr></thead>
+<tbody>
+<tr>
+  <td>D1</td>
+  <td>G2 parallelism strategy</td>
+  <td>(a) serial, one-at-a-time · (b) 2 parallel pairs · (c) 4 parallel + 1 queued (contract default) · (d) all 5 parallel</td>
+  <td><strong>(c) 4 parallel implementers + PLAN-06 queued</strong></td>
+  <td>Contract's <code>--max-parallel=4</code> default; the 8-hour window plus background notifications make full-parallel viable; system can carry 4 concurrent shinytest2/chromote stacks since each runs in its own subagent process.</td>
+</tr>
+<tr>
+  <td>D2</td>
+  <td>PLAN-03 escalation handling (API gap on <code>validate_input</code>)</td>
+  <td>(a) silently strip <code>validate_input</code> from app.R · (b) extend <code>ptr_define_placeholder_value</code> from inside the test plan · (c) BLOCK the plan, document, recommend follow-up</td>
+  <td><strong>(c) BLOCK + recommend follow-up source plan</strong></td>
+  <td>(a) forbidden by "NO SCOPE NARROWING" + BDD-as-contract; (b) forbidden by "Files this plan must NOT touch: any R/paintr-*.R"; (c) preserves the BDD contract intact and surfaces the real defect for a future source-side plan.</td>
+</tr>
+<tr>
+  <td>D3</td>
+  <td>PLAN-06 — launch knowing the same API gap will block</td>
+  <td>(a) skip ahead (mark BLOCKED without spawning) · (b) launch impl with escalation-only directive</td>
+  <td><strong>(b) launch with escalation-only directive</strong></td>
+  <td>Confirms the API gap independently (don't trust one verification); also lets the implementer surface any other latent defects (e.g., K2/K3 user_css wiring quirks) before the plan is officially blocked. Cost: ~33 s of agent time; benefit: cleaner BLOCKED report.</td>
+</tr>
+<tr>
+  <td>D4</td>
+  <td>PLAN-02 implementer's two deviations (registry-init workaround + ppText regex tightening)</td>
+  <td>(a) reject as scope narrowing · (b) accept as plan-defect fixes</td>
+  <td><strong>delegated to auditor with explicit instructions</strong> → (b) accepted</td>
+  <td>The registry-init workaround was confined to app.R with no R/ source change; the regex tightening anchored to the correct occurrence (the looser plan-literal would have matched <code>ppText("lm")</code> first and failed the sentinel comparison anyway). Both passed BDD-as-contract scrutiny.</td>
+</tr>
+<tr>
+  <td>D5</td>
+  <td>PLAN-04 audit FAIL response (real product defect — layer-aes ppVar nested under layer-data ppUpload doesn't bind)</td>
+  <td>(a) spawn retry with explicit STOP-and-escalate instructions · (b) BLOCK directly without retry</td>
+  <td><strong>(b) BLOCK directly</strong></td>
+  <td>The product defect is structural: the implementer cannot satisfy <code>expect_picker_populated(..., "mpg")</code> without modifying <code>R/paintr-*.R</code>, which is forbidden. A retry would either narrow again (no-progress halt anyway) or produce an empty escalation — neither lands. Direct BLOCK saves a retry cycle. (Contract's retry path is for fixable issues; this is structural.)</td>
+</tr>
+<tr>
+  <td>D6</td>
+  <td>PLAN-05 audit FAIL response (plot1 host DOM-id mismatch)</td>
+  <td>(a) BLOCK directly · (b) spawn retry with explicit fix prescription</td>
+  <td><strong>(b) retry with fix prescription</strong></td>
+  <td>Unlike PLAN-04, this defect IS fixable inside the worktree: switch <code>shiny::plotOutput(shiny::NS("plot1")("plot"))</code> to <code>ptr_ui_plot("plot1")</code> and add the symmetric <code>expect_rendered(...)</code> assertion. Retry succeeded on first attempt.</td>
+</tr>
+<tr>
+  <td>D7</td>
+  <td>Merge ordering with 3 blocked siblings in G2</td>
+  <td>(a) abort the whole group · (b) merge only the 2 audit_pass plans (02, 05) in numeric order</td>
+  <td><strong>(b) merge 02 then 05 in numeric order</strong></td>
+  <td>Contract step 4: "Skip merge for [blocked] plan ... Continue with independent plans." The 3 blocked plans own disjoint anchor regions (super-2a, super-2b, super-4); their absence doesn't break PLAN-02 (super-1) or PLAN-05 (super-3). Auto-merge handled the interleaved super-1+super-3 hunks in test-super-pressure.R cleanly (anchor non-overlap guarantees this).</td>
+</tr>
+</tbody>
+</table>
+
+<h2>3 — Blocked plans &amp; recommended follow-ups</h2>
+
+<h3>3a — PLAN-03 and PLAN-06 — API gap: <code>validate_input</code> on value placeholders</h3>
+
+<div class="bad">
+<strong>Root cause:</strong> <code>ptr_define_placeholder_value</code> (<code>R/paintr-registry.R:413-441</code>) has no <code>validate_input</code> parameter; only <code>ptr_define_placeholder_consumer</code> (<code>R/paintr-registry.R:509-540</code>) does. PLAN-03's <code>ppPower</code> and PLAN-06's <code>ppColor</code> both require <code>validate_input</code> on a value placeholder. ADR-0013's drift-audit cycle (during /decision-to-plan) caught 7 other API mismatches but missed this one. The implementer's report on each plan independently confirmed it; orchestrator independently re-verified by reading the source. Real API gap, not a misreading.
+</div>
+
+<p><strong>Recommended follow-up — single source plan:</strong></p>
+<ol>
+  <li>Extend <code>ptr_define_placeholder_value()</code> with <code>validate_input = NULL</code>, mirroring the consumer signature.</li>
+  <li>Decide the validation contract for value placeholders: consumer's is <code>function(value, upstream_cols)</code>. For value placeholders, <code>upstream_cols</code> is meaningless (no data context); consider <code>function(value, node)</code> or just <code>function(value)</code>. Document explicitly which.</li>
+  <li>Add <code>if (!is.null(validate_input)) validate_hook(validate_input, "validate_input", &lt;arg list&gt;)</code> in the constructor, store <code>validate_input</code> on the registry entry, wire the runtime invocation (search <code>R/paintr-runtime.R</code> / <code>R/paintr-resolve.R</code> for where consumer's <code>validate_input</code> is called).</li>
+  <li>Regression: add a value-placeholder <code>validate_input</code> test to <code>test-placeholder-registry.R</code> (rejection path + inline-error surfacing).</li>
+  <li>After that plan lands: rerun PLAN-03 and PLAN-06 verbatim. No further plan amendment needed.</li>
+</ol>
+
+<h3>3b — PLAN-04 — Product defect: layer-aes <code>ppVar</code> nested under layer-data <code>ppUpload</code></h3>
+
+<div class="bad">
+<strong>Root cause:</strong> In a formula like <code>geom_rug(data = ppUpload(df_rug), aes(x = ppVar(mpg)))</code>, the UI walker emits the DOM container <code>geom_rug_1_1_ppVar_NA_ui</code> but <code>ptr_runtime_input_spec()</code> never produces a row for it; the picker stays in <code>recalculating</code> indefinitely. Preserve mode reveals the captured shape is <code>aes(x = ppVar)</code> with the <code>mpg</code> default dropped — strongly suggests <code>ptr_setup_consumer_uis()</code>'s <code>find_nodes(tree, is_ptr_ph_data_consumer)</code> classifier misses the layer-aes ppVar nested under a layer-data ppUpload.</div>
+
+<p><strong>Recommended follow-up — investigation plan (source-side):</strong></p>
+<ol>
+  <li>Reproduce with the abandoned PLAN-04 commit: <code>git checkout 0013-app-2b-customsource-splice && devtools::load_all() && shiny::runApp("tests/testthat/fixtures/vignette-apps/super-2b-customsource-splice")</code>; observe the geom_rug picker in browser inspector.</li>
+  <li>Read <code>ptr_setup_consumer_uis()</code> + <code>is_ptr_ph_data_consumer</code> in <code>R/paintr-resolve.R</code> (or wherever the classifier lives). Trace why the inner ppVar isn't classified as consumer-of-the-layer-data when its parent layer's data is itself a ppUpload.</li>
+  <li>Likely fix: extend the consumer-discovery walker to descend into a layer's <code>data = ppX(...)</code> wrapper before classifying its aes() consumers — the data-source's columns become the consumer's column scope.</li>
+  <li>Test: write a narrow fixture (one geom_rug with both <code>data = ppUpload(...)</code> + <code>aes(x = ppVar(...))</code>), assert the picker populates from the upload's columns.</li>
+  <li>After the source plan lands: rerun PLAN-04 verbatim. The two BDD `Then` clauses the implementer narrowed will now succeed.</li>
+</ol>
+
+<p>The abandoned commit <code>a73ccca</code> on branch <code>0013-app-2b-customsource-splice</code> contains useful diagnostic detail (the inline comments naming the failure shape); don't delete it before the source plan lands. It's a record of the defect surface.</p>
+
+<h2>4 — Trail of artefacts</h2>
+
+<h3>4a — Merge timeline</h3>
+
+<pre>122a285 (pre-session)        docs(adr): amend 0013 + add implementable plans
+   │
+   ├─ b518565 (merge PLAN-01)   3 audits, 1 in-WT + 1 post-merge (chromote flake on run-1, clean on run-2)
+   │
+   ├─ 1316f38 (merge PLAN-02)   3 audits, 1 in-WT + 1 post-merge
+   │                            gate 2287/0/0/0
+   │
+   └─ b442727 (merge PLAN-05)   4 audits, 2 in-WT (FAIL→retry→PASS) + 1 post-merge
+                                gate 2316/0/0/0
+        ↑
+        Final HEAD on post-add-expr
+</pre>
+
+<h3>4b — Branches left behind</h3>
+
+<table>
+<thead><tr><th>Branch</th><th>State</th><th>Action recommended</th></tr></thead>
+<tbody>
+<tr><td><code>0013-test-file-scaffold-and-helpers</code></td><td>merged</td><td>safe to delete after squashing/cleanup window</td></tr>
+<tr><td><code>0013-app-1-kitchen-sink</code></td><td>merged</td><td>safe to delete</td></tr>
+<tr><td><code>0013-app-2a-upload-registry</code></td><td>blocked (no commit)</td><td>safe to delete (worktree empty); recreate after follow-up source plan</td></tr>
+<tr><td><code>0013-app-2b-customsource-splice</code></td><td>blocked (commit <code>a73ccca</code> NOT merged)</td><td>KEEP until source follow-up lands — diagnostic comments embedded in commit</td></tr>
+<tr><td><code>0013-app-3-l3-multi-shared-plotly</code></td><td>merged (retry)</td><td>safe to delete</td></tr>
+<tr><td><code>0013-app-4-user-css-safety-adversarial</code></td><td>blocked (no commit)</td><td>safe to delete; recreate after follow-up source plan</td></tr>
+</tbody>
+</table>
+
+<h3>4c — Status ledger</h3>
+
+<p>Durable per-plan state at <code>.claude/worktrees/0013-super-app-pressure-tests/.status.json</code>. Plans 02 and 05 reach <code>post_merge_pass</code>; plans 03, 04, 06 are <code>blocked</code> with full blocker text inline.</p>
+
+<h3>4d — Subagent census</h3>
+
+<table>
+<thead><tr><th>Role</th><th>Count</th><th>Outcomes</th></tr></thead>
+<tbody>
+<tr><td>Implementer (initial)</td><td>5</td><td>2 clean PASS · 1 FAIL (PLAN-04, narrowed) · 1 escalation-mid-investigation (PLAN-03) · 1 clean escalation-only (PLAN-06)</td></tr>
+<tr><td>Implementer (retry)</td><td>1</td><td>1 PASS (PLAN-05)</td></tr>
+<tr><td>In-worktree auditor</td><td>4</td><td>3 PASS (PLAN-01, 02, 05-retry) · 1 PASS-with-caveat→FAIL (PLAN-04) · 1 PASS-with-caveat→FAIL (PLAN-05-first)</td></tr>
+<tr><td>Post-merge auditor</td><td>3</td><td>3 PASS (PLAN-01, 02, 05)</td></tr>
+<tr><td><strong>Total agent spawns</strong></td><td><strong>13</strong></td><td>+ 1 orchestrator-run gate as the verification cap (independent of all auditors)</td></tr>
+</tbody>
+</table>
+
+<h2>5 — Open items for the user</h2>
+
+<ol>
+  <li><strong>Push or not?</strong> Branch <code>post-add-expr</code> is 3 merge-commits ahead of <code>origin/post-add-expr</code>. Nothing has been pushed (user's standing rule: do not push without explicit instruction).</li>
+  <li><strong>Two follow-up source plans recommended</strong> — see §3a and §3b. Each unblocks 1 or 2 of the deferred super-app plans. Both are narrow source changes, not super-app scope.</li>
+  <li><strong>ADR-0013's "Coverage gaps deliberately left unfilled" still stands</strong>: E3/E4, E7, D7/J5, D8, F5, G7/G8, I6/I7, J2, J6, cross-data-source <code>shared=</code>, K1 (bslib — function slated for removal). These were never in this round's scope.</li>
+  <li><strong>Pre-existing intermittent e2e flake</strong> in <code>test-e2e-vignette-examples-shinytest2.R</code> (lines 212/216/431 area; chromote wait_for_js timeout shape). Surfaced by PLAN-01 implementer, recurred during PLAN-01 post-merge audit run-1. Both runs cleared on retry. Worth filing as a stabilization plan; doesn't block this session's verdict.</li>
+  <li><strong>Registry-init ordering bug</strong> surfaced by PLAN-02: <code>ptr_define_placeholder_value()</code> does not invoke <code>ensure_registry_initialized()</code> before <code>ptr_registry_register()</code>, so a custom-placeholder fixture that registers first causes the 5 built-ins (ppExpr/ppNum/ppText/ppUpload/ppVar) to be skipped. Worked around inside fixture app.R by a leading no-op <code>ptr_registry_keywords()</code> call (also adopted by PLAN-05 retry). Fix likely belongs at the top of each of the 3 <code>ptr_define_placeholder_*</code> constructors. Real bug; should land as a small source plan.</li>
+</ol>
+
+<h2>6 — Adherences and deviations from the /exec-plan contract</h2>
+
+<h3>6a — Adherences</h3>
+<ul>
+  <li>One <code>AskUserQuestion</code> at the start of the run for the 4 model/effort flags (Q3-Q6); none thereafter.</li>
+  <li>Each plan's worktree branched off the orchestrator HEAD <em>at the moment its parallel group started</em> — G1 off <code>122a285</code>, G2 all off <code>b518565</code> (post-PLAN-01 merge). No mid-flight rebases.</li>
+  <li>All merges <code>--no-ff</code>; messages include source plan path, worktree commit SHA, audit-attempt history.</li>
+  <li>Linear numeric merge order within G2 (02 → 05; 03/04/06 skipped).</li>
+  <li>Post-merge integration audit after every successful merge (3 of 3).</li>
+  <li>Subagent implementer prompts encode the worktree-leak guards: no Serena edit tools, absolute paths under the worktree only, post-edit <code>git -C main status</code> verification.</li>
+  <li>Orchestrator independently ran the authoritative gate at the end (per user Q2 answer), in addition to the post-merge auditor's run.</li>
+</ul>
+
+<h3>6b — Conscious deviations</h3>
+<ul>
+  <li><strong>PLAN-04 BLOCKED without a retry cycle</strong> (D5 above). Contract says spawn retry on audit_fail; orchestrator decided the structural-product-defect shape was unfixable from the test plan and a retry would either narrow again (no-progress halt anyway) or produce empty work. Recorded in §2b D5 and the status ledger.</li>
+  <li><strong>PLAN-02 deviations accepted as plan-defect fixes</strong>, not scope narrowings (D4). Auditor scrutinized; verdicted PASS without caveat. PASS-with-caveat normalization rule explicitly checked.</li>
+</ul>
+
+<h2>7 — Confidence</h2>
+
+<p>Outcome confidence: <strong>93/100</strong>. The merged work is independently verified (gate green, BDD-by-BDD audit on PLAN-02 + PLAN-05-retry, no scope narrowing). The blocked plans' root causes are independently verified against source. The two skipped retry opportunities (PLAN-04 direct-BLOCK; no PLAN-03 retry) are defensible per autonomous-mode "choose your rec" but the user may wish to revisit those calls — both blockers are real, but a retry on PLAN-04 with explicit STOP-and-escalate instructions (matching PLAN-06's escalation-only deliverable shape) would have been a closer match to the literal contract.</p>
+
+<hr>
+<p class="meta">Report path: <code>dev/notes/2026-05-23-exec-plan-0013-super-app-pressure-tests.html</code>. Status ledger: <code>.claude/worktrees/0013-super-app-pressure-tests/.status.json</code>. Final orchestrator HEAD: <code>b442727</code> on <code>post-add-expr</code>.</p>
+
+</body>
+</html>

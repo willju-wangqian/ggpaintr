@@ -14,7 +14,7 @@ cols_ph <- ptr_define_placeholder(
     if (length(value) == 0) return(ptr_missing_expr())
     rlang::expr(dplyr::all_of(!!value))
   },
-  copy_defaults = list(label = "Choose columns for {param}")
+  ui_text_defaults = list(label = "Choose columns for {param}")
 )
 
 range_ph <- ptr_define_placeholder(
@@ -26,7 +26,7 @@ range_ph <- ptr_define_placeholder(
     if (is.null(value)) return(ptr_missing_expr())
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Zoom range for {param}")
+  ui_text_defaults = list(label = "Zoom range for {param}")
 )
 
 registry <- ptr_merge_placeholders(list(cols = cols_ph, range = range_ph))

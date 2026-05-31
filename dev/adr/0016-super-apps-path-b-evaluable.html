@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0016 — All super-app examples must be Path-B (naked-ggplot) evaluable</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0016 — All super-app examples must be Path-B (naked-ggplot) evaluable</h1>
+
+<p><strong>Status:</strong> Proposed. Implementation <em>deferred</em> — do not action until all <a href="0013-super-app-pressure-test-suite.html">ADR-0013</a> plans (including PLAN-03) have closed on <code>post-add-expr</code>. This ADR locks the principle; the patch is a follow-up.</p>
+
+<p><strong>Date:</strong> 2026-05-24</p>
+
+<p><strong>Relates to:</strong> <a href="0013-super-app-pressure-test-suite.html">ADR-0013</a> (super-app pressure-test suite), <a href="0009-pp-placeholders-and-expression-input.html">ADR-0009</a> (pp* placeholders and expression input).</p>
+
+<h2>Context</h2>
+
+<p>A ggpaintr formula that contains <code>pp*</code> placeholder calls can be evaluated by two distinct paths:</p>
+
+<dl>
+  <dt><strong>Path A — <code>ptr_app(...)</code> parse path.</strong></dt>
+  <dd>The substitution layer walks the formula's AST, finds each <code>pp*(...)</code> node, registers it in the typed tree, and never invokes the runtime <code>function(x, ...) x</code>. Argument values are read from the call's AST shape, not from R-level evaluation. Missing arguments and unbound data symbols are tolerated — the parser only inspects structure.</dd>
+
+  <dt><strong>Path B — naked ggplot evaluation.</strong></dt>
+  <dd>The formula is evaluated by R as a plain expression. Each <code>pp*(arg)</code> executes its runtime form (typically <code>function(x, ...) x</code>) and returns its argument. ggplot composes the result. This is what happens when a user pastes the formula into the REPL or a script <em>without</em> a <code>ptr_app()</code> wrapper.</dd>
+</dl>
+
+<p>Path A is what the super-app fixture tests exercise. Path B is the user's <em>discoverability surface</em>: a reader who copy-pastes a super-app formula expects it to render as a plain ggplot in their own R session. That is one of ggpaintr's central value propositions — the same formula works inside <code>ptr_app()</code> and outside it.</p>
+
+<h2>Problem discovery (2026-05-24)</h2>
+
+<p>A scan of the super-app fixtures surfaced two Path-B breakers:</p>
+
+<ul>
+  <li><strong>super-4</strong> (merged at <code>b9a189a</code>) — <code>tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/app.R:64</code> contains <code>ppColor()</code> with no argument. The comment at line 27 documents the intent: exercise <code>build_ui</code>'s NULL-<code>selected</code> arrival path. Under Path A this is fine. Under Path B, <code>ppColor()</code> errors because the runtime form is <code>function(x, ...) x</code> and <code>x</code> has no default.</li>
+  <li><strong>super-2a</strong> (PLAN-03, not yet merged) — the canonical formula contains <code>ppMultiVar()</code> with no argument. Same Path-B failure mode.</li>
+</ul>
+
+<p>The other three super-apps (super-1, super-2b, super-3) pass every <code>pp*</code> call with an argument and are Path-B compatible modulo data-symbol binding.</p>
+
+<h2>Decision</h2>
+
+<p><strong>Every super-app fixture's <em>canonical</em> formula MUST evaluate as plain ggplot under a Path-B harness.</strong> Concretely:</p>
+
+<ol>
+  <li>The formula, when wrapped in a Path-B harness that
+    <ul>
+      <li>binds the data symbols the formula names (e.g. <code>df_main</code>, <code>df_aux</code>) to representative data frames, and</li>
+      <li>ensures every <code>pp*</code> the formula calls is in scope (built-ins via the package namespace; custom placeholders defined in the fixture file before the formula),</li>
+    </ul>
+    MUST execute to completion and produce a valid <code>ggplot</code> object. No error, no missing-arg abort.
+  </li>
+  <li>No naked <code>pp*()</code> call (no argument) appears in the canonical formula. Every placeholder call carries a positional default value that is itself a valid ggplot input for the slot it occupies.</li>
+  <li>If a fixture wants to <em>test</em> the NULL-arrival code path for a specific placeholder (as super-4 does for <code>ppColor</code>'s <code>build_ui</code>), that test uses a <em>separate</em> side-formula that is explicitly NOT covered by the Path-B guarantee. The canonical formula stays Path-B clean.</li>
+</ol>
+
+<p>This becomes a per-plan acceptance criterion: every plan that adds or modifies a super-app fixture under ADR-0013 must include a Path-B evaluation check in its Definition of Done.</p>
+
+<h2>Consequences</h2>
+
+<h3>What this changes</h3>
+
+<ul>
+  <li>super-4's canonical formula gets a positional default for <code>ppColor</code> (e.g. <code>ppColor("#1f77b4")</code> or a value the build_ui would naturally seed). The NULL-arrival code-path test moves to a side-formula or to a unit test of <code>ppColor</code>'s <code>build_ui</code> directly.</li>
+  <li>super-2a's canonical formula gets a positional default for <code>ppMultiVar</code> when PLAN-03 lands. The default should be a value <code>aes(group = ...)</code> can consume — typically a column symbol or an <code>interaction(...)</code> expression.</li>
+  <li>A new helper <code>tests/testthat/helper-path-b.R</code> (or extension of <code>helper-super-pressure.R</code>) provides a single function that takes a fixture path, sources its formula, binds the named data symbols, and asserts the formula evaluates to a <code>ggplot</code> object. Each super-app test file calls this helper once per fixture.</li>
+</ul>
+
+<h3>What this enforces</h3>
+
+<ul>
+  <li>Custom placeholders defined in fixtures (and, by extension, in user code) need a runtime form that handles missing arguments sensibly <em>when the fixture's formula relies on a no-arg call</em>. In practice this means either supplying a positional default in every formula site, or — as the registry-API follow-up — adding a <code>default_value =</code> argument to <code>ptr_define_placeholder_value()</code> / <code>_consumer()</code> / <code>_source()</code> so the auto-generated runtime fn carries that default. That registry-API decision is <em>not</em> locked here; see Open Questions.</li>
+  <li>The principle generalises beyond super-apps: a vignette example or a README snippet that pastes into a user's R session should also evaluate. ADR-0016 scopes the decision to super-apps only; extension to vignettes/README is left as an open question for a future ADR.</li>
+</ul>
+
+<h3>What this does NOT do</h3>
+
+<ul>
+  <li>Does NOT require the runtime <code>function(x, ...) x</code> default to be changed package-wide. The change is per-fixture and per-call-site, not at the registry level.</li>
+  <li>Does NOT require <em>any</em> data-symbol binding outside the harness. Path B for a formula referring to <code>df_main</code> obviously needs <code>df_main</code> bound; the harness provides that.</li>
+  <li>Does NOT modify ADR-0013's already-merged scope. Plans 02, 04, 05, 06 stay as they landed. The Path-B follow-up patches them in a single later commit.</li>
+</ul>
+
+<h2>Implementation notes (deferred)</h2>
+
+<p>Do not action this ADR until ADR-0013 PLAN-03 lands on <code>post-add-expr</code> and the seven-plan bundle is fully closed. The follow-up patch should:</p>
+
+<ol>
+  <li>Add <code>tests/testthat/helper-path-b.R</code> (or extend <code>helper-super-pressure.R</code>) with a <code>expect_path_b_evaluable(fixture_path, bindings)</code> helper that:
+    <ul>
+      <li>Reads the fixture's canonical formula via a source-grep of its <code>app.R</code> (the formula lives between the <code>ptr_app(</code> opener and its matching closer, modulo <code>!!</code>-spliced variables).</li>
+      <li>Binds the named data-symbol bindings in a fresh environment.</li>
+      <li>Calls <code>eval(parse(text = formula))</code> in that environment.</li>
+      <li>Asserts the return is a <code>ggplot</code> S3 object.</li>
+    </ul>
+  </li>
+  <li>Patch <code>super-4</code>'s canonical formula to give <code>ppColor</code> a positional default. Move the NULL-arrival test to a side-formula or a unit test of <code>ppColor</code>'s <code>build_ui</code>.</li>
+  <li>Patch <code>super-2a</code>'s canonical formula (whichever shape PLAN-03 settles on) to give <code>ppMultiVar</code> a positional default.</li>
+  <li>Wire the <code>expect_path_b_evaluable</code> helper into the existing super-pressure test_that blocks for super-1, super-2a, super-2b, super-3, super-4 — one assertion per fixture.</li>
+  <li>Run the authoritative gate on the merge tip. Expect PASS to grow by 5 (one new assertion per super-app).</li>
+</ol>
+
+<h2>Open questions (for the follow-up patch session)</h2>
+
+<ol>
+  <li><strong>Registry-level <code>default_value =</code> knob.</strong> Section "What this enforces" lists this as a possible API addition: <code>ptr_define_placeholder_value(keyword = ..., default_value = "")</code> auto-generates <code>function(x = "", ...) x</code> as the runtime form, removing the need to pass a default at every call site. Decision deferred to the follow-up session — implementer should weigh declarative-knob convenience vs the per-call-site explicitness that Path B already requires.</li>
+  <li><strong>Extension to vignettes / README.</strong> The Path-B principle arguably applies to any code example shipped with the package. Should the helper also run against vignette code chunks? Decision deferred; if yes, write ADR-0017 to extend.</li>
+  <li><strong>Treatment of <code>!!</code>-splice in canonical formulas.</strong> Several super-apps use <code>!!formula1</code> to splice a stored formula expression into <code>ptr_app()</code>. The Path-B harness must resolve the splice before evaluation. Decision: the harness reads the underlying formula expression, not the post-splice text — the helper should accept a quoted-expression argument as well as a fixture-path argument.</li>
+</ol>
+
+<h2>Rejected alternatives</h2>
+
+<ul>
+  <li><strong>Change the default runtime form to <code>function(x = NULL, ...) x</code> package-wide.</strong> Would make every no-arg <code>pp*()</code> return <code>NULL</code>, which crashes ggplot deep in <code>aes()</code> evaluation with a much worse error than a missing-arg abort. Rejected — silent <code>NULL</code> propagation hides the problem instead of surfacing it.</li>
+  <li><strong>Drop the Path-B principle and document that super-app formulas are <code>ptr_app()</code>-only.</strong> Rejected — it would amputate ggpaintr's discoverability story. The whole point of the placeholder DSL is that the same formula reads as ordinary ggplot.</li>
+  <li><strong>Add Path-B coverage to every plan in ADR-0013 retroactively, blocking PLAN-03's merge.</strong> Rejected — it would re-open already-merged plans and stall PLAN-03. Better to patch all super-apps in one focused follow-up after ADR-0013 closes.</li>
+</ul>
+
+<h2>Acceptance criteria for the follow-up patch</h2>
+
+<ul>
+  <li>Authoritative gate on the post-patch tip: <code>FAIL 0 / WARN 0 / SKIP 0 / PASS N</code> with N ≥ baseline + 5 (one Path-B assertion per super-app).</li>
+  <li>Every super-app fixture's canonical formula evaluates to a <code>ggplot</code> S3 object under the Path-B harness.</li>
+  <li>The follow-up patch does NOT modify already-merged ADR-0013 plans' BDDs or DoDs. The Path-B assertions are <em>additional</em> coverage.</li>
+  <li>The follow-up patch carries a <code>/implementable</code> PASS stamp.</li>
+</ul>
+
+</body>
+</html>

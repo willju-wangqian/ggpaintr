@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Plan: L3 piece model — single shell, bare pieces, asset dedup — 2026-05-16</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>Plan: L3 piece model — single shell, bare pieces, asset dedup</h1>
+<p class="footnote">Date: 2026-05-16 · Supersedes-in-part: <code>dev/plans/2026-05-15-css-unification.html</code> §2 (assets-internal lock) · ADR: <code>dev/adr/0004-l3-ui-piece-model.html</code> · Builds on committed work <code>822ba35</code>, <code>486984f</code>, <code>8b04975</code></p>
+
+<div class="callout">
+  <strong>One-line summary.</strong> The L3 story is "own every piece of ggpaintr's public UI." Pieces stay <em>bare</em>; a single exported shell <code>ptr_ui_page(..., page = shiny::fluidPage, css = NULL)</code> owns the Bootstrap page, the one <code>.ptr-app</code> scope, and the (now <code>htmlDependency</code>-deduped) assets. Un-export the three <code>ptr_register_*</code> functions (dead post-rewrite surface). All <em>renames</em> are deferred to the API-audit pass. Naming contracts and the css-unification supersession are recorded in ADR 0004.</p>
+</div>
+
+<div class="danger">
+  <strong>Reconciliation alert — read before implementing.</strong> Two earlier-session commits (<code>822ba35</code>) regressed an already-implemented, decision-backed design:
+  <ul>
+    <li><strong>css-unification §2 locked "assets bundle stays internal; users never inject assets manually."</strong> Commit 822ba35 added <code>export(ptr_ui_assets)</code> and renamed the internal emitter <code>ptr_ui_assets</code> → <code>core_assets_tags</code>. The export is a real new need (L3 hand-composition for non-<code>fluidPage</code> roots) but it <em>contradicts</em> a locked decision and therefore requires explicit supersession via ADR 0004 — not a silent change.</li>
+    <li><strong><code>?ptr_css</code> is a deliberate roxygen-only topic</strong> (<code>R/paintr-css-doc.R</code>, <code>@name ptr_css</code>, <code>@keywords internal</code>; <code>man/ptr_css.Rd</code> exists). An earlier grill conclusion to "fix the 7 dangling <code>[ptr_css()]</code> links" was <strong>wrong and is retracted</strong>. The links are valid; they stay. This is exactly the "don't fix the missing function back into the namespace" hazard ADR 0002 records.</li>
+  </ul>
+  Net: this plan keeps <code>ptr_ui_assets()</code> exported but records it in ADR 0004 as a conscious supersession; keeps <code>core_assets_tags</code> as the internal name (the css-unification plan's §3.1 prose is stale and gets a superseded banner, not a rewrite); and never touches the <code>[ptr_css()]</code> links.
+</div>
+
+<h2>1. Problem statement</h2>
+<p>The L3 surface shipped in <code>822ba35</code> redefined L3 as "one exported builder per UI piece" with bare pieces the user wraps by hand. Field use exposed three defects and one dead-surface finding:</p>
+<ul>
+  <li><strong>Footgun A — forgotten Bootstrap page.</strong> Bare pieces placed under a bare <code>shiny::tags$div()</code> root never load Bootstrap; <code>shinyWidgets::pickerInput()</code> (layer selector) and the Bootstrap grid render unstyled. Fixed in docs (<code>486984f</code>) but the root cause is that the user must remember <code>fluidPage()</code>.</li>
+  <li><strong>Footgun B — hand-written <code>.ptr-app</code> + assets ritual.</strong> Non-obvious, easy to omit; also drove the collapsed-<code>&lt;details&gt;</code> confusion (<code>8b04975</code>).</li>
+  <li><strong>Defect C — per-piece self-wrap is unsafe.</strong> <code>ggpaintr.css:7</code> sets <code>.ptr-app { min-height: 100vh; background: … }</code> and there is <em>no</em> <code>.ptr-app .ptr-app</code> neutralization rule (the comment in <code>ptr_controls_ui</code> claiming otherwise is factually false). If every piece self-wrapped, the canonical L3 layout (controls / plot / error / code as vertical <em>siblings</em>) would stack N×100vh of empty background. A descendant selector cannot neutralize siblings.</li>
+  <li><strong>Dead surface D — <code>ptr_register_plot/error/code</code>.</strong> Exported, but <code>ptr_server()</code> is their only caller and calls all three unconditionally; each reads <code>state$runtime()</code>, which is populated only by the internal <code>ptr_setup_runtime()</code> (called only by <code>ptr_server()</code>). Without <code>ptr_server()</code> they render nothing forever. The L2 <em>"Splitting outputs further"</em> subsection documents a use case that is impossible post-rewrite.</li>
+</ul>
+
+<h2>2. Locked decisions</h2>
+<table>
+<thead><tr><th>Decision</th><th>Lock</th><th>Rationale</th></tr></thead>
+<tbody>
+<tr><td>L3 shell</td><td>add exported <code>ptr_ui_page(..., page = shiny::fluidPage, css = NULL)</code></td><td>Kills footguns A &amp; B at once: the shell <em>is</em> the Bootstrap page and owns the single <code>.ptr-app</code> + assets. Pieces dropped in <code>...</code>.</td></tr>
+<tr><td>Pieces</td><td>stay <strong>bare</strong> (no <code>.ptr-app</code>, no assets, no per-piece <code>css=</code>)</td><td>Per-piece self-wrap is unsafe (Defect C). One shell owns scope; pieces are pure fragments.</td></tr>
+<tr><td><code>page =</code> contract</td><td>any BS3 page builder whose <code>...</code> are tag children: <code>fluidPage</code> (default), <code>fixedPage</code>, <code>fillPage</code>, <code>bootstrapPage</code>, <code>basicPage</code></td><td>Verified signatures: <code>navbarPage(title, ..., )</code> needs a positional <code>title</code> + <code>tabPanel</code> children — <strong>not</strong> a drop-in. bslib/BS5 pages break the BS3-scoped CSS (that is <code>ptr_app_bslib()</code>'s domain). Validate only <code>is.function(page)</code>; document the contract.</td></tr>
+<tr><td><code>navbarPage</code> / custom roots</td><td>decomposition escape hatch</td><td><code>page&nbsp;=</code> cannot wrap <code>navbarPage</code>. Supported recipe: hand-build <code>navbarPage(title, tabPanel("x", div(class="ptr-app", ptr_ui_assets(), …pieces…)))</code>. Doubles as the "what <code>ptr_ui_page()</code> expands to" transparency example.</td></tr>
+<tr><td>Assets dedup</td><td>convert <code>core_assets_tags()</code> + <code>ptr_user_css_assets()</code> to <code>htmltools::htmlDependency()</code></td><td>htmltools dedupes by name+version → one <code>&lt;head&gt;</code> injection regardless of how many shells/pieces a page nests (grid case). Lets us delete the ad-hoc <code>window.__ptr_ui_assets_registered</code> / <code>__ptr_set_class_registered</code> JS guards.</td></tr>
+<tr><td><code>ptr_ui_assets()</code> export</td><td>keep exported (escape-hatch injector)</td><td>L3 non-<code>fluidPage</code> roots legitimately need manual injection. <strong>Supersedes</strong> css-unification §2 "assets internal" — recorded in ADR 0004. Final name deferred to api-audit.</td></tr>
+<tr><td><code>?ptr_css</code> + <code>[ptr_css()]</code> links</td><td><strong>untouched</strong></td><td>Deliberate roxygen-only token-doc topic. Earlier "fix dangling links" conclusion retracted. <code>ptr_ui_page</code>'s <code>css=</code> roxygen gains <code>@seealso [ptr_css()]</code> like every other portal.</td></tr>
+<tr><td><code>ptr_register_plot/error/code</code></td><td>un-export → internal</td><td>Dead surface D. No deprecation (only this dev cycle's own surface; sole caller is internal <code>ptr_server</code>).</td></tr>
+<tr><td>Reserved-id docs</td><td>single source of truth stays in L2 §"How input ids are built"; cross-ref from L3 + <code>ptr_server()</code> roxygen</td><td>Hand-placing pieces makes collisions most likely at L3; do not duplicate the list, do not add an id arg (re-exposes hidden contract).</td></tr>
+<tr><td>All renames</td><td><strong>deferred to API-audit pass</strong></td><td>Renaming is the audit's charter; piecemeal now = double-churn on just-rewritten docs and pre-empts holistic tiering. See §7 + ADR 0004.</td></tr>
+<tr><td>Bundled-DOM invariant</td><td><code>ptr_app()</code>/<code>ptr_module_ui()</code> output byte-identical (modulo asset tags now being a dependency)</td><td>They use the internal <code>ptr_outputs_panel()</code>/<code>*_tag()</code> builders, not the public pieces. Regression-guarded.</td></tr>
+</tbody>
+</table>
+
+<h3>2.1 Locked naming contracts (honored by the audit; recorded in ADR 0004)</h3>
+<ul>
+  <li><strong><code>ptr_module_*</code> is a deliberate naming exception.</strong> <code>ptr_module_ui</code>/<code>ptr_module_server</code> remain a sealed two-function bundle namespace, <em>not</em> renamed into the <code>ptr_ui_*</code> / <code>ptr_*</code> grammar. Documented as an intentional exception so it does not read as an oversight.</li>
+  <li><strong><code>ptr_ui_outputs</code> ≡ <code>ptr_ui_plot_code(error = TRUE)</code>.</strong> Post-audit, <code>ptr_ui_plot_code()</code> defaults <code>error = FALSE</code> (pure L3 building block); <code>ptr_ui_outputs()</code> is the discoverable "ggpaintr's default output UI" alias with error nested. Different default ⇒ different default DOM ⇒ not a silent twin. Recorded so future-us does not "dedupe" the alias away.</li>
+  <li><strong>Server family after audit:</strong> <code>ptr_server</code> (generic), <code>ptr_shared_resolve</code> (renamed from <code>ptr_shared_server</code>), <code>ptr_module_server</code> (bundle exception). UI family: <code>ptr_ui_*</code>.</li>
+</ul>
+
+<h2>3. Target architecture</h2>
+
+<h3>3.1 The shell</h3>
+<pre># R/paintr-app.R (new exported function)
+
+#' Page shell for hand-composed ggpaintr UIs
+#'
+#' Wraps composed L3 pieces in a Bootstrap page + the single `.ptr-app`
+#' theme scope + the (deduped) asset bundle. The only thing an L3 user
+#' must remember.
+#'
+#' @param ... UI children (pieces, layout, your own widgets).
+#' @param page A Bootstrap-3 page builder whose `...` are tag children:
+#'   `shiny::fluidPage` (default), `fixedPage`, `fillPage`,
+#'   `bootstrapPage`, `basicPage`. NOT `navbarPage` (needs a positional
+#'   `title` + `tabPanel` children) and NOT bslib/BS5 pages (the bundled
+#'   CSS is Bootstrap-3-scoped — see [ptr_app_bslib()]). For those roots,
+#'   compose by hand: see the decomposition example in
+#'   `vignette("ggpaintr-use-cases")`.
+#' @param css Optional character vector of extra stylesheet paths,
+#'   linked after `ggpaintr.css`. See [ptr_css()].
+#' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_server()], [ptr_css()]
+#' @export
+ptr_ui_page &lt;- function(..., page = shiny::fluidPage, css = NULL) {
+  assertthat::assert_that(is.function(page))
+  page(
+    ptr_assets(css = css),                       # internal bundle (htmlDependency)
+    shiny::tags$div(class = "ptr-app", ...)
+  )
+}</pre>
+<p>Exactly one <code>.ptr-app</code>, exactly one Bootstrap page, assets deduped to one <code>&lt;head&gt;</code> injection by htmltools. <code>ptr_assets()</code> stays internal (css-unification name); it is reached by users only through a <code>css=</code> portal (now including <code>ptr_ui_page</code>) or the exported <code>ptr_ui_assets()</code> escape hatch.</p>
+
+<h3>3.2 Pieces revert to bare</h3>
+<p><code>822ba35</code> shipped the pieces already bare (no self-wrap). <strong>No structural change is needed here</strong> — this plan only <em>confirms</em> bare as the locked model and removes the now-misleading roxygen note added in <code>486984f</code> that tells users to hand-write <code>fluidPage(ptr_ui_assets(), div(class="ptr-app", …))</code> (replace with "compose inside <code>ptr_ui_page()</code>; for non-<code>fluidPage</code> roots see the decomposition recipe").</p>
+
+<h3>3.3 Assets as <code>htmlDependency</code></h3>
+<pre># R/paintr-build-ui.R
+core_assets_dep &lt;- function() {
+  htmltools::htmlDependency(
+    name = "ggpaintr", version = utils::packageVersion("ggpaintr"),
+    src = c(file = system.file("www", package = "ggpaintr")),
+    stylesheet = "ggpaintr.css",
+    script = "ggpaintr-ui.js",   # extracted from the inline ptr_ui_js() string
+    all_files = FALSE
+  )
+}</pre>
+<ul>
+  <li>Move the inline <code>ptr_ui_js()</code> string + the <code>ptr_set_class</code> handler into a shipped <code>inst/www/ggpaintr-ui.js</code> (or keep inline via <code>htmltools::htmlDependency(head=)</code> if avoiding a new file is preferred — decide in Step 2).</li>
+  <li><code>ptr_assets(css)</code> returns <code>tagList(layer_dep_or_tags, core_assets_dep(), ptr_user_css_assets(css))</code>. Layer assets (<code>.ptr-stage-*</code> inline CSS + <code>ptr_set_class</code> JS) also become a dependency so the <code>ptr_app_bslib</code> bypass still works (it includes only the layer dep, never <code>core_assets_dep</code>).</li>
+  <li>Delete the JS self-registration guards (<code>__ptr_ui_assets_registered</code>, <code>__ptr_set_class_registered</code>) — htmltools now guarantees single injection. Keep a one-line comment recording why the guards were removed.</li>
+</ul>
+
+<h3>3.4 <code>ptr_register_*</code> → internal</h3>
+<ul>
+  <li>Drop <code>@export</code> from <code>ptr_register_plot</code>, <code>ptr_register_error</code>, <code>ptr_register_code</code> (keep the functions; <code>ptr_server</code> still calls them).</li>
+  <li><code>devtools::document()</code> removes them from <code>NAMESPACE</code> and deletes <code>man/ptr_register_*.Rd</code> (the shared <code>ptr_register</code> Rd page).</li>
+  <li>Remove from <code>_pkgdown.yml</code> "Advanced embedders".</li>
+  <li>Delete the L2 <em>"Splitting outputs further"</em> vignette subsection (its premise is false).</li>
+</ul>
+
+<h2>4. Execution sequence</h2>
+<p>Single branch; each step independently committable.</p>
+
+<div class="step">
+<h3>Step 1 — Un-export <code>ptr_register_*</code> + prune its docs</h3>
+<ul>
+  <li>Drop 3 <code>@export</code> tags (<code>R/paintr-server.R</code>). <code>devtools::document()</code>.</li>
+  <li>Delete L2 "Splitting outputs further" subsection (<code>vignettes/ggpaintr-use-cases.Rmd</code>); remove the 3 names from <code>_pkgdown.yml</code>; delete generated <code>man/ptr_register*.Rd</code>.</li>
+  <li>Grep tests for <code>ptr_register_</code>; relocate any direct test to call via <code>ptr_server</code> or <code>ggpaintr:::</code>.</li>
+  <li>Commit: <code>refactor(api): un-export ptr_register_* (dead post-rewrite surface)</code></li>
+</ul>
+</div>
+
+<div class="step">
+<h3>Step 2 — Assets → <code>htmlDependency</code></h3>
+<ul>
+  <li><code>R/paintr-build-ui.R</code>: add <code>core_assets_dep()</code> (and a layer-assets dependency); rewrite <code>ptr_assets()</code> to compose dependencies; delete the JS registration guards. Decide inline-<code>head=</code> vs shipped <code>inst/www/ggpaintr-ui.js</code> (prefer a shipped file — cleaner, cacheable).</li>
+  <li><strong>Invariant:</strong> rendered <code>&lt;head&gt;</code> for <code>ptr_app()</code> contains exactly one <code>ggpaintr.css</code> link and one script, in the documented order; user css still links after. The byte-identical bundled-DOM guard relaxes to "identical <code>&lt;body&gt;</code> tree; <code>&lt;head&gt;</code> assets deduped" — update the regression test accordingly.</li>
+  <li>Commit: <code>refactor(assets): emit ggpaintr assets as a deduped htmlDependency</code></li>
+</ul>
+</div>
+
+<div class="step">
+<h3>Step 3 — Add <code>ptr_ui_page()</code></h3>
+<ul>
+  <li><code>R/paintr-app.R</code>: §3.1 verbatim. <code>devtools::document()</code> → new <code>man/ptr_ui_page.Rd</code>; add to <code>_pkgdown.yml</code> "UI pieces (L3)".</li>
+  <li>Commit: <code>feat(ui): add ptr_ui_page() shell for hand-composed L3 layouts</code></li>
+</ul>
+</div>
+
+<div class="step">
+<h3>Step 4 — Vignette + roxygen reconciliation</h3>
+<ul>
+  <li>L3 section: <code>ptr_ui_page(...)</code> as the primary example; replace the hand <code>fluidPage(ptr_ui_assets(), div.ptr-app)</code> example with a <em>decomposition</em> example explicitly labelled as the <code>navbarPage</code>/custom-root recipe. Cross-ref the reserved-id rule from L3 and from <code>ptr_server()</code> roxygen. Add <code>@seealso [ptr_css()]</code> to <code>ptr_ui_page</code>.</li>
+  <li>Revert/replace the <code>486984f</code> roxygen note on <code>ptr_ui_controls</code> (no longer "wrap in fluidPage yourself" — point at <code>ptr_ui_page()</code>).</li>
+  <li>Fix the false <code>ptr_controls_ui</code> source comment ("ggpaintr.css neutralises nested .ptr-app" — no such rule). Do <strong>not</strong> touch <code>[ptr_css()]</code> links.</li>
+  <li>NEWS: one bullet for <code>ptr_ui_page</code> + the <code>ptr_register_*</code> un-export + asset-dedup.</li>
+  <li>Commit: <code>docs(ui): ptr_ui_page as the L3 entry; decomposition recipe; reconcile</code></li>
+</ul>
+</div>
+
+<div class="step">
+<h3>Step 5 — Tests</h3>
+<ul>
+  <li>Extend <code>tests/testthat/test-ui-pieces.R</code>: <code>ptr_ui_page()</code> emits one <code>.ptr-app</code> + Bootstrap container; <code>page=</code> swap (<code>fillPage</code>/<code>bootstrapPage</code>) works and a non-function errors; <code>css=</code> threads and links after <code>ggpaintr.css</code>.</li>
+  <li>Asset dedup: render a page nesting two shells (grid-like) → assert exactly one <code>ggpaintr.css</code> link and one script (htmltools dedup).</li>
+  <li>Update the byte-identical guard per Step 2 (body-identical; head deduped).</li>
+  <li>Regression: <code>ptr_register_*</code> not in <code>getNamespaceExports("ggpaintr")</code>.</li>
+  <li>Commit: <code>test(ui): ptr_ui_page shell, page= contract, asset dedup</code></li>
+</ul>
+</div>
+
+<div class="step">
+<h3>Step 6 — Validate</h3>
+<ul>
+  <li><code>devtools::document()</code> clean; <code>devtools::test()</code> green; <code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> 0E/0W (the lone <code>.git</code> NOTE is the known in-place-checkout artifact).</li>
+  <li>Re-render README if touched; rebuild pkgdown to confirm <code>?ptr_css</code> + new topics resolve.</li>
+  <li>Manual smoke: <code>ptr_ui_page(ptr_ui_controls(formula=f), ptr_ui_plot())</code> in a browser — picker styled, single page height, no N×100vh.</li>
+</ul>
+</div>
+
+<h2>5. Acceptance criteria</h2>
+<ol>
+  <li><code>ptr_ui_page()</code> exported; emits exactly one <code>.ptr-app</code> + one Bootstrap container; <code>page=</code> swap + <code>css=</code> + non-function-rejection tests pass.</li>
+  <li>A page nesting ≥2 shells injects exactly one <code>ggpaintr.css</code> + one script (htmlDependency dedup).</li>
+  <li><code>ptr_register_plot/error/code</code> absent from <code>NAMESPACE</code>; L2 "Splitting outputs further" gone; pkgdown has no missing-topic for them.</li>
+  <li><code>[ptr_css()]</code> links intact; <code>?ptr_css</code> still renders; no roxygen cross-ref WARNING.</li>
+  <li>Bundled <code>ptr_app()</code>/<code>ptr_module_ui()</code> <code>&lt;body&gt;</code> tree unchanged; <code>&lt;head&gt;</code> assets deduped. Full suite green; check 0E/0W.</li>
+</ol>
+
+<h2>6. Risks &amp; mitigations</h2>
+<table>
+<thead><tr><th>Risk</th><th>Likelihood</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>Moving inline JS to a shipped file changes load timing / a selector handler breaks.</td><td>medium</td><td>Keep behaviour identical; manual smoke of code-window toggle + disabled-stage cue; or use <code>htmlDependency(head=)</code> to keep JS inline and only gain dedup.</td></tr>
+<tr><td>A test asserts on raw <code>&lt;script&gt;</code>/<code>&lt;link&gt;</code> counts and breaks under dependency dedup.</td><td>high</td><td>Pre-Step-2 grep <code>tests/testthat</code> for <code>ggpaintr.css|__ptr_|&lt;script</code>; update count assertions to "exactly one".</td></tr>
+<tr><td>Future reader re-"fixes" <code>[ptr_css()]</code> or re-internalizes <code>ptr_ui_assets()</code> "for consistency with css-unification".</td><td>medium</td><td>ADR 0004 records both as deliberate; superseded banner on the css-unification plan; memory note.</td></tr>
+<tr><td><code>page=</code> misused with <code>navbarPage</code>.</td><td>medium</td><td><code>assert_that(is.function(page))</code> + explicit roxygen contract + the decomposition recipe is the documented <code>navbarPage</code> path.</td></tr>
+<tr><td>Grid path nests shell + <code>ptr_shared_ui</code> (which self-wraps + injects via css-unification) → still one dep after htmlDependency, but two <code>.ptr-app</code> divs.</td><td>certain</td><td>Acceptable: nested <code>.ptr-app</code> inside layout cells is the pre-existing, working pattern; only sibling stacking was the bug, which the single-shell model prevents.</td></tr>
+</tbody>
+</table>
+
+<h2>7. Deferred to the API-audit pass</h2>
+<p>Recorded in <code>dev/plans/api-audit.md</code> and ADR 0004; <strong>not executed here</strong>:</p>
+<ul>
+  <li>Renames: <code>ptr_shared_ui→ptr_ui_shared</code>; <code>ptr_shared_server→ptr_shared_resolve</code>; <code>ptr_outputs_ui→ptr_ui_outputs</code>; <code>ptr_ui_code_toggle→ptr_ui_plot_code</code> (default <code>error=FALSE</code>); collapse <code>ptr_controls_ui</code>/<code>ptr_ui_controls</code> to one name; review <code>ptr_ui_page</code> / <code>ptr_ui_assets</code> final names.</li>
+  <li>Honor locked contracts §2.1 (<code>ptr_module_*</code> exception; <code>ptr_ui_outputs ≡ ptr_ui_plot_code(error=TRUE)</code>).</li>
+  <li>Decide whether <code>ptr_ui_assets()</code> stays exported long-term or is replaced by a tighter escape-hatch surface (it is currently a recorded supersession of css-unification §2).</li>
+  <li>No deprecation shims (single user; pre-1.0).</li>
+</ul>
+
+<h2>8. Out of scope</h2>
+<ul>
+  <li>Any rename (§7).</li>
+  <li>Splitting <code>ptr_ui_controls</code> into picker/tabset sub-pieces (JS-coupled via <code>ptr_setup_layer_picker</code>; behaviour change).</li>
+  <li>bslib/BS5 theme unification (<code>ptr_app_bslib</code> domain; separate ADR).</li>
+  <li>A <code>.ptr-app</code> "page-shell vs theme-scope" CSS split (would let pieces self-wrap but carries visual-regression risk to every app; rejected).</li>
+</ul>
+
+<h2>9. Rollback</h2>
+<p>Single branch; revert the merge. Steps 1, 3 are additive/subtractive and independently revertible. Step 2 (htmlDependency) is the only one touching shared rendering — its revert restores the inline-tag <code>ptr_assets()</code> + JS guards verbatim.</p>
+
+<h2>10. Cross-references</h2>
+<ul>
+  <li>ADR: <code>dev/adr/0004-l3-ui-piece-model.html</code> (records this model; supersedes css-unification §2 assets-internal lock; relates to ADR 0002 tiering, ADR 0003 controllable-region unification).</li>
+  <li>Superseded-in-part: <code>dev/plans/2026-05-15-css-unification.html</code> (banner added; content not rewritten).</li>
+  <li>Audit checklist: <code>dev/plans/api-audit.md</code> (recreated; renames + contracts).</li>
+  <li>Builds on committed: <code>822ba35</code> (L3 pieces), <code>486984f</code> (Bootstrap-page doc fix — partially superseded by the shell), <code>8b04975</code> (details fix).</li>
+</ul>
+
+<div class="ok">
+  <strong>Ready to implement.</strong> Decisions locked in §2. Six steps, each independently committable. One exported function added (<code>ptr_ui_page</code>), three un-exported (<code>ptr_register_*</code>), assets converted to a deduped dependency. No renames (deferred). Reconciliation hazards explicit in the danger box.
+</div>
+
+</body>
+</html>

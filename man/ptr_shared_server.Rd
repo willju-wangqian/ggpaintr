@@ -8,7 +8,8 @@ ptr_shared_server(
   obj,
   envir = parent.frame(),
   shared = list(),
-  draw_trigger = NULL
+  draw_trigger = NULL,
+  spec = NULL
 )
 }
 \arguments{
@@ -17,7 +18,7 @@ source of truth for the cross-formula partition. Replaces the old
 \code{formulas}/\code{expr_check} arguments, which are now baked into \code{obj}.}
 
 \item{envir}{Environment used to resolve symbols in the shared
-\code{var()} upstream chains. Default \code{\link[=parent.frame]{parent.frame()}} picks up the
+\code{ppVar()} upstream chains. Default \code{\link[=parent.frame]{parent.frame()}} picks up the
 embedder's caller scope so \code{mtcars} etc. resolve naturally.}
 
 \item{shared}{Optional named list overriding the auto-derived
@@ -29,6 +30,16 @@ unsupplied keys keep the default that reads
 "Draw all" trigger (\code{input$ptr_shared_draw_all}). Useful when an
 embedder wants to drive the cross-module redraw from their own
 button.}
+
+\item{spec}{Optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot for
+host-owned panel-shared widgets (\verb{shared_<k>} for consumer / value
+placeholders, \verb{shared_<k>_name} for panel-owned source companion
+textInputs). Multi-instance entrypoints like \code{\link[=ptr_app_grid]{ptr_app_grid()}}
+forward the same flat spec to every per-plot \code{\link[=ptr_server]{ptr_server()}} AND
+to this host-scope server; per-plot servers prefix-filter by their
+own module namespace and drop un-namespaced ids, leaving this host
+apply path to claim them. See \href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
 }
 \value{
 A \code{ptr_shared_state} S3 object with public fields \code{shared},
@@ -38,11 +49,13 @@ that key's shared stage is active for each embedded module).
 }
 \description{
 Builds the shared input reactives and binds the host-level
-\code{var(shared = "...")} consumer pickers for the \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}.
+\code{ppVar(shared = "...")} consumer pickers for the \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}.
 Returns a \code{ptr_shared_state} that the embedder threads into each
 \code{\link[=ptr_server]{ptr_server()}} via the \code{shared_state} argument.
 }
 \details{
+Namespacing is inherited from \code{obj$id}; supply it to \code{\link[=ptr_shared]{ptr_shared()}}.
+
 Reads its session via \code{\link[shiny:domains]{shiny::getDefaultReactiveDomain()}} -- call
 it inside the top-level Shiny server function (or any reactive
 context that inherits the session). Errors when called outside any
@@ -51,8 +64,8 @@ reactive domain.
 \examples{
 if (interactive()) {
   obj <- ptr_shared(c(
-    "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-    "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+    "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+    "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
   ))
   shiny::shinyApp(
     ui = shiny::fluidPage(ptr_shared_panel(obj)),

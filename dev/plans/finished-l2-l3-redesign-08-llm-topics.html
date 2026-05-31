@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 08: LLM topics rewrite (#LLM)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head><body>
+
+<h1>Step 08 — LLM topics rewrite (pass #LLM)</h1>
+<p class="meta">Phase 7 (parallel with Step 07; run downstream of the merged Step 07 vignette). Large, separate. Target: <code>inst/llm/topics/*</code>, <code>inst/llm/primer.md</code>. Authority: ADR 0005 · <code>CONTEXT.md</code>.</p>
+
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-17, branch <code>l2l3-step-08-llm-topics</code>, content @ <code>e1e6b09</code>.
+All success criteria met. Verify gate green: <code>ptr_llm_topics()</code> enumerates 12 topics, every id resolves, <code>invisible(lapply(ptr_llm_topics(), ptr_llm_topic))</code> + <code>ptr_llm_primer()</code> return non-empty with no error. Removed-symbol scan over <code>inst/llm/</code> is zero (the only <code>server_ns_fn</code> / <code>testServer</code> / <code>headless</code> hits are the mandated "internal, not a user tool" / "no headless path" prohibitions); no <code>ptr_ui_plot</code> flags; no dangling topic id.
+Taxonomy rename: <code>level2_embed → level2_module</code>, <code>level2_namespacing → level2_shared</code>; net-new <code>level3_layout</code> (bare pieces + combinators + optional <code>ptr_ui_page</code> + navbar/bslib <code>ptr_ui_assets</code> escape hatch); <code>level3_custom_render</code> reframed as the primary L3 render story (<code>moduleServer(id)</code> + <code>ptr_server()</code> + <code>NS(id)</code>). <code>custom_placeholder.md</code> / <code>level1_ptr_options.md</code> left intact (already clean of removed symbols and split content).
+08↔07 consistency verified: every canonical formula string, combinator nest recipe, <code>NS(id)</code> pattern, id grammar, and the <code>ptr_gg_extra</code> example mirror <code>vignettes/ggpaintr-use-cases.Rmd</code> verbatim — zero divergence.
+Content-only; no <code>ptr_llm_*</code> code/signature change; <code>R/</code> · <code>tests/</code> · <code>NAMESPACE</code> · <code>man/</code> untouched. Pre-existing fallout (not from this step): <code>devtools::load_all()</code> warns that stale NAMESPACE exports <code>ptr_controls_ui</code> / <code>ptr_outputs_ui</code> / <code>ptr_ui_code_toggle</code> have no backing function (already removed by Steps 03/05) — reconciliation is Step 10's gate per the api-audit index.</p>
+
+<h2>Goal</h2>
+<p>Rewrite the LLM-facing topic corpus so generated guidance matches the shipped API. <code>ptr_llm_*</code> function signatures do not change; only emitted content.</p>
+
+<h2>Files</h2>
+<ul>
+<li><code>inst/llm/topics/level2_*.md</code>, <code>level3_*.md</code> — re-derive from CONTEXT.md L2/L3.</li>
+<li><code>level2_custom_ids.md</code> — id table: keep <code>ptr_plot/ptr_error/ptr_code</code>; reflect bare pieces + combinators; the canonical <code>moduleServer(id)</code> ns story.</li>
+<li><code>level3_custom_render.md</code> — now the primary L3 render story (was L2).</li>
+<li><code>formula_syntax.md</code>, <code>overview.md</code> — shared section vs panel wording per the partition rule.</li>
+<li><code>primer.md</code> — top-level model summary.</li>
+</ul>
+
+<h2>Success criteria</h2>
+<ul>
+<li>No topic mentions a removed symbol (<code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>, <code>ptr_ui_code_toggle</code>, <code>ptr_shared_ui</code>) or the <code>ptr_ui_plot</code> flags or <code>state$server_ns_fn</code> as a user tool.</li>
+<li>Topics state the convention (<code>ptr_&lt;x&gt;</code> L2 self-contained / <code>ptr_ui_&lt;x&gt;</code> L3 bare), the partition rule, single-vs-multi-instance, and the combinator recipe.</li>
+<li>Custom render is presented as L3 with the safe <code>moduleServer</code> pattern; no headless/<code>testServer</code> promise.</li>
+<li><code>ptr_llm_topics()</code> enumerates the updated set with no dangling topic id; the corpus regenerates via the documented build with no error.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>Content-only; do not change <code>ptr_llm_*</code> code/signatures.</li>
+<li>Stay consistent with Step 07 (vignette) — same examples, same names; these two must not diverge.</li>
+<li>Do not introduce a "headless" or "extract-accessor level" framing.</li>
+<li>Run after Steps 01–06 land (topics must describe shipped behavior).</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: LLM corpus matches shipped API
+
+  Scenario: No removed symbol leaks into guidance
+    When every file under inst/llm/topics is scanned
+    Then none contains ptr_controls_ui / ptr_outputs_ui / ptr_ui_code_toggle / ptr_shared_ui
+      And none recommends state$server_ns_fn to users
+
+  Scenario: Topic enumeration is intact
+    When ptr_llm_topics() is called
+    Then every listed topic id resolves to a file
+      And ptr_llm_topic() returns content for each without error
+
+  Scenario: Levels described per CONTEXT.md
+    Given the level2_* and level3_* topics
+    Then L2 = ptr_module_* (+ shared trio multi-instance), no split
+      And L3 = bare ptr_ui_* + combinators (+ optional ptr_ui_page)
+      And custom render is L3 with the moduleServer(id) pattern</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::load_all("."); ptr_llm_topics(); invisible(lapply(ptr_llm_topics(), ptr_llm_topic))'
+# + the documented LLM corpus build</pre>
+</body></html>

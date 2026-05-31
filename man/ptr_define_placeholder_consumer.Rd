@@ -9,17 +9,42 @@ ptr_define_placeholder_consumer(
   build_ui,
   resolve_expr,
   validate_input = NULL,
-  copy_defaults = list(label = "Pick a column for {param}")
+  positional_arg = NULL,
+  named_args = list(),
+  runtime = NULL,
+  ui_text_defaults = list(label = "Pick a column for {param}")
 )
 }
 \arguments{
-\item{keyword, copy_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
+\item{keyword, ui_text_defaults}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.}
 
-\item{build_ui}{\verb{function(node, cols, data, label, ...)} returning a
-Shiny tag. \code{cols} is a character vector of upstream column names
-(use as \code{choices}); \code{character(0)} before upstream resolves. \code{data}
-is the upstream data frame, or \code{NULL} while pending — read it only
-when you need column types / levels / ranges.}
+\item{build_ui}{\verb{function(node, cols, data, label = NULL, selected = NULL, ...)}
+returning a Shiny tag. \code{cols} is a character vector of upstream
+column names (use as \code{choices}); \code{character(0)} before upstream
+resolves. \code{data} is the upstream data frame, or \code{NULL} while
+pending — read it only when you need column types / levels / ranges.
+
+\strong{Widget-seeding contract — \code{selected}.} Same precedence,
+omit-on-no-default, render-empty-when-empty, and never-read-
+\code{node$default} rules as for value placeholders — see the
+"Widget-seeding contract" block on
+\code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} for the authoritative description.
+
+\strong{Consumer-specific rule: filter through \code{intersect()}.} Always
+pass \code{selected = intersect(selected \%||\% character(0), cols)} (or
+the equivalent column filter) to the underlying widget, not bare
+\code{selected}. Three cases collapse into one line:
+\itemize{
+\item User-cleared widget (\code{selected} is empty) → \code{intersect()}
+returns \code{character(0)}, widget renders empty. Honors the
+render-empty-when-empty rule.
+\item Stale pick after upstream data swap (\code{selected} names a column
+no longer in \code{cols}) → \code{intersect()} drops it cleanly. Without
+this, \code{selectInput} silently falls back to its first choice
+(silent data mutation) and \code{shinyWidgets::pickerInput} enters a
+similarly broken state.
+\item Valid pick → \code{intersect()} is a no-op, value flows through.
+}}
 
 \item{resolve_expr}{\verb{function(value, node, ...)}. For a column picker
 the typical body is \code{rlang::sym(value)} so the bare column name is
@@ -27,45 +52,73 @@ spliced as an identifier rather than a string literal. See
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} for allowed return types and the
 \code{NULL}-prunes-the-argument convention.}
 
-\item{validate_input}{Optional \verb{function(value, upstream_cols)} called
-before \code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a
-single character string to reject (surfaced inline as the error
-message, layer pruned). Useful when a stale selection no longer
-matches any upstream column after a data swap.}
+\item{validate_input}{Optional \verb{function(value, ctx)} called before
+\code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a single
+character string to reject (surfaced inline as the error message,
+layer pruned). Useful when a stale selection no longer matches any
+upstream column after a data swap, or when only certain column types
+are admissible. \code{ctx} is a plain list with named fields: \code{node} (the
+placeholder AST node, carries \verb{$id}, \verb{$keyword}, \verb{$args}), \code{keyword}
+(convenience alias for \code{node$keyword}), \code{upstream_cols} (character
+vector of upstream column names — the same value \code{build_ui} received
+as \code{cols}), and \code{data} (the upstream data frame — the same object
+\code{build_ui} received as \code{data}). \code{ctx$upstream_cols} and \code{ctx$data}
+may both be \code{NULL} while upstream resolution is pending; the
+validator is not invoked when upstream has not yet resolved (the
+substitute walker skips the hook in that case). ggpaintr invokes
+this function as \code{validate_input(value, ctx)} — no other positional
+or named arguments are passed, and \code{ctx} carries exactly the four
+fields above. The signature does not require \code{...}.}
+
+\item{positional_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+Consumer placeholders use the same arg-schema slots; the \code{ppVar}
+built-in passes a column-name validator here when used as \code{ppVar(mpg)}.}
+
+\item{runtime}{Optional \verb{function(x, ...)} body used when the
+placeholder is called as a plain-R function. \code{NULL} (default) supplies
+the identity \code{function(x, ...) x}, matching the legacy \code{ppVar}-style
+\code{aes()} NSE shape (the symbol-passthrough convention). Override to
+give the consumer a non-identity plain-R meaning.}
 }
 \value{
-Invisibly, the registry entry list. Use \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}}
-to remove it.
+The runtime callable (identity by default; override with
+\code{runtime = ...}). Also called for its registration side effect; use
+\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove it.
 }
 \description{
 A \emph{consumer} placeholder is a value placeholder that additionally
 receives the columns of the upstream data frame — typically a column
-picker. The built-in example is \code{var}. See
-\code{vignette("ggpaintr-customization")} § "Consumer placeholders" for the
-tutorial.
+picker. The built-in example is \code{ppVar}. See
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders"
+(consumer role).
 }
 \examples{
 # A consumer that picks a numeric-only column.
+# Note: `selected = NULL` formal (per the seeding contract) plus
+# intersect() filter (per the consumer-specific rule). Empty input
+# renders empty; a stale pick after a data swap drops cleanly.
 ptr_define_placeholder_consumer(
   keyword = "numvar",
-  build_ui = function(node, cols, data, label, ...) {
+  build_ui = function(node, cols, data, label = NULL,
+                      selected = NULL, ...) {
     numeric_cols <- if (is.null(data)) character(0) else
       names(data)[vapply(data, is.numeric, logical(1))]
-    shiny::selectInput(node$id, label = label, choices = numeric_cols,
-                       selected = character(0))
+    retained <- intersect(selected \%||\% character(0), numeric_cols)
+    shiny::selectInput(node$id, label = label \%||\% "Numeric column",
+                       choices = numeric_cols, selected = retained)
   },
   resolve_expr = function(value, node, ...) {
     if (length(value) != 1L || !nzchar(value)) return(NULL)
     rlang::sym(value)
   },
-  validate_input = function(value, upstream_cols) {
-    if (length(value) == 1L && value \%in\% upstream_cols) TRUE
+  validate_input = function(value, ctx) {
+    if (length(value) == 1L && value \%in\% ctx$upstream_cols) TRUE
     else "Pick a column that exists in the upstream data."
   }
 )
 ptr_clear_placeholder("numvar")
 }
 \seealso{
-\code{vignette("ggpaintr-customization")} for the tutorial;
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders";
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}, \code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}}.
 }

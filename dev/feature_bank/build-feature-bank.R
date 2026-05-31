@@ -21,7 +21,10 @@
 #   Rscript dev/feature_bank/build-feature-bank.R
 # ============================================================================
 
-stopifnot(grepl("ggpaintr-rewrite$", normalizePath(".")))
+stopifnot(
+  file.exists("DESCRIPTION"),
+  any(grepl("^Package: ggpaintr\\s*$", readLines("DESCRIPTION")))
+)
 
 # ----------------------------------------------------------------------------
 # 1. Feature inventory.
@@ -70,7 +73,7 @@ features <- list(
   # ---- Public API: Shiny module ------------------------------------------
   mk("ptr_module_ui", "ptr_module_ui()", "Public API",
      "R/paintr-app.R:328",
-     "Embeddable Shiny module UI; takes id + formula + ui_text + checkbox_defaults + expr_check + css.",
+     "Embeddable Shiny module UI; takes id + formula + ui_text + expr_check + css.",
      c("ptr_module_ui")),
   mk("ptr_module_server", "ptr_module_server()", "Public API",
      "R/paintr-app.R:423",
@@ -240,10 +243,9 @@ features <- list(
      "R/paintr-app.R:29",
      "Override copy across shell / upload / layer_checkbox / defaults / params / layers.",
      c("ui_text = ", "ptr_ui_text(", "ptr_resolve_ui_text")),
-  mk("arg-checkbox_defaults", "checkbox_defaults =", "ptr_app() arg",
-     "R/paintr-app.R:29",
-     "Per-layer initial enable / disable state for the include-this-layer checkbox.",
-     c("checkbox_defaults")),
+  # ADR 0020 / Plan 04: the `checkbox_defaults =` argument and the
+  # `checkbox_default_all_other_layer` option were removed; per-layer boot
+  # state lives in the formula via `ppLayerOff()` / `ppVerbOff()`.
   mk("arg-expr_check", "expr_check =", "ptr_app() arg",
      "R/paintr-app.R:29",
      "Toggle the expression-input safety guard: TRUE / FALSE / list(deny_list=) / list(allow_list=).",
@@ -591,76 +593,7 @@ head_tpl <- '<!doctype html>
 <head>
 <meta charset="utf-8">
 <title>ggpaintr feature bank with coverage status</title>
-<style>
-  :root {
-    --bg:#fafbfc; --fg:#1f2328; --muted:#57606a;
-    --card:#ffffff; --border:#d0d7de;
-    --danger:#cf222e; --danger-bg:#ffebe9;
-    --warn:#9a6700;  --warn-bg:#fff8c5;
-    --ok:#1a7f37;    --ok-bg:#dafbe1;
-    --info:#0969da;  --info-bg:#ddf4ff;
-    --code-bg:#f6f8fa;
-  }
-  html { box-sizing: border-box; }
-  *, *::before, *::after { box-sizing: inherit; }
-  body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-  }
-  main { max-width: 1320px; margin: 0 auto; padding: 28px 24px 80px; }
-  h1 { font-size: 28px; margin: 0 0 4px; }
-  h2 { font-size: 18px; margin: 28px 0 10px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
-  p { margin: 6px 0; }
-  a { color: var(--info); }
-  .meta { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
-  .meta code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
-  code, pre {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 12.5px;
-  }
-  :not(pre) > code { background: var(--code-bg); padding: 1px 4px; border-radius: 4px; }
-  .summary-counts {
-    display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0 18px;
-  }
-  .summary-counts div {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 6px; padding: 8px 12px; min-width: 130px;
-  }
-  .summary-counts strong { font-size: 20px; display: block; }
-  .summary-counts span { color: var(--muted); font-size: 12px; }
-  .controls {
-    display: flex; gap: 12px; flex-wrap: wrap; align-items: center;
-    margin: 12px 0 12px; padding: 10px 12px; background: var(--card);
-    border: 1px solid var(--border); border-radius: 6px;
-  }
-  .controls label { font-size: 13px; color: var(--muted); margin-right: 4px; }
-  .controls select, .controls input {
-    font: inherit; padding: 4px 8px; border: 1px solid var(--border); border-radius: 4px;
-  }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 20px; background: var(--card); }
-  th, td { border: 1px solid var(--border); padding: 6px 8px; vertical-align: top; text-align: left; }
-  th { background: var(--code-bg); cursor: pointer; user-select: none; position: sticky; top: 0; }
-  th.sortable::after { content: " \\2195"; color: var(--muted); font-size: 11px; }
-  .col-name { width: 19%; }
-  .col-cat { width: 11%; white-space: nowrap; }
-  .col-where { width: 16%; white-space: nowrap; }
-  .col-desc { width: 26%; }
-  .col-status { width: 7%; text-align: center; }
-  .col-cov { width: 21%; font-size: 12px; }
-  .src-grp { margin-bottom: 4px; line-height: 1.4; }
-  .src-grp:last-child { margin-bottom: 0; }
-  .src-label { display: inline-block; min-width: 0; color: var(--muted); font-size: 11px;
-               text-transform: uppercase; letter-spacing: .03em; margin-right: 4px; }
-  .badge {
-    display: inline-block; padding: 1px 8px; border-radius: 999px;
-    font-size: 11px; font-weight: 600; vertical-align: middle;
-  }
-  .b-ok     { color: var(--ok);     background: var(--ok-bg); }
-  .b-warn   { color: var(--warn);   background: var(--warn-bg); }
-  .b-danger { color: var(--danger); background: var(--danger-bg); }
-  .b-info   { color: var(--info);   background: var(--info-bg); }
-  .row-hide { display: none; }
-</style>
+<link rel="stylesheet" href="../assets/doc.css">
 </head>
 <body>
 <main>

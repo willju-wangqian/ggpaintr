@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — state$spec_seed + uiOutput emission for value/source placeholders (from ADR 0012, Bug B)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: spec-seed-and-renderui-emission
+  source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
+  source_handoff: /var/folders/86/znw5mx352fj9523j26lssygh0000gn/T/handoff-XXXXXX.md.KONpWBGcUL
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — <code>state$spec_seed</code> + uiOutput emission for value/source placeholders</h1>
+<p class="meta">Source: ADR 0012 (Bug B successor) · Depends on: none · Parallel group: G1 · Status: <span class="badge b-draft">draft</span></p>
+
+<h2>Context</h2>
+
+<p>ADR 0012 §3.6 / PLAN-06 shipped <code>spec=</code> apply-at-boot via <code>updateXyzInput</code> dispatch keyed on placeholder keyword (<code>apply_spec_entry</code> at <code>R/paintr-server.R:526-592</code>). The registry contract for custom placeholders is a single <code>build_ui = function(node, label, ...)</code> hook — there is no <code>update_value</code> hook. So <code>apply_spec_entry</code>'s keyword-dispatch is structurally exclusive to built-in keywords; a custom keyword falls through to <code>FALSE</code> at line 592 and the spec entry is silently aggregated into the "skipped invalid value" warning at end of <code>session$onFlushed</code>. This is Bug B from the 2026-05-22 handoff.</p>
+
+<p>The fix routes every placeholder widget through the existing <code>invoke_build_ui</code> precedence logic (<code>R/paintr-build-ui.R:721-733</code>, which already seeds <code>extra$selected</code> from <code>node$default</code> when the hook accepts it) by rendering it server-side inside a <code>renderUI</code> whose <code>extra$selected</code> reads a new per-instance seed: <code>state$spec_seed[[bare_id]]</code>, written once at boot by <code>apply_spec_at_boot</code>.</p>
+
+<p>Three placeholder kinds are in scope:</p>
+
+<table>
+  <tr><th>Kind</th><th>Today's UI emission</th><th>This plan</th></tr>
+  <tr><td><code>ptr_ph_value</code> (ppText / ppNum / ppExpr)</td><td>Static widget tag via <code>build_ui_for.ptr_ph_value</code> → <code>invoke_build_ui</code> at UI-build-time (<code>R/paintr-build-ui.R:46-57</code>).</td><td>Emit <code>uiOutput(ptr_render_id(value_output_id(node$id), ns_fn))</code> at UI-build-time; render server-side in new helper <code>ptr_setup_value_uis()</code>.</td></tr>
+  <tr><td><code>ptr_ph_data_consumer</code> (ppVar)</td><td><code>uiOutput</code> container at <code>R/paintr-build-ui.R:60-64</code>; widget rendered inside <code>renderUI</code> at <code>R/paintr-server.R:1370-1386</code> via <code>ptr_setup_consumer_uis()</code>; today reads <code>current %||% character(0)</code>.</td><td>No emission change. <code>ptr_setup_consumer_uis()</code>'s <code>renderUI</code> gains seed precedence: <code>state$spec_seed[[raw_id]] %||% current %||% character(0)</code>.</td></tr>
+  <tr><td><code>ptr_ph_data_source</code> (ppVar-as-source, ppUpload)</td><td>Static widget tag via <code>build_ui_for.ptr_ph_data_source</code> at <code>R/paintr-build-ui.R:67-112</code>.</td><td>Emit <code>uiOutput(ptr_render_id(source_output_id(node$id), ns_fn))</code> at UI-build-time; render server-side in new helper <code>ptr_setup_source_uis()</code>, preserving the existing companion-id handling for ppUpload.</td></tr>
+</table>
+
+<div class="note"><strong>Step A semantics.</strong> The existing <code>apply_spec_entry</code> <code>updateXyzInput</code> dispatch path stays in place. <code>apply_spec_at_boot</code> writes the per-instance <code>state$spec_seed</code> <em>before</em> the deferred <code>session$onFlushed</code> dispatch, so the renderUI's first fire seeds the widget with the spec value via <code>isolate(state$spec_seed[[bare]])</code>; the subsequent <code>updateXyzInput</code> within onFlushed is redundant for built-in keywords (sets the same value) and skipped for custom keywords (path unchanged). End state for built-in keywords is unchanged; <strong>end state for custom keywords becomes "value applied"</strong> instead of "silently skipped" — this is the Bug B fix.</div>
+
+<h2>Governing principle</h2>
+
+<p>The registry contract for placeholders is a <em>single</em> hook — <code>build_ui = function(node, label, ...)</code>. There is no symmetric <code>update_value</code> hook. Any spec-apply mechanism that dispatches on placeholder keyword and calls <code>updateXyzInput</code> is structurally exclusive to the built-in keywords that ship with ggpaintr: a custom placeholder keyword has no widget-type for which a built-in <code>updateXyz</code> exists, so the dispatch falls through to a silent no-op. <strong>The contract is uniform; the apply path must be uniform.</strong> The fix is to route every placeholder widget — built-in and custom — through the one hook that already exists (<code>build_ui</code>), seeding its <code>extra$selected</code> from a state-owned seed that <code>apply_spec_at_boot</code> writes once. An implementer reading only this plan must hold this principle: if you find yourself reaching for <code>updateXyz</code> in the spec path, you have re-introduced the structural asymmetry the plan exists to delete; STOP and escalate. Narrow scope to keep built-ins green at the cost of custom-keyword silence is the exact failure this plan forbids.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>SC-1 (Bug B fix, R-level).</strong> Run <code>testthat::test_file("tests/testthat/test-adr12b-spec-custom-keyword.R")</code> (new file added by this plan). It boots a <code>shiny::testServer(ptr_server_internal, ...)</code> session whose formula uses a <em>custom-registered</em> placeholder keyword (registered via <code>ptr_define_placeholder_value</code>) and passes a <code>spec = list(...)</code> entry naming that keyword's input id. The test asserts that after <code>session$flushReact()</code>, the widget's input value (read via <code>session$input[[id]]</code> after the onFlushed callback fires) equals the spec value, AND that <code>state$spec_seed[[bare_id]]</code> equals the spec value. PASS condition is <code>FAIL 0 / WARN 0 / SKIP 0</code>.</li>
+  <li><strong>SC-2 (built-in keywords unchanged, e2e).</strong> Run <code>testthat::test_file("tests/testthat/test-adr12-spec-roundtrip.R")</code> (existing file). All existing assertions on the <code>adr12-spec-roundtrip</code> fixture (ppVar picker = "carb", layer checkbox = FALSE, ppNum = 5) continue to PASS unchanged. PASS condition is <code>FAIL 0 / WARN 0 / SKIP 0</code> when <code>NOT_CRAN=true</code>.</li>
+  <li><strong>SC-3 (no-spec render unchanged, R-level).</strong> Run <code>testthat::test_file("tests/testthat/test-adr12b-renderui-emission.R")</code> (new file). For a formula with one <code>ppText</code>, one <code>ppNum</code>, one <code>ppExpr</code>, one <code>ppVar</code>-source, one <code>ppUpload</code>, and one <code>ppVar</code>-consumer, calling <code>ptr_ui_pieces()</code> + opening a <code>testServer</code> with no <code>spec=</code> argument produces widgets whose <code>input</code>-side values after <code>flushReact()</code> equal their respective <code>node$default</code> (or empty for ppUpload). PASS condition is <code>FAIL 0 / WARN 0 / SKIP 0</code>.</li>
+  <li><strong>SC-4 (full gate).</strong> The authoritative DoD command (see "Definition of Done" below) returns <code>FAIL 0 / WARN 0 / SKIP 2 / PASS &ge; 2181 + N</code> where N is the test-count delta added by SC-1, SC-2, SC-3 fixtures. SKIP count must be exactly 2 (the ADR 0012 §5 OQ2 deferrals).</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-server.R</code> — add <code>state$spec_seed</code> to <code>ptr_init_state</code>; add <code>ptr_setup_value_uis</code> and <code>ptr_setup_source_uis</code>; wire both into <code>ptr_server_internal</code>; update <code>ptr_setup_consumer_uis</code>'s renderUI to read seed first; update <code>apply_spec_at_boot</code> to write seed <em>before</em> onFlushed dispatch (do <strong>not</strong> remove the dispatch).</li>
+      <li><code>R/paintr-build-ui.R</code> — reshape <code>build_ui_for.ptr_ph_value</code> and <code>build_ui_for.ptr_ph_data_source</code> to emit <code>uiOutput</code> containers; introduce internal helpers <code>value_output_id()</code> and <code>source_output_id()</code> (mirror the existing <code>consumer_output_id()</code> shape).</li>
+      <li><code>tests/testthat/test-adr12b-spec-custom-keyword.R</code> — new file (SC-1).</li>
+      <li><code>tests/testthat/test-adr12b-renderui-emission.R</code> — new file (SC-3).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li><code>R/paintr-classify.R</code>, <code>R/paintr-walk.R</code>, <code>R/paintr-translate.R</code>, <code>R/paintr-shared.R</code> — owned by the parallel Bug A session per the 2026-05-22 handoff.</li>
+      <li>The <code>tests/testthat/fixtures/vignette-apps/consumer-colvars</code> and <code>tests/testthat/fixtures/vignette-apps/adr12-bug-3a</code> fixtures — owned by the Bug A session.</li>
+      <li><code>R/paintr-placeholders.R</code> — the registry contract is unchanged by this plan; no new hook type is added.</li>
+      <li><code>tests/testthat/test-adr12-spec-roundtrip.R</code> and <code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code> — read-only in this plan. The <code>app$get_value(...)</code> workarounds stay in place; they are reverted in PLAN-02.</li>
+    </ul>
+  </li>
+  <li><strong>No removal of <code>updateXyzInput</code> calls.</strong> <code>apply_spec_entry</code> body is unchanged in this plan. Both mechanisms coexist after PLAN-01 lands. PLAN-02 owns the removal.</li>
+  <li><strong>No framework-internal renderUI conversion.</strong> Stage-enabled, layer-checkbox, and source-companion widgets stay on <code>updateCheckboxInput</code> / <code>updateTextInput</code>. They are not registry placeholders; the governing principle does not bind them. A future plan may revisit if the user requests it.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If implementing SC-1 as written breaks existing tests (SC-2), STOP and escalate. Do not narrow SC-1 to "Bug B applies for the built-in keywords too"; that re-introduces the structural asymmetry. The plan's contract is that <em>custom-keyword spec entries apply</em>; the contract holds even if delivering it requires a wider refactor than the handoff sketched.</li>
+  <li><strong>Conventions:</strong> tidyverse style, snake_case, 2-space indent, <code>ptr_</code> prefix only for exported API (these helpers are internal, no prefix required by project memory <code>[[feedback-naming-convention]]</code>). Use <code>rlang::abort</code> not <code>stop</code>; <code>cli::cli_warn</code> not <code>warning</code>. NAMESPACE auto-generated — do not edit by hand.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: spec= applies to custom placeholder keywords via state$spec_seed seed path
+
+Scenario: custom keyword spec entry seeds the widget at boot
+  Given a placeholder keyword "ppCustomChoice" registered via ptr_define_placeholder_value
+        with build_ui = function(node, label, selected = NULL, ...)
+          shiny::selectInput(node$id, label, choices = c("a", "b", "c"), selected = selected)
+    And a formula ggplot(mtcars, aes(ppCustomChoice, mpg)) producing input id "ggplot_1_1_ppCustomChoice_NA"
+    And spec = list(ggplot_1_1_ppCustomChoice_NA = "b")
+  When ptr_server_internal is booted via shiny::testServer with that formula and spec
+    And session$flushReact() is called
+  Then state$spec_seed[["ggplot_1_1_ppCustomChoice_NA"]] equals "b"
+    And session$input[["ggplot_1_1_ppCustomChoice_NA"]] equals "b"
+
+Scenario: built-in ppNum keyword's spec round-trip is unchanged
+  Given the existing adr12-spec-roundtrip fixture booted via shinytest2
+  When app$get_value(input = "geom_point_2_2_ppNum_NA") is read
+  Then it equals 5 (the spec value)
+
+Scenario: no-spec render falls back to node$default
+  Given a formula with ppText (default "hello"), ppNum (default 3.14), ppVar-source (default character()),
+        no spec= argument
+  When ptr_server_internal boots and flushReact() runs
+  Then session$input for the ppText id equals "hello"
+    And session$input for the ppNum id equals 3.14
+    And state$spec_seed is an empty named list
+
+Scenario: ppUpload spec value is silently dropped (fileInput unsettable)
+  Given a placeholder ppUpload with id "ggplot_1_1_ppUpload_NA"
+    And spec = list(ggplot_1_1_ppUpload_NA = "ignored.csv",
+                    ggplot_1_1_ppUpload_NA_name = "my_data")
+  When ptr_server_internal boots and flushReact() runs
+  Then state$spec_seed does NOT contain the key "ggplot_1_1_ppUpload_NA"
+    And a single cli::cli_inform names "ggplot_1_1_ppUpload_NA" as dropped at end of boot
+    And state$spec_seed for the source_companion id equals "my_data"
+    And the companion textInput's value (read via session$input) equals "my_data"
+
+Scenario: spec entry for unknown id is dropped with single aggregate cli_inform
+  Given spec = list(no_such_id_xyz = "foo", ggplot_1_1_ppVar_NA = "mpg")
+    And the formula provides ggplot_1_1_ppVar_NA but not no_such_id_xyz
+  When apply_spec_at_boot fires
+  Then state$spec_seed contains ggplot_1_1_ppVar_NA = "mpg" only
+    And a single cli::cli_inform names no_such_id_xyz as dropped
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected output: <code>FAIL 0 / WARN 0 / SKIP 2 / PASS &ge; 2181 + N</code> where N is the test-count delta from this plan's two new test files (estimate: N = 6–10 across the two files). SKIP count must be exactly 2 (ADR 0012 §5 OQ2 deferrals named in <code>test-rewrite-render.R:40</code> and <code>:53</code>); any other SKIP is a regression.</p>
+
+<p><strong>Proxy traps — do not be fooled (copied from <code>CLAUDE.md</code>):</strong></p>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file ERRORing (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a harness defect, not a product failure, and never the gate.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> RUNS the browser tests (source tree present → 0 SKIP for that file). That alone is the gate.</li>
+</ul>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: <code>R/paintr-server.R</code>, <code>R/paintr-build-ui.R</code>, <code>tests/testthat/test-adr12b-spec-custom-keyword.R</code>, <code>tests/testthat/test-adr12b-renderui-emission.R</code>. Generated files (<code>NAMESPACE</code>, <code>man/*.Rd</code>) are owned by an integration step — if a touched function gains or loses <code>@export</code> roxygen, run <code>devtools::document()</code> as the final action of the plan and report the diff; do not regenerate ad-hoc.</p>
+
+<p>Branch convention: this plan lives on branch <code>bug-b-spec-apply-uniform</code> in the worktree at <code>.claude/worktrees/bug-b-spec-apply-uniform/</code> (already entered for this session). Merge into <code>vignette-review</code> via <code>--no-ff</code> after PASS.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the DoD command above and verifies <code>FAIL 0 / WARN 0 / SKIP 2</code> with the PASS-count delta matching the new fixtures before any merge. A self-report of "tests pass" off a different gate command is rejected per CLAUDE.md "Proxy traps".</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: worktree branched from <code>vignette-review</code> at commit <code>a76310a</code> (verified 2026-05-22 in this session: DoD command returned <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2181</code>, duration 107.1s). The two SKIPs are <code>test-rewrite-render.R:40</code> and <code>:53</code> — ADR 0012 §5 OQ2 deferrals for <code>%&gt;%</code>-source surface preservation; not regressions. New failures = anything not in this baseline.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. Specifically:</p>
+<ul>
+  <li>Removing <code>updateXyzInput</code> from <code>apply_spec_entry</code> → PLAN-02.</li>
+  <li>Reverting <code>app$get_value</code> workarounds to <code>app$get_html</code> in <code>test-adr12-spec-roundtrip.R</code> → PLAN-02.</li>
+  <li>Moving framework-internal widgets (stage_enabled / layer_checkbox / source_companion) to renderUI → future plan, only if the user requests it.</li>
+  <li>Per-plot vs combined-spec accessor at the grid level → ADR 0012 §5 OQ3, deferred.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+
+<p><strong>Depends on:</strong> none (G1, first in topology). Branches off <code>vignette-review@a76310a</code>.</p>
+<p><strong>Provides for:</strong> PLAN-02 consumes <code>state$spec_seed</code> + the new setup helpers + the reshaped <code>build_ui_for.*</code> methods to collapse <code>apply_spec_entry</code> to seed-only.</p>
+
+<!-- implementable: PASS date=2026-05-22 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=3b58f9fda7b7 -->
+</body>
+</html>

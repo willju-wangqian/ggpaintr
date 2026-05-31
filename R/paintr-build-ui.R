@@ -4,7 +4,7 @@
 # scaffolding in P6 and `ptr_module_*`) invoke once per tree node that
 # wants Shiny widgets. The dispatch:
 #   1. resolves the human-readable label via `ptr_resolve_ui_text`
-#   2. namespaces `node$id` (and the source's `companion_id`) via `ns_fn`
+#   2. namespaces `node$id` (and the source's `shortcut_id`) via `ns_fn`
 #   3. forwards to the registered `build_ui` hook with a resolved label
 #
 # The hook only ever sees a final id and a final label string. It never
@@ -14,13 +14,13 @@
 #'
 #' S3 generic dispatched per node class. Resolves the human-readable label
 #' through `ptr_resolve_ui_text`, namespaces the node's id (and any
-#' `companion_id` for source nodes) via `ns_fn`, and forwards to the
+#' `shortcut_id` for source nodes) via `ns_fn`, and forwards to the
 #' registered `build_ui` hook for the placeholder's keyword.
 #'
 #' @param node A typed AST node (e.g. `ptr_ph_value`, `ptr_ph_data_consumer`,
 #'   `ptr_ph_data_source`, `ptr_layer`).
 #' @param ... Additional arguments. Recognized by built-in methods:
-#'   `ui_text`, `layer_name`, `ns_fn`, `checkbox_defaults`, `shell_copy`,
+#'   `ui_text`, `layer_name`, `ns_fn`, `shell_copy`,
 #'   `label_override` (force a specific widget label, used for shared widgets
 #'   referenced under several params). Consumer placeholders emit only a `uiOutput` container at
 #'   static build time; their picker is rendered server-side via
@@ -51,17 +51,23 @@ build_ui_for.ptr_ph_value <- function(node,
                                        param_override = NULL,
                                        label_suffix = NULL,
                                        ...) {
-  invoke_build_ui(node, ui_text = ui_text,
-                  layer_name = layer_name, ns_fn = ns_fn, extra = list(),
-                  param_override = param_override, label_suffix = label_suffix,
-                  ...)
+  # ADR 0012 / PLAN-01 (Bug B): emit a `uiOutput` container; the actual
+  # widget is rendered server-side inside `ptr_setup_value_uis()` via
+  # `invoke_build_ui()`, whose `extra$selected` precedence seeds the
+  # initial value from `state$spec_seed[[raw_id]]` for every placeholder
+  # -- including custom keywords with no symmetric `updateXyz`. The
+  # consumer placeholder has emitted a `uiOutput` since day one (see
+  # `build_ui_for.ptr_ph_data_consumer` below); this generalises that
+  # pattern to all placeholder kinds so spec-apply can route through one
+  # uniform hook (the registry's single `build_ui`).
+  shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 }
 
 #' @exportS3Method
 build_ui_for.ptr_ph_data_consumer <- function(node,
                                                 ns_fn = identity,
                                                 ...) {
-  shiny::uiOutput(ptr_render_id(consumer_output_id(node$id), ns_fn))
+  shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
 }
 
 #' @exportS3Method
@@ -70,40 +76,40 @@ build_ui_for.ptr_ph_data_source <- function(node,
                                               layer_name = NULL,
                                               ns_fn = identity,
                                               ...) {
-  rendered_node <- node
-  rendered_node$id <- ns_fn(node$id)
-  if (!is.null(node$companion_id)) {
-    rendered_node$companion_id <- ns_fn(node$companion_id)
-  }
-  copy <- ptr_resolve_ui_text(
-    "control",
-    keyword = node$keyword,
-    param = node$param,
-    layer_name = layer_name,
-    ui_text = ui_text
-  )
+  # ADR 0012 / PLAN-01 (Bug B): emit a `uiOutput` container; the actual
+  # source widget (ppUpload's fileInput, a custom source widget) is
+  # rendered server-side inside `ptr_setup_source_uis()`. Routing through
+  # renderUI is what lets the seed-based spec-apply path
+  # (state$spec_seed[[bare]] -> extra$selected) cover custom source
+  # keywords without an `updateXyz` symmetric hook.
+  source_ui <- shiny::uiOutput(ptr_render_id(placeholder_output_id(node$id), ns_fn))
+
+  # ADR 0025 item #7: when the source's registry entry opts into the
+  # shortcut sibling, emit its textInput here as STATIC UI -- never inside
+  # the source renderUI. Keeping it static (a) leaves typing undisturbed
+  # (it is never re-rendered) and (b) lets the source uiOutput re-render on
+  # the shortcut's rising edge (clearing a stale file pill) without wiping
+  # the typed text. The textInput binds at `node$shortcut_id`, which the
+  # server reads via `ns(node$shortcut_id)` in `ptr_setup_pipelines()` /
+  # `ptr_setup_panel_sources()`. Generalises to any `shortcut = TRUE`
+  # source (no ppUpload-specific path): the framework owns the textbox.
   entry <- ptr_registry_lookup(node$keyword)
-  if (is.null(entry) || is.null(entry$build_ui)) {
-    rlang::abort(paste0(
-      "Placeholder `", node$keyword, "` has no `build_ui` function. Pass ",
-      "`build_ui = function(node, label, ...)` when registering it -- see ",
-      "`?ptr_define_placeholder_value`."
-    ))
+  if (!isTRUE(entry$shortcut) || is.null(node$shortcut_id)) {
+    return(source_ui)
   }
-  fmls <- names(formals(entry$build_ui))
-  accepts_dots <- "..." %in% fmls
-  extra_named <- build_ui_copy_args(fmls, copy)
-  if (identical(node$keyword, "upload") &&
-      (accepts_dots || "file_copy" %in% fmls)) {
-    extra_named$file_copy <- ptr_resolve_ui_text(
-      "upload_file", ui_text = ui_text
+  name_copy <- ptr_resolve_ui_text("upload_name", ui_text = ui_text)
+  shiny::tagList(
+    source_ui,
+    attach_help(
+      shiny::textInput(
+        inputId = ptr_render_id(node$shortcut_id, ns_fn),
+        label = name_copy$label %||% "Optional dataset name",
+        value = node$default %||% "",
+        placeholder = name_copy$placeholder
+      ),
+      name_copy$help
     )
-    extra_named$name_copy <- ptr_resolve_ui_text(
-      "upload_name", ui_text = ui_text
-    )
-  }
-  do.call(entry$build_ui,
-          c(list(rendered_node, label = copy$label), extra_named, list(...)))
+  )
 }
 
 # ---- ptr_layer panel scaffolding ----
@@ -112,7 +118,6 @@ build_ui_for.ptr_ph_data_source <- function(node,
 build_ui_for.ptr_layer <- function(node,
                                     ui_text = NULL,
                                     ns_fn = identity,
-                                    checkbox_defaults = NULL,
                                     shell_copy = NULL,
                                     ...) {
   layer_name <- node$name
@@ -143,8 +148,16 @@ build_ui_for.ptr_layer <- function(node,
     ns_fn = ns_fn
   )
 
-  default_on <- resolve_layer_default(layer_name, checkbox_defaults,
-                                      node$default_active)
+  # ADR 0020 PLAN-02: read `default_active` directly from the carrier
+  # ptr_layer node — the snapshot site (`ptr_default_snapshot()`) reads the
+  # same field, so static-UI value and reactive seed agree at boot. The
+  # `ggplot` layer is always-on by convention (no off-switch checkbox is
+  # even emitted for it).
+  default_on <- if (identical(layer_name, "ggplot")) {
+    TRUE
+  } else {
+    isTRUE(node$default_active %||% TRUE)
+  }
 
   content_div <- shiny::div(
     id = ns_fn(layer_panel_content_id(layer_name)),
@@ -185,17 +198,16 @@ build_ui_for.ptr_layer <- function(node,
 build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
   build_ph <- function(entry, drop_suffix) {
     ph <- entry$ph
-    verb <- entry$verb
-    has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
-    param_override <- if (has_verb && ptr_param_is_unnamed(ph$param)) {
-      paste0(verb, "()")
-    } else NULL
-    label_suffix <- if (has_verb && !drop_suffix) {
-      paste0(" in ", verb, "()")
-    } else NULL
+    # ADR 0021 — synthetic header-only entry for a `ppVerbSwitch(<verb>, ...)`
+    # stage whose inner verb has no placeholders. Carries `ph = NULL` so the
+    # loop adds nothing to `fields`; the stage block's checkbox header is
+    # still emitted from the entry's `stage_id` / `stage_label` /
+    # `default_stage_enabled`.
+    if (is.null(ph)) return(NULL)
+    ov <- stage_overrides_for_entry(entry, drop_suffix)
     build_ui_for(ph, ui_text = ui_text, layer_name = layer_name,
-                 ns_fn = ns_fn, param_override = param_override,
-                 label_suffix = label_suffix)
+                 ns_fn = ns_fn, param_override = ov$param_override,
+                 label_suffix = ov$label_suffix)
   }
   out <- list()
   seen <- character()
@@ -220,23 +232,94 @@ build_pipeline_stage_ui <- function(entries, ui_text, layer_name, ns_fn) {
       if (!is.null(ui)) fields[[length(fields) + 1L]] <- ui
       j <- j + 1L
     }
-    if (length(fields) > 0L) {
-      if (sid %in% seen) {
+    if (sid %in% seen) {
+      # Continuation only carries fields; with no widgets to add (e.g. only
+      # a synthetic header-only entry for this sid), skip — the head was
+      # already emitted at first sighting.
+      if (length(fields) > 0L) {
         out[[length(out) + 1L]] <- controllable_region_continuation(fields)
-      } else {
-        seen <- c(seen, sid)
-        has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
-        head_label <- if (has_verb) {
-          shiny::tags$code(paste0(verb, "()"))
-        } else NULL
-        out[[length(out) + 1L]] <- controllable_region(
-          sid, head_label, fields, ns_fn = ns_fn
-        )
       }
+    } else {
+      seen <- c(seen, sid)
+      has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+      # ADR 0021 PLAN-05: precedence — user-declared `stage_label` first
+      # (plain text, passed through unchanged), auto-derived `verb()`
+      # second (wrapped in `<code>`), NULL third. Reversing the order
+      # would let auto-label leak past a user override; wrapping the
+      # user's plain text in `<code>` would break the user's intent.
+      user_stage_label <- entries[[i]]$stage_label
+      head_label <- if (!is.null(user_stage_label)) {
+        user_stage_label
+      } else if (has_verb) {
+        shiny::tags$code(paste0(verb, "()"))
+      } else NULL
+      # ADR 0020 PLAN-02: all entries in one stage block share the same
+      # `default_stage_enabled` (they all descend from the same stage
+      # carrier ptr_call); reading the head entry's threaded value is
+      # sufficient. `%||% TRUE` covers the no-carrier case (e.g. a bare
+      # pipeline stage with no ppVerbSwitch stamp).
+      default_on <- isTRUE(entries[[i]]$default_stage_enabled %||% TRUE)
+      # ADR 0021: emit the head unconditionally so a `ppVerbSwitch(<verb>,
+      # ...)` wrapping a placeholder-free verb still gets its toggle
+      # checkbox. `fields` may be empty (single synthetic entry); the
+      # `.ptr-stage-fields` wrapper is then a harmless empty div.
+      out[[length(out) + 1L]] <- controllable_region(
+        sid, head_label, fields, ns_fn = ns_fn, default_on = default_on
+      )
     }
     i <- j
   }
   out
+}
+
+# Single source of truth for the verb-derived overrides a pipeline-stage
+# placeholder needs: the `{param}` override (so its copy reads "... for
+# head()") and the " in verb()" label suffix. Computed at static build time by
+# `build_pipeline_stage_ui()` AND re-derived at renderUI time by
+# `pipeline_override_for_node()`; both call this so the two paths cannot drift.
+# `drop_suffix = TRUE` suppresses the per-widget " in verb()" suffix when an
+# enclosing stage-group header already names the verb. Returns both overrides
+# as NULL for an entry with no verb.
+stage_overrides_for_entry <- function(entry, drop_suffix) {
+  verb <- entry$verb
+  has_verb <- !is.null(verb) && !is.na(verb) && nzchar(verb)
+  list(
+    param_override = if (has_verb && ptr_param_is_unnamed(entry$ph$param)) {
+      paste0(verb, "()")
+    } else NULL,
+    label_suffix = if (has_verb && !drop_suffix) {
+      paste0(" in ", verb, "()")
+    } else NULL
+  )
+}
+
+# ADR 0012 / PLAN-01 (Bug B): pipeline-stage placeholders need their verb
+# embedded in the resolved widget copy (e.g. "Enter a number for head()").
+# Pre-PLAN-01, `build_pipeline_stage_ui()` computed `param_override` /
+# `label_suffix` and threaded them through `build_ui_for(ph, ...)` --
+# which forwarded into `invoke_build_ui()`. After PLAN-01,
+# `build_ui_for.ptr_ph_value` returns a uiOutput container and the actual
+# widget is composed inside `ptr_setup_value_uis()`'s renderUI body. The
+# panel-level args no longer reach `invoke_build_ui()`, so the renderUI
+# body must re-derive the same overrides by walking the live tree. This
+# helper does that lookup via `stage_overrides_for_entry()` (the shared
+# derivation). Returns NULL when `node_id` is not a pipeline-stage
+# placeholder (control-arg / aes-arg placeholders carry no verb override).
+pipeline_override_for_node <- function(tree, node_id) {
+  if (is.null(tree) || is.null(tree$layers)) return(NULL)
+  for (layer in tree$layers) {
+    if (is.null(layer$data_arg)) next
+    entries <- find_layer_placeholders_with_stage(layer$data_arg)
+    for (entry in entries) {
+      if (!identical(entry$ph$id, node_id)) next
+      # `drop_suffix = !is.na(stage_id)`: when the placeholder lives inside a
+      # recognized stage group, the group's header already names the verb,
+      # so the per-widget " in verb()" suffix is suppressed -- mirroring
+      # `build_pipeline_stage_ui()`'s `drop_suffix = TRUE` branch.
+      return(stage_overrides_for_entry(entry, drop_suffix = !is.na(entry$stage_id)))
+    }
+  }
+  NULL
 }
 
 # Every node where `pred(node)` is TRUE, in pre-order. See `ptr_walk()` in
@@ -269,12 +352,23 @@ find_layer_placeholders_with_stage <- function(x) {
     nm <- bare_call_name(fun)
     if (is.null(nm) || !nzchar(nm)) NA_character_ else nm
   }
-  visit <- function(n, current_sid, current_verb) {
+  # ADR 0020 PLAN-02: thread `current_def_stage` (the carrier ptr_call's
+  # `default_stage_enabled`, NULL when no carrier is on the descent) alongside
+  # `current_sid` / `current_verb`. Picked up on the stage-descent branches
+  # below, threaded through every recursive call, and stamped on the emitted
+  # entry so `build_pipeline_stage_ui()` can pass it to `controllable_region()`.
+  # ADR 0021 PLAN-05: also thread `current_stage_label` (the carrier ptr_call's
+  # `stage_label`, NULL when unset or when no carrier is on the descent) so
+  # `build_pipeline_stage_ui()` can override the stage-block head label.
+  visit <- function(n, current_sid, current_verb, current_def_stage,
+                    current_stage_label) {
     if (is.null(n)) return()
     if (is_ptr_placeholder(n)) {
       if (is_shared_placeholder(n)) return()
       out[[length(out) + 1L]] <<- list(
-        ph = n, stage_id = current_sid, verb = current_verb
+        ph = n, stage_id = current_sid, verb = current_verb,
+        default_stage_enabled = current_def_stage,
+        stage_label = current_stage_label
       )
       return()
     }
@@ -289,17 +383,62 @@ find_layer_placeholders_with_stage <- function(x) {
       } else {
         current_verb
       }
-      for (a in n$args) visit(a, sid, verb)
+      # Adopt the stage carrier's `default_stage_enabled` on the same branch
+      # the stage_id is adopted; otherwise inherit. NULL stays NULL —
+      # consumer's `%||% TRUE` covers the no-carrier case.
+      def_stage <- if (!is.null(n$stage_id)) {
+        n$default_stage_enabled
+      } else {
+        current_def_stage
+      }
+      # ADR 0021 PLAN-05: adopt the stage carrier's `stage_label` on the
+      # same branch the stage_id is adopted; otherwise inherit. NULL stays
+      # NULL — the UI emitter falls back to the auto-derived verb label.
+      stage_lbl <- if (!is.null(n$stage_id)) {
+        n$stage_label
+      } else {
+        current_stage_label
+      }
+      for (a in n$args) visit(a, sid, verb, def_stage, stage_lbl)
       return()
     }
     if (is_ptr_pipeline(n)) {
       for (s in n$stages) {
         if (is_ptr_call(s) && !is.null(s$stage_id)) {
-          # Stage IS the call: its args descend with the stage's id.
+          # Stage IS the call: its args descend with the stage's id and
+          # the stage's `default_stage_enabled` (NULL inherits the
+          # consumer's `%||% TRUE` fallback). ADR 0021 PLAN-05: also pass
+          # the stage's `stage_label` (NULL inherits the auto-label
+          # fallback in the UI emitter).
           verb <- call_head_name(s$fun)
-          for (a in s$args) visit(a, s$stage_id, verb)
+          for (a in s$args) {
+            visit(a, s$stage_id, verb, s$default_stage_enabled,
+                  s$stage_label)
+          }
+          # ADR 0021 — "give me a checkbox without inventing a placeholder":
+          # `ppVerbSwitch(<verb>, ...)` stamps `has_user_control = TRUE` on a
+          # stage whose inner verb may carry zero placeholders. The arg-visit
+          # above then emits no entries, AND `collect_orphan_shared_stages`
+          # skips it (it requires >=1 shared placeholder). Without a synthetic
+          # header-only entry the UI emitter would never render the toggle
+          # checkbox — silently dropping (or silently keeping) the verb with
+          # no way for the user to flip it. Synthesise an entry with
+          # `ph = NULL` so `build_pipeline_stage_ui()` still emits the
+          # stage-block header.
+          if (isTRUE(s$has_user_control)) {
+            stage_ph_count <- length(
+              ptr_collect(s, is_ptr_placeholder, prune = is_ptr_placeholder)
+            )
+            if (stage_ph_count == 0L) {
+              out[[length(out) + 1L]] <<- list(
+                ph = NULL, stage_id = s$stage_id, verb = verb,
+                default_stage_enabled = s$default_stage_enabled,
+                stage_label = s$stage_label
+              )
+            }
+          }
         } else {
-          visit(s, NA_character_, NA_character_)
+          visit(s, NA_character_, NA_character_, NULL, NULL)
         }
       }
       return()
@@ -307,13 +446,15 @@ find_layer_placeholders_with_stage <- function(x) {
     if (is_ptr_node(n)) {
       for (nm in names(n)) {
         if (identical(nm, "upstream")) next
-        visit(n[[nm]], current_sid, current_verb)
+        visit(n[[nm]], current_sid, current_verb, current_def_stage,
+              current_stage_label)
       }
     } else if (is.list(n) && !is.pairlist(n)) {
-      for (el in n) visit(el, current_sid, current_verb)
+      for (el in n) visit(el, current_sid, current_verb, current_def_stage,
+                          current_stage_label)
     }
   }
-  visit(x, NA_character_, NA_character_)
+  visit(x, NA_character_, NA_character_, NULL, NULL)
   out
 }
 
@@ -372,10 +513,18 @@ collect_orphan_shared_stages <- function(tree) {
     if (length(phs) == 0L) return()
     if (!all(vapply(phs, is_shared_placeholder, logical(1)))) return()
     keys <- unique(vapply(phs, function(p) p$shared, character(1)))
+    # ADR 0020 PLAN-02: carry the carrier ptr_call's `default_stage_enabled`
+    # forward so `wrap_shared_widgets_with_stage_blocks()` can render the
+    # shared-stage controllable_region with the matching boot value. ADR 0021
+    # PLAN-05: also carry `stage_label` so the same shared-stage emitter can
+    # override the head label with the user's plain-text declaration (NULL
+    # falls back to the auto-derived verb label).
     out[[length(out) + 1L]] <<- list(
       stage_id = n$stage_id,
       verb = bare_call_name(n$fun) %||% NA_character_,
-      shared_keys = keys
+      shared_keys = keys,
+      default_stage_enabled = n$default_stage_enabled,
+      stage_label = n$stage_label
     )
   })
   out
@@ -442,11 +591,19 @@ wrap_shared_widgets_with_stage_blocks <- function(entries, widgets,
     }
     emitted <- c(emitted, st$stage_id)
     has_verb <- !is.null(st$verb) && !is.na(st$verb) && nzchar(st$verb)
-    head_label <- if (has_verb) {
+    # ADR 0021 PLAN-05: same precedence as `build_pipeline_stage_ui()` —
+    # user-declared `stage_label` first (plain text), auto-derived
+    # `verb()` second, NULL third.
+    head_label <- if (!is.null(st$stage_label)) {
+      st$stage_label
+    } else if (has_verb) {
       shiny::tags$code(paste0(st$verb, "()"))
     } else NULL
+    # ADR 0020 PLAN-02: shared-stage controllable_region boots from the
+    # carrier ptr_call's `default_stage_enabled` (NULL falls back to TRUE).
+    default_on <- isTRUE(st$default_stage_enabled %||% TRUE)
     out[[length(out) + 1L]] <- controllable_region(
-      st$stage_id, head_label, w, ns_fn = ns_fn
+      st$stage_id, head_label, w, ns_fn = ns_fn, default_on = default_on
     )
   }
   out
@@ -489,16 +646,6 @@ layer_panel_inner <- function(pipeline_ui, control_ui,
 
 layer_panel_content_id <- function(layer_name) {
   paste0("ptr_layer_content_", layer_name)
-}
-
-resolve_layer_default <- function(layer_name, checkbox_defaults,
-                                   default_active) {
-  if (identical(layer_name, "ggplot")) return(TRUE)
-  if (!is.null(checkbox_defaults) &&
-      layer_name %in% names(checkbox_defaults)) {
-    return(isTRUE(checkbox_defaults[[layer_name]]))
-  }
-  isTRUE(default_active %||% TRUE)
 }
 
 layer_panel_default_shell_copy <- function(ui_text) {
@@ -701,7 +848,30 @@ invoke_build_ui <- function(node, ui_text, layer_name,
       "`?ptr_define_placeholder_value`."
     ))
   }
-  extra_named <- build_ui_copy_args(names(formals(entry$build_ui)), copy)
+  fmls <- names(formals(entry$build_ui))
+  extra_named <- build_ui_copy_args(fmls, copy)
+  # Inject `node$default` into `selected` only when the caller omitted
+  # `selected`. The widget-seeding contract is documented authoritatively
+  # at ?ptr_define_placeholder_value (Widget-seeding contract section).
+  # Language defaults (ptr_arg_expression) are deparsed here so
+  # do.call binds a string rather than evaluating the call.
+  hook_accepts_dots <- "..." %in% fmls
+  if (hook_accepts_dots || "selected" %in% fmls) {
+    if (!"selected" %in% names(extra)) {
+      seed_default <- node$default
+      if (is.language(seed_default)) {
+        seed_default <- paste(deparse(seed_default), collapse = "\n")
+      }
+      extra$selected <- seed_default
+    }
+  }
+  # PLAN-07: pass `node$named_args` through so custom hooks can consume them;
+  # built-in hooks swallow it via their `...` sink. Same accepts-arg guard.
+  if (hook_accepts_dots || "named_args" %in% fmls) {
+    if (!"named_args" %in% names(extra)) {
+      extra$named_args <- node$named_args %||% list()
+    }
+  }
   do.call(entry$build_ui,
           c(list(rendered_node, label = copy$label), extra_named, extra,
             list(...)))

@@ -34,13 +34,13 @@ test_that("upload helpers normalize .rds columns and coerce list-like uploads", 
 test_that("upload metadata uses custom names or normalized file names", {
   input_default <- list(
     "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info_default <- ptr_resolve_upload_info(input_default, "ggplot_2")
 
   input_custom <- list(
     "ggplot_2" = mock_upload_input(fixture_path("simple_numeric.csv"), "simple numeric.csv"),
-    "ggplot_2_name" = "custom dataset"
+    "ggplot_2_shortcut" = "custom dataset"
   )
   info_custom <- ptr_resolve_upload_info(input_custom, "ggplot_2")
 
@@ -55,7 +55,7 @@ test_that("non-coercible uploads fail with a tabular-data validation error", {
 
   input_bad <- list(
     "ggplot_2" = mock_upload_input(non_coercible_path, "non_coercible.rds"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
 
   expect_error(
@@ -67,7 +67,7 @@ test_that("non-coercible uploads fail with a tabular-data validation error", {
 test_that("unsupported upload extensions error clearly", {
   input_bad <- list(
     "ggplot_2" = mock_upload_input(fixture_path("bad_extension.txt"), "bad_extension.txt"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
 
   expect_error(
@@ -95,7 +95,7 @@ test_that("TSV upload code_text uses read.delim", {
 
   input <- list(
     "ggplot_2" = mock_upload_input(tsv_file, "data.tsv"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info <- ptr_resolve_upload_info(input, "ggplot_2")
 
@@ -129,7 +129,7 @@ test_that("Excel upload code_text uses readxl::read_excel", {
 
   input <- list(
     "ggplot_2" = mock_upload_input(xlsx_file, "report.xlsx"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info <- ptr_resolve_upload_info(input, "ggplot_2")
 
@@ -220,7 +220,7 @@ test_that("JSON upload code_text uses jsonlite::fromJSON", {
 
   input <- list(
     "ggplot_2" = mock_upload_input(json_file, "records.json"),
-    "ggplot_2_name" = ""
+    "ggplot_2_shortcut" = ""
   )
   info <- ptr_resolve_upload_info(input, "ggplot_2")
 
@@ -371,60 +371,49 @@ test_that("F5: 'normal.csv' produces default name 'normal' (happy path)", {
   expect_equal(ptr_upload_default_name("normal.csv"), "normal")
 })
 
-test_that("ptr_upload_autoname derives a default only when the companion is blank", {
-  # Drives the upload observer in ptr_setup_pipelines(): a blank
-  # dataset-name companion is auto-filled from the uploaded filename so
-  # the code panel can render `data = <name>`; a name the user typed is
-  # never overwritten.
-  expect_equal(ptr_upload_autoname(NULL, "my_penguins.csv"), "my_penguins")
-  expect_equal(ptr_upload_autoname("", "data set.tsv"), "data_set")
-  expect_null(ptr_upload_autoname("keep_me", "other.csv"))
-  expect_null(ptr_upload_autoname(NULL, NULL))
-  expect_null(ptr_upload_autoname(NULL, ""))
-  expect_null(ptr_upload_autoname(NULL, character(0)))
-})
-
 # --- Phase 1.5 / 1.6: upload widget accept filter + copy-driven labels -------
 
-.upload_node_from <- function(formula = "upload |> ggplot()") {
+.upload_node_from <- function(formula = "ppUpload |> ggplot()") {
   tree <- ptr_translate(formula)
   hits <- find_nodes(tree, function(n) {
-    is_ptr_placeholder(n) && identical(n$keyword, "upload")
+    is_ptr_placeholder(n) && identical(n$keyword, "ppUpload")
   })
   hits[[1L]]
 }
 
-test_that("upload build_ui restores the accept filter on the file input", {
+test_that("ppUpload build_ui restores the accept filter on the file input", {
   node <- .upload_node_from()
-  ui <- build_ui_for(node, layer_name = "ggplot")
+  ui <- .source_widget(node)
   rendered <- as.character(ui)
   expect_match(rendered, 'type="file"')
   expect_match(rendered, "accept=\".csv,.tsv,.rds,.xlsx,.xls,.json\"", fixed = TRUE)
 })
 
 test_that("upload labels/help are driven by upload_file / upload_name copy", {
+  # ADR 0025 item #7: the upload widget is now split across two layers --
+  # the file copy lives in the source hook (`.source_widget`), the shortcut
+  # name copy in `build_ui_for` (the static textInput). Assert each on its
+  # own layer.
   node <- .upload_node_from()
-  ui <- build_ui_for(
-    node, layer_name = "ggplot",
-    ui_text = list(upload = list(
-      file = list(label = "Pick your CSV", help = "file help here"),
-      name = list(label = "Name it", placeholder = "eg sales", help = "name help here")
-    ))
-  )
-  rendered <- as.character(ui)
-  expect_match(rendered, "Pick your CSV")
-  expect_match(rendered, "file help here")
-  expect_match(rendered, "Name it")
-  expect_match(rendered, 'placeholder="eg sales"', fixed = TRUE)
-  expect_match(rendered, "name help here")
+  ui_text <- list(upload = list(
+    file = list(label = "Pick your CSV", help = "file help here"),
+    name = list(label = "Name it", placeholder = "eg sales", help = "name help here")
+  ))
+  file_ui <- as.character(.source_widget(node, ui_text = ui_text))
+  name_ui <- as.character(build_ui_for(node, ui_text = ui_text))
+  expect_match(file_ui, "Pick your CSV")
+  expect_match(file_ui, "file help here")
+  expect_match(name_ui, "Name it")
+  expect_match(name_ui, 'placeholder="eg sales"', fixed = TRUE)
+  expect_match(name_ui, "name help here")
 })
 
 test_that("upload uses the resolved default copy when no override is given", {
   node <- .upload_node_from()
-  ui <- build_ui_for(node, layer_name = "ggplot")
-  rendered <- as.character(ui)
-  expect_match(rendered, "Choose a data file")
-  expect_match(rendered, "Optional dataset name")
+  file_ui <- as.character(.source_widget(node))
+  name_ui <- as.character(build_ui_for(node))
+  expect_match(file_ui, "Choose a data file")        # file copy (hook)
+  expect_match(name_ui, "Optional dataset name")     # name copy (build_ui_for)
 })
 
 test_that("the removed shell$update_data_button copy key is still rejected", {

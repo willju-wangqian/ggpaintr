@@ -1,7 +1,7 @@
 Package: ggpaintr
 Type: Package
 Title: Build Formula-Driven 'shiny' Apps for 'ggplot2'
-Version: 0.9.2
+Version: 0.10.0
 Authors@R: c(
     person(
       given = "Wangqian",
@@ -53,6 +53,7 @@ Suggests:
     knitr,
     pkgdown,
     plotly,
+    purrr,
     readxl,
     rmarkdown,
     shinytest2,
@@ -65,3 +66,8 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3
+Config/testthat/start-first: e2e-vignette-examples-shinytest2,
+    j12-spec-and-renderui-emission-journey, shared-source-panel-multi-instance,
+    adr0024-companion-entry-point, prologue-reader-fn-mirror,
+    j2-prologue-csv-upload-journey, j11-app-basic-journey,
+    default-seeding-with-source-upstream, adr15-consumer-binding

@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — Preserve-mode current_pick for ppUpload reads companion-id snapshot (from ADR 0010)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: preserve-mode-current-pick
+  source_adr: dev/adr/0010-ppupload-name-default-arg.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-02 — Preserve-mode <code>current_pick</code> for <code>ppUpload</code> reads the companion-id snapshot</h1>
+<p class="meta">Source: ADR 0010 (Decision §3 + Clarification C1) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0010 Decision §3 says <em>"<code>render_placeholder_preserved</code> dispatches <code>ppUpload</code> through <code>format_placeholder_value</code> with bareword formatting, identical to <code>ppVar</code>. <code>ppUpload(penguins)</code> in the formula round-trips back to <code>ppUpload(penguins)</code> in the code panel."</em> Clarification C1 documents the half of this that is already done: <code>format_placeholder_value</code> (<code>R/paintr-render.R:391–412</code>) already lists <code>"ppUpload"</code> in <code>bareword_kw</code>. What is <em>not</em> yet wired up is <code>stamp_current_pick_walk.ptr_ph_data_source</code> (<code>R/paintr-render.R:358–364</code>), which today reads <code>snapshot[[node$id]]</code> — the <strong>fileInput</strong>'s value (a four-column data.frame describing the upload, or <code>NULL</code> when no file was chosen) — and uses that as <code>node$current_pick</code>. For <code>ppUpload</code> nodes, the meaningful "current pick" is instead the user-entered display name living at <code>snapshot[[node$companion_id]]</code>.</p>
+
+<p>This plan rewires <code>stamp_current_pick_walk.ptr_ph_data_source</code> so that when <code>node$companion_id</code> is set, the companion-id snapshot value drives <code>node$current_pick</code>. With PLAN-01 seeding that companion <code>textInput</code> from <code>node$default</code>, the end-to-end round trip <code>ppUpload(penguins)</code> → preserve-mode <code>ppUpload(penguins)</code> works without further changes to <code>render_placeholder_preserved</code> or <code>format_placeholder_value</code>. Companion-less data-source placeholders (registered via <code>ptr_define_placeholder_source()</code> without <code>companion_id_fn</code>) keep the existing <code>snapshot[[node$id]]</code> path.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><code>stamp_current_pick_walk.ptr_ph_data_source</code> in <code>R/paintr-render.R</code> reads from <code>snapshot[[node$companion_id]]</code> when <code>node$companion_id</code> is non-NULL and non-empty; otherwise falls back to the existing <code>snapshot[[node$id]]</code> path. The "is this a real pick" guard (<code>.snapshot_value_is_set(node, val)</code>) still applies on the chosen value.</li>
+  <li><code>render_placeholder_preserved</code> on a <code>ptr_ph_data_source</code> node with <code>keyword="ppUpload"</code>, <code>companion_id="up1_name"</code>, and <code>current_pick="penguins"</code> (set by the rewired stamp pass) returns the character scalar <code>"ppUpload(penguins)"</code>. (<code>format_placeholder_value</code>'s existing <code>bareword_kw</code> dispatch handles the formatting — no render.R change downstream of the stamp pass.)</li>
+  <li><code>render_placeholder_preserved</code> on a <code>ptr_ph_data_source</code> node with <code>keyword="ppUpload"</code> and <code>current_pick=NULL</code> (no companion value typed, no default) returns <code>"ppUpload()"</code> — legacy behavior preserved.</li>
+  <li><code>render_placeholder_preserved</code> on a <code>ptr_ph_data_source</code> node with <code>keyword="ppUpload"</code> and <code>current_pick=""</code> (companion textInput was rendered but emptied) returns <code>"ppUpload()"</code>. Empty-string is treated by <code>.snapshot_value_is_set</code> as "not set" so <code>current_pick</code> stays NULL — verify the guard does this for character scalars; if it does not, this plan does NOT modify <code>.snapshot_value_is_set</code> — instead the test asserts whatever the existing guard actually does, and the BDD scenario records that ground truth.</li>
+  <li>A companion-less data-source registry entry (e.g. a fabricated test placeholder registered via <code>ptr_define_placeholder_source(keyword="ppTestSrc", build_ui=..., resolve_data=...)</code> with <strong>no</strong> <code>companion_id_fn</code>) still stamps <code>current_pick</code> from <code>snapshot[[node$id]]</code>, preserving the existing path for non-upload sources. Asserted by direct call to the rewired stamp function with a synthetic node.</li>
+  <li>Authoritative gate returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + N_new)</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-render.R</code> — modify only <code>stamp_current_pick_walk.ptr_ph_data_source</code> (lines 358–364). No other functions in the file may be touched. In particular: <code>format_placeholder_value</code> (391–412) is already correct for <code>ppUpload</code> per Clarification C1; <code>render_placeholder_preserved</code> (372–385) handles all keywords uniformly and needs no change; <code>render_walk.ptr_ph_data_source</code> (254–259) routes through <code>render_placeholder_preserved</code> in preserve mode and needs no change.</li>
+      <li><code>tests/testthat/test-ppupload-preserve-mode.R</code> (new file).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong> <code>R/paintr-builtins.R</code> (owned by PLAN-01), <code>R/paintr-substitute.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-translate.R</code>, <code>R/paintr-default-args.R</code>, <code>NAMESPACE</code>, <code>man/</code>, any vignette, any fixture under <code>tests/testthat/fixtures/vignette-apps/</code>.</li>
+  <li>The rewired stamp pass must remain order-independent w.r.t. PLAN-01 — its tests construct synthetic <code>ptr_ph_data_source</code> nodes directly and supply explicit <code>snapshot</code> lists, so they verify the stamp logic without depending on PLAN-01's UI seeding or <code>node$default</code>.</li>
+  <li>Honor project conventions: <code>%||%</code> for null coalesce, no <code>stop()</code>/<code>warning()</code>, snake_case, 2-space indent.</li>
+  <li>No scope creep into <code>.snapshot_value_is_set</code> — if a test scenario depends on its behavior, encode the actual current behavior rather than changing the helper.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: stamp_current_pick_walk reads the companion-id snapshot for upload-style data sources
+
+Scenario: Companion-id snapshot value populates current_pick
+  Given a ptr_ph_data_source node N with keyword="ppUpload",
+        id="up1", companion_id="up1_name", current_pick=NULL
+  And   a snapshot list with snapshot[["up1_name"]] = "penguins"
+        and snapshot[["up1"]] absent or NULL
+  When  I call ggpaintr:::stamp_current_pick_walk(N, snapshot)
+  Then  the returned node's current_pick equals the character scalar "penguins"
+
+Scenario: Empty companion-id value leaves current_pick NULL
+  Given the same N
+  And   snapshot[["up1_name"]] = ""
+  When  I call stamp_current_pick_walk(N, snapshot)
+  Then  the returned node's current_pick is NULL
+        (the existing .snapshot_value_is_set guard treats "" as not-set)
+
+Scenario: NULL companion-id value leaves current_pick NULL
+  Given the same N
+  And   snapshot is list() with no "up1_name" entry
+  When  I call stamp_current_pick_walk(N, snapshot)
+  Then  the returned node's current_pick is NULL
+
+Scenario: Companion-less source still uses node$id path
+  Given a ptr_ph_data_source node M with keyword="ppTestSrc",
+        id="src1", companion_id=NULL, current_pick=NULL
+  And   snapshot[["src1"]] = "iris"
+  When  I call stamp_current_pick_walk(M, snapshot)
+  Then  the returned node's current_pick equals "iris"
+
+Scenario: render_placeholder_preserved emits ppUpload(name) bareword
+  Given a ptr_ph_data_source node with keyword="ppUpload" and current_pick="penguins"
+  When  I call ggpaintr:::render_placeholder_preserved(node)
+  Then  the returned string equals "ppUpload(penguins)"
+
+Scenario: render_placeholder_preserved emits ppUpload() when no current_pick
+  Given a ptr_ph_data_source node with keyword="ppUpload" and current_pick=NULL
+  When  I call render_placeholder_preserved(node)
+  Then  the returned string equals "ppUpload()"
+
+Scenario: End-to-end round-trip through ptr_translate + ptr_render
+  Given the formula string "ppUpload() |&gt; ggplot(aes(x = ppVar)) + geom_point()"
+  And   a snapshot whose upload-node companion-id maps to "penguins"
+        and whose ppVar input maps to "mpg"
+  When  I call ggpaintr::ptr_translate(formula),
+        then ggpaintr:::stamp_current_pick_walk(root, snapshot),
+        then ggpaintr::ptr_render(root, preserve_placeholders = TRUE)
+  Then  the rendered text contains the literal substring "ppUpload(penguins)"
+  And   does NOT contain the literal substring "ppUpload()"
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> where <code>N = baseline_PASS_at_branch_point + N_new_tests_in_this_plan</code>. Record both numbers in the plan's worktree first commit message.</p>
+
+<p><strong>Proxy traps — do not be fooled (copied verbatim from <code>CLAUDE.md</code>):</strong></p>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong> (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds approximately 7 new tests in <code>tests/testthat/test-ppupload-preserve-mode.R</code>. The gate must show <code>PASS</code> rise by ≥ 7 with <code>FAIL/ERROR</code> still 0 and <code>SKIP</code> unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: one function body in <code>R/paintr-render.R</code> (<code>stamp_current_pick_walk.ptr_ph_data_source</code>, lines 358–364), plus the new test file. No generated files. No <code>NAMESPACE</code> changes (this is an S3 method already registered).</p>
+
+<p>Branch convention: this plan lives on branch <code>0010-preserve-mode-current-pick</code> in a worktree at <code>.claude/worktrees/0010-ppupload-name-default-arg/preserve-mode-current-pick/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: orchestrator branch HEAD at the commit where this plan's worktree was created. Record SHA and pre-plan PASS count in the worktree's first commit message. Pre-existing failures: none expected.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Findings outside this plan's owned files are surfaced in the audit report, never absorbed. Specifically: registry slot, UI seeding, and outside-app identity belong to PLAN-01; e2e fixture and integration tests belong to PLAN-03. <code>.snapshot_value_is_set</code> tweaks are out of scope here even if a scenario reveals an undesirable edge case — file as a follow-up plan.</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: none. Parallel-group G1 with PLAN-01 (disjoint files: this plan owns <code>R/paintr-render.R</code>; PLAN-01 owns <code>R/paintr-builtins.R</code>).</p>
+
+<p>Provides for: PLAN-03's e2e fixture, which asserts the preserve-mode round trip end-to-end.</p>
+
+<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=8797a90f2d32 -->
+</body>
+</html>

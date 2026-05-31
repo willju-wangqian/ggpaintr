@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 (Follow-up Finding 2) — last_ok_runtime cache for validate_input retain-on-error</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: last-ok-runtime-cache
+  source_adr: dev/adr/0013-super-app-pressure-test-suite.html
+  depends_on: []
+  parallel_group: G0
+  status: draft
+provenance:
+  Follow-up surfaced by the 2026-05-23 plans-03-06-rerun /exec-plan run (handoff
+  file: /var/folders/86/znw5mx352fj9523j26lssygh0000gn/T/handoff-plans-03-06-rerun-halted.XXXXXXXX.pet12aze5E).
+  Both PLAN-03 (D9) and PLAN-06 (I5 (c)) blocked on the same product behavior:
+  on validate_input non-TRUE return, the code panel atomically emits "".
+  This plan introduces a last_ok_runtime cache so both panels retain prior
+  successful content while the error pane surfaces the new error.
+-->
+
+<h1>PLAN-01 (Follow-up Finding 2) — <code>last_ok_runtime</code> cache for validate_input retain-on-error</h1>
+<p class="meta">Source: ADR 0013 follow-up · Depends on: PLAN-07 (already merged at <code>d17ad3d</code> on <code>post-add-expr</code>) · Parallel group: G0 (standalone, no in-bundle siblings) · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>Two plans in the ADR-0013 super-app pressure-test suite block on identical product behavior:</p>
+
+<ul>
+  <li><strong>PLAN-03 D9</strong> (<code>dev/plans/0013-super-app-pressure-tests/03-app-2a-upload-registry.html</code>): asserts <code>"code panel must still contain `0.42^2` from the prior successful draw"</code> after setting <code>ppPower</code> to <code>1.5</code> (out of [0,1]). Current product clears it.</li>
+  <li><strong>PLAN-06 I5 (c)</strong> (<code>dev/plans/0013-super-app-pressure-tests/06-app-4-user-css-safety-adversarial.html</code>): asserts the prior G5-draw's <code>qsec</code> sentinel survives in the code panel after setting <code>ppColor</code> to <code>"notahex"</code>. Same product clears it.</li>
+</ul>
+
+<p>Current control flow (verified against source at <code>4a23d39</code>):</p>
+
+<ol>
+  <li><code>R/paintr-substitute.R:114-119</code> — value-role <code>substitute_walk.ptr_ph_value</code> calls <code>entry$validate_input(value, hook_ctx)</code>. On non-TRUE / non-NULL return, <code>rlang::abort()</code> with <code>Invalid value for placeholder \`&lt;kw&gt;\`: &lt;msg&gt;</code>. (Mirror at <code>:160-165</code> for consumer-role.)</li>
+  <li><code>R/paintr-safe.R:55-65</code> — <code>ptr_complete_expr_safe</code>'s <code>tryCatch(error = ...)</code> branch returns <code>list(ok = FALSE, stage = "complete", code_text = "", pruned = NULL, plot = NULL, error = "Input error: ...", condition = e)</code>. <code>code_text = ""</code> is hard-coded.</li>
+  <li><code>R/paintr-server.R:2029-2034</code> — <code>format_code_with_extras</code>: <code>base &lt;- if (is.null(res)) "" else (res$code_text %||% "")</code>; <code>if (is.null(res) || !isTRUE(res$ok) || length(extras_exprs) == 0L) return(base)</code>. Emits the empty string to the code output.</li>
+  <li><code>R/paintr-server.R:1981-1991</code> — <code>ptr_register_plot</code>: <code>if (is.null(res) || !isTRUE(res$ok) || is.null(res$plot)) { graphics::plot.new(); return(invisible(NULL)) }</code>. The plot also blanks (the comment "matches legacy graphics::plot.new()" makes this intentional). The PLAN-03/06 tests pass <code>expect_no_plot_error(app)</code> only because <code>plot.new()</code> doesn't add a <code>shiny-output-error</code> class — the prior plot is NOT visually preserved.</li>
+</ol>
+
+<p>Both plans' BDD <code>Then</code> clauses — <strong>"the rendered code panel still contains the sentinel from the prior successful draw"</strong> and <strong>"the host output retains its prior successful plot"</strong> — codify a retain-on-error UX that the product currently does not deliver.</p>
+
+<h2>Governing principle</h2>
+
+<p>Transient input errors must NOT discard the rendered context the user was about to compare against. Text editors don't blank on a syntax error; REPLs don't blank on a type error; drawing apps don't blank on one bad parameter. The error pane surfaces the diagnostic; the code panel and plot panel retain the last successful output until the user fixes the input and re-draws.</p>
+
+<p>The fix introduces a single <code>last_ok_runtime</code> <code>reactiveVal</code> on <code>ptr_state</code>, populated by a one-line observer on <code>state$runtime()</code>'s ok-branch, and read as a fallback in <code>ptr_register_code</code> and <code>ptr_register_plot</code> when the current runtime is not-ok. No changes to <code>ptr_substitute</code>, no changes to <code>validate_input</code>'s contract, no changes to the error-pane rendering.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong><code>state$last_ok_runtime</code> exists on <code>ptr_state</code>.</strong> Added to <code>ptr_init_state</code> at <code>R/paintr-server.R:86</code> as a <code>shiny::reactiveVal(NULL)</code>. Added to <code>ptr_validate_state</code>'s <code>needed</code> field list at <code>R/paintr-server.R:404</code>. A unit test (<code>tests/testthat/test-validate-input-retain.R</code>) constructs a <code>ptr_state</code> via <code>ptr_init_state()</code> and asserts <code>shiny::is.reactivevalues(.) || shiny::is.reactive(state$last_ok_runtime)</code> AND <code>shiny::isolate(state$last_ok_runtime())</code> is <code>NULL</code> on initialization.</li>
+
+  <li><strong>A dedicated registration helper <code>ptr_register_last_ok_cache(output, state)</code> is added next to the existing <code>ptr_register_*</code> family in <code>R/paintr-server.R</code> and invoked from the server-setup site at <code>R/paintr-server.R:750-752</code> (alongside <code>ptr_register_plot</code>, <code>ptr_register_error</code>, <code>ptr_register_code</code>).</strong> The helper registers a <code>shiny::observe()</code> that reads <code>state$runtime()</code> and, when <code>isTRUE(res$ok)</code>, writes <code>state$last_ok_runtime(res)</code>. The helper takes <code>output</code> only to match the existing register-family signature; it does not write to <code>output</code> (no <code>output[[…]] &lt;-</code>).</li>
+
+  <li><strong><code>ptr_register_code</code>'s final-mode branch falls back to <code>last_ok_runtime</code> on <code>!isTRUE(res$ok)</code>.</strong> The change is local to <code>R/paintr-server.R:2080</code>:
+    <pre>
+# OLD
+format_code_with_extras(state$runtime(), state$extras_exprs())
+
+# NEW
+res &lt;- state$runtime()
+last &lt;- state$last_ok_runtime()
+chosen &lt;- if (is.null(res) || isTRUE(res$ok) || is.null(last)) res else last
+format_code_with_extras(chosen, state$extras_exprs())
+    </pre>
+    Preserve-mode (<code>R/paintr-server.R:2057-2076</code>, the <code>identical(mode, "preserve")</code> branch) ALSO falls back to <code>last_ok_runtime</code>'s <code>snapshot</code> when the current runtime is not-ok and a prior ok-result exists. If no prior ok-result exists, preserve-mode renders the current state as today.</li>
+
+  <li><strong><code>ptr_register_plot</code> falls back to <code>last_ok_runtime$plot</code> on <code>!isTRUE(res$ok) || is.null(res$plot)</code> when a prior ok-result exists.</strong> Edit at <code>R/paintr-server.R:1984-1990</code>:
+    <pre>
+# OLD
+res &lt;- state$runtime()
+if (is.null(res) || !isTRUE(res$ok) || is.null(res$plot)) {
+  graphics::plot.new()
+  return(invisible(NULL))
+}
+res$plot
+
+# NEW
+res &lt;- state$runtime()
+if (!is.null(res) && isTRUE(res$ok) && !is.null(res$plot)) {
+  return(res$plot)
+}
+last &lt;- state$last_ok_runtime()
+if (!is.null(last) && !is.null(last$plot)) {
+  return(last$plot)
+}
+graphics::plot.new()
+invisible(NULL)
+    </pre></li>
+
+  <li><strong>New test file <code>tests/testthat/test-validate-input-retain.R</code> drives the cache + fallback via <code>shiny::testServer</code>.</strong> Asserts at least the following expectations (each is a separate <code>expect_*</code>, so PASS rises by ≥ 8):
+    <ol>
+      <li>Initial state: <code>state$last_ok_runtime()</code> is <code>NULL</code> on session boot.</li>
+      <li>First successful draw populates the cache: after a Draw click that produces <code>res$ok == TRUE</code>, <code>state$last_ok_runtime()</code> equals that <code>res</code> (or has the same <code>code_text</code> + <code>plot</code> at minimum).</li>
+      <li>validate_input failure leaves the cache UNCHANGED: drive an out-of-range value through a placeholder whose <code>validate_input</code> returns a non-TRUE string; <code>state$runtime()</code> has <code>ok = FALSE</code>; <code>state$last_ok_runtime()</code> still equals the prior successful <code>res</code>.</li>
+      <li>Code-panel renderer returns the cached <code>code_text</code> on fail: read the output reactive at the code-panel id and assert <code>identical(., format_code_with_extras(prior_ok_res, state$extras_exprs()))</code> — NOT <code>""</code>.</li>
+      <li>Plot-panel reactive returns the cached plot on fail: read via the documented <code>session$getReturned()</code> or equivalent testServer hook; assert <code>!is.null(.)</code> when a prior ok-result exists. (If testServer can't surface the rendered plot object, replace this expectation with a direct read of <code>state$last_ok_runtime()$plot</code> after a fail and assert it equals the prior <code>res$plot</code>.)</li>
+      <li>Recovery: fix the input to a valid value, draw again; <code>state$runtime()</code> ok = TRUE; <code>state$last_ok_runtime()</code> updates to the NEW res; the prior cached res is replaced.</li>
+      <li>Consecutive fails preserve the cache: drive two consecutive validate_input failures from a known-good baseline; assert <code>state$last_ok_runtime()</code> is unchanged across both fails.</li>
+      <li>No prior ok-result + immediate fail: a session that boots and immediately drives a validate_input failure (no successful intermediate draw) leaves <code>state$last_ok_runtime()</code> as <code>NULL</code>; the code-panel renderer emits <code>""</code> (same as today's behavior); the plot-panel renderer blanks the device (same as today).</li>
+    </ol>
+    Tests use a minimal in-test placeholder registration: define a custom <code>ppRetainTest</code> value placeholder with <code>validate_input = function(v, ctx) if (is.numeric(v) &amp;&amp; v &gt;= 0 &amp;&amp; v &lt;= 1) TRUE else "must be in [0,1]"</code> (or reuse PLAN-07's existing test fixture in <code>test-validate-input-ctx.R</code> if a registered placeholder already exists there). Clean up via <code>ptr_clear_placeholder()</code> in <code>withr::defer</code>.</li>
+
+  <li><strong>No regressions in existing tests.</strong> The full authoritative gate (below) returns <code>FAIL 0 / WARN 0 / SKIP 0 / PASS (baseline + N)</code> where <code>N ≥ 8</code> (the new expectations) plus any additional expectations the implementer chooses to add. Baseline PASS at <code>post-add-expr</code> HEAD <code>4a23d39</code> is <code>2352</code>. After this plan: <code>PASS ≥ 2360</code>.</li>
+
+  <li><strong>The PLAN-03 D9 and PLAN-06 I5 (c) assertions become satisfiable.</strong> Out-of-scope for this plan to verify directly (those plans live in their own re-run worktrees), but this plan's BDD scenario "Code panel survives validate_input failure" exercises the identical product path, so if this plan passes its DoD, those two assertions will pass when the plans are re-run against post-this-plan HEAD.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-server.R</code> (4 edits: <code>last_ok_runtime</code> reactiveVal in <code>ptr_init_state</code>; entry added to <code>ptr_validate_state</code>'s <code>needed</code>; new <code>ptr_register_last_ok_cache</code> helper + call from the server-setup site; fallback in <code>ptr_register_code</code> (both branches) + <code>ptr_register_plot</code>)</li>
+      <li><code>tests/testthat/test-validate-input-retain.R</code> (NEW)</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Any other <code>R/paintr-*.R</code> file. Specifically: do NOT modify <code>R/paintr-substitute.R</code>, <code>R/paintr-safe.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-build-ui.R</code>, or <code>R/paintr-render.R</code>.</li>
+      <li>Any existing test file. The new behavior gets its own dedicated test file.</li>
+      <li>Any fixture under <code>tests/testthat/fixtures/</code>.</li>
+      <li>The PLAN-03 / PLAN-06 plans (originals at <code>dev/plans/0013-super-app-pressure-tests/</code> OR re-run copies at <code>dev/plans/0013-rerun-03-06/</code>) — their BDD `Then` clauses stand verbatim; this plan exists precisely so they don't need amending.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, anything under <code>man/</code>. The new helper <code>ptr_register_last_ok_cache</code> is internal (no <code>@export</code>); no roxygen exports to regenerate.</li>
+      <li>The <code>unsafe_expr_denylist</code> at <code>R/paintr-utils.R:448</code> (project memory <code>project-denylist-complete</code>).</li>
+    </ul>
+  </li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> Three specific narrowings to refuse:
+    <ol>
+      <li><strong>Do NOT</strong> implement only the code-panel fallback and leave the plot panel blanking. The BDD includes both panels; the plot fallback is one-line of additional code; doing only half re-creates an asymmetric UX. If you genuinely cannot implement the plot fallback (e.g. the runtime's <code>res$plot</code> contract changes mid-stream), STOP and escalate — do not silently land code-only.</li>
+      <li><strong>Do NOT</strong> introduce a "stale code" annotation in the UI as part of this plan. The BDD asserts content retention; UI annotation about staleness is a future-round UX question, not in scope.</li>
+      <li><strong>Do NOT</strong> change the cache to a multi-entry history (only the LAST ok-result is cached). If a future requirement asks for multiple history entries, that's a follow-up.</li>
+    </ol>
+  </li>
+  <li>Conventions: <code>CLAUDE.md</code>, <code>.claude/rules/coding.md</code> (tidyverse style; <code>rlang::abort</code> not <code>stop</code>; <code>cli::cli_warn</code> not <code>warning</code>), <code>.claude/rules/testing.md</code> (testthat edition 3; <code>withr::local_*</code> for temp state; group by behavior, not by source file).</li>
+  <li>NAMESPACE is auto-generated by roxygen — but no exports change in this plan, so no <code>devtools::document()</code> regeneration is needed.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: validate_input failure retains last successful code + plot until recovery
+
+Scenario: Initial boot — cache is empty
+  Given a ptr_state freshly constructed by ptr_init_state()
+  When no draw has been triggered yet
+  Then state$last_ok_runtime() is NULL
+  And the code panel reactive returns ""
+  And the plot panel reactive blanks the device
+
+Scenario: First successful draw populates the cache
+  Given a ptr_state with a registered draw trigger
+  When the user clicks Draw with all valid inputs
+  And state$runtime() returns ok = TRUE
+  Then state$last_ok_runtime() equals that runtime result (same code_text + plot)
+
+Scenario: validate_input failure preserves the cache
+  Given a prior successful draw with a known code_text and plot in the cache
+  When the user sets a placeholder input to a value whose validate_input returns the string "must be in [0,1]"
+  And clicks Draw
+  Then state$runtime() returns ok = FALSE with error "Input error: Invalid value for placeholder ..."
+  And state$last_ok_runtime() is UNCHANGED from before the failed draw
+  And the code panel reactive returns the prior code_text (NOT "")
+  And the plot panel reactive returns the prior plot object (NOT a blank device)
+  And the error panel reactive returns a non-NULL renderUI showing the validator message
+
+Scenario: Recovery — cache replaces on next successful draw
+  Given a failed-state app whose cache holds a prior successful result
+  When the user fixes the input to a valid value
+  And clicks Draw
+  And state$runtime() returns ok = TRUE
+  Then state$last_ok_runtime() is REPLACED with the new ok-result
+  And the code panel reactive reflects the NEW code_text (no leftover from the cache)
+
+Scenario: Consecutive failures preserve the cache
+  Given a prior successful draw cached
+  When the user drives two consecutive validate_input failures (different invalid inputs)
+  Then state$last_ok_runtime() is unchanged across both fails
+  And both fails surface their respective error messages in the error pane
+
+Scenario: No prior ok-result + immediate failure
+  Given a freshly booted ptr_state with no prior successful draw
+  When the user immediately drives a validate_input failure on the first Draw click
+  Then state$last_ok_runtime() remains NULL
+  And the code panel reactive returns "" (same as today)
+  And the plot panel reactive blanks the device (same as today)
+  And the error panel reactive shows the validator message
+
+Scenario: Preserve-mode toggle during a failed state
+  Given a prior successful draw cached, current runtime ok = FALSE
+  When the user toggles code mode to "preserve"
+  Then the preserve-mode renderer reads from state$last_ok_runtime()$snapshot (not the current failed runtime)
+  And the rendered code contains the prior draw's preserve-mode round-trip
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS (baseline + N)</strong> where N ≥ 8 (the new test_that expectations from <code>test-validate-input-retain.R</code>). Baseline at <code>post-add-expr</code> HEAD <code>4a23d39</code> is <code>PASS 2352</code>. Target after this plan: <strong>PASS ≥ 2360</strong>.</p>
+
+<p><strong>Proxy traps — do not be fooled (verbatim from <code>CLAUDE.md</code>):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file ERRORing, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> runs the browser tests (source tree present → 0 SKIP). That alone is the gate.</li>
+  <li><strong>Plan-specific proxy trap</strong>: a green gate from running <em>only</em> <code>test-validate-input-retain.R</code> in isolation is NOT the gate. The full-suite gate is required because the new behavior changes the contract of <code>state$runtime()</code>'s downstream consumers (<code>ptr_register_plot</code>, <code>ptr_register_code</code>), and any test elsewhere in the suite that implicitly asserted the OLD empty-on-fail behavior would silently regress.</li>
+  <li><strong>Plan-specific proxy trap</strong>: a passing <code>state$last_ok_runtime()</code> reactiveVal probe at orchestrator-side (e.g. <code>Rscript -e 'state &lt;- ptr_init_state(...); shiny::isolate(state$last_ok_runtime())'</code>) is NOT the gate. The gate is the full <code>testthat::test_dir</code>; the orchestrator-side probe only confirms the field exists, not that the fallback wiring works end-to-end.</li>
+</ul>
+
+<h2>Scope guard / ownership</h2>
+
+<p>Owns: <code>R/paintr-server.R</code> (4 edits — non-overlapping with any other plan's scope) + <code>tests/testthat/test-validate-input-retain.R</code> (NEW). NAMESPACE/man/ untouched (no <code>@export</code> changes). No fixture edits.</p>
+
+<p>Branch convention: this plan lives on branch <code>0013-followup-last-ok-runtime</code> in a worktree at <code>.claude/worktrees/0013-followup-finding2-last-ok-runtime/last-ok-runtime-cache/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor independently re-runs the authoritative gate from the worktree root and confirms:</p>
+<ol>
+  <li><strong>PASS rises by ≥ 8</strong> (not "many" — explicitly counted against the pre-plan baseline; the implementer must report the exact baseline + new count).</li>
+  <li><strong>FAIL = 0, ERROR = 0, SKIP = 0</strong>. Any test elsewhere in the suite that implicitly asserted empty-code-on-fail must have been found and updated (or explicitly noted as not existing).</li>
+  <li><strong>The new test file actually drives validate_input failure</strong> — not a mocked abort. The auditor reads the test source and confirms <code>validate_input</code> is called via a real placeholder registration (via <code>ptr_define_placeholder_value</code> or equivalent) and the input is driven via a real input change, not via direct write to <code>state$runtime()</code>.</li>
+  <li><strong>The plot fallback is not stubbed.</strong> The auditor reads <code>ptr_register_plot</code>'s diff and confirms the fallback reads <code>state$last_ok_runtime()$plot</code>, not <code>NULL</code> or a placeholder ggplot.</li>
+  <li><strong>The preserve-mode branch in <code>ptr_register_code</code> also falls back.</strong> The auditor reads the diff and confirms the <code>identical(mode, "preserve")</code> branch reads <code>last_ok_runtime$snapshot</code> when current runtime is not-ok.</li>
+</ol>
+
+<p>The auditor specifically watches for the canonical scope-narrowing pattern (PLAN-06 round-2 narrowed I5 (c) with elaborate rationalization): if the implementer added a test that asserts the OLD empty-on-fail behavior with a comment defending it as "the operative contract", that is an automatic FAIL.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Baseline = <code>post-add-expr</code> HEAD <code>4a23d39 chore: ignore .claude/worktrees/ + archive predecessor exec-plan report</code>. Baseline PASS = <code>2352</code>. After this plan: PASS ≥ 2360 (+ ≥ 8 from the new test file).</p>
+
+<p>The known intermittent flake in <code>test-adr10-ppupload-name-browser.R</code> (CLAUDE.md "Authoritative gate" section + memory <code>shinytest2-appdir-pkgload</code>) is acceptable as a same-file isolation-rerun retry — if 1-2 fails appear there in a gate run, the auditor must re-run that file in isolation and confirm clean before failing the verdict on those alone.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>If during implementation the implementer surfaces:</p>
+
+<ol>
+  <li><strong>An existing test that asserts the OLD empty-on-fail behavior</strong> — update it as part of this plan (it's a downstream consequence of the contract change). Cite the test file + line in the report. If updating it would require ALSO changing a BDD assertion in a PASS-stamped plan, STOP and escalate — do NOT cascade plan amendments.</li>
+
+  <li><strong>A consumer of <code>ptr_extract_code</code> / <code>ptr_extract_plot</code> that expects the current empty-on-fail behavior</strong> — the L3 read accessors at <code>R/paintr-server.R:2123</code> (and the matching <code>ptr_extract_code</code> nearby). These accessors currently call <code>shiny::isolate(state$runtime())</code> directly. Decision: keep them unchanged for this plan. They are L3 read accessors with documented "current runtime" semantics; changing them is a separate question. Surface as a follow-up note in the report.</li>
+
+  <li><strong>Memory pressure concerns</strong> from caching <code>res$pruned</code> (a tree) and <code>res$eval_env</code> (an env) — narrow the cache to only the fields the panels read: <code>code_text</code>, <code>plot</code>, <code>snapshot</code>, and (for preserve-mode) any others read at the call site. Document the narrowing in a code comment citing this plan. Do NOT eliminate the cache entirely as a memory-pressure mitigation.</li>
+
+  <li><strong>An issue with the preserve-mode toggle reactive ordering</strong> (the toggle reads <code>state$runtime()$snapshot</code>; the fallback reads <code>last_ok_runtime$snapshot</code> — if these diverge mid-flush) — surface it explicitly; do not paper over with a <code>shiny::isolate</code>.</li>
+</ol>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: PLAN-07 (<code>unified-validate-input-ctx</code>) — already merged at <code>d17ad3d</code> on <code>post-add-expr</code>. This plan reads <code>validate_input(value, ctx)</code> as established contract.</p>
+
+<p>Provides for:</p>
+<ul>
+  <li>PLAN-03 (D9 assertion) — verbatim, no plan-text change needed.</li>
+  <li>PLAN-06 (I5 (c) assertion) — verbatim, no plan-text change needed.</li>
+</ul>
+
+<p>Independent of:</p>
+<ul>
+  <li>PLAN-04 blocker / Follow-up B — different defect domain (<code>R/paintr-server.R:1685-1687</code> consumer renderUI suspension chicken-and-egg). Either can land first.</li>
+</ul>
+
+<p>Post-merge integration confirmation (NOT part of this plan's DoD): after this plan merges into <code>post-add-expr</code>, re-attempt PLAN-03 and PLAN-06 from fresh worktrees and confirm both plans now pass their full BDDs. If Follow-up B has also landed, PLAN-03 unblocks entirely. If only this plan has landed, PLAN-06 unblocks entirely; PLAN-03 still needs Follow-up B for the layer-aes ppVar picker.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=9e7ed39d9120 -->
+</body>
+</html>

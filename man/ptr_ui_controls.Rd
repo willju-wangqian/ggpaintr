@@ -8,7 +8,6 @@ ptr_ui_controls(
   formula,
   id = NULL,
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   shared = NULL
 )
@@ -23,9 +22,7 @@ Defaults to \code{NULL} (identity namespace). When set, must match the
 \item{ui_text}{Optional named list of copy overrides; see
 \code{\link[=ptr_ui_text]{ptr_ui_text()}} for the full schema and current defaults.}
 
-\item{checkbox_defaults}{Optional named list of initial checked states.}
-
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -57,7 +54,7 @@ asset bundle. Don't assemble that scaffolding by hand: wrap your
 composed pieces in \code{\link[=ptr_ui_page]{ptr_ui_page()}}, which \emph{is} the Bootstrap page and
 owns the single \code{.ptr-app} scope + the (deduped) assets. For a
 \code{navbarPage} or bslib root (which \code{ptr_ui_page()} does not cover) see
-the decomposition recipe in \code{vignette("ggpaintr-use-cases")}.
+\code{vignette("ggpaintr-tutorial")}.
 
 For finer control still — placing individual placeholder widgets
 independently rather than the whole panel — register a custom placeholder
@@ -65,7 +62,7 @@ type; see \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_valu
 }
 \examples{
 ptr_ui_controls(
-  "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
   id = "p"
 )
 }

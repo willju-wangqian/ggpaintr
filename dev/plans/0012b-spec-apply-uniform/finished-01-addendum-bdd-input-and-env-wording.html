@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 addendum — BDD wording for session$input + spec_seed shape (M1 + L1)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+
+<h1>PLAN-01 addendum — BDD wording for <code>session$input</code> + <code>spec_seed</code> shape (M1 + L1)</h1>
+<p class="small">
+  <b>Parent plan:</b> <code>01-spec-seed-and-renderui-emission.html</code> (<code>/implementable PASS</code> at <code>33ddcd6</code>) &middot;
+  <b>Audit references:</b> <code>dev/notes/0012b-drift-audit-2026-05-22.html</code> Findings M1 and L1 &middot;
+  <b>Author:</b> 2026-05-22 post-merge follow-up &middot;
+  <b>Status:</b> draft (no <code>/implementable</code> stamp needed &mdash; BDD-text amendment only, no new Success Criterion, no code change, no test change).
+</p>
+
+<h2>Scope</h2>
+
+<p>
+  Two PLAN-01 BDD <code>Then</code> clauses drifted between plan-text and post-implementation reality. Both are <em>test-honesty</em> drift, not contract violations &mdash; the implementation is correct and the existing tests assert the architecturally-equivalent observable. The clauses are amended here so future audits do not re-flag them.
+</p>
+
+<ol>
+  <li>
+    <b>M1 &mdash; <code>session$input[[id]]</code> assertions under testServer.</b>
+    PLAN-01 BDD clauses that say <em>"<code>session$input[[id]]</code> equals X"</em> were swapped to HTML-matcher assertions in the implementing tests (<code>test-adr12b-spec-custom-keyword.R:91</code> for <code>&lt;option value="b" selected&gt;</code>; <code>test-adr12b-renderui-emission.R:56&ndash;57</code> for the no-spec ppNum's <code>id=</code> + <code>value="NA"</code> matchers). Root cause: under <code>shiny::testServer</code>, MockShinySession does <strong>not</strong> auto-populate <code>session$input[[id]]</code> from a <code>renderUI</code>'d widget &mdash; only statically-mounted inputs flow back. The HTML matcher (e.g. <code>&lt;option value="b" selected&gt;</code>) is a literal architectural-propagation proof that the seed reached the build hook's <code>selected</code> formal, so the architectural contract is honored; only the BDD wording is stale. <span class="small">(The original audit cited <code>:79</code> and <code>:43, 76</code> for these matchers, but those line numbers are off &mdash; <code>:79</code> is the <code>state$spec_seed</code> assertion, <code>:43</code> is the <code>testServer</code> call, and <code>:76</code> is a fixture formula. Lines above are re-verified at the post-merge HEAD <code>efbf793</code>.)</span>
+  </li>
+  <li>
+    <b>L1 &mdash; <code>state$spec_seed</code> shape.</b>
+    PLAN-01 BDD says <em>"<code>state$spec_seed</code> is an empty named list"</em>. The implementation made <code>spec_seed</code> a <strong>named environment</strong>, not a list, so writes from <code>apply_spec_at_boot</code> propagate by reference to the closure-captured <code>state</code> inside <code>ptr_setup_value_uis</code> / <code>ptr_setup_source_uis</code> / <code>ptr_setup_consumer_uis</code>. The "empty" intent is preserved (<code>length(ls(state$spec_seed, all.names = TRUE)) == 0L</code>). The tests assert on the new shape.
+  </li>
+</ol>
+
+<p>Neither change requires new test coverage; both are amendments to the BDD wording so the plan reads honestly against the merged implementation.</p>
+
+<h2>Affected scenarios in PLAN-01</h2>
+
+<h3>Scenario 1 &mdash; <em>"custom keyword spec entry seeds the widget at boot"</em> (parent line 99)</h3>
+
+<h4>Before (parent lines 107&ndash;108)</h4>
+<pre>  Then state$spec_seed[["ggplot_1_1_ppCustomChoice_NA"]] equals "b"
+<del>    And session$input[["ggplot_1_1_ppCustomChoice_NA"]] equals "b"</del></pre>
+
+<h4>After</h4>
+<pre>  Then state$spec_seed[["ggplot_1_1_ppCustomChoice_NA"]] equals "b"
+    And the HTML returned by session$getOutput("ggplot_1_1_ppCustomChoice_NA_ui")
+        contains the literal substring &lt;option value="b" selected&gt;
+    # MockShinySession does not auto-populate session$input from a
+    # renderUI'd widget; the literal `selected` attribute in the rendered
+    # HTML is the architectural-propagation proof that the seed reached
+    # the build hook's `selected` formal.</pre>
+
+<h3>Scenario 3 &mdash; <em>"no-spec render falls back to node$default"</em> (parent line 115)</h3>
+
+<h4>Before (parent lines 119&ndash;121)</h4>
+<pre>  Then <del>session$input for the ppText id equals "hello"</del>
+    And <del>session$input for the ppNum id equals 3.14</del>
+    And <del>state$spec_seed is an empty named list</del></pre>
+
+<h4>After</h4>
+<pre>  Then the HTML returned by session$getOutput("&lt;ppText_id&gt;_ui")
+        contains value="hello" (the node$default for ppText)
+    And the HTML returned by session$getOutput("&lt;ppNum_id&gt;_ui")
+        contains value="NA" (the bare ppNum default with no `default=` override
+        passes NA_real_ through to the numericInput; the test fixture in
+        test-adr12b-renderui-emission.R uses NA_real_ for simplicity rather
+        than ppNum(default = 3.14))
+    And state$spec_seed is a named environment with zero bindings
+        (is.environment(state$spec_seed) &amp;&amp;
+         length(ls(state$spec_seed, all.names = TRUE)) == 0L)
+    # spec_seed is an environment (not a list) so writes from
+    # apply_spec_at_boot propagate by reference to the closure-captured
+    # `state` in the setup helpers. The "empty" intent is preserved.</pre>
+
+<p>The fixture-vs-default mismatch in the second clause (the BDD said 3.14, the test uses NA_real_) is preserved here as a true-to-code statement so the amended BDD reflects what the test actually asserts. A future tidy-up could add a separate scenario exercising a non-trivial <code>ppNum(default = 3.14)</code>, but it is not in scope for this addendum.</p>
+
+<h2>Rationale</h2>
+
+<ul>
+  <li>
+    <b>M1 &mdash; HTML matcher is not a presence proxy.</b> The literal substring <code>&lt;option value="b" selected&gt;</code> can only appear in the rendered HTML if the seed value reached the hook's <code>selected</code> formal and the hook chose to mark it selected. This is the same architectural contract as <code>session$input[[id]] == "b"</code>, observed at a different layer. Project memory <code>e2e-assertion-weakness-lens</code> warns about presence proxies; the HTML literal is a propagation proof, not a presence proxy.
+  </li>
+  <li>
+    <b>L1 &mdash; environment is the right call.</b> The setup helpers (<code>ptr_setup_value_uis</code> etc.) capture <code>state</code> in a closure created at boot. If <code>state$spec_seed</code> were a list, writes from <code>apply_spec_at_boot</code> would modify a fresh copy and the renderUI helpers would read the original (empty) snapshot. An environment is the cheapest way to share state by reference across closures.
+  </li>
+</ul>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><b>SC-A1.</b> Scenario 1 ("custom keyword spec entry seeds the widget at boot") in PLAN-01 reads with the amended <code>Then</code> block above &mdash; the <code>session$input</code> assertion replaced by the HTML-matcher assertion.</li>
+  <li><b>SC-A2.</b> Scenario 3 ("no-spec render falls back to node$default") in PLAN-01 reads with the amended <code>Then</code> block above &mdash; <code>session$input</code> assertions replaced by HTML-matcher assertions, and the "empty named list" clause replaced by the "empty named environment" clause.</li>
+  <li><b>SC-A3.</b> No code or test change. Existing tests at <code>test-adr12b-spec-custom-keyword.R:91&ndash;98</code> (HTML matcher for <code>&lt;option value="b" selected&gt;</code>), <code>test-adr12b-renderui-emission.R:56&ndash;57</code> (HTML matcher for the no-spec ppNum), and <code>test-adr12b-renderui-emission.R:48&ndash;49</code> + <code>:84&ndash;85</code> (env-shape checks in both test blocks) already implement the amended wording; the addendum just brings the plan text up to date.</li>
+  <li><b>SC-A4.</b> Full gate (DoD below) remains <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><b>Files this addendum owns:</b> this file only.</li>
+  <li><b>Files this addendum must NOT touch:</b>
+    <ul>
+      <li><code>R/paintr-*.R</code> &mdash; no code change.</li>
+      <li><code>tests/testthat/*</code> &mdash; no test change; the tests already implement the amended wording.</li>
+      <li><code>01-spec-seed-and-renderui-emission.html</code> &mdash; the parent plan stays at its <code>/implementable PASS</code> hash. In-place edit would invalidate the stamp; this addendum sits beside it.</li>
+      <li><code>01-addendum-ppupload-silent.html</code>, <code>02-collapse-apply-spec-entry-and-revert-workarounds.html</code> &mdash; orthogonal.</li>
+    </ul>
+  </li>
+  <li><b>Audit linkage:</b> closes <em>Finding M1</em> and <em>Finding L1</em> in <code>dev/notes/0012b-drift-audit-2026-05-22.html</code> by reclassifying both as plan-text drift now reconciled. The drift-audit HTML stays read-only.</li>
+</ul>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected: <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code>. Because this addendum adds no test and no code, a successful run is the run that already passes after the H1 cleanup; no fresh execution is required, but re-running the command costs nothing and is recommended before the outer merge to <code>vignette-review</code>.</p>
+
+<div class="note"><b>Proxy traps (from <code>CLAUDE.md</code>):</b> raw <code>Rscript -e 'testthat::test_dir()'</code> without <code>NOT_CRAN=true</code> silently skips every shinytest2 browser test. <code>devtools::check(... --as-cran)</code> sets <code>NOT_CRAN=true</code> in the check subprocess but the e2e fixture cleanly SKIPs there via the source-root guard &mdash; do not mistake that SKIP for a regression. The only gate is the command above.</div>
+
+<h2>One-line summary</h2>
+
+<p>Two PLAN-01 BDD <code>Then</code> clauses drifted from the merged implementation: the <code>session$input[[id]]</code> assertions (testServer's MockShinySession does not back-populate from <code>renderUI</code>) and the <em>"empty named list"</em> wording for <code>state$spec_seed</code> (it is a named environment for reference-share semantics). This addendum amends the wording for both affected scenarios. No code, no test, no stamp churn on the parent plan; closes audit findings M1 and L1 as plan-text drift.</p>
+
+</body>
+</html>

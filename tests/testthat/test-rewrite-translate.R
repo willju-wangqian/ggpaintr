@@ -20,28 +20,53 @@ test_that("P1.1 simple ggplot+geom_point produces two layers, no pipeline", {
   expect_false(walk_root(r))
 })
 
-test_that("P1.2 magrittr pipe preserves op '%>%' on data_arg", {
+test_that("P1.2 zero-verb `%>%` chain canonicalises to a bare-source data_arg", {
+  # ADR 0012 §1: pipes are pure first-arg-insertion sugar.
+  # `mtcars %>% ggplot(...)` desugars to `ggplot(mtcars, ...)`. There is
+  # no verb stage above the source — the layer's data_arg is the
+  # bare-symbol `mtcars` (a `ptr_literal`), which `ptr_classify_calls`
+  # leaves untouched (its `!is_ptr_call(da)` early-out). The data_arg is
+  # the bare-symbol source, not a pipeline wrapper.
   r <- ptr_translate("mtcars %>% ggplot(aes(x = mpg))")
   expect_equal(length(r$layers), 1L)
   expect_equal(r$layers[[1]]$name, "ggplot")
-  expect_s3_class(r$layers[[1]]$data_arg, "ptr_pipeline")
-  expect_equal(r$layers[[1]]$data_arg$op, "%>%")
+  expect_s3_class(r$layers[[1]]$data_arg, "ptr_literal")
+  expect_identical(r$layers[[1]]$data_arg$expr, quote(mtcars))
 })
 
-test_that("P1.3 native pipe preserved as op '|>'", {
+test_that("P1.3 zero-verb `|>` chain canonicalises to a bare-source data_arg", {
+  # `|>` and `%>%` produce structurally-identical trees (ADR 0012 §1).
   r <- ptr_translate("mtcars |> ggplot(aes(x = mpg))")
-  expect_s3_class(r$layers[[1]]$data_arg, "ptr_pipeline")
-  expect_equal(r$layers[[1]]$data_arg$op, "|>")
+  expect_s3_class(r$layers[[1]]$data_arg, "ptr_literal")
+  expect_identical(r$layers[[1]]$data_arg$expr, quote(mtcars))
 })
 
-test_that("P1.4 mixed pipe chain preserves both ops in tree", {
-  r <- ptr_translate("mtcars %>% head(num) |> ggplot(aes(x = mpg))")
+test_that("P1.4 multi-stage mixed-pipe chain lifts to a canonical pipeline whose `$op` reflects the first-pipe-op rule (ADR §5 OQ2 closed)", {
+  # ADR 0012 §5 OQ2 closed (PLAN-01 of 0012b): the desugar pass still
+  # collapses `%>%` AND `|>` to nested-call form before the lift runs, but
+  # `ptr_translate` now records a render-time `$op` annotation derived from
+  # the user's source string via the first-pipe-op rule (earliest character
+  # position of `%>%` vs `|>` in the source). The structural tree remains
+  # identical across surface forms — `$op` is a render-time annotation, not
+  # a structural fork (ADR 0012 §1: the tree is semantic, not syntactic).
+  # There are NO nested ptr_pipeline nodes — the always-aggressive descent
+  # produces one flat pipeline. The chain depth above the source must be
+  # >= 2 for the lift to fire. In the formula below, `%>%` appears at
+  # column ~8 (before `|>` at column ~36), so the rule picks `"%>%"`.
+  r <- ptr_translate(
+    "mtcars %>% head(ppNum) %>% subset(mpg > 0) |> ggplot(aes(x = mpg))"
+  )
   da <- r$layers[[1]]$data_arg
   expect_s3_class(da, "ptr_pipeline")
-  expect_equal(da$op, "|>")
-  inner <- da$stages[[1]]
-  expect_s3_class(inner, "ptr_pipeline")
-  expect_equal(inner$op, "%>%")
+  expect_equal(da$op, "%>%")
+  # 3 stages: source (mtcars) + head(ppNum) + subset(mpg > 0).
+  expect_equal(length(da$stages), 3L)
+  expect_s3_class(da$stages[[1L]], "ptr_literal")
+  expect_identical(da$stages[[1L]]$expr, quote(mtcars))
+  expect_s3_class(da$stages[[2L]], "ptr_call")
+  expect_s3_class(da$stages[[3L]], "ptr_call")
+  # No nested ptr_pipeline — always-aggressive descent flattens.
+  expect_false(any(vapply(da$stages, is_ptr_pipeline, logical(1))))
 })
 
 test_that("P1.5 top-level + split into ordered layers", {
@@ -74,20 +99,20 @@ test_that("P1.8 pkg:::fn head parses with bare layer name; ::: preserved", {
 })
 
 test_that("P1.9 bare-symbol expr at trailing layer is ptr_ph_value", {
-  r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + geom_point() + expr")
+  r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + geom_point() + ppExpr")
   expect_s3_class(r$layers[[3]], "ptr_ph_value")
-  expect_equal(r$layers[[3]]$keyword, "expr")
+  expect_equal(r$layers[[3]]$keyword, "ppExpr")
 })
 
-test_that("P1.10 quoted 'var' is a string literal, not a placeholder", {
-  r <- ptr_translate('ggplot(mtcars, aes(x = "var", y = "var")) + geom_point()')
+test_that("P1.10 quoted 'ppVar' is a string literal, not a placeholder", {
+  r <- ptr_translate('ggplot(mtcars, aes(x = "ppVar", y = "ppVar")) + geom_point()')
   ggp <- r$layers[[1]]
   aes_node <- ggp$children[[1]]
   expect_s3_class(aes_node, "ptr_call")
   for (child in aes_node$args) {
     expect_s3_class(child, "ptr_literal")
     expect_type(child$expr, "character")
-    expect_equal(child$expr, "var")
+    expect_equal(child$expr, "ppVar")
   }
 })
 
@@ -133,18 +158,18 @@ test_that("P1.15 type guards reject non-string formula args", {
 })
 
 test_that("P1.16 call-form var with shared parses to consumer with shared key", {
-  r <- ptr_translate('ggplot(aes(x = var(shared = "axis"), y = var(shared = "axis"))) + geom_point()')
+  r <- ptr_translate('ggplot(aes(x = ppVar(shared = "axis"), y = ppVar(shared = "axis"))) + geom_point()')
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
   expect_equal(length(consumers), 2L)
   for (c in consumers) {
-    expect_equal(c$keyword, "var")
+    expect_equal(c$keyword, "ppVar")
     expect_equal(c$shared, "axis")
   }
 })
 
 test_that("P1.17 call-form with no args equals bare-symbol form", {
-  r1 <- ptr_translate("ggplot(aes(x = var())) + geom_point()")
-  r2 <- ptr_translate("ggplot(aes(x = var)) + geom_point()")
+  r1 <- ptr_translate("ggplot(aes(x = ppVar())) + geom_point()")
+  r2 <- ptr_translate("ggplot(aes(x = ppVar)) + geom_point()")
   c1 <- find_nodes(r1, is_ptr_ph_data_consumer)
   c2 <- find_nodes(r2, is_ptr_ph_data_consumer)
   expect_equal(length(c1), 1L)
@@ -157,27 +182,31 @@ test_that("P1.17 call-form with no args equals bare-symbol form", {
 
 test_that("P1.18 call-form rejects unknown args", {
   expect_error(
-    ptr_translate('ggplot(aes(x = var(unknown = "x"))) + geom_point()'),
+    ptr_translate('ggplot(aes(x = ppVar(unknown = "x"))) + geom_point()'),
     "unknown"
   )
 })
 
-test_that("P1.19 call-form rejects positional args", {
-  expect_error(
-    ptr_translate('ggplot(aes(x = var("x_axis"))) + geom_point()'),
-    "positional"
-  )
+test_that("P1.19 call-form accepts positional default-arg (ADR 0009)", {
+  # After PLAN-08, `ppVar` declares a `positional_arg =
+  # ptr_arg_symbol_or_string()` validator, so a positional bareword
+  # or string is accepted as the initial seed value. The translated
+  # node carries it on `node$default`.
+  r <- ptr_translate('ggplot(aes(x = ppVar("x_axis"))) + geom_point()')
+  ph <- find_nodes(r, function(x) is_ptr_placeholder(x) && x$keyword == "ppVar")
+  expect_equal(length(ph), 1L)
+  expect_identical(ph[[1]]$default, "x_axis")
 })
 
 test_that("P1.20 empty shared string rejected", {
   expect_error(
-    ptr_translate('ggplot(aes(x = var(shared = ""))) + geom_point()'),
+    ptr_translate('ggplot(aes(x = ppVar(shared = ""))) + geom_point()'),
     "non-empty"
   )
 })
 
 test_that("P1.21 comments are dropped by parser; tree has no record", {
-  r <- ptr_translate("mtcars |> head(num) |> # trim rows\nggplot(aes(x = mpg))")
+  r <- ptr_translate("mtcars |> head(ppNum) |> # trim rows\nggplot(aes(x = mpg))")
   expect_s3_class(r, "ptr_root")
   serialized <- deparse(r$expr, width.cutoff = 500L)
   expect_false(any(grepl("#", serialized)))

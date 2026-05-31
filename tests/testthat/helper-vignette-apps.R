@@ -58,25 +58,110 @@ boot_vignette_app <- function(slug) {
       timeout = 30 * 1000
     )
   )
+  # AppDriver$new returns once the initial Connect handshake completes; the
+  # JS side's bindAll() and the server's first flush may still be in flight.
+  # Calling wait_for_idle here makes every test_that body start from a
+  # quiet, observable state, so the first set_input / get_html / get_value
+  # doesn't race the boot tail. Cheap (idle in single-digit ms on most
+  # fixtures); only matters for the small subset that have a heavier first
+  # flush.
+  app$wait_for_idle(timeout = 15 * 1000)
   withr::defer(app$stop(), envir = parent.frame())
   app
 }
 
+# Poll `app$get_html(selector)` until `pred(html)` holds or `timeout_ms`
+# elapses, returning the last html seen (so the caller asserts on it).
+#
+# Why this exists: `wait_for_idle()` returns on the FIRST moment the reactive
+# graph goes quiet, but a `renderUI`-injected widget can land in a LATER flush
+# (the "momentary busy-flag dip" race documented on `expect_host_settled`).
+# A single `get_html()` therefore samples too early and intermittently misses
+# late content. Under parallel test execution several Chrome+Shiny processes
+# contend for CPU, which widens that window from milliseconds to seconds and
+# turns the race into reliable flakes. Polling removes it by construction:
+# late content is caught when it arrives; genuinely-absent content polls to
+# the deadline and the caller's assertion fails exactly as a single-shot read
+# would have — so polling only ADDS tolerance, never masks a real failure.
+poll_html <- function(app, selector, pred, timeout_ms = 15000, poll_ms = 50) {
+  deadline <- Sys.time() + timeout_ms / 1000
+  html <- NULL
+  repeat {
+    html <- tryCatch(app$get_html(selector), error = function(e) NULL)
+    if (isTRUE(pred(html))) return(html)
+    if (Sys.time() > deadline) return(html)
+    Sys.sleep(poll_ms / 1000)
+  }
+}
+
 # Assert a DOM element with the given Shiny id is present in the page.
-expect_dom_id <- function(app, id) {
-  html <- app$get_html(paste0("#", id))
+expect_dom_id <- function(app, id, timeout_ms = 15000) {
+  html <- poll_html(
+    app, paste0("#", id),
+    function(h) !is.null(h) && nzchar(h), timeout_ms
+  )
   testthat::expect_true(
     !is.null(html) && nzchar(html),
     label = paste0("DOM id #", id, " present")
   )
 }
 
+# Assert an input reaches `expected` value within `timeout_ms`, polling the
+# reactive registry. Use for a value seeded by the server's first flush (e.g.
+# a spec `=` boot override) that a single immediate `get_value()` would race —
+# the seed can arrive a flush after the Connect handshake completes, and under
+# parallel-execution CPU contention that lag is seconds, not milliseconds.
+expect_input_eventually <- function(app, id, expected,
+                                    timeout_ms = 15000, poll_ms = 50) {
+  deadline <- Sys.time() + timeout_ms / 1000
+  val <- NULL
+  repeat {
+    val <- tryCatch(app$get_value(input = id), error = function(e) NULL)
+    if (identical(val, expected)) break
+    if (Sys.time() > deadline) break
+    Sys.sleep(poll_ms / 1000)
+  }
+  testthat::expect_equal(val, expected)
+}
+
 # Set one input WITHOUT waiting for an output change. ggpaintr only re-renders
 # on an explicit Update/Draw click, so setting a placeholder widget never
 # updates an output by itself — wait_ = TRUE would (correctly) time out.
-set_input <- function(app, id, value) {
+#
+# Waits for Shiny's input binding to register on the target element BEFORE
+# dispatching `set_inputs`. shinytest2 emits "Unable to find input binding
+# for element with id <id>" when the JS-side binding hasn't been wired by
+# the time set_inputs lands — a known race on uiOutput-rendered inputs.
+# `wait_for_input_binding()` is empirically fast (max ~6 ms observed
+# across 30 calibration boots on a quiet system, p95 4 ms); the 5000 ms
+# timeout is the deadline for surfacing a real "binding never appeared"
+# regression vs the flake. Pass `bind_timeout_ms = 0` to opt out (e.g.
+# when intentionally probing for the absence of a binding).
+set_input <- function(app, id, value, bind_timeout_ms = 15000) {
+  if (bind_timeout_ms > 0) wait_for_input_binding(app, id, bind_timeout_ms)
   args <- stats::setNames(list(value), id)
   do.call(app$set_inputs, c(args, list(wait_ = FALSE)))
+}
+
+# Upload a file to a ppUpload fileInput, waiting for its binding first.
+#
+# Mirrors `set_input`: `app$upload_file()` resolves the target through
+# `app_find_node_id()`, which requires the fileInput to already carry the
+# `.shiny-bound-input` class. A ppUpload fileInput is renderUI-injected, so it
+# has the same `renderUI -> bindAll()` lag as any other uiOutput input;
+# uploading before the binding registers throws "Cannot find HTML element with
+# selector #<id>.shiny-bound-input". On a quiet system the lag is sub-frame and
+# the bare `app$upload_file()` usually wins the race, but under the CPU
+# contention of parallel test execution it loses reliably. Waiting for the
+# binding closes the race by construction; a genuine "never binds" regression
+# still surfaces at the timeout.
+upload_file <- function(app, ..., bind_timeout_ms = 15000) {
+  args <- list(...)
+  id <- names(args)[1]
+  if (!is.null(id) && nzchar(id) && bind_timeout_ms > 0) {
+    wait_for_input_binding(app, id, bind_timeout_ms)
+  }
+  do.call(app$upload_file, args)
 }
 
 # Click a draw/update button and wait for the app to go idle.
@@ -163,10 +248,14 @@ expect_host_settled <- function(app, host_id, kind, error_output_id,
 # Assert a rendered consumer/shared picker is *populated* — its element holds
 # a real column choice, not an empty uiOutput. A blank uiOutput still has its
 # container id present (so plain expect_dom_id passes), which is precisely how
-# bug B1 (formula-local var(shared=) never bound in the embed path) survived
+# bug B1 (formula-local ppVar(shared=) never bound in the embed path) survived
 # every prior test. This asserts an actual rendered choice for a known column.
-expect_picker_populated <- function(app, input_id, choice) {
-  html <- app$get_html(paste0("#", input_id))
+expect_picker_populated <- function(app, input_id, choice, timeout_ms = 15000) {
+  html <- poll_html(
+    app, paste0("#", input_id),
+    function(h) !is.null(h) && nzchar(h) && grepl(choice, h, fixed = TRUE),
+    timeout_ms
+  )
   testthat::expect_true(
     !is.null(html) && nzchar(html) && grepl(choice, html, fixed = TRUE),
     label = paste0("picker #", input_id, " populated (offers \"",
@@ -185,3 +274,95 @@ expect_no_dom_id <- function(app, id) {
 }
 
 if (!exists("%||%")) `%||%` <- function(a, b) if (is.null(a)) b else a
+
+# Poll the DOM until the input element `#<id>` is registered with Shiny's
+# input binding (i.e. carries the `shiny-bound-input` class that Shiny
+# attaches once `Shiny.bindAll()` has wired the element to the input
+# registry). Returns the elapsed wait in seconds (useful for calibration).
+# Aborts with a structured error on timeout so the failure cleanly
+# distinguishes "we waited and the binding never appeared" (a real
+# regression) from "set_inputs raced the binding" (the flaky shape).
+#
+# Why this is needed: every uiOutput-rendered input has a small window
+# between renderUI firing and Shiny's `bindAll()` reaching the new DOM
+# subtree. shinytest2's `app$set_inputs(id = ..., wait_ = FALSE)` short-
+# circuits the wait, so it can land in that window and emit "Unable to
+# find input binding for element with id <id>". Calling this helper
+# right before `app$set_inputs(...)` closes the race. Empirically
+# calibrated default `timeout_ms = 5000` covers the worst-case observed
+# binding latency by ~50x (see commit log for calibration data).
+# Wait until the output element `#<id>` is settled — the reactive graph is
+# idle AND the element exists in the DOM AND it isn't currently flagged
+# `shiny-busy`. Use this before reading an output via `app$get_html()` /
+# `app$get_value(output = id)` when a re-render might be in flight (after
+# a click, a `set_input` cascade, or any reactive invalidation). Returns
+# elapsed seconds (useful for calibration). Aborts on timeout with a
+# structured class so the failure is distinguishable from "binding never
+# registered".
+#
+# Why this is needed: `app$wait_for_idle()` returns when the reactive
+# graph is quiet, but the JS-side output binding's update may still be
+# in flight (`shiny-busy` class set on the output node until the binding
+# finishes redrawing). Reading `app$get_html(...)` in that window returns
+# stale content. This helper polls until the busy-class clears.
+#
+# Separate from `wait_for_input_binding`: that one guards the INPUT-side
+# race (renderUI -> bindAll), this one guards the OUTPUT-side race
+# (server emit -> binding update). Use the one that matches the direction
+# of the next observable action.
+wait_for_output <- function(app, id, timeout_ms = 15000, poll_ms = 25) {
+  start <- Sys.time()
+  deadline <- start + timeout_ms / 1000
+  # First: drain the reactive queue. If a re-render is queued but not yet
+  # firing, this is the cheapest way to let it land.
+  app$wait_for_idle(timeout = timeout_ms)
+  selector <- paste0("#", id)
+  repeat {
+    html <- tryCatch(app$get_html(selector), error = function(e) NULL)
+    if (!is.null(html) && nzchar(html) &&
+        !grepl("shiny-busy", html, fixed = TRUE)) {
+      return(as.numeric(Sys.time() - start, units = "secs"))
+    }
+    if (Sys.time() > deadline) {
+      rlang::abort(
+        sprintf(
+          "wait_for_output(\"%s\") timed out after %d ms (element missing, empty, or stuck in `shiny-busy`).",
+          id, timeout_ms
+        ),
+        class = "ggpaintr_wait_for_output_timeout"
+      )
+    }
+    Sys.sleep(poll_ms / 1000)
+  }
+}
+
+wait_for_input_binding <- function(app, id, timeout_ms = 15000,
+                                   poll_ms = 25) {
+  start <- Sys.time()
+  deadline <- start + timeout_ms / 1000
+  # Use `app$get_value(input = id)` as the binding-presence probe — it
+  # succeeds iff Shiny has registered the input with its reactive registry
+  # (regardless of the binding kind: renderUI'd .shiny-bound-input,
+  # bslib tabsetPanel, navset, custom binding, etc.). A DOM-class check
+  # like `#<id>.shiny-bound-input` would false-negative on tab and nav
+  # inputs which use a different binding shape.
+  repeat {
+    bound <- tryCatch({
+      app$get_value(input = id)
+      TRUE
+    }, error = function(e) FALSE)
+    if (isTRUE(bound)) {
+      return(as.numeric(Sys.time() - start, units = "secs"))
+    }
+    if (Sys.time() > deadline) {
+      rlang::abort(
+        sprintf(
+          "wait_for_input_binding(\"%s\") timed out after %d ms. Shiny's input registry has no entry for this id. Either the renderUI for the input's container never fired, or Shiny's bindAll() never reached it.",
+          id, timeout_ms
+        ),
+        class = "ggpaintr_wait_for_input_binding_timeout"
+      )
+    }
+    Sys.sleep(poll_ms / 1000)
+  }
+}

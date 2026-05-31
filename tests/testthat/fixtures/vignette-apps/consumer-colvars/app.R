@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-customization.Rmd chunk `consumer-colvars`
+# >>> verbatim: archive/retired_vignettes/ggpaintr-customization.Rmd chunk `consumer-colvars`
 #     (registration) + chunk `consumer-colvars-app` (the app) >>>
 ptr_define_placeholder_consumer(
   keyword       = "colvars",
@@ -18,9 +18,9 @@ ptr_define_placeholder_consumer(
     if (length(value) == 0L) return(NULL)
     rlang::call2("c", !!!as.list(value))
   },
-  copy_defaults = list(label = "Columns for {param}")
+  ui_text_defaults = list(label = "Columns for {param}")
 )
 
-ptr_app("mtcars |> dplyr::select(colvars) |> 
-        ggplot(aes(x = var, y = var)) + geom_point()")
+ptr_app("mtcars |> dplyr::select(colvars) |>
+        ggplot(aes(x = ppVar, y = ppVar)) + geom_point()")
 # <<<

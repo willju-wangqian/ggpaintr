@@ -16,12 +16,12 @@ and safe against reserved-word collisions. Non-\code{data.frame} inputs return
 the \code{data.frame} created by \code{as.data.frame()}.
 }
 \description{
-Normalize incoming column names so \code{var} placeholders can require exact,
+Normalize incoming column names so \code{ppVar} placeholders can require exact,
 syntactic, unique column-name matches at runtime.
 }
 \details{
 Uploaded data is normalized automatically by the runtime — every
-successful \code{upload} placeholder passes through this function (or its
+successful \code{ppUpload} placeholder passes through this function (or its
 \code{data.frame}-coercing sibling for non-\code{data.frame} returns from
 \code{readRDS} / \code{readxl} / \code{jsonlite}). Call \code{ptr_normalize_column_names()}
 yourself only for \strong{in-session} data frames you reference by name from

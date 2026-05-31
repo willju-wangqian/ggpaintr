@@ -2,7 +2,7 @@
 # the ggpaintr UI has its own exported function, and the bundled apps stay
 # byte-identical because the bundle and the pieces share one builder.
 
-fml <- "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+fml <- "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 
 # ---- ptr_ui_plot: truly bare (no behaviour flags) ----
 
@@ -178,9 +178,9 @@ test_that("ptr_ui self-wraps in .ptr-app and carries the bundle", {
 
 fml_shared_local <- paste0(
   'ggplot(mtcars) + ',
-  'geom_point(aes(x = mpg, y = hp), alpha = num(shared = "A"), ',
-  'size = num(shared = "A")) + ',
-  'geom_line(aes(x = mpg, y = wt), linewidth = num(shared = "X"))'
+  'geom_point(aes(x = mpg, y = hp), alpha = ppNum(shared = "A"), ',
+  'size = ppNum(shared = "A")) + ',
+  'geom_line(aes(x = mpg, y = wt), linewidth = ppNum(shared = "X"))'
 )
 
 test_that("ptr_ui_controls (no shared) renders all shared keys inline", {
@@ -193,9 +193,9 @@ test_that("ptr_ui_controls (no shared) renders all shared keys inline", {
 
 test_that("ptr_ui_controls(shared = obj) excludes obj$panel_keys", {
   f1 <- paste0('ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), ',
-               'alpha = num(shared = "B"), size = num(shared = "A"))')
+               'alpha = ppNum(shared = "B"), size = ppNum(shared = "A"))')
   f2 <- paste0('ggplot(mtcars) + geom_point(aes(x = mpg, y = hp), ',
-               'alpha = num(shared = "B"), size = num(shared = "C"))')
+               'alpha = ppNum(shared = "B"), size = ppNum(shared = "C"))')
   obj <- ptr_shared(c(f1, f2))
   expect_identical(obj$panel_keys, "B")  # B is cross-formula
 
@@ -210,7 +210,7 @@ test_that("ptr_ui_controls(shared = obj) excludes obj$panel_keys", {
 })
 
 test_that("ptr_ui_controls with no shared placeholders renders no section", {
-  f <- "ggplot(mtcars) + geom_point(size = num())"
+  f <- "ggplot(mtcars) + geom_point(size = ppNum())"
   rendered <- as.character(ptr_ui_controls(f, "p"))
   expect_no_match(rendered, "ptr-shared-panel")
   expect_match(rendered, "p-ptr_layer_select", fixed = TRUE)
@@ -220,7 +220,7 @@ test_that("ptr_ui_controls with no shared placeholders renders no section", {
 # The full-viewport `min-height:100vh` backdrop is opt-in via the
 # `ptr-app--page` modifier. Only the standalone entrypoints (ptr_app /
 # ptr_app_grid) add it. Everything designed to embed in a host app -- the
-# region halves (ptr_controls_ui/ptr_outputs_ui/ptr_shared_ui),
+# region halves (ptr_ui_controls/ptr_outputs_panel/ptr_ui_shared_panel),
 # ptr_ui, ptr_ui_page -- stays bare `.ptr-app` so it sizes to its
 # content instead of stretching the host's column/sidebar floor-to-ceiling.
 
@@ -240,8 +240,8 @@ test_that("ptr_ui stays bare .ptr-app so it embeds (no --page canvas)", {
 
 test_that("ptr_app is standalone -> carries ptr-app--page", {
   # ptr_app_components() builds via ptr_outputs_panel() (unaffected here).
-  # The ptr_app_grid half composes ptr_ui() -> ptr_outputs_ui() ->
-  # deleted ptr_ui_code_toggle; Step 05/06 restore the grid assertion.
+  # ptr_app_components() builds the output region via ptr_outputs_panel()
+  # / ptr_ui_toggle_code(); the grid --page assertion below is live.
   app <- render_with_deps(ptr_app_components(fml)$ui)
   expect_match(app, "ptr-app--page", fixed = TRUE)
 })
@@ -355,8 +355,8 @@ test_that("ptr_server_internal accepts a ptr_shared_server() bundle via shared_s
   # Step 02 changed ptr_shared_server() to take a ptr_shared() spec, not
   # (formulas, envir=). Step 10 brings this onto the new coordinator API.
   formulas <- c(
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = mpg)) + geom_point()',
-    'ggplot(mtcars, aes(x = var(shared = "col"), y = hp))  + geom_line()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = mpg)) + geom_point()',
+    'ggplot(mtcars, aes(x = ppVar(shared = "col"), y = hp))  + geom_line()'
   )
   expect_silent({
     server <- function(input, output, session) {

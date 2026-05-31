@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-gallery.Rmd chunk `ggiraph-paintr` >>>
+# >>> verbatim: archive/retired_vignettes/ggpaintr-gallery.Rmd chunk `ggiraph-paintr` >>>
 library(ggiraph)
 library(colourpicker)
 
@@ -18,12 +18,12 @@ ptr_define_placeholder_value(
     if (is.null(value) || identical(value, "")) return(NULL)
     as.character(value)
   },
-  copy_defaults = list(label = "Highlight colour for {param}")
+  ui_text_defaults = list(label = "Highlight colour for {param}")
 )
 
-formula <- "ggplot(data = mpg, aes(x = var, y = var)) +
-              geom_point_interactive(aes(tooltip = var),
-                                     size = num, color = color)"
+formula <- "ggplot(data = mpg, aes(x = ppVar, y = ppVar)) +
+              geom_point_interactive(aes(tooltip = ppVar),
+                                     size = ppNum, color = color)"
 
 ui <- fluidPage(
   fluidRow(

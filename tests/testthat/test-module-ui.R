@@ -4,8 +4,8 @@
 # cross-formula panel keys (obj$panel_keys) are excluded from the inline
 # section because they belong to the one standalone ptr_shared_panel().
 
-f1 <- 'ggplot(iris, aes(x = var(shared = "ax1"), y = var(shared = "ax1"), color = Species)) + geom_point(size = num(shared = "sz"))'
-f2 <- 'ggplot(iris, aes(x = var(shared = "ax2"), y = Sepal.Width, color = Species)) + geom_point(size = num(shared = "sz"))'
+f1 <- 'ggplot(iris, aes(x = ppVar(shared = "ax1"), y = ppVar(shared = "ax1"), color = Species)) + geom_point(size = ppNum(shared = "sz"))'
+f2 <- 'ggplot(iris, aes(x = ppVar(shared = "ax2"), y = Sepal.Width, color = Species)) + geom_point(size = ppNum(shared = "sz"))'
 
 # shiny::tabsetPanel() stamps a fresh random data-tabsetid (and matching
 # `#tab-<n>-*` anchors) on every call, so two structurally identical UIs are
@@ -40,10 +40,9 @@ test_that("B2.2b default forwarding is a no-op vs explicit shared = NULL", {
 })
 
 test_that("B2.3 shared = obj excludes obj$panel_keys from the inline section", {
-  obj <- ptr_shared(
-    list(f1, f2),
-    shared_ui = list(sz = function(id) shiny::sliderInput(id, "Size", 1, 6, 3))
-  )
+  # `sz` is a panel key from the formulas' `ppNum(shared = "sz")` alone;
+  # `shared_ui` (removed, see ?ptr_shared) never affected the partition.
+  obj <- ptr_shared(list(f1, f2))
   expect_equal(obj$panel_keys, "sz")
 
   ui <- as.character(ptr_ui(f1, "plot_1", shared = obj))
@@ -62,9 +61,12 @@ test_that("B2.3b non-ptr_shared_spec non-NULL shared errors via ptr_ui_controls"
 
 test_that("B2.4 shared = does not change argument order of existing params", {
   # Constraint: shared = NULL is appended; existing params keep position.
+  # ADR 0020 / Plan 04: the deprecated `checkbox_defaults` slot was
+  # removed, so the public signature lost it but every other position
+  # is preserved.
   expect_identical(
     names(formals(ptr_ui)),
-    c("formula", "id", "ui_text", "checkbox_defaults",
+    c("formula", "id", "ui_text",
       "expr_check", "css", "shared")
   )
 })

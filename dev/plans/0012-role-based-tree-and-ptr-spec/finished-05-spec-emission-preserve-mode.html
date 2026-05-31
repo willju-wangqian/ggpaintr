@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-05 — ptr_spec emission in preserve-mode code panel (from ADR 0012)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 05
+  slug: spec-emission-preserve-mode
+  source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
+  depends_on: [04]
+  parallel_group: G4
+  status: draft
+-->
+
+<h1>PLAN-05 — <code>ptr_spec</code> emission in preserve-mode code panel</h1>
+<p class="meta">Source: ADR 0012 (§2 row "ptr_spec", §3.5 "ptr_spec construction and shape", §4 S5) · Depends on: 04 · Parallel group: G4 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0012 §3.5: <em>"Construction is a one-pass diff: <code>ptr_spec = snapshot ∖ registry_defaults</code>, keyed by fully-qualified Shiny input id. The result is added to state as <code>state$spec</code> (reactive over the runtime snapshot)."</em> The preserve-mode code panel emits a single self-contained call that includes the sparse spec.</p>
+<p>This plan adds the construction + emission. Apply (replay) is plan 06's job.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>A new internal helper <code>ptr_spec_from_snapshot(snapshot, registry_defaults)</code> in <code>R/paintr-server.R</code> (or a new <code>R/paintr-spec.R</code> if the function grows past ~30 lines) returns a flat named list of <em>fully-qualified input ids</em> → values, omitting entries whose value <code>identical()</code>-matches the registry default for that id. Returns an empty named list when every value is at default.</li>
+  <li><code>ptr_state</code> exposes <code>state$spec</code> as a reactive over <code>state$runtime()</code>'s frozen snapshot (the <code>res$snapshot</code> field already populated by the ADR-0009 preserve-mode work). Empty spec returned when <code>state$runtime()</code> is <code>NULL</code> (pre-first-Update).</li>
+  <li>A new internal helper <code>ptr_spec_combine(specs)</code> in the same file takes a list of per-plot spec lists (already namespaced by each engine) and returns one flat named list — the union of entries across plots, keyed by the fully-qualified namespaced id. If two specs ever supply the same fully-qualified id (should not happen if grid namespacing is correct), abort with <code>rlang::abort()</code> naming the colliding id; do not silently choose. Used by <code>ptr_app_grid</code> in plan 06 to produce a single grid-wide spec from the per-plot <code>state$spec()</code> reactives.</li>
+  <li>A new internal helper <code>format_spec_for_panel(spec)</code> renders the spec list as R source code text (using <code>deparse</code> + light indent), emitting nothing (empty string) when <code>spec</code> is empty.</li>
+  <li><code>ptr_register_code</code>'s preserve branch (in <code>ptr_register_code</code> in <code>R/paintr-server.R</code>) emits the existing formula text exactly as today, then — if and only if <code>spec</code> is non-empty — appends a blank line followed by a <code>ptr_spec &lt;- list(...)</code> assignment beneath it. Shape:
+<pre>&lt;formula text&gt;
+
+ptr_spec &lt;- list(
+  `&lt;id1&gt;` = &lt;value1&gt;,
+  `&lt;id2&gt;` = &lt;value2&gt;
+)</pre>
+  When <code>spec</code> is empty, the output is bit-identical to today's preserve-mode output (just the formula text). The formula is never wrapped in <code>ptr_app(...)</code> by this plan — the user assembles the formula + spec into a <code>ptr_app(formula, spec = ptr_spec)</code> call themselves when they want to recreate the app.</li>
+  <li><code>tests/testthat/test-ptr-spec-emission.R</code> exists with at least:
+    <ol>
+      <li>Sparse encoding: a snapshot with a single entry at default produces an empty spec.</li>
+      <li>Sparse encoding: a snapshot with one default + one non-default entry produces a one-entry spec.</li>
+      <li>Full-default short-circuit: <code>format_spec_for_panel(empty_list)</code> returns <code>""</code>.</li>
+      <li>Round-trip readability: <code>format_spec_for_panel(non_empty_spec)</code> is parseable R that <code>rlang::parse_expr()</code> accepts.</li>
+      <li>Preserve panel integration: when <code>ptr_register_code</code>'s preserve mode is exercised via <code>shiny::testServer()</code> against a state with one non-default snapshot entry, the rendered text contains the formula text on top AND the <code>ptr_spec &lt;- list(…)</code> assignment below it, separated by a blank line. The formula text alone is bit-identical to today's preserve output.</li>
+    </ol>
+  </li>
+  <li>Authoritative gate (Definition of Done): FAIL 0 / ERROR 0 / SKIP 0 / PASS rises by ≥ 5 (new tests), no existing tests regress.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-server.R</code> (add helpers + extend <code>ptr_register_code</code> preserve branch + add <code>state$spec</code> reactive to <code>ptr_init_state</code>), <code>tests/testthat/test-ptr-spec-emission.R</code> (new).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-translate.R</code>, <code>R/paintr-prune.R</code>, <code>R/paintr-resolve.R</code>, <code>R/paintr-safe.R</code>, <code>R/paintr-app.R</code>, any vignette, any fixture, <code>NAMESPACE</code>, <code>man/</code>. The <code>spec=</code> argument plumbing through wrappers belongs to plan 06.</li>
+  <li>Default-comparison: identical-only (<code>base::identical()</code>). Do not implement type-coerced equality (e.g., <code>"TRUE"</code> vs <code>TRUE</code>) — Shiny inputs preserve type, and identical-only avoids surprise drops.</li>
+  <li>Registry default lookup: use the existing placeholder registry's default field. If a registry entry has no documented default, treat the snapshot value as non-default (emit it). Do not invent defaults.</li>
+  <li>Quote backtick-fragile ids in the panel output (every id may contain underscores and digits; backtick-quoting is safest and matches the ADR 0012 §3.5 example).</li>
+  <li>No reactive watchers, no observer side-effects. <code>state$spec</code> is a pull-style reactive over <code>state$runtime()</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: Preserve-mode code panel emits a sparse ptr_spec alongside the formula
+
+Scenario: Empty spec collapses to today's preserve output
+  Given a state whose runtime snapshot is empty (or every value matches its registry default)
+  When  the preserve-mode code panel renders
+  Then  the rendered text is bit-identical to today's preserve-mode output for the same formula
+  And   does NOT contain the substring "ptr_spec"
+
+Scenario: One non-default entry shows in spec
+  Given a snapshot with `ggplot_2_stage_enabled = FALSE` (default is TRUE) and everything else at default
+  When  the preserve-mode code panel renders
+  Then  the rendered text contains the formula text first
+  And   contains the substring "ptr_spec &lt;- list("
+  And   contains the substring "`ggplot_2_stage_enabled` = FALSE"
+  And   does NOT contain entries for ids whose values are at default
+  And   does NOT wrap the formula in a ptr_app(...) call
+
+Scenario: Pure-function sparseness
+  Given a snapshot list and a registry-defaults list with one identical entry and one differing entry
+  When  I call ggpaintr:::ptr_spec_from_snapshot(snapshot, defaults)
+  Then  the result has length 1
+  And   the named id is the one whose value differed from default
+
+Scenario: Format is parseable R
+  Given a non-empty spec list
+  When  I call ggpaintr:::format_spec_for_panel(spec) and pass the result through rlang::parse_expr()
+  Then  parsing succeeds (no error)
+  And   the parsed expression is a `list(...)` call with the same named entries
+
+Scenario: state$spec reacts to runtime
+  Given a state with no runtime result yet (state$runtime() is NULL)
+  When  I read state$spec()
+  Then  the result is an empty named list (no error, no warning)
+
+Scenario: ptr_spec_combine unions per-plot specs
+  Given two per-plot specs:
+        spec_p1 = list(`p1-ggplot_1_1_ppVar_NA` = "x")
+        spec_p2 = list(`p2-ggplot_2_stage_enabled` = FALSE)
+  When  I call ggpaintr:::ptr_spec_combine(list(spec_p1, spec_p2))
+  Then  the returned list has length 2
+  And   contains both entries with their original namespaced ids unchanged
+
+Scenario: ptr_spec_combine errors on colliding ids
+  Given two per-plot specs whose ids accidentally collide (e.g., both contain `p1-foo`)
+  When  I call ggpaintr:::ptr_spec_combine(list(spec_a, spec_b))
+  Then  the call errors with class "rlang_error"
+  And   the error message names the colliding id
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline_after_plans_03_04 + N_new)</code>.</p>
+<p><strong>Proxy traps — do not be fooled (copied verbatim from CLAUDE.md):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+</ul>
+<p>This plan adds ~5 new tests in one file. The gate must show PASS rise by that count, FAIL/ERROR still 0, SKIP unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-server.R</code> (new internal helpers + extension of <code>ptr_register_code</code> preserve branch + new <code>state$spec</code> reactive on the state constructor), <code>tests/testthat/test-ptr-spec-emission.R</code> (new). Generated files (<code>NAMESPACE</code>, <code>man/</code>) untouched.</p>
+<p>Branch convention: <code>0012-spec-emission-preserve-mode</code>, worktree at <code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/spec-emission-preserve-mode/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the gate command and verifies the new tests pass and no existing test regresses.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after plans 03 and 04 have merged. Record SHA + PASS count in worktree first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced, never absorbed. The <code>spec=</code> arg on <code>ptr_app</code> / <code>ptr_app_grid</code> / <code>ptr_app_bslib</code> / <code>ptr_server</code> is plan 06's territory — even if you can see the missing wiring, do not preempt. The lift transform and the bug-3b/3a regression nets are out-of-scope.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: plan 04 (which last touched <code>R/paintr-server.R</code> by deleting the fast-path; this plan extends the same file and must be sequenced after to avoid merge conflicts).</p>
+<p>Provides for: plan 06 (which consumes <code>state$spec</code> for the round-trip e2e and threads <code>spec=</code> through every wrapper signature).</p>
+
+<!-- implementable: PASS date=2026-05-21 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=1703c1a645b7 -->
+</body>
+</html>

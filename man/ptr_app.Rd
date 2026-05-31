@@ -8,25 +8,34 @@ ptr_app(
   formula,
   envir = parent.frame(),
   ui_text = NULL,
-  checkbox_defaults = NULL,
   expr_check = TRUE,
   safe_to_remove = character(),
-  css = NULL
+  css = NULL,
+  spec = NULL
 )
 }
 \arguments{
-\item{formula}{A single formula string with \code{ggpaintr} placeholders. See
-\strong{Formula grammar} below.}
+\item{formula}{Either a single character scalar containing a ggplot
+expression with \code{ggpaintr} placeholders, or an unquoted ggplot
+expression supplied directly. Expression-mode is captured with
+\code{\link[rlang:defusing-advanced]{rlang::enexpr()}} at the public boundary, then deparsed to a string
+before reaching the shared translate pipeline; both modes produce
+equivalent apps. A bare symbol bound to a string in the calling frame
+(e.g. \verb{f <- "..."; ptr_app(f)}) is resolved and treated as string
+mode. Pre-quoted wrappers (\code{\link[rlang:expr]{rlang::expr()}}, \code{\link[rlang:defusing-advanced]{rlang::quo()}},
+\code{\link[base:substitute]{base::quote()}}, \code{\link[base:bquote]{base::bquote()}}) at the captured root are unwrapped
+one level. \verb{!!} splicing inside the captured expression is honoured
+via \code{\link[rlang:defusing-advanced]{rlang::enexpr()}}. \strong{Native pipe (\verb{|>}) caveat:} in expression
+mode, R's parser desugars \verb{|>} before capture, so the rendered code
+shows the desugared nested-call form. Stay in string mode (or use
+\verb{\%>\%}) if you need \verb{|>} preserved.}
 
 \item{envir}{Environment used to resolve local data objects.}
 
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
 
-\item{checkbox_defaults}{Optional named list of initial checked states for
-layer checkboxes.}
-
-\item{expr_check}{Controls \code{expr} placeholder validation. Three modes:
+\item{expr_check}{Controls \code{ppExpr} placeholder validation. Three modes:
 \code{TRUE} (default) applies the built-in denylist + AST walker;
 \code{FALSE} disables all validation (for local prototyping with trusted
 input only); a \code{list} with \code{deny_list} and/or \code{allow_list} entries
@@ -36,8 +45,8 @@ input only); a \code{list} with \code{deny_list} and/or \code{allow_list} entrie
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
 leaves them empty. Defaults to \code{character()}. See \strong{Empty-call cleanup}
-below. A user-typed \code{expr} always wins — whatever the user enters into
-an \code{expr} box is honoured verbatim, even if its top-level name is in
+below. A user-typed \code{ppExpr} always wins — whatever the user enters into
+an \code{ppExpr} box is honoured verbatim, even if its top-level name is in
 \code{safe_to_remove}.}
 
 \item{css}{Optional character vector of paths to additional CSS files. Each
@@ -45,6 +54,10 @@ is served as a static resource and linked after \code{ggpaintr}'s bundled
 stylesheet, so its rules override the default \verb{.ptr-*} styling. Relative
 \code{url(...)} references inside a file resolve against that file's own
 directory. Defaults to \code{NULL} (no extra stylesheet).}
+
+\item{spec}{An optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot. See
+\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
 }
 \value{
 A \code{shiny.appobj}.
@@ -63,33 +76,33 @@ the runtime substitutes the user's input back into the expression at
 render time.
 
 \describe{
-\item{\code{var}}{Column picker, data-aware. Renders as a \code{selectInput}
+\item{\code{ppVar}}{Column picker, data-aware. Renders as a \code{selectInput}
 populated with the upstream data's column-name vector. Example:
-\code{aes(x = var)}.}
-\item{\code{text}}{Free-text input. Renders as a \code{textInput}. Example:
+\code{aes(x = ppVar)}.}
+\item{\code{ppText}}{Free-text input. Renders as a \code{textInput}. Example:
 \code{labs(title = text)}.}
-\item{\code{num}}{Numeric input. Renders as a \code{numericInput}. Example:
-\code{geom_point(size = num)}.}
-\item{\code{expr}}{Code editor, validated by \code{expr_check}. The only keyword
+\item{\code{ppNum}}{Numeric input. Renders as a \code{numericInput}. Example:
+\code{geom_point(size = ppNum)}.}
+\item{\code{ppExpr}}{Code editor, validated by \code{expr_check}. The only keyword
 that accepts arbitrary R code; see \code{vignette("ggpaintr-safety")} for
-the model. Example: \code{facet_wrap(expr)}.}
-\item{\code{upload}}{File picker, returns a data frame. Renders as a
+the model. Example: \code{facet_wrap(ppExpr)}.}
+\item{\code{ppUpload}}{File picker, returns a data frame. Renders as a
 \code{fileInput} plus an optional dataset-name textbox. Accepted formats:
 \code{.csv}, \code{.tsv}, \code{.rds}, \code{.xlsx}, \code{.xls}, \code{.json}. Uploaded data is
 normalized via \code{\link[=ptr_normalize_column_names]{ptr_normalize_column_names()}} automatically. Example:
-\code{ggplot(upload, ...)}.}
+\code{ggplot(ppUpload, ...)}.}
 }
 
 Any keyword occurrence may carry \code{shared = "<id>"} to lift the widget out
 of its per-layer panel into a top-level shared section. Used by
 \code{\link[=ptr_app_grid]{ptr_app_grid()}} to drive multiple plots from one control. See
-\code{vignette("ggpaintr-use-cases")} for worked examples of each keyword.
+\code{vignette("ggpaintr-tutorial")} for worked examples of each keyword.
 }
 
 \section{Empty-call cleanup}{
 
-When a placeholder resolves to "missing" (an empty \code{var} pick, a blank
-\code{text}, a cleared \code{num}, an unchecked layer checkbox), its argument is
+When a placeholder resolves to "missing" (an empty \code{ppVar} pick, a blank
+\code{ppText}, a cleared \code{ppNum}, an unchecked layer checkbox), its argument is
 dropped from the generated code. If the surrounding call is left empty
 and its bare name is in the curated cleanup list, the whole call
 disappears too. This rule applies to both placeholder-driven empties and
@@ -124,7 +137,13 @@ Use \code{safe_to_remove = c("pcp_theme")} to opt a specific name in.
 
 \examples{
 if (interactive()) {
-  ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+  # String mode (existing).
+  ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
+  # Expression mode (new): pass the unquoted ggplot expression.
+  ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
+  # !! splicing into expression mode.
+  col <- rlang::sym("mpg")
+  ptr_app(ggplot(mtcars, aes(x = !!col, y = ppVar)) + geom_point())
 }
 }
 \seealso{
@@ -133,5 +152,5 @@ if (interactive()) {
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} et al. for registering custom
 keywords; \code{\link[=ptr_ui_text]{ptr_ui_text()}} for copy overrides; \code{\link[=ptr_css]{ptr_css()}} for the
 \verb{css =} argument and themable CSS custom properties;
-\code{vignette("ggpaintr-use-cases")} for tutorial examples.
+\code{vignette("ggpaintr-tutorial")} for tutorial examples.
 }

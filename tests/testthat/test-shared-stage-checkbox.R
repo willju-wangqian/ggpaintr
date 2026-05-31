@@ -1,6 +1,6 @@
 # Stage(verb) checkbox for shared placeholders inside a data pipeline.
 #
-# When a shared placeholder (e.g. `var(shared = "a")`) lives inside a
+# When a shared placeholder (e.g. `ppVar(shared = "a")`) lives inside a
 # pipeline stage whose only placeholders are shared, the per-formula Data
 # sub-tab renders no checkbox for that stage -- `find_layer_placeholders_*`
 # skips shared placeholders. The shared section is responsible for showing
@@ -27,8 +27,8 @@
 
 example_formula <- paste0(
   "mtcars |> dplyr::filter(mpg > 10) |> ",
-  "dplyr::select(var(shared = \"a\"), gear) |> ",
-  "ggplot(aes(x = var(shared = \"b\"), y = gear)) + geom_point()"
+  "dplyr::select(ppVar(shared = \"a\"), gear) |> ",
+  "ggplot(aes(x = ppVar(shared = \"b\"), y = gear)) + geom_point()"
 )
 
 test_that("collect_orphan_shared_stages flags select() with only shared placeholder", {
@@ -42,7 +42,7 @@ test_that("collect_orphan_shared_stages flags select() with only shared placehol
 
 test_that("collect_orphan_shared_stages skips stages that mix shared and non-shared placeholders", {
   tree <- ptr_translate(
-    "mtcars |> dplyr::select(var(shared = \"a\"), var) |> ggplot(aes(x = gear))",
+    "mtcars |> dplyr::select(ppVar(shared = \"a\"), ppVar) |> ggplot(aes(x = gear))",
     expr_check = FALSE
   )
   expect_equal(length(collect_orphan_shared_stages(tree)), 0L)
@@ -50,7 +50,7 @@ test_that("collect_orphan_shared_stages skips stages that mix shared and non-sha
 
 test_that("collect_orphan_shared_stages ignores shared placeholders outside any pipeline stage", {
   tree <- ptr_translate(
-    "mtcars |> ggplot(aes(x = var(shared = \"b\"), y = gear)) + geom_point()",
+    "mtcars |> ggplot(aes(x = ppVar(shared = \"b\"), y = gear)) + geom_point()",
     expr_check = FALSE
   )
   expect_equal(length(collect_orphan_shared_stages(tree)), 0L)
@@ -74,8 +74,8 @@ test_that("shared widget for non-pipeline key is NOT wrapped in a stage block", 
   # Only the orphan stage (key "a") should be wrapped; "b" is bare.
   expect_equal(length(.find_tags(panel, has_class = "ptr-stage-head")), 1L)
   # Both shared widgets must still be present (one wrapped, one bare).
-  a_id <- consumer_output_id(canonical_shared_id("a"))
-  b_id <- consumer_output_id(canonical_shared_id("b"))
+  a_id <- placeholder_output_id(canonical_shared_id("a"))
+  b_id <- placeholder_output_id(canonical_shared_id("b"))
   expect_true(length(.find_tags(panel, has_id = a_id)) > 0L)
   expect_true(length(.find_tags(panel, has_id = b_id)) > 0L)
 })
@@ -113,9 +113,9 @@ test_that("disable_walk with the orphan stage_id false prunes select() from the 
 # ---- multi-tree path: ptr_shared_ui / ptr_shared_server / ptr_app_grid ----
 
 grid_plots <- list(
-  paste0("mtcars |> dplyr::select(var(shared = \"a\"), mpg) |> ",
+  paste0("mtcars |> dplyr::select(ppVar(shared = \"a\"), mpg) |> ",
          "ggplot(aes(x = mpg, y = mpg)) + geom_point()"),
-  paste0("mtcars |> dplyr::filter(var(shared = \"a\") > 0) |> ",
+  paste0("mtcars |> dplyr::filter(ppVar(shared = \"a\") > 0) |> ",
          "ggplot(aes(x = mpg, y = mpg)) + geom_point()")
 )
 

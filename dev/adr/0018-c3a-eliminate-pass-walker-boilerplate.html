@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0018 — C3a: Eliminate per-pass S3 walker boilerplate</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0018 — C3a: Eliminate per-pass S3 walker boilerplate</h1>
+
+<p><strong>Status:</strong> <em>Proposed.</em> Promoted from <a href="0017-deepening-opportunities-catalog.html">ADR-0017</a> C3 grill session on 2026-05-24. Direction sketched; <strong>interface design and migration plan deferred to a fresh-session grilling</strong> (handoff produced separately).</p>
+
+<p><strong>Date:</strong> 2026-05-24</p>
+
+<p><strong>Parent:</strong> <a href="0017-deepening-opportunities-catalog.html">ADR-0017</a> (deepening opportunities catalog), candidate C3a.</p>
+
+<p><strong>Relates to:</strong> <a href="0012-role-based-tree-and-ptr-spec.html">ADR-0012</a> (tree is semantic, not syntactic — typed node classes locked).</p>
+
+<h2>Context</h2>
+
+<p>The ggpaintr formula pipeline runs four mutating passes over the typed AST: <code>classify</code>, <code>prune</code>, <code>substitute</code>, <code>render</code>. Each pass lives in its own file (<code>R/paintr-classify.R</code>, <code>R/paintr-prune.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-render.R</code>) and <strong>each rolls a complete S3 dispatch tree of 11–13 methods</strong> — one per node type (<code>ptr_root</code>, <code>ptr_layer</code>, <code>ptr_pipeline</code>, <code>ptr_call</code>, <code>ptr_ph_value</code>, <code>ptr_ph_data_consumer</code>, <code>ptr_ph_data_source</code>, <code>ptr_user_expr</code>, <code>ptr_literal</code>, <code>ptr_closure</code>, <code>ptr_missing</code>, <code>default</code>).</p>
+
+<p>The ~80% common shape across these dispatch trees is the same "recurse into children, rebuild a new node from rewritten children" boilerplate. The ~20% variation is the per-pass per-node-type payload — the actual work each pass does at that node type.</p>
+
+<p>Meanwhile, <code>R/paintr-walk.R</code> already provides generic walker primitives (<code>ptr_walk</code>, <code>ptr_collect</code>, <code>ptr_rewrite_pre</code>, <code>ptr_cursor*</code>) <strong>that are widely used elsewhere</strong> — <code>build-ui.R</code> (4 call-sites), <code>server.R</code> (4 call-sites), <code>disable.R</code>, <code>ids.R</code>, <code>translate.R</code>. The four mutating passes alone bypass these primitives in favour of open-coded dispatch trees.</p>
+
+<h3>Verified facts (2026-05-24)</h3>
+
+<ul>
+  <li>Per-pass S3 method counts: classify = 9 methods; prune = 13; substitute = 13; render = 13 (+ a parallel <code>stamp_current_pick_walk</code> S3 tree of 10 methods in the same file).</li>
+  <li>Generic walker primitive usage in <code>R/</code>: <code>ptr_walk</code> = 6 call-sites; <code>ptr_collect</code> = 6 call-sites; <code>ptr_rewrite_pre</code> = 2 call-sites (<code>disable.R</code>, <code>ids.R</code>). The primitives ARE load-bearing — this ADR does NOT propose removing them.</li>
+  <li>Validators (<code>ptr_assert_ids_assigned</code>, <code>ptr_assert_classified</code>, <code>ptr_assert_no_placeholders</code>, <code>ptr_assert_no_missing</code>) are enforced in production: <code>ptr_translate</code> lines 106–107, <code>ptr_eval</code> lines 13–14. These ARE the canonical-form gates — already in place, not duplicated.</li>
+  <li>Sibling candidates: C3b (tree subtypes) and C3c (public staged pipeline) are tracked separately. C3c is promoted to its own ADR (<a href="0019-c3c-public-staged-pipeline.html">0019</a>); C3b needs an ADR-0012 conformity review before promoting.</li>
+</ul>
+
+<h2>Problem statement</h2>
+
+<p>The four mutating passes share a structural axis (per-node-type dispatch) and a payload axis (what to do at each node type), but the codebase only factors the latter. Adding a new node type — say <code>ptr_some_new_thing</code> — requires touching <strong>four</strong> pass files in lockstep, each time writing the same descend-on-children plumbing. Failure to update all four silently degrades passes (the <code>default</code> S3 method is invoked, often producing a structurally wrong tree without error).</p>
+
+<p>This is shallow-module shape: each pass file contains ~80% boilerplate that has no per-pass meaning. The interface (a "pass") is large (13 method bodies) for the implementation it carries (one per-node-type payload table).</p>
+
+<h2>Decision (direction, not interface)</h2>
+
+<p>Introduce a single pass-driver primitive — provisional name <code>ptr_pass(tree, handlers)</code> — that owns descent over all node types. Per-pass code reduces to a <code>handlers</code> table (per-node-type payloads only). Each of <code>classify.R</code> / <code>prune.R</code> / <code>substitute.R</code> / <code>render.R</code> becomes the pass's <code>handlers</code> table plus an entry point that calls <code>ptr_pass</code>.</p>
+
+<p><strong>Out of scope for this ADR:</strong> the exact <code>handlers</code> contract (whether handlers see children pre- or post-descent; how to express "rebuild this node with these new children"; how passes that need cursor state — e.g. <code>in_data_position</code> — express that). These are interface design questions to be resolved in the grilling session.</p>
+
+<h2>Consequences</h2>
+
+<h3>What this buys</h3>
+
+<ul>
+  <li>Adding a new node type touches one place: the node constructor in <code>paintr-nodes.R</code> + one handler row per pass. Today: 5 files in lockstep, with a silent-failure mode via the <code>default</code> dispatch.</li>
+  <li>Each pass file shrinks substantially. Rough sketch: <code>render.R</code>'s 47 functions / 636 lines could fall to ~25 functions / ~250 lines if the boilerplate goes; combined four-file reduction is on the order of <strong>600–800 LOC</strong>.</li>
+  <li>Per-pass handler tables are easier to read as a unit — the "what does prune do at a layer?" answer is one cell in a table, not method-hunting across a file.</li>
+</ul>
+
+<h3>What this does NOT buy</h3>
+
+<ul>
+  <li>No tree-subtype safety (that is C3b). After C3a, a wrong-stage tree still flows past a wrong consumer with a runtime assertion failure, not a type error.</li>
+  <li>No public test interface to intermediate stages (that is C3c).</li>
+  <li>No reduction in the number of pass files — same four, just thinner.</li>
+</ul>
+
+<h3>Risks</h3>
+
+<ul>
+  <li><strong>Subtle dispatch differences.</strong> Some passes may need pre-order vs post-order traversal, sibling state, or specific re-entry semantics. The pass-driver interface must expose those needs explicitly; ignoring them silently produces wrong-tree bugs.</li>
+  <li><strong>S3 dispatch loss.</strong> If <code>handlers</code> is a named list keyed by class string rather than R's native S3, downstream extension by class is harder. The interface must either preserve method-dispatch semantics or document the trade-off.</li>
+  <li><strong>Wide blast radius.</strong> Touches the four largest pipeline files. Must land behind the authoritative gate (<code>NOT_CRAN=true Rscript -e 'testthat::test_dir(...)'</code> → FAIL 0 / ERROR 0 / SKIP 0) with the existing 1583+ tests unchanged.</li>
+  <li><strong>Boilerplate may not be boilerplate.</strong> If even 2 of the 4 passes need pass-specific behaviour at, say, the <code>ptr_pipeline</code> level (handling pipe ops vs nested calls differently), the "common" shape is smaller than it appears and the ROI shrinks. Worth quantifying during grilling.</li>
+</ul>
+
+<h2>Open questions for the grilling session</h2>
+
+<ol>
+  <li><strong>Handler contract.</strong> Does a handler see (a) the node before descent, decide what to do; or (b) the node post-descent with already-rewritten children, just shape the output? Or both, depending on the pass?</li>
+  <li><strong>Cursor / context threading.</strong> <code>disable.R</code> uses <code>ptr_rewrite_pre</code> precisely because it needs the <code>in_data_position</code> cursor state. Can the four mutating passes be expressed without that cursor, or does <code>ptr_pass</code> need to expose it?</li>
+  <li><strong>Pre/post-order.</strong> Render is bottom-up by nature (children's text composes parent's text). Substitute and classify likely top-down. Can one driver express both, or do we need <code>ptr_pass_pre</code> + <code>ptr_pass_post</code>?</li>
+  <li><strong>The <code>render.R</code> twist.</strong> That file already houses TWO walker trees (<code>render_walk</code> + <code>stamp_current_pick_walk</code>). Does C3a collapse them both, or are they genuinely two passes that happen to colocate?</li>
+  <li><strong>Migration order.</strong> Migrating the simplest pass first (likely <code>classify</code>, 9 methods, 103 lines) lets the driver mature before tackling render. Or migrate render last to maximise leverage. Pick.</li>
+  <li><strong>Don't-break-it gate.</strong> Definition of Done is the authoritative gate from <code>CLAUDE.md</code> — FAIL 0 / ERROR 0 / SKIP 0. Pre-refactor: snapshot the pass-output trees for a representative set of formulas; post-refactor: byte-identical. Anything else is not done.</li>
+</ol>
+
+<h2>Definition of Done (for the eventual implementation plan)</h2>
+
+<p>Per <code>CLAUDE.md</code> authoritative gate:</p>
+
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+</code></pre>
+
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (current N = 1583+).</p>
+
+<p>Plus: round-trip snapshot equivalence (pre-refactor pass outputs == post-refactor pass outputs) for a curated formula set spanning all node types and the super-app fixtures (per <a href="0013-super-app-pressure-test-suite.html">ADR-0013</a>).</p>
+
+<h2>Process from here</h2>
+
+<ol>
+  <li>Fresh-session grilling (handoff produced separately, 2026-05-24) deepens this ADR by resolving the open questions above and locking the <code>ptr_pass</code> / <code>handlers</code> interface.</li>
+  <li>Once locked, this ADR moves to <em>Accepted</em>; <code>/decision-to-plan</code> emits the implementation plan(s).</li>
+  <li><code>/exec-plan</code> runs each plan in a sibling worktree per the project's worktree workflow (<code>feedback-parallel-worktree-workflow</code>).</li>
+</ol>
+
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0022 — Spec panel replaces preserve-mode formula view</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0022 — Spec panel replaces preserve-mode formula view</h1>
+
+<p><strong>Status:</strong> <em>Accepted.</em> Drafted 2026-05-25. <strong>Implemented</strong> (verified in source 2026-05-28: <code>code_mode_toggle()</code> emits <code>choices = c(`Final code` = "final", `Spec` = "spec")</code> in <code>R/paintr-app.R</code>; panel body uses <code>format_spec_for_panel(state$spec())</code> in <code>R/paintr-server.R</code>, preserve-mode emission trimmed).</p>
+
+<p><strong>Date:</strong> 2026-05-25</p>
+
+<p><strong>Relates to:</strong> <a href="0012-role-based-tree-and-ptr-spec.html">ADR-0012</a> (<code>spec=</code> shape, apply-timing, panel-section emission), <a href="0020-pp-layer-off-pp-verb-off-toggles.html">ADR-0020</a> and <a href="0021-pp-verb-switch.html">ADR-0021</a> (structural keywords as the trigger that exposed the misframing).</p>
+
+<p><strong>Implementation:</strong> <a href="../plans/0022-spec-panel-replaces-preserve-mode/index.html">dev/plans/0022-spec-panel-replaces-preserve-mode/</a> (TBD).</p>
+
+<h2>Context</h2>
+
+<p>The generated-code panel today exposes two views via a radio toggle (<code>R/paintr-app.R:480-491</code>): <code>"Final code"</code> emits the eval-mode substituted ggplot expression, <code>"Show placeholders"</code> emits a round-trip of the original formula with <code>pp*</code> tokens preserved plus a sparse <code>ptr_spec &lt;- list(...)</code> block beneath (<code>R/paintr-server.R:2253-2283</code>). The formula-with-placeholders portion was intended as a <em>reproducer</em>: a non-owner of the app could copy it, paste it into <code>ptr_app()</code>, and recreate the running app.</p>
+
+<p>That intent is incoherent under closer inspection. Two audiences interact with a ggpaintr app:</p>
+
+<ul>
+  <li><strong>App owner</strong> — wrote the source <code>ptr_app(formula, ui_text, css, expr_check, safe_to_remove, spec, ...)</code>. They already have the formula. They need a way to <em>persist state</em> (current widget values) across sessions or share a saved view with another owner.</li>
+  <li><strong>App visitor</strong> — runs a deployed app, has no source. The plot-recipe escape hatch is the eval-mode substituted ggplot code; the visitor can take that away and use it without ggpaintr. They were never the audience for a formula reproducer.</li>
+</ul>
+
+<p>The preserve-mode panel was attempting to serve a third audience that does not exist (a non-owner who wants to clone the app), at the cost of carrying a render-walker code path that <strong>cannot honestly reproduce the app</strong> for structural keywords. The two structural keywords (<code>ppLayerOff</code>, <code>ppVerbSwitch</code> — ADR-0020 / ADR-0021) never appear in the typed tree, so the preserve-mode renderer cannot emit them. A formula passed through preserve-mode loses (a) <code>ppLayerOff</code>'s <code>hide=</code> default, (b) the entire <code>ppVerbSwitch</code> wrapper (which is the <em>only</em> way to create a stage checkbox on a placeholder-free verb — without the wrapper, the rebooted app has no such checkbox at all).</p>
+
+<p>The right primitive for state persistence is <strong>spec</strong>: <em>formula = app definition (owned by the owner, lives in source); spec = state of one running instance (deparseable, shareable, multiple per formula).</em> Different states of the same plot are different specs against one formula. Different plots are different formulas (and <code>ptr_app_grid()</code> already covers the multi-plot case).</p>
+
+<h2>Decision</h2>
+
+<p>Soft-land preserve-mode out of the UI. Keep the implementation alive.</p>
+
+<ol>
+  <li><strong>Repurpose the radio's second choice.</strong> Rename the label <code>"Show placeholders"</code> → <code>"Spec"</code> and the input value <code>"preserve"</code> → <code>"spec"</code> in <code>code_mode_toggle()</code> (<code>R/paintr-app.R:480-491</code>).</li>
+  <li><strong>Trim the formula-render emission from the panel body.</strong> In <code>R/paintr-server.R:2253-2283</code>, drop the <code>formula_text &lt;- ptr_render(..., preserve_placeholders = TRUE)</code> emission and the concatenation. The branch body becomes:
+    <pre><code>spec_text &lt;- format_spec_for_panel(state$spec())
+if (!nzchar(spec_text))
+  "# No overrides yet — interact with the controls and click Update."
+else spec_text</code></pre>
+    The trimmed lines are commented out with a header pointing at this ADR; nothing in <code>R/paintr-render.R</code> is touched. <code>ptr_render(..., preserve_placeholders = TRUE)</code> remains a working internal function.</li>
+  <li><strong>Rewrite tests that drove the UI for preserve-mode round-trip assertions</strong> (<code>tests/testthat/test-adr10-ppupload-name-browser.R</code>, the relevant blocks of <code>tests/testthat/test-super-pressure.R</code>) as unit tests calling <code>ptr_render(tree, preserve_placeholders = TRUE)</code> directly. Coverage of the live render code is preserved; the UI proxy is dropped because the panel no longer surfaces this text.</li>
+  <li><strong>Update vignettes / feature-bank</strong> for the rename. Light copy pass — no behavioral change.</li>
+</ol>
+
+<p>A future helper <code>ptr_inject_spec(formula, spec, ui_text = NULL, css = NULL, ...)</code> can collapse owner-side state into a literals-only formula for the rare "ship a frozen snapshot of my app to a non-owner without giving them the source" use case. That helper is out of scope for this ADR; the spec panel is sufficient for the in-scope audiences.</p>
+
+<h2>Consequences</h2>
+
+<ul>
+  <li>The panel no longer claims to reproduce the formula. The owner is the formula's source of truth. The spec is a serializable snapshot of <em>current widget values</em>, copy-pasteable into a new <code>ptr_app(formula, spec = ...)</code> call by the same owner.</li>
+  <li>Structural-keyword honesty restored: the panel cannot lie about <code>ppLayerOff</code> / <code>ppVerbSwitch</code> because it no longer attempts to round-trip them.</li>
+  <li>The comparator-exclusion list (ADR-0021) and structural-keyword unwrap behavior (ADR-0020 / ADR-0021) are unaffected. Tree shape, id stamping, runtime evaluation are all unchanged.</li>
+  <li>Render-walker preserve-mode infrastructure (<code>R/paintr-render.R</code>) is dormant in the UI but alive in code and tests. A follow-up ADR may propose full removal once a deprecation window has elapsed.</li>
+  <li>The "Spec" label on the radio matches the <code>spec =</code> argument of <code>ptr_app()</code> 1:1, so panel and API share one term.</li>
+  <li>Empty-spec UX: the panel shows a single comment line (<code>"# No overrides yet — interact with the controls and click Update."</code>) instead of a blank box. Pre-Update users see something honest.</li>
+</ul>
+
+<h2>Alternatives considered</h2>
+
+<ul>
+  <li><strong>Teach the render walker to re-emit <code>ppLayerOff</code> / <code>ppVerbSwitch</code> from carrier-node metadata.</strong> Rejected: solves a problem the panel shouldn't be trying to solve at all (reproduction for non-owners). The audience analysis above settles the framing question, and Option 3 disappears with it.</li>
+  <li><strong>Hard-delete preserve-mode rendering.</strong> Rejected as too aggressive for this change. The render code is small, intact, and may be repurposed (e.g. by <code>ptr_inject_spec</code>). Soft-landing preserves optionality at near-zero ongoing cost.</li>
+  <li><strong>Keep preserve-mode and re-label it "approximate".</strong> Rejected: admits the dishonesty without removing it. Compounds rather than fixes.</li>
+</ul>
+
+<h2>Out of scope</h2>
+
+<ul>
+  <li><strong><code>ptr_inject_spec(formula, spec, ...)</code> helper.</strong> Owner-side tool to bake state into a formula for snapshot distribution. Useful and probably worth building later; not required by this ADR.</li>
+  <li><strong>Full removal of preserve-mode render code.</strong> Deferred. Revisit once the deprecation window has elapsed and no user has surfaced a need for the dormant path.</li>
+  <li><strong><code>ui_text</code> / <code>css</code> in the spec panel.</strong> They affect app shape but are owner-side boot config (not state). Owners hold them in source; no panel-side echo.</li>
+</ul>
+
+</body>
+</html>

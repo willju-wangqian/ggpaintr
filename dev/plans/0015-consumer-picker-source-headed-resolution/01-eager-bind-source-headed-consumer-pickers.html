@@ -1,0 +1,189 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — Eager-bind consumer pickers under source-headed upstream (from ADR 0015)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: eager-bind-source-headed-consumer-pickers
+  source_adr: dev/adr/0015-consumer-picker-source-headed-resolution.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — Eager-bind consumer pickers under source-headed upstream</h1>
+<p class="meta">Source: ADR 0015 · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0015 locks Option B: a two-site fix that closes a UX defect where consumer pickers nested under a data-source placeholder (<code>ppUpload</code>, <code>ppSample</code>, etc.) silently fail to bind. The non-shared site's <code>renderUI</code> is suspended on visibility (waits for the user to click an inner Controls subtab); the shared site has a complete dep set for pipeline-head sources but is missing <code>state$resolved_data</code> for bare-data-source layers. Both manifest as "picker container in DOM but never populates" after the user uploads a file.</p>
+
+<p>The instrumented runtime probe in ADR §1.5 proved the two mechanisms are distinct: the non-shared widget never fires its <code>renderUI</code> at all (suspended); the shared widget DOES fire but with stale <code>eval_env</code> because no dep latches the upload-completed signal. Both fixes are narrow; both must land together because they address the same UX symptom in symmetric code paths.</p>
+
+<p>Concrete sites to edit (ADR §2.1, §2.2):</p>
+<ul class="flat">
+  <li><code>R/paintr-server.R:1685</code> — drop the pre-warm visibility-gate inside <code>ptr_setup_consumer_uis()</code>; add a <code>shiny::req()</code> guard inside the <code>entry_reactive</code>; drop the now-redundant subtab dep.</li>
+  <li><code>R/paintr-server.R:1771</code> — add one line to <code>ptr_bind_shared_consumer_uis()</code>'s renderUI body: <code>for (rv in state$resolved_data) rv()</code>, symmetric with the existing <code>resolved_sources</code> loop.</li>
+</ul>
+
+<h2>Governing principle</h2>
+
+<p>ADR 0015 commits the project to a uniform binding contract for consumer pickers: <strong>a consumer <code>renderUI</code> must bind at boot regardless of the inner-tab visibility of its host panel, and must remain reactive to every signal that can change its upstream's resolved data</strong>. The cache-pollution race that motivated <code>fix-super1</code>'s visibility-gate is real but must be closed STRUCTURALLY (via <code>shiny::req()</code> on the appropriate source-ready reactive), NOT via suspension. The shared path must watch BOTH <code>state$resolved_sources</code> (pipeline-head sources) AND <code>state$resolved_data</code> (bare-data-source layers) — asymmetry between the two is the dep-set hole this plan closes.</p>
+
+<p>An implementation that re-introduces a <code>find_nodes(node$upstream, is_ptr_ph_data_source)</code>-style guard, omits the <code>req()</code> guard (leaving the race open), or adds only the <code>resolved_data</code> loop to the shared site without also touching <code>ptr_setup_consumer_uis()</code> violates this principle. The two changes are symmetric halves of one architectural fix; landing only one half leaves either non-shared widgets or shared widgets stuck in the same failure state observed in the probes — just in disjoint user-facing scenarios.</p>
+
+<p>Likewise, the <strong>BDD <code>Then</code> clauses below are contract</strong>. They name picker ids and DOM substrings that must appear without any subtab navigation. An implementation that lands the source change but writes tests that DO navigate to Controls before asserting (silently restoring the gate-as-precondition) violates the principle and will fail the auditor's check. STOP and escalate if the assertions as written cannot be made to pass; do not narrow them.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>SC-1 — Pre-warm gate removed.</strong> <code>R/paintr-server.R</code>'s <code>ptr_setup_consumer_uis()</code> no longer contains the conditional <code>if (length(find_nodes(node$upstream, is_ptr_ph_data_source)) == 0L)</code> wrapper around <code>shiny::outputOptions(output, output_id, suspendWhenHidden = FALSE)</code>. The <code>outputOptions(... suspendWhenHidden = FALSE)</code> call is reached unconditionally for every consumer registered by this function. Verified by <code>grep -n "find_nodes(node\$upstream" R/paintr-server.R</code> returning zero matches inside <code>ptr_setup_consumer_uis()</code>.</li>
+
+  <li><strong>SC-2 — <code>req()</code> guard present.</strong> The <code>entry_reactive</code> body inside <code>ptr_setup_consumer_uis()</code>'s per-consumer <code>local({...})</code> begins (after the existing dep-loop block, before <code>runtime_consumer_entry()</code>) with a <code>shiny::req()</code> on the source-ready reactive: if <code>node$layer_name %in% names(state$resolved_data)</code> the guard is <code>shiny::req(state$resolved_data[[node$layer_name]]())</code>; otherwise if any id in <code>node$upstream</code> appears in <code>names(state$resolved_sources)</code>, the guard is <code>shiny::req(state$resolved_sources[[&lt;that-id&gt;]]())</code>; otherwise no guard (consumer has no source-headed upstream — pre-warm fires immediately at boot, today's behavior for the empty-find_nodes branch). The chosen source-ready id is computed once in the enclosing <code>local({...})</code> (not per-fire).</li>
+
+  <li><strong>SC-3 — Subtab dep removed.</strong> The four lines that define <code>subtab_id</code> and the <code>if (!is.null(subtab_id)) input[[ns(subtab_id)]]</code> dep call inside <code>entry_reactive</code> are removed from <code>ptr_setup_consumer_uis()</code>. Verified by <code>grep -n "subtab_id" R/paintr-server.R</code> returning zero matches inside the body of <code>ptr_setup_consumer_uis()</code> (matches elsewhere in the file are out of scope).</li>
+
+  <li><strong>SC-4 — Shared <code>resolved_data</code> dep added.</strong> Inside <code>ptr_bind_shared_consumer_uis()</code>'s renderUI body, immediately after the existing <code>for (rv in state$resolved_sources) rv()</code> line, a new line <code>for (rv in state$resolved_data) rv()</code> is present. Verified by reading <code>R/paintr-server.R</code> around line 1771 — both loops appear consecutively, both guarded by the same <code>if (!is.null(state))</code> block.</li>
+
+  <li><strong>SC-5 — Regression fixture exists.</strong> Directory <code>tests/testthat/fixtures/vignette-apps/adr15-consumer-binding/</code> contains:
+    <ul>
+      <li><code>app.R</code> — first line is the pkgload scaffolding <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code>, then <code>library(shiny)</code>, then the single call <code>ptr_app(ggplot() + geom_point(data = ppUpload(df), aes(x = ppVar(mpg), y = ppVar(shared = "v"))))</code>. The formula carries TWO consumers under one bare-data-source layer: one non-shared (<code>ppVar(mpg)</code> at <code>x</code>) and one shared (<code>ppVar(shared = "v")</code> at <code>y</code>) — exercising both code paths the plan fixes.</li>
+      <li><code>sample.csv</code> — 5 data rows with header <code>mpg,wt</code> and numeric values (exact contents do not matter; only column names are asserted).</li>
+    </ul></li>
+
+  <li><strong>SC-6 — Regression test file exists.</strong> <code>tests/testthat/test-adr15-consumer-binding.R</code> contains TWO <code>test_that()</code> blocks. Both gate on <code>skip_on_cran()</code> + <code>skip_if_not_installed("shinytest2")</code> + <code>skip_if_not_installed("chromote")</code> + a source-root guard (<code>skip_if(!file.exists(...DESCRIPTION...))</code>) per the pattern in <code>tests/testthat/test-adr10-ppupload-name-browser.R</code>. Both boot the fixture via <code>shinytest2::AppDriver$new(test_path("fixtures","vignette-apps","adr15-consumer-binding"), ...)</code> wrapped in <code>suppressWarnings()</code>. Both use <code>withr::local_envvar(GGP_PKG = normalizePath(test_path("..","..")))</code>.</li>
+
+  <li><strong>SC-7 — Non-shared regression assertion.</strong> First test block uploads <code>sample.csv</code> to <code>geom_point_0_ppUpload_NA</code>, sets <code>geom_point_0_ppUpload_NA_name</code> to <code>"df"</code>, does NOT call any <code>set_inputs</code> on a <code>_subtab</code> input, then asserts <code>expect_picker_populated(app, "geom_point_1_1_ppVar_NA", "mpg")</code>. The assertion's helper (<code>tests/testthat/helper-vignette-apps.R:168</code>) verifies the picker's wrapper HTML contains the column name as a real choice — not a presence proxy.</li>
+
+  <li><strong>SC-8 — Shared regression assertion.</strong> Second test block (same upload + companion preconditions) asserts <code>expect_picker_populated(app, "shared_v", "mpg")</code> AND that <code>app$get_html("#shared_v_ui")</code> does NOT contain the substring <code>"not yet provided"</code> (proves the advisory branch no longer fires — the renderUI received a non-NULL <code>df</code> from <code>ptr_resolve_upstream</code>).</li>
+
+  <li><strong>SC-9 — Race-safe pre-warm.</strong> A third <code>test_that()</code> block (no upload, no companion change) boots <code>ptr_app(ggplot(mtcars, aes(x = ppVar(mpg))))</code> (NO source placeholder — pre-warm path with no <code>req()</code>), and asserts <code>expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "mpg")</code> at boot. This pins the no-source path's continued correctness — the <code>req()</code> conditional must not break this branch.</li>
+
+  <li><strong>SC-10 — Authoritative gate stays clean.</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS &gt;= 2355</code> (baseline 2352 + 3 new <code>test_that</code> blocks contributing at least one <code>expect_*</code> each). No pre-existing tests regress.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>R/paintr-server.R</code> — only the bodies of <code>ptr_setup_consumer_uis()</code> (lines 1564–1690) and <code>ptr_bind_shared_consumer_uis()</code> (lines 1702–1830). All other functions in this file are out of scope.</li>
+      <li><code>tests/testthat/test-adr15-consumer-binding.R</code> (NEW file).</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/adr15-consumer-binding/</code> (NEW directory) — <code>app.R</code>, <code>sample.csv</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan MUST NOT touch:</strong>
+    <ul>
+      <li>Any other <code>R/paintr-*.R</code> file — the fix is purely UI-binding plumbing in two functions; no resolver / classifier / substitute changes.</li>
+      <li><code>tests/testthat/test-super-pressure.R</code> — owned by ADR-0013's plan set; the existing super-2b gap is closed by ADR-0013's PLAN-04 (which unblocks after THIS plan merges).</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, <code>man/</code> — no API changes; do not regenerate.</li>
+    </ul>
+  </li>
+  <li><strong>No scope creep.</strong> Do not refactor adjacent code (the <code>local({...})</code> wrapping, the <code>find_consumer_ids_in_upstream</code> helpers, etc.) "while you're in there". Do not extract a common helper for the <code>req()</code> source-ready lookup unless it strictly improves readability AND is contained inside <code>ptr_setup_consumer_uis</code>'s body.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If implementing SC-1 / SC-2 / SC-3 / SC-4 as written breaks existing tests, STOP and escalate. Do NOT relax the <code>req()</code> to a conditional that skips the guard for some upstream shapes; do NOT keep the subtab dep "for backward compat"; do NOT add the shared <code>resolved_data</code> loop only inside a new <code>if (something)</code> branch. The BDD <code>Then</code> clauses (no subtab navigation, picker contains "mpg") are contract.</li>
+  <li><strong>Conventions:</strong> tidyverse style, 2-space indent (per <code>.claude/rules/coding.md</code>). Use <code>rlang::abort()</code> not <code>stop()</code> if introducing any errors (none expected). No new exports — both edited functions are internal.</li>
+  <li><strong>Roxygen / NAMESPACE:</strong> no changes — neither function is exported and signatures are unchanged.</li>
+  <li><strong>Serena / sub-agent constraints:</strong> when implementing in a worktree, sub-agents MUST use <code>Edit</code>/<code>Write</code> with absolute paths under the assigned worktree only. Do NOT use <code>mcp__serena__replace_symbol_body</code> or other Serena edit tools from sub-agents — they leak edits into the main tree (project memory <code>feedback-serena-project-root-doesnt-follow-worktree</code>). Verify with <code>git -C &lt;main-tree&gt; status</code> after every edit pass.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Consumer pickers bind eagerly under source-headed upstream
+         (closes ADR 0015 §1.3 mechanism A + §1.4 mechanism B)
+
+Scenario: Non-shared layer-aes ppVar under layer-data ppUpload populates after upload
+  Given the fixture app `adr15-consumer-binding` is booted via shinytest2::AppDriver
+  When app$upload_file(geom_point_0_ppUpload_NA = sample.csv) is called
+  And app$set_inputs(geom_point_0_ppUpload_NA_name = "df", wait_ = FALSE) is called
+  And NO app$set_inputs call targets any input id ending in "_subtab"
+  Then expect_picker_populated(app, "geom_point_1_1_ppVar_NA", "mpg") succeeds
+  And the picker's wrapper HTML at #geom_point_1_1_ppVar_NA_ui contains the literal string "mpg" inside an <option> tag
+
+Scenario: Shared aes ppVar under layer-data ppUpload populates after upload
+  Given the same fixture app is booted
+  When the same upload + companion preconditions are met
+  And NO app$set_inputs call targets any input id ending in "_subtab"
+  Then expect_picker_populated(app, "shared_v", "mpg") succeeds
+  And app$get_html("#shared_v_ui") does NOT contain the substring "not yet provided"
+
+Scenario: No-source upstream — pre-warm fires at boot (no regression of today's working path)
+  Given ptr_app(ggplot(mtcars, aes(x = ppVar(mpg)))) is booted (no source placeholder anywhere)
+  When the test asserts immediately after AppDriver boot (no upload, no draw)
+  Then expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "mpg") succeeds
+  And no req() halt prevents the renderUI from firing at boot
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code> §Authoritative gate):</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS &gt;= 2355</code> (baseline 2352 + at least 3 new <code>expect_*</code> from the new <code>test_that</code> blocks; actual delta is the sum of <code>expect_*</code> calls in the three blocks).</p>
+
+<p><strong>Proxy traps — do not be fooled</strong> (copied from CLAUDE.md):</p>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir(...)'</code> with NO <code>NOT_CRAN=true</code> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "PASS / SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> runs the check subprocess with <code>NOT_CRAN=true</code>; the e2e file cleanly SKIPs via the source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the new e2e file <strong>ERRORing</strong> (<code>pkgload "DESCRIPTION not found"</code>), the guard regressed — harness defect, NOT product failure.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> RUNS the browser tests (source tree present → 0 SKIP). That alone is the gate.</li>
+  <li>e2e flake (intermittent, <code>chromote wait_for_js</code> timeout) is documented; retry the file in isolation before filing.</li>
+</ul>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: <code>R/paintr-server.R</code> (bodies of <code>ptr_setup_consumer_uis</code> + <code>ptr_bind_shared_consumer_uis</code> only), <code>tests/testthat/test-adr15-consumer-binding.R</code>, <code>tests/testthat/fixtures/vignette-apps/adr15-consumer-binding/</code>.</p>
+
+<p>R's auto-generated files (<code>NAMESPACE</code>, <code>man/</code>) are NOT owned by this plan — both functions edited are internal (non-exported), so no <code>devtools::document()</code> regeneration is required or permitted. If an audit surfaces drift in <code>NAMESPACE</code> after this plan lands, the cause is something else and should be reported, not absorbed.</p>
+
+<p>Branch convention: this plan lives on branch <code>0015-eager-bind-source-headed-consumer-pickers</code> in a worktree at <code>.claude/worktrees/0015-consumer-picker-source-headed-resolution/eager-bind-source-headed-consumer-pickers/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge. Specifically: the auditor MUST run the gate from a clean <code>devtools::load_all()</code> in the worktree (not by trusting the implementer's PASS count) AND MUST inspect the test bodies to verify NO <code>set_inputs(..._subtab = ...)</code> calls were added to make the assertions pass — that would silently restore the gate-as-precondition the principle forbids.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: orchestrator branch <code>followup-b</code> at HEAD <code>4a23d39</code> (chore: ignore .claude/worktrees/ + archive predecessor exec-plan report). At this commit the authoritative gate reports <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS 2352</code>. After this plan lands, PASS rises by ≥ 3; FAIL / ERROR / SKIP unchanged.</p>
+
+<p>Pre-existing flakes: e2e shinytest2 tests have documented intermittent <code>chromote wait_for_js</code> timeout shapes (project memory + CLAUDE.md). If the new file flakes, retry in isolation before filing — the underlying race is harness-level, not source-level.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. Concrete examples of out-of-scope work that may surface and how to handle it:</p>
+
+<ul class="flat">
+  <li><strong>ADR-0013 PLAN-04 (<code>super-2b</code>) becomes implementable.</strong> Surface in the audit report; do not author or land any part of PLAN-04 in this plan. PLAN-04's super-2b fixture, anchor block, and test live entirely in the ADR-0013 plan set.</li>
+  <li><strong>Other lazy-consumer-resolve D-line gaps (D5 / D7 / D8 / D9).</strong> If you notice that other Decision rows in <code>lazy-consumer-resolve.md</code> are also incomplete in the source, surface in the audit report as a follow-up candidate; do not touch in this plan.</li>
+  <li><strong>Documentation / vignette references to the old "click Controls to bind" workaround.</strong> If any vignette or roxygen prose still tells users to navigate to Controls to populate pickers under uploads, surface as a follow-up doc-sweep plan; do not edit prose in this plan.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: none. This is the only plan in ADR 0015's plan set.</p>
+
+<p>Provides for: ADR-0013 PLAN-04 (<code>04-app-2b-customsource-splice</code>) — currently BLOCKED on this source defect. After this plan merges into <code>followup-b</code> and <code>followup-b</code> merges into <code>post-add-expr</code>, PLAN-04 can land verbatim. PLAN-04's super-2b fixture and assertions will pass against the new source.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=c31584b46072 -->
+</body>
+</html>

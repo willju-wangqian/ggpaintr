@@ -14,9 +14,7 @@
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states for
-#'   layer checkboxes.
-#' @param expr_check Controls `expr` placeholder validation. Three modes:
+#' @param expr_check Controls `ppExpr` placeholder validation. Three modes:
 #'   `TRUE` (default) applies the built-in denylist + AST walker;
 #'   `FALSE` disables all validation (for local prototyping with trusted
 #'   input only); a `list` with `deny_list` and/or `allow_list` entries
@@ -25,8 +23,8 @@
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`. See **Empty-call cleanup**
-#'   below. A user-typed `expr` always wins — whatever the user enters into
-#'   an `expr` box is honoured verbatim, even if its top-level name is in
+#'   below. A user-typed `ppExpr` always wins — whatever the user enters into
+#'   an `ppExpr` box is honoured verbatim, even if its top-level name is in
 #'   `safe_to_remove`.
 #' @param css Optional character vector of paths to additional CSS files. Each
 #'   is served as a static resource and linked after `ggpaintr`'s bundled
@@ -43,31 +41,31 @@
 #' render time.
 #'
 #' \describe{
-#'   \item{`var`}{Column picker, data-aware. Renders as a `selectInput`
+#'   \item{`ppVar`}{Column picker, data-aware. Renders as a `selectInput`
 #'   populated with the upstream data's column-name vector. Example:
-#'   `aes(x = var)`.}
-#'   \item{`text`}{Free-text input. Renders as a `textInput`. Example:
+#'   `aes(x = ppVar)`.}
+#'   \item{`ppText`}{Free-text input. Renders as a `textInput`. Example:
 #'   `labs(title = text)`.}
-#'   \item{`num`}{Numeric input. Renders as a `numericInput`. Example:
-#'   `geom_point(size = num)`.}
-#'   \item{`expr`}{Code editor, validated by `expr_check`. The only keyword
+#'   \item{`ppNum`}{Numeric input. Renders as a `numericInput`. Example:
+#'   `geom_point(size = ppNum)`.}
+#'   \item{`ppExpr`}{Code editor, validated by `expr_check`. The only keyword
 #'   that accepts arbitrary R code; see `vignette("ggpaintr-safety")` for
-#'   the model. Example: `facet_wrap(expr)`.}
-#'   \item{`upload`}{File picker, returns a data frame. Renders as a
+#'   the model. Example: `facet_wrap(ppExpr)`.}
+#'   \item{`ppUpload`}{File picker, returns a data frame. Renders as a
 #'   `fileInput` plus an optional dataset-name textbox. Accepted formats:
 #'   `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, `.json`. Uploaded data is
 #'   normalized via [ptr_normalize_column_names()] automatically. Example:
-#'   `ggplot(upload, ...)`.}
+#'   `ggplot(ppUpload, ...)`.}
 #' }
 #'
 #' Any keyword occurrence may carry `shared = "<id>"` to lift the widget out
 #' of its per-layer panel into a top-level shared section. Used by
 #' [ptr_app_grid()] to drive multiple plots from one control. See
-#' `vignette("ggpaintr-use-cases")` for worked examples of each keyword.
+#' `vignette("ggpaintr-tutorial")` for worked examples of each keyword.
 #'
 #' @section Empty-call cleanup:
-#' When a placeholder resolves to "missing" (an empty `var` pick, a blank
-#' `text`, a cleared `num`, an unchecked layer checkbox), its argument is
+#' When a placeholder resolves to "missing" (an empty `ppVar` pick, a blank
+#' `ppText`, a cleared `ppNum`, an unchecked layer checkbox), its argument is
 #' dropped from the generated code. If the surrounding call is left empty
 #' and its bare name is in the curated cleanup list, the whole call
 #' disappears too. This rule applies to both placeholder-driven empties and
@@ -104,27 +102,51 @@
 #'   [ptr_define_placeholder_value()] et al. for registering custom
 #'   keywords; [ptr_ui_text()] for copy overrides; [ptr_css()] for the
 #'   `css =` argument and themable CSS custom properties;
-#'   `vignette("ggpaintr-use-cases")` for tutorial examples.
+#'   `vignette("ggpaintr-tutorial")` for tutorial examples.
+#' @param formula Either a single character scalar containing a ggplot
+#'   expression with `ggpaintr` placeholders, or an unquoted ggplot
+#'   expression supplied directly. Expression-mode is captured with
+#'   [rlang::enexpr()] at the public boundary, then deparsed to a string
+#'   before reaching the shared translate pipeline; both modes produce
+#'   equivalent apps. A bare symbol bound to a string in the calling frame
+#'   (e.g. `f <- "..."; ptr_app(f)`) is resolved and treated as string
+#'   mode. Pre-quoted wrappers ([rlang::expr()], [rlang::quo()],
+#'   [base::quote()], [base::bquote()]) at the captured root are unwrapped
+#'   one level. `!!` splicing inside the captured expression is honoured
+#'   via [rlang::enexpr()]. **Native pipe (`|>`) caveat:** in expression
+#'   mode, R's parser desugars `|>` before capture, so the rendered code
+#'   shows the desugared nested-call form. Stay in string mode (or use
+#'   `%>%`) if you need `|>` preserved.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #' @examples
 #' if (interactive()) {
-#'   ptr_app("ggplot(mtcars, aes(x = var, y = var)) + geom_point()")
+#'   # String mode (existing).
+#'   ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
+#'   # Expression mode (new): pass the unquoted ggplot expression.
+#'   ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
+#'   # !! splicing into expression mode.
+#'   col <- rlang::sym("mpg")
+#'   ptr_app(ggplot(mtcars, aes(x = !!col, y = ppVar)) + geom_point())
 #' }
 #' @export
 ptr_app <- function(formula,
                        envir = parent.frame(),
                        ui_text = NULL,
-                       checkbox_defaults = NULL,
                        expr_check = TRUE,
                        safe_to_remove = character(),
-                       css = NULL) {
+                       css = NULL,
+                       spec = NULL) {
+  formula_str <- ptr_capture_formula(rlang::enexpr(formula), envir)
   parts <- ptr_app_components(
-    formula,
+    formula_str,
     envir = envir,
     ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults,
     expr_check = expr_check,
     safe_to_remove = safe_to_remove,
-    css = css
+    css = css,
+    spec = spec
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
@@ -132,29 +154,145 @@ ptr_app <- function(formula,
 ptr_app_components <- function(formula,
                                   envir = parent.frame(),
                                   ui_text = NULL,
-                                  checkbox_defaults = NULL,
                                   expr_check = TRUE,
                                   safe_to_remove = character(),
                                   ns = shiny::NS(NULL),
-                                  css = NULL) {
+                                  css = NULL,
+                                  spec = NULL) {
+  formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   tree <- ptr_translate(formula, expr_check = expr_check)
 
   ui <- ptr_build_app_ui(
     tree,
     ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults,
     ns = ns,
-    render_shared_section = TRUE,
+    render_shared_section = partition_renders_section(new_partition_view("single")),
     app_chrome = TRUE,
     css = css
   )
   server <- ptr_make_app_server(
     formula, tree,
     envir = envir, ui_text = ui_text,
-    checkbox_defaults = checkbox_defaults, expr_check = expr_check,
-    safe_to_remove = safe_to_remove, ns = ns
+    expr_check = expr_check,
+    safe_to_remove = safe_to_remove, ns = ns,
+    spec = spec
   )
   list(ui = ui, server = server)
+}
+
+# Public-boundary dispatch for `formula`: accepts either a string scalar
+# or an unquoted ggplot expression captured with `rlang::enexpr()`.
+# Returns a single character scalar that the existing `ptr_translate()`
+# pipeline can consume verbatim. Per ADR 0009 §"Edge-case resolutions"
+# (E1, E1.a, E2.a):
+#   - string literal              -> returned as-is
+#   - bare symbol                 -> resolved once in `envir` (the
+#                                    `f <- "..."; ptr_app(f)` pattern)
+#   - rlang::expr() / rlang::quo() / quote() / bquote() at the root
+#                                 -> unwrapped one layer
+#   - any other language object   -> deparsed via `rlang::expr_text()`
+# `rlang::enexpr()` is used (not base `substitute()`) per the ADR 0009
+# cross-cutting rlang preference; it also makes `!!` splicing work.
+ptr_capture_formula <- function(formula_captured, envir) {
+  # Unwrap a top-level `{ ... }` block so users can wrap a piped
+  # expression in braces and feed it through `|> ptr_app()` at the
+  # bottom: `{ iris |> ggplot(...) + geom_point() } |> ptr_app()`.
+  # R's `{}` evaluates to its last expression, so we keep the last
+  # sub-expression. We don't recover the braces in the code panel.
+  if (is.call(formula_captured) &&
+      identical(formula_captured[[1L]], quote(`{`)) &&
+      length(formula_captured) >= 2L) {
+    formula_captured <- formula_captured[[length(formula_captured)]]
+  }
+  if (rlang::is_string(formula_captured)) {
+    return(formula_captured)
+  }
+  if (rlang::is_symbol(formula_captured)) {
+    sym_name <- rlang::as_string(formula_captured)
+    # Resolve order: caller-supplied `envir` first (documented
+    # contract: `f <- "..."; ptr_app(f)` looks `f` up in the user's
+    # frame), then walk the active call stack. The stack walk covers
+    # internal forwarding -- when `ptr_app()` converts to a string and
+    # passes its local variable to `ptr_app_components()`, the symbol
+    # is bound in `ptr_app`'s frame, not in the user-held `envir`. We
+    # accept only character / call / symbol values, so unrelated
+    # bindings in upstream frames cannot poison the resolution.
+    sentinel <- new.env(parent = emptyenv())
+    resolved <- tryCatch(rlang::eval_bare(formula_captured, envir),
+                         error = function(e) sentinel)
+    accept <- function(x) {
+      rlang::is_string(x) || is.call(x) || rlang::is_symbol(x)
+    }
+    if (identical(resolved, sentinel) || !accept(resolved)) {
+      resolved <- sentinel
+      for (fr in rev(sys.frames())) {
+        if (exists(sym_name, envir = fr, inherits = FALSE)) {
+          candidate <- get(sym_name, envir = fr, inherits = FALSE)
+          if (accept(candidate)) {
+            resolved <- candidate
+            break
+          }
+        }
+      }
+    }
+    if (rlang::is_string(resolved)) return(resolved)
+    if (is.call(resolved) || rlang::is_symbol(resolved)) {
+      formula_captured <- resolved
+      # fall through to wrapper-unwrap + deparse
+    } else {
+      rlang::abort(paste0(
+        "`formula` must be a single string or an unquoted ggplot ",
+        "expression; the variable `",
+        sym_name,
+        "` did not resolve to either."
+      ))
+    }
+  }
+  if (rlang::is_call(formula_captured)) {
+    head <- formula_captured[[1L]]
+    head_name <- if (rlang::is_symbol(head)) {
+      rlang::as_string(head)
+    } else if (rlang::is_call(head) && length(head) == 3L &&
+               rlang::as_string(head[[1L]]) %in% c("::", ":::")) {
+      rlang::as_string(head[[3L]])
+    } else {
+      ""
+    }
+    if (head_name %in% c("expr", "quo", "quote", "bquote") &&
+        length(formula_captured) >= 2L) {
+      formula_captured <- formula_captured[[2L]]
+    } else if (head_name %in% c("paste", "paste0", "sprintf", "gettextf",
+                                "format", "formatC", "c", "vector",
+                                "[", "[[", "$")) {
+      # String-builder / vector-constructor / subscript calls are
+      # forced to their value at the boundary. This preserves the
+      # historical contract that callers build / pick formulas via
+      # `paste0("ggplot(...)")` or `plots[[1]]` and pass them as the
+      # argument (force-evaluation used to happen at R's call site).
+      # For `c(...)` / `vector(...)` this is also where multi-element
+      # character vectors are caught and rejected as
+      # not-a-single-string.
+      evaled <- tryCatch(
+        rlang::eval_bare(formula_captured, envir),
+        error = function(e) NULL
+      )
+      if (rlang::is_string(evaled)) return(evaled)
+      if (!is.null(evaled)) {
+        rlang::abort(paste0(
+          "`formula` must be a single string or an unquoted ggplot ",
+          "expression; got a ", typeof(evaled), " of length ",
+          length(evaled), "."
+        ))
+      }
+    }
+  }
+  if (is.call(formula_captured) || rlang::is_symbol(formula_captured)) {
+    return(rlang::expr_text(formula_captured, width = 500L))
+  }
+  rlang::abort(paste0(
+    "`formula` must be a single string or an unquoted ggplot ",
+    "expression; got ", typeof(formula_captured), "."
+  ))
 }
 
 # The server closure shared by `ptr_app()` / `ptr_app_components()` and
@@ -162,8 +300,8 @@ ptr_app_components <- function(formula,
 # binding (`ptr_bind_shared_consumer_uis()`). `tree` is the translated AST,
 # already in hand at the call site (it also drives the UI there).
 ptr_make_app_server <- function(formula, tree, envir, ui_text,
-                                checkbox_defaults, expr_check,
-                                safe_to_remove, ns) {
+                                expr_check,
+                                safe_to_remove, ns, spec = NULL) {
   shared_entries <- collect_shared_placeholders(tree)
   shared_keys <- vapply(shared_entries, `[[`, character(1), "key")
   shared_resolutions <- ptr_resolve_shared_consumers(tree)
@@ -184,26 +322,33 @@ ptr_make_app_server <- function(formula, tree, envir, ui_text,
       input, output, session, formula,
       envir = envir,
       ui_text = ui_text,
-      checkbox_defaults = checkbox_defaults,
       expr_check = expr_check,
       safe_to_remove = safe_to_remove,
       shared = shared_reactives,
       ns = ns,
       auto_bind_shared = TRUE,
-      shared_resolutions = shared_resolutions
+      shared_resolutions = shared_resolutions,
+      spec = spec
     )
     # Single-instance owns every shared consumer key (no coordinator),
-    # so `host_owned_keys = character(0)`. Behaviour byte-stable: the
-    # helper assembles the same representative nodes the inline preamble
-    # used and calls the same binder once.
+    # so the partition view for the "single" surface yields character(0).
+    # Behaviour byte-stable: the helper assembles the same representative
+    # nodes the inline preamble used and calls the same binder once.
     ptr_bind_local_shared_consumers(
       tree = tree, output = output, input = input, ns = ns,
-      host_owned_keys = character(0),
+      host_owned_keys = partition_host_owned_keys(new_partition_view("single")),
       ui_text = ui_text,
       eval_env = envir,
       expr_check = expr_check,
       errors_rv = state$shared_resolution_errors,
-      state = state
+      state = state,
+      # INT-2 (ADR 0023): thread panel-owned source reactives so the
+      # consumer-picker renderUI takes a dep on them and (host-scope)
+      # extends `eval_env` with their resolved df under the panel
+      # binding name. Without this, formula-local shared consumers
+      # under a panel-owned `ppUpload(shared=...)` would never
+      # populate.
+      panel_sources = state$panel_sources %||% list()
     )
   }
 }
@@ -254,7 +399,6 @@ shared_section_tags <- function(tree, ui_text = NULL, ns = shiny::NS(NULL),
 }
 
 ptr_controls_panel <- function(tree, ui_text = NULL,
-                               checkbox_defaults = NULL,
                                ns = shiny::NS(NULL),
                                render_shared_section = FALSE) {
   shell_copy <- layer_panel_default_shell_copy(ui_text)
@@ -264,7 +408,6 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
     build_ui_for(layer,
                  ui_text = ui_text,
                  ns_fn = ns,
-                 checkbox_defaults = checkbox_defaults,
                  shell_copy = shell_copy)
   })
 
@@ -344,13 +487,35 @@ plot_card_tag <- function(ns, error = TRUE, code_toggle = FALSE) {
   )
 }
 
+# ADR 0009 / PLAN-08 / ADR 0022: two-mode code panel. The view-mode toggle
+# (radioGroupButtons keyed `ptr_code_mode`) switches the rendered text
+# between the final substituted code (`"final"`, default) and a snapshot of
+# the current widget state as a `ptr_spec <- list(...)` block (`"spec"`).
+# The server reads `input$ptr_code_mode` inside `ptr_register_code()`. The
+# pre-ADR-0022 `"preserve"` choice (formula-with-placeholders round-trip)
+# was retired by ADR 0022 — the spec list is the supported state-persistence
+# primitive; the formula is the owner's source of truth and is not echoed.
+code_mode_toggle <- function(ns) {
+  shiny::tags$span(
+    class = "ptr-code-mode",
+    shinyWidgets::radioGroupButtons(
+      inputId = ns("ptr_code_mode"),
+      label = NULL,
+      choices = c(`Final code` = "final", `Spec` = "spec"),
+      selected = "final",
+      size = "xs",
+      individual = TRUE
+    )
+  )
+}
+
 # The slide-out code window chrome (drag-by-title-bar head with Copy/Close +
 # a body), parameterised on the code-output content it wraps. Shared by
 # code_block_tag(style = "window") -- which feeds it the namespaced
 # verbatimTextOutput -- and the ptr_ui_toggle_code() combinator, which feeds
 # it an already-built bare ptr_ui_code() piece. The bundled JS toggles
 # `.ptr-open` on `.ptr-code-window`; structure here must keep that class.
-code_window_tag <- function(body) {
+code_window_tag <- function(body, mode_toggle = NULL) {
   shiny::tags$div(
     class = "ptr-code-window",
     shiny::tags$div(
@@ -358,6 +523,7 @@ code_window_tag <- function(body) {
       shiny::tags$span(class = "ptr-code-window__title", shiny::HTML("&lt;/&gt; Generated code")),
       shiny::tags$span(
         class = "ptr-code-window__actions",
+        mode_toggle,
         shiny::tags$button(type = "button", class = "ptr-copy-btn", "Copy"),
         shiny::tags$button(
           type = "button", class = "ptr-code-window__close",
@@ -373,13 +539,17 @@ code_window_tag <- function(body) {
 code_block_tag <- function(ns, style = c("panel", "window")) {
   style <- match.arg(style)
   if (identical(style, "window")) {
-    return(code_window_tag(shiny::verbatimTextOutput(ns("ptr_code"))))
+    return(code_window_tag(
+      shiny::verbatimTextOutput(ns("ptr_code")),
+      mode_toggle = code_mode_toggle(ns)
+    ))
   }
   shiny::tags$div(
     class = "ptr-card ptr-card--code",
     shiny::tags$div(
       class = "ptr-card__head",
-      shiny::tags$h3(class = "ptr-card__title", "Generated code")
+      shiny::tags$h3(class = "ptr-card__title", "Generated code"),
+      code_mode_toggle(ns)
     ),
     shiny::tags$div(
       class = "ptr-card__body",
@@ -586,7 +756,6 @@ ptr_ui_toggle_code <- function(plotish, code) {
 }
 
 ptr_build_app_ui <- function(tree, ui_text = NULL,
-                                checkbox_defaults = NULL,
                                 ns = shiny::NS(NULL),
                                 render_shared_section = FALSE,
                                 app_chrome = FALSE,
@@ -613,7 +782,6 @@ ptr_build_app_ui <- function(tree, ui_text = NULL,
         do.call(
           shiny::sidebarPanel,
           ptr_controls_panel(tree, ui_text = ui_text,
-                             checkbox_defaults = checkbox_defaults,
                              ns = ns,
                              render_shared_section = render_shared_section)
         ),
@@ -664,8 +832,7 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   Defaults to `NULL` (identity namespace, single-instance use).
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -687,12 +854,12 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   themable CSS custom properties.
 #' @examples
 #' ui <- ptr_ui(
-#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
 #'   "plot1"
 #' )
 #' @export
 ptr_ui <- function(formula, id = NULL, ui_text = NULL,
-                             checkbox_defaults = NULL, expr_check = TRUE,
+                             expr_check = TRUE,
                              css = NULL, shared = NULL) {
   # Self-contained L2 shell: fluidPage > div.ptr-app > sidebarLayout, built
   # by composing the bare L3 pieces + combinators (no reimplementation).
@@ -716,7 +883,6 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
           ptr_ui_controls(
             id = id, formula = formula,
             ui_text = ui_text,
-            checkbox_defaults = checkbox_defaults,
             expr_check = expr_check,
             shared = shared
           )
@@ -749,7 +915,7 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #' composed pieces in [ptr_ui_page()], which *is* the Bootstrap page and
 #' owns the single `.ptr-app` scope + the (deduped) assets. For a
 #' `navbarPage` or bslib root (which `ptr_ui_page()` does not cover) see
-#' the decomposition recipe in `vignette("ggpaintr-use-cases")`.
+#' `vignette("ggpaintr-tutorial")`.
 #'
 #' For finer control still — placing individual placeholder widgets
 #' independently rather than the whole panel — register a custom placeholder
@@ -761,8 +927,7 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #'   `id` passed to the other piece functions and the server wiring.
 #' @param ui_text Optional named list of copy overrides; see
 #'   [ptr_ui_text()] for the full schema and current defaults.
-#' @param checkbox_defaults Optional named list of initial checked states.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -779,12 +944,12 @@ ptr_ui <- function(formula, id = NULL, ui_text = NULL,
 #'   [ptr_ui_code()], [ptr_shared()], [ptr_server()]
 #' @examples
 #' ptr_ui_controls(
-#'   "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
 #'   id = "p"
 #' )
 #' @export
 ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
-                            checkbox_defaults = NULL, expr_check = TRUE,
+                            expr_check = TRUE,
                             shared = NULL) {
   assertthat::assert_that(
     is.null(shared) || inherits(shared, "ptr_shared_spec")
@@ -795,7 +960,6 @@ ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
   section <- shared_section_tags(tree, ui_text = ui_text, ns = ns,
                                  exclude_keys = exclude_keys)
   body <- ptr_controls_panel(tree, ui_text = ui_text,
-                             checkbox_defaults = checkbox_defaults,
                              ns = ns,
                              render_shared_section = FALSE)
   do.call(shiny::tagList, drop_null(c(list(section), body)))
@@ -813,15 +977,15 @@ ptr_ui_controls <- function(formula, id = NULL, ui_text = NULL,
 #'   `bootstrapPage`, `basicPage`. NOT `navbarPage` (needs a positional
 #'   `title` + `tabPanel` children) and NOT bslib/BS5 pages (the bundled
 #'   CSS is Bootstrap-3-scoped -- see [ptr_app_bslib()]). For those roots,
-#'   compose by hand: see the decomposition example in
-#'   `vignette("ggpaintr-use-cases")`.
+#'   compose by hand: see
+#'   `vignette("ggpaintr-tutorial")`.
 #' @param css Optional character vector of extra stylesheet paths,
 #'   linked after `ggpaintr.css`. See [ptr_css()].
 #' @return A `shiny.tag` — the Bootstrap page node ready to pass to
 #'   [shiny::shinyApp()] as `ui`.
 #' @seealso [ptr_ui_plot()], [ptr_ui_controls()], [ptr_server()], [ptr_css()]
 #' @examples
-#' f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#' f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #' ptr_ui_page(
 #'   shiny::sidebarLayout(
 #'     shiny::sidebarPanel(ptr_ui_controls(id = "p", formula = f)),
@@ -847,7 +1011,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' harmless no-op), and **returns the `ptr_state`** so you can drive a
 #' custom renderer. Additional arguments are forwarded to [ptr_init_state()]
 #' (e.g. `shared`, `draw_trigger`, `expr_check`, `safe_to_remove`,
-#' `ui_text`, `checkbox_defaults`).
+#' `ui_text`).
 #'
 #' @section Custom render (L3):
 #' Custom rendering is **UI-side**: place your own output widget (e.g.
@@ -863,7 +1027,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' ```
 #' `state$runtime()` is reactive; `$plot` is the built ggplot/ggplot-like
 #' object, `$code` the generated source string, `$error` any inline error.
-#' See `vignette("ggpaintr-use-cases")`.
+#' See `vignette("ggpaintr-tutorial")`.
 #'
 #' For cross-formula coordination — multiple ggpaintr instances driven by
 #' one widget — build the coordinator with [ptr_shared_server()] and pass
@@ -875,7 +1039,11 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' placeholders needs no `shared_state` — `ptr_server()` self-binds every
 #' declared key under its own namespace, matching what [ptr_app()] does.
 #'
-#' @param formula A single formula string with `ggpaintr` placeholders.
+#' @param formula Either a single character scalar containing a ggplot
+#'   expression with `ggpaintr` placeholders, or an unquoted ggplot
+#'   expression supplied directly. See [ptr_app()] for the full contract
+#'   (expression capture via [rlang::enexpr()], symbol resolution,
+#'   wrapper unwrap, and the native-pipe caveat in expression mode).
 #' @param id Optional module id; must match the id passed to [ptr_ui()] or
 #'   to the bare L3 pieces. Defaults to `NULL` (identity namespace,
 #'   single-instance use).
@@ -887,6 +1055,9 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   formula declares a `shared = "..."` placeholder driven by a
 #'   cross-formula [ptr_shared_panel()] and the equivalent `...` arguments
 #'   are not supplied directly.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #'
 #' @return The `ptr_state` list from [ptr_init_state()]. This is the
 #'   **supported L3 custom-render handle**: `state$runtime()$plot` /
@@ -896,7 +1067,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   [ptr_shared_panel()], [ptr_shared_server()].
 #' @examples
 #' if (interactive()) {
-#'   f <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+#'   f <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #'   # L2: default layout
 #'   shiny::shinyApp(
 #'     ui = shiny::fluidPage(ptr_ui(f, "p")),
@@ -919,7 +1090,8 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #' }
 #' @export
 ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
-                                 shared_state = NULL) {
+                                 shared_state = NULL, spec = NULL) {
+  formula <- ptr_capture_formula(rlang::enexpr(formula), envir)
   dots <- list(...)
 
   # `shared_state` is the convenience path: a one-shot bundle produced by
@@ -933,6 +1105,7 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
     if (is.null(dots$draw_trigger))       dots$draw_trigger <- shared_state$draw_trigger
     if (is.null(dots$shared_resolutions)) dots$shared_resolutions <- shared_state$shared_resolutions
     if (is.null(dots$shared_stage_enabled)) dots$shared_stage_enabled <- shared_state$shared_stage_enabled
+    if (is.null(dots$panel_sources))      dots$panel_sources <- shared_state$panel_sources
   }
 
   # Pre-flight contract checks: surface a clear, module-scoped message
@@ -988,7 +1161,11 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
   # formula-local keys. The module must bind only the formula-local shared
   # consumer pickers (the binder-less path, bug B1), never a panel key the
   # host already renders -- so this set is the helper's `host_owned_keys`.
-  host_owned_keys <- names(dots$shared %||% list())
+  # The "instance" partition view returns these panel keys verbatim as the
+  # complement (formula-local keys are what this module binds).
+  host_owned_keys <- partition_host_owned_keys(
+    new_partition_view("instance", panel_keys = names(dots$shared %||% list()))
+  )
 
   shiny::moduleServer(id, function(input, output, session) {
     # Self-bind every formula-local key: build one reactive per missing
@@ -1023,7 +1200,8 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
       c(
         list(input = input, output = output, session = session,
              formula = formula, envir = envir,
-             ns = session$ns, server_ns = shiny::NS(NULL)),
+             ns = session$ns, server_ns = shiny::NS(NULL),
+             spec = spec),
         dots
       )
     )
@@ -1045,7 +1223,11 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
       eval_env = envir,
       expr_check = state$expr_check,
       errors_rv = state$shared_resolution_errors,
-      state = state
+      state = state,
+      # INT-2 (ADR 0023): mirror the single-instance call -- thread
+      # panel-owned source reactives so embedded shared consumers
+      # under `ppUpload(shared=...)` populate when the panel resolves.
+      panel_sources = state$panel_sources %||% list()
     )
     state
   })
@@ -1057,22 +1239,26 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'
 #' Builds a fluid layout of N plot modules with a top-level `wellPanel` for
 #' shared input widgets and a "Draw all" button that triggers a redraw across
-#' every plot. Each plot's `shared = "..."` placeholders read from the
-#' corresponding entry in `shared_ui` instead of rendering local widgets.
+#' every plot. Each plot's `shared = "..."` placeholders collapse to one
+#' widget in the top panel, rendered from the placeholder's own `build_ui`.
 #'
 #' For the formula grammar (placeholder keywords, `shared = "<id>"`
 #' annotation, empty-call cleanup), see [ptr_app()].
 #'
+#' @section Removed `shared_ui`:
+#' The `shared_ui` argument is no longer supported (see [ptr_shared()] for the
+#' full rationale). To customise the widget a shared key renders, define a
+#' custom placeholder with the `build_ui` you want
+#' (`ptr_define_placeholder_*`) and use it in the formula — the shared widget
+#' auto-renders from that `build_ui`.
+#'
 #' @param plots A list of formula strings, one per plot.
-#' @param shared_ui Named list mapping shared key → `function(id) -> shiny.tag`
-#'   builder. Names must match the `shared = "..."` annotations used in
-#'   `plots`. Pass `list()` if there are no shared placeholders.
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides. The page header
 #'   reads `ui_text$shell$title$label`; defaults to `"ggpaintr grid"`. See
 #'   [ptr_ui_text()] for the full schema.
 #' @param draw_all_label Label for the draw-all action button.
-#' @param expr_check Controls `expr` placeholder validation: `TRUE` (default)
+#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
 #'   applies the built-in denylist + AST walker; `FALSE` disables all
 #'   validation; a `list` with `deny_list`/`allow_list` entries customises
 #'   the policy. See `vignette("ggpaintr-safety")`.
@@ -1081,6 +1267,11 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.
 #' @param ncol Number of plot columns. Default \code{NULL} auto-computes from \code{nrow} or places all plots in one row.
 #' @param nrow Number of plot rows. Default \code{NULL} auto-computes from \code{ncol}.
+#' @param spec An optional named list of fully-qualified Shiny input id ->
+#'   value, used to override widget defaults at session boot. The same flat
+#'   spec is passed to every per-plot engine; each instance filters by its
+#'   own namespace prefix. See
+#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
 #'
 #' @return A `shiny.appobj`.
 #' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
@@ -1088,44 +1279,44 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #' if (interactive()) {
 #'   ptr_app_grid(
 #'     plots = list(
-#'       "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
-#'       "ggplot(mtcars, aes(x = var)) + geom_histogram()"
+#'       "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
+#'       "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
 #'     )
 #'   )
 #' }
 #' @export
 ptr_app_grid <- function(plots,
-                            shared_ui = list(),
                             envir = parent.frame(),
                             ui_text = NULL,
                             draw_all_label = "Draw all",
                             expr_check = TRUE,
                             css = NULL,
                             ncol = NULL,
-                            nrow = NULL) {
+                            nrow = NULL,
+                            spec = NULL) {
   parts <- ptr_app_grid_components(
     plots = plots,
-    shared_ui = shared_ui,
     envir = envir,
     ui_text = ui_text,
     draw_all_label = draw_all_label,
     expr_check = expr_check,
     css = css,
     ncol = ncol,
-    nrow = nrow
+    nrow = nrow,
+    spec = spec
   )
   shiny::shinyApp(ui = parts$ui, server = parts$server)
 }
 
 ptr_app_grid_components <- function(plots,
-                                       shared_ui = list(),
                                        envir = parent.frame(),
                                        ui_text = NULL,
                                        draw_all_label = "Draw all",
                                        expr_check = TRUE,
                                        css = NULL,
                                        ncol = NULL,
-                                       nrow = NULL) {
+                                       nrow = NULL,
+                                       spec = NULL) {
   title <- ptr_resolve_ui_text("title", ui_text = ui_text)$label %||%
     "ggpaintr grid"
   if (is.character(plots)) plots <- as.list(plots)
@@ -1134,8 +1325,6 @@ ptr_app_grid_components <- function(plots,
     length(plots) >= 1L,
     all(vapply(plots, rlang::is_string, logical(1)))
   )
-  assertthat::assert_that(is.list(shared_ui))
-
   # Step 06 (#G): the L1 grid routes through the same coordinator as the
   # L2/L3 embed path (ADR 0005 §3). `ptr_shared()` computes the
   # cross-formula partition once and is the single source of truth;
@@ -1150,11 +1339,14 @@ ptr_app_grid_components <- function(plots,
       length(collect_shared_consumer_occurrences(tr)) > 0L
   }, logical(1)))
 
-  if (!any_shared && length(shared_ui) > 0L) {
-    rlang::abort(
-      "`shared_ui` was supplied but no plot formula declares a `shared = \"...\"` annotation."
-    )
-  }
+  # `shared_ui` removed (see ?ptr_shared / ?ptr_app_grid). The former guard
+  # that rejected a `shared_ui` supplied with no `shared=` annotation is gone
+  # with the argument; retained commented for provenance:
+  # if (!any_shared && length(shared_ui) > 0L) {
+  #   rlang::abort(
+  #     "`shared_ui` was supplied but no plot formula declares a `shared = \"...\"` annotation."
+  #   )
+  # }
 
   # `any_shared` is only the "does a coordinator exist" gate (ADR 0005:
   # multiple-instance ⇒ coordinator). The count-based partition itself
@@ -1162,7 +1354,6 @@ ptr_app_grid_components <- function(plots,
   obj <- if (any_shared) {
     ptr_shared(
       formulas = plots,
-      shared_ui = shared_ui,
       ui_text = ui_text,
       expr_check = expr_check,
       draw_all_label = draw_all_label
@@ -1253,11 +1444,26 @@ ptr_app_grid_components <- function(plots,
   force(envir)
   force(expr_check)
   force(obj)
+  force(spec)
 
   server <- function(input, output, session) {
     state <- if (!is.null(obj)) {
-      ptr_shared_server(obj, envir = envir)
+      # FINDING #1 + #7: forward the flat `spec=` so the host-scope
+      # apply-at-boot can claim un-namespaced ids targeting panel widgets
+      # (`shared_<k>`, `shared_<k>_name`) that per-instance prefix filters
+      # drop. See `apply_spec_at_boot_host()` in R/paintr-shared-ui.R.
+      ptr_shared_server(obj, envir = envir, spec = spec)
     } else NULL
+
+    # Collect per-plot engine states so the grid can expose a
+    # `state$spec` reactive that combines every plot's namespaced spec
+    # into a single flat list (the form a caller pastes back into
+    # `ptr_app_grid(spec = ...)` for round-trip). Per PLAN-06: do NOT
+    # pre-partition the spec at the grid level on the way IN -- the same
+    # flat spec is passed to every per-plot `ptr_server`; each engine
+    # filters by its own namespace prefix. On the way OUT, per-plot
+    # `state$spec()` reactives are unioned via `ptr_spec_combine()`.
+    plot_states <- list()
 
     for (i in seq_along(plots)) {
       local({
@@ -1267,12 +1473,33 @@ ptr_app_grid_components <- function(plots,
           id = plot_module_ids[[idx]],
           envir = envir,
           expr_check = expr_check,
-          plots = plots
+          plots = plots,
+          spec = spec
         )
         if (!is.null(state)) args$shared_state <- state
-        do.call(ptr_server, args)
+        plot_states[[idx]] <<- do.call(ptr_server, args)
       })
     }
+
+    # Grid-level combined spec: union of per-plot `state$spec()` keyed by
+    # fully-qualified ids. The reactive recomputes on any per-plot change
+    # and `ptr_spec_combine` aborts on collisions (which should not occur
+    # under the standard `<plot_module_id>-` namespacing). The return
+    # shape is extended for callers that want to drive a panel/code
+    # accessor off the grid components.
+    combined_spec <- shiny::reactive({
+      per_plot <- lapply(plot_states, function(st) {
+        if (is.null(st) || is.null(st$spec)) return(NULL)
+        st$spec()
+      })
+      ptr_spec_combine(per_plot)
+    })
+
+    list(
+      plot_states = plot_states,
+      shared_state = state,
+      spec = combined_spec
+    )
   }
 
   list(ui = ui, server = server)

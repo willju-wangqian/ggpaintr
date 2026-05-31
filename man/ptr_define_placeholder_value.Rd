@@ -8,7 +8,11 @@ ptr_define_placeholder_value(
   keyword,
   build_ui,
   resolve_expr,
-  copy_defaults = list(label = "Enter a value for {param}")
+  validate_input = NULL,
+  positional_arg = NULL,
+  named_args = list(),
+  runtime = NULL,
+  ui_text_defaults = list(label = "Enter a value for {param}")
 )
 }
 \arguments{
@@ -16,38 +20,127 @@ ptr_define_placeholder_value(
 name (passes \code{make.names()}) and not an R reserved word. This is the
 token users type in the formula, e.g. \code{geom_point(alpha = pct)}.}
 
-\item{build_ui}{\verb{function(node, label, ...)} returning a Shiny tag.
-Pass \code{node$id} as the underlying widget's \code{inputId}. Read \code{node$keyword}
-and \code{node$param} if you need them. The framework also passes any
-\code{copy_defaults} field you declare by name (\code{help}, \code{placeholder},
-\code{empty_text}) — or accept a \code{copy = NULL} list and read them off it.
-Always end the signature with \code{...}.}
+\item{build_ui}{\verb{function(node, label = NULL, selected = NULL, ...)}
+returning a Shiny tag. Pass \code{node$id} as the underlying widget's
+\code{inputId}. Read \code{node$keyword} and \code{node$param} if you need them. The
+framework also passes any \code{ui_text_defaults} field you declare by name
+(\code{help}, \code{placeholder}, \code{empty_text}) — or accept a \code{copy = NULL}
+list and read them off it. Always end the signature with \code{...}.
+
+\strong{Widget-seeding contract — \code{selected}} (authoritative; the four
+\code{invoke_build_ui} call sites in \code{R/paintr-server.R} implement what
+is described here, with short pointers back to this docblock).
+
+Declare \code{selected = NULL} as an explicit formal, \strong{not} a no-default
+\code{selected} (or accept \code{...}). The framework calls \code{build_ui} on every
+renderUI fire and delivers \code{selected} per this precedence:
+\itemize{
+\item First render, \verb{spec=} seed present → seed value.
+\item First render, no spec, positional default present
+(e.g. \code{ppPct(50)}) → \code{node$default}.
+\item First render, no spec, no positional default →
+framework \strong{omits} \code{selected}; your \code{selected = NULL} formal
+default applies.
+\item Subsequent renders (Update Plot click, upstream change, layer
+toggle, …) → \code{current-input} verbatim. The \verb{spec=} seed is
+\strong{boot-only}: it wins on the first render only and never
+participates again, so an upstream-triggered re-render can never
+snap the widget back to the seed and away from the user's live
+pick. If the user emptied the widget, \code{current-input} is whatever
+the widget emits on clear — one of \code{NULL}, \code{character(0)}, \code{""},
+\code{NA_real_}, \code{NA_character_}, depending on the widget — and the
+framework coerces \code{NULL} to \code{character(0)} so you always receive a
+value on subsequent renders.
+}
+
+Because the framework omits the argument on the first-render-no-
+default path, a hook signature without a formal default for
+\code{selected} aborts there with \verb{argument "selected" is missing}.
+
+\strong{Render empty when \code{selected} is empty.} Treat any of \code{NULL},
+\code{character(0)}, \code{""}, \code{NA_real_}, \code{NA_character_} as "the user
+wants this widget empty" and render the widget empty. Do not
+substitute a hardcoded fallback inside \code{build_ui} for the empty
+case — that re-introduces the deselect-snaps-back-to-default
+defect the framework's seeding layer is designed to prevent
+(closure-flag in \code{ptr_setup_value_uis()} /
+\code{ptr_setup_consumer_uis()} / \code{ptr_bind_shared_consumer_uis()}).
+Boot-time defaults belong in the formula, e.g. \code{ppPct(50)}, and
+reach you through \code{selected}, not through a hardcoded constant in
+the hook body.
+
+\strong{Never read \code{node$default} directly.} It is exposed only so the
+framework can route it into \code{selected} on the boot fire. Reading
+it inside the hook bypasses the precedence chain and the closure-
+flag persistence guards, and will re-clobber a user-cleared widget
+on every Update Plot click.}
 
 \item{resolve_expr}{\verb{function(value, node, ...)} returning the R
 expression spliced into the rendered call. \code{value} is
 \code{input[[node$id]]} — whatever Shiny stores for that widget. Allowed
 return types: scalar atomic (numeric / character / logical /
 integer), \code{name}/\code{symbol} (build with \code{rlang::sym()}),
-\code{call}/\code{language} (build with \code{rlang::expr()}), or \code{NULL} to \strong{prune
+\code{call}/\code{language} (build with \code{rlang::ppExpr()}), or \code{NULL} to \strong{prune
 the argument} from the rendered call. Use \code{NULL} for empty / not-yet
 input; throw with \code{rlang::abort()} for malformed input.}
 
-\item{copy_defaults}{Named list of single non-NA character defaults
+\item{validate_input}{Optional \verb{function(value, ctx)} called before
+\code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a single
+character string to reject (surfaced inline as the error message,
+layer pruned). \code{ctx} is a plain list with named fields: \code{node} (the
+placeholder AST node, carries \verb{$id}, \verb{$keyword}, \verb{$args}), \code{keyword}
+(convenience alias for \code{node$keyword}), \code{upstream_cols}, and
+\code{data}. For a \emph{value} placeholder, \code{ctx$upstream_cols} and
+\code{ctx$data} are \strong{always \code{NULL}} — value placeholders have no
+upstream column scope by definition. They are present in the
+signature so the same validator shape works across all roles; see
+\code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}} for the data-aware role where
+those fields are populated. ggpaintr invokes this function as
+\code{validate_input(value, ctx)} — no other positional or named
+arguments are passed, and \code{ctx} carries exactly the four fields
+above. The signature does not require \code{...}.}
+
+\item{positional_arg}{Optional validator closure for the (single) positional
+argument the keyword accepts inside a formula. \code{NULL} (default) means
+positional arguments are rejected at translate time. A function
+receives the unevaluated AST and must return a canonical value or
+\code{rlang::abort()}. Validators are expected to operate on the AST only
+and not call \code{eval()}; ggpaintr trusts the author. Authors who eval in
+a validator are opting into the risk of running user code at translate
+time.}
+
+\item{named_args}{Named list of validator closures for additional named
+arguments beyond the reserved \code{shared = ...}. Each entry's closure
+receives the unevaluated AST and returns a canonical value or
+\code{rlang::abort()}. Default is \code{list()} (no named args). The name
+\code{"shared"} is reserved and may not appear here.}
+
+\item{runtime}{Optional \verb{function(x, ...)} body used when the
+placeholder keyword is \emph{also} called as a plain-R function (outside a
+formula context). When \code{NULL} (default), the identity function
+\code{function(x, ...) x} is supplied — calling \code{pct(0.5)} returns \code{0.5}
+unchanged. Override to give the keyword a non-identity plain-R
+meaning. The same runtime is returned to the caller of this helper
+so authors can bind it under the same name as the keyword:
+\code{ppPct <- ptr_define_placeholder_value(keyword = "ppPct", ...)}.}
+
+\item{ui_text_defaults}{Named list of single non-NA character defaults
 feeding the \code{ui_text} tree. Allowed names: \code{label}, \code{help},
 \code{placeholder}, \code{empty_text}. Strings may contain \code{{param}}, which is
 interpolated to the surrounding formal-argument name at render time.}
 }
 \value{
-Invisibly, the registry entry list. Called for its side effect
-of registering the placeholder in the package-global registry. Use
-\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove it.
+The runtime callable. Default for a value placeholder is the
+identity \code{function(x, ...) x}; override with \code{runtime = ...}. The
+helper is also called for its registration side effect — use
+\code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove the entry.
 }
 \description{
 Register a new keyword (e.g. \code{pct}, \code{color}, \code{date}) that ggpaintr will
 recognise as a substitutable token in a formula. The keyword's widget
 is built by \code{build_ui}; the widget's value is turned back into the R
 code spliced into the rendered call by \code{resolve_expr}. See
-\code{vignette("ggpaintr-customization")} § "Adding a new widget type" for
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders" for
 the lifecycle walk-through, signatures table, and runnable
 \code{ptr_app()} examples — this help page is reference.
 }
@@ -61,23 +154,29 @@ the rest of the formula reads from (file upload, dataset chooser).
 }
 \examples{
 # A percentage placeholder: user types a number 0-100; we splice
-# the fraction 0-1 into the rendered call.
+# the fraction 0-1 into the rendered call. The hook reads `selected`
+# to honor a formula default like `pct(75)` at boot and to keep a
+# user-cleared widget empty across Update Plot fires (do NOT
+# substitute a hardcoded fallback when selected is empty).
 ptr_define_placeholder_value(
   keyword = "pct",
-  build_ui = function(node, label, ...) {
-    shiny::numericInput(node$id, label = label, value = 50,
-                        min = 0, max = 100, step = 1)
+  build_ui = function(node, label = NULL, selected = NULL, ...) {
+    n <- suppressWarnings(as.numeric(selected))
+    initial <- if (length(n) == 1L && is.finite(n)) n else NA_real_
+    shiny::numericInput(node$id, label = label \%||\% "Percent",
+                        value = initial, min = 0, max = 100, step = 1)
   },
   resolve_expr = function(value, node, ...) {
     if (length(value) != 1L || !is.finite(value)) return(NULL)
     value / 100
   },
-  copy_defaults = list(label = "Percent for {param}")
+  positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
+  ui_text_defaults = list(label = "Percent for {param}")
 )
 ptr_clear_placeholder("pct")
 }
 \seealso{
-\code{vignette("ggpaintr-customization")} for the tutorial;
+\code{vignette("ggpaintr-tutorial")} § "Defining your own placeholders";
 \code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}}, \code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}},
 \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}}.
 }

@@ -6,22 +6,18 @@
 \usage{
 ptr_app_grid(
   plots,
-  shared_ui = list(),
   envir = parent.frame(),
   ui_text = NULL,
   draw_all_label = "Draw all",
   expr_check = TRUE,
   css = NULL,
   ncol = NULL,
-  nrow = NULL
+  nrow = NULL,
+  spec = NULL
 )
 }
 \arguments{
 \item{plots}{A list of formula strings, one per plot.}
-
-\item{shared_ui}{Named list mapping shared key → \verb{function(id) -> shiny.tag}
-builder. Names must match the \code{shared = "..."} annotations used in
-\code{plots}. Pass \code{list()} if there are no shared placeholders.}
 
 \item{envir}{Environment used to resolve local data objects.}
 
@@ -31,7 +27,7 @@ reads \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr grid"}. See
 
 \item{draw_all_label}{Label for the draw-all action button.}
 
-\item{expr_check}{Controls \code{expr} placeholder validation: \code{TRUE} (default)
+\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
 applies the built-in denylist + AST walker; \code{FALSE} disables all
 validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
 the policy. See \code{vignette("ggpaintr-safety")}.}
@@ -43,6 +39,12 @@ its rules win. See \code{\link[=ptr_app]{ptr_app()}} for the full semantics. Def
 \item{ncol}{Number of plot columns. Default \code{NULL} auto-computes from \code{nrow} or places all plots in one row.}
 
 \item{nrow}{Number of plot rows. Default \code{NULL} auto-computes from \code{ncol}.}
+
+\item{spec}{An optional named list of fully-qualified Shiny input id ->
+value, used to override widget defaults at session boot. The same flat
+spec is passed to every per-plot engine; each instance filters by its
+own namespace prefix. See
+\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
 }
 \value{
 A \code{shiny.appobj}.
@@ -50,19 +52,28 @@ A \code{shiny.appobj}.
 \description{
 Builds a fluid layout of N plot modules with a top-level \code{wellPanel} for
 shared input widgets and a "Draw all" button that triggers a redraw across
-every plot. Each plot's \code{shared = "..."} placeholders read from the
-corresponding entry in \code{shared_ui} instead of rendering local widgets.
+every plot. Each plot's \code{shared = "..."} placeholders collapse to one
+widget in the top panel, rendered from the placeholder's own \code{build_ui}.
 }
 \details{
 For the formula grammar (placeholder keywords, \code{shared = "<id>"}
 annotation, empty-call cleanup), see \code{\link[=ptr_app]{ptr_app()}}.
 }
+\section{Removed \code{shared_ui}}{
+
+The \code{shared_ui} argument is no longer supported (see \code{\link[=ptr_shared]{ptr_shared()}} for the
+full rationale). To customise the widget a shared key renders, define a
+custom placeholder with the \code{build_ui} you want
+(\verb{ptr_define_placeholder_*}) and use it in the formula — the shared widget
+auto-renders from that \code{build_ui}.
+}
+
 \examples{
 if (interactive()) {
   ptr_app_grid(
     plots = list(
-      "ggplot(mtcars, aes(x = var, y = var)) + geom_point()",
-      "ggplot(mtcars, aes(x = var)) + geom_histogram()"
+      "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
+      "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
     )
   )
 }

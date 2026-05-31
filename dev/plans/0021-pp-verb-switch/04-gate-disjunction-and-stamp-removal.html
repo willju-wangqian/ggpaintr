@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — gate disjunction + delete stamp_default_stage_enabled_ids (from ADR 0021)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 04
+  slug: gate-disjunction-and-stamp-removal
+  source_adr: dev/adr/0021-pp-verb-switch.html
+  depends_on: [03]
+  parallel_group: G4
+  status: draft
+-->
+
+<h1>PLAN-04 — gate disjunction + delete <code>stamp_default_stage_enabled_ids</code></h1>
+<p class="meta">Source: ADR 0021 · Depends on: 03 · Parallel group: G4 · Status: draft</p>
+
+<h2>Context</h2>
+<p>From the ADR's <em>Decision</em> section:</p>
+<blockquote>
+  <p><strong>Stage-id gate.</strong> Extend <code>is_data_chain_call</code> in <code>R/paintr-disable.R:20-22</code> from one predicate to a disjunction:</p>
+  <pre>is_data_chain_call &lt;- function(node) {
+  is_ptr_call(node) &amp;&amp;
+    (walk_has_placeholder(node) || isTRUE(node$has_user_control))
+}</pre>
+  <p>Single source of truth for "should this stage have a UI checkbox?" Three triggers (placeholder presence, explicit <code>has_user_control</code> from <code>ppVerbSwitch</code>) collapse to one gate.</p>
+  <p><strong>Delete <code>stamp_default_stage_enabled_ids</code>.</strong> The Plan-01 second-pass workaround (<code>R/paintr-translate.R:131-153</code> + the call site at line 117) is no longer needed once the gate is extended: every stage that gets <code>has_user_control = TRUE</code> from <code>ppVerbSwitch</code> already gets a <code>stage_id</code> from <code>assign_stage_ids</code> via the extended gate. The lone caller at line 117 is removed in the same change.</p>
+</blockquote>
+<p>Two coordinated edits: extend the gate predicate in <code>R/paintr-disable.R</code>, and delete the redundant second-pass walk + its call site in <code>R/paintr-translate.R</code>. Both happen together because deleting the workaround without extending the gate would regress: a <code>ppVerbOff(verb, TRUE)</code>-wrapped stage on this branch would lose its stage_id (until plan 06 removes <code>ppVerbOff</code>; we still need that stage_id during the intermediate state).</p>
+
+<h2>Governing principle</h2>
+<p><strong>Single mental model</strong> for "should this stage have a UI checkbox?" The ADR's most important architectural commitment is collapsing three previously distinct triggers — (a) presence of a placeholder in the subtree, (b) a post-translate stamping pass that retroactively assigned <code>stage_id</code> to <code>default_stage_enabled = FALSE</code> nodes, (c) the proposed sibling-node shape — into a single predicate that is the only place in the codebase that decides "this stage is data-chain-eligible". Two triggers (placeholder OR <code>has_user_control</code>) instead of two passes (assign + retroactively-stamp). <strong>This plan MUST land the gate extension and the deletion in one atomic change.</strong> Extending the gate without deleting the second pass leaves a duplicate code path that future maintainers will mis-extend; deleting the second pass without extending the gate regresses <code>ppVerbOff</code> (still present on this branch) from having a UI checkbox boot-OFF.</p>
+<p>A second invariant the plan must preserve: <strong><code>stage_id</code> is a UI-routing key, not execution-shape.</strong> The three guards in <code>is_stage_disabled</code> at <code>R/paintr-disable.R:149-154</code> (non-node → FALSE, NULL stage_id → FALSE, anything-but-literal-FALSE <code>stage_enabled[[sid]]</code> → FALSE) ensure that an "unwired" <code>stage_id</code> (stamped but with no bound reactive) is runtime-equivalent to no <code>stage_id</code> at all. This plan adds <code>stage_id</code> stamping for <code>has_user_control = TRUE</code> nodes; it MUST NOT change <code>is_stage_disabled</code>'s guards, MUST NOT add a fourth guard that special-cases <code>has_user_control</code>, and MUST NOT route <code>has_user_control</code> through some new disable code path. The whole point of the corrected classification is that <code>stage_id</code>'s only effect is to enable a UI-driven drop; <code>has_user_control</code> piggy-backs on the existing routing, it does not introduce a new one.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC-1.</strong> After translation of <code>"ggplot(mtcars |&gt; ppVerbSwitch(mutate(mpg = mpg + 100), TRUE))"</code>, the carrier <code>ptr_call</code> at the pipeline-stage position has a non-NULL <code>stage_id</code> string of the form <code>"&lt;layer_name&gt;_&lt;path&gt;_stage_enabled"</code>. Verified by an assertion in <code>tests/testthat/test-pp-verb-switch-gate.R</code>.</li>
+  <li><strong>SC-2.</strong> The same translation with <code>switch_on = FALSE</code> also yields a non-NULL <code>stage_id</code> on the carrier — i.e. the gate extension does not depend on <code>switch_on</code>'s value. Verified by an assertion in the same file.</li>
+  <li><strong>SC-3.</strong> A bare verb stage (no <code>ppVerbSwitch</code> wrap, no placeholder) does NOT get a <code>stage_id</code> — the gate's two disjuncts both return FALSE. Translation of <code>"ggplot(mtcars |&gt; mutate(mpg = mpg + 100))"</code> yields a carrier <code>ptr_call</code> with <code>is.null(stage_id) == TRUE</code>. Verified by an assertion in the same file.</li>
+  <li><strong>SC-4.</strong> A placeholder-containing stage (the existing trigger) still gets a <code>stage_id</code>. Translation of <code>"ggplot(mtcars |&gt; mutate(x = ppVar(col)))"</code> yields a carrier <code>ptr_call</code> with a non-NULL <code>stage_id</code>. Verified by an assertion in the same file.</li>
+  <li><strong>SC-5.</strong> The helper <code>stamp_default_stage_enabled_ids</code> is <strong>absent</strong> from <code>R/paintr-translate.R</code> after this plan merges. Verified by <code>expect_false(exists("stamp_default_stage_enabled_ids", envir = asNamespace("ggpaintr"), inherits = FALSE))</code> in the same file.</li>
+  <li><strong>SC-6.</strong> <strong><code>ppVerbOff(verb, hide = TRUE)</code> still boots OFF on this branch</strong> — the gate extension covers <code>has_user_control</code> from <code>ppVerbSwitch</code>, but the existing <code>ppVerbOff</code> path stamps <code>default_stage_enabled = FALSE</code> AND was previously rescued by <code>stamp_default_stage_enabled_ids</code>; with that helper removed, <code>ppVerbOff(verb, TRUE)</code> must still yield a <code>stage_id</code>. <strong>This SC drives one of two acceptable implementations:</strong>
+    <ul>
+      <li>Option A (preferred, matches ADR): in <code>unwrap_pp_verb_off_stage</code> at <code>R/paintr-translate.R:833-854</code>, stamp <code>has_user_control &lt;- TRUE</code> on the resulting <code>ptr_call</code> (in addition to the existing <code>default_stage_enabled &lt;- !isTRUE(hide)</code>). The gate then picks it up via the same disjunction.</li>
+      <li>Option B (acceptable if A breaks unrelated tests): leave a narrowly-scoped variant of the second-pass helper that only fires on <code>ppVerbOff</code>-stamped <code>default_stage_enabled = FALSE</code> nodes, rename it to clarify its purpose, and delete it together with <code>ppVerbOff</code> in plan 06.</li>
+    </ul>
+    Either way SC-6 is verified by a tree-side assertion that, after <code>ptr_translate_formula("ggplot(mtcars |&gt; ppVerbOff(mutate(mpg = mpg + 100), TRUE))")</code> and the subsequent <code>assign_stage_ids</code> pass, the carrier <code>ptr_call</code> at the pipeline-stage position has <strong>both</strong> <code>identical(node$default_stage_enabled, FALSE)</code> AND a non-NULL character <code>node$stage_id</code>. The tree-side check is the load-bearing one: <code>default_stage_enabled = FALSE</code> is what downstream readers (snapshot, UI, server spec-apply) consume to boot the checkbox OFF. (We do NOT assert against <code>ptr_runtime_input_spec()</code> — its output schema at <code>R/paintr-input-spec.R:6-9</code> is <code>input_id, role, layer_name, keyword, param_key, source_id, shared</code>; there is no <code>default</code> column.) Verified in the same test file.</li>
+  <li><strong>SC-7.</strong> <strong>Structural-equality holds at the disable-walk layer</strong>: after <code>assign_stage_ids</code> stamps <code>stage_id</code> on the <code>ppVerbSwitch</code>-carrier, the tree still compares equal under <code>ptr_tree_structural_equal</code> to the bare-verb tree (the comparator excludes <code>stage_id</code> by plan 01). Verified by a regression assertion in the same file: <code>tree_A = translate("ppVerbSwitch(mutate(x = 1), FALSE)")</code>, <code>tree_B = translate("mutate(x = 1)")</code>, <code>expect_true(ptr_tree_structural_equal(tree_A, tree_B))</code>.</li>
+  <li><strong>SC-8.</strong> The existing <code>tests/testthat/test-pp-off-readers.R</code> and <code>tests/testthat/test-pp-off-e2e.R</code> files (which assert <code>ppVerbOff</code> behaviour) PASS unchanged. (If SC-6 Option A is taken, the snapshot/UI behaviour is byte-identical to pre-plan; if Option B is taken, the carrier may differ but the tests assert at the snapshot/UI layer where the value is the same.)</li>
+  <li><strong>SC-9.</strong> The DoD command returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code> with N rising by <strong>7 new <code>test_that</code> blocks</strong> (SC-1..SC-7; SC-8 is regression coverage, SC-9 is the gate itself).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-disable.R</code> (the <code>is_data_chain_call</code> body change at lines 20-22), <code>R/paintr-translate.R</code> (delete the <code>stamp_default_stage_enabled_ids</code> function body at lines 131-153 + its lone call site at line 117 + the immediately-preceding comment block at lines 109-116 that motivated the workaround — note: lines 102-107 are an unrelated ADR-0020 comment about <code>ptr_assert_no_surviving_structural_wrappers</code>, leave them alone in this plan; and IF SC-6 Option A is taken, the one-line stamping addition in <code>unwrap_pp_verb_off_stage</code> at lines 833-854 — placed AFTER the existing <code>translate_node(verb_expr)</code> call so the stamp lands on the <code>ptr_call</code> result, not the raw <code>verb_expr</code> language object), <code>tests/testthat/test-pp-verb-switch-gate.R</code> (NEW).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-builtins.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-build-ui.R</code>, every vignette, every existing test file, every fixture. Do NOT remove <code>ppVerbOff</code> or any of its supporting machinery — plan 06.</li>
+  <li>Do NOT introduce a fourth guard in <code>is_stage_disabled</code>. Do NOT special-case <code>has_user_control</code> in <code>disable_walk.ptr_pipeline</code> at <code>R/paintr-disable.R:116-134</code> — that walk already routes correctly because <code>has_user_control = TRUE</code> + <code>stage_id</code> stamped + reactive bound is the existing pathway.</li>
+  <li>The comment update in <code>R/paintr-translate.R</code>: the ADR-0020 second-pass-workaround comment block at lines 102-116 must be removed or rewritten to reflect the new single-gate model. The replacement comment must NOT re-derive the ADR; one cross-reference line suffices.</li>
+  <li>SCOPE NARROWING FORBIDDEN. If implementing SC-6 reveals that Option A causes a regression in the <code>ppVerbOff</code> snapshot tests, prefer Option B and document the choice in the post-impl audit — do NOT delete the test that fails, do NOT narrow SC-6 to "best effort", do NOT introduce a third option that adds back a second pass under a different name. Stage-disable behaviour for <code>ppVerbOff</code> on this branch MUST be byte-identical at the snapshot/UI layer.</li>
+  <li>Honor project conventions: 2-space indent, snake_case, <code>isTRUE</code> idiom (the ADR's example shows <code>isTRUE(node$has_user_control)</code> — preserve it exactly), no <code>rlang::quasi_quotation</code> magic — the predicate stays 3 lines.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: is_data_chain_call accepts placeholder presence OR has_user_control; the second-pass workaround is gone.
+
+Scenario: SC-1 ppVerbSwitch with switch_on=TRUE gets a stage_id
+  Given the formula "ggplot(mtcars |> ppVerbSwitch(mutate(mpg = mpg + 100), TRUE))"
+  When ptr_translate_formula() runs and assign_stage_ids completes
+  Then the carrier ptr_call at the pipeline-stage position has a non-NULL stage_id
+
+Scenario: SC-2 ppVerbSwitch with switch_on=FALSE also gets a stage_id
+  Given the formula "ggplot(mtcars |> ppVerbSwitch(mutate(mpg = mpg + 100), FALSE))"
+  When ptr_translate_formula() runs and assign_stage_ids completes
+  Then the carrier ptr_call has a non-NULL stage_id
+
+Scenario: SC-3 bare verb stage does not get a stage_id
+  Given the formula "ggplot(mtcars |> mutate(mpg = mpg + 100))"
+  When ptr_translate_formula() runs
+  Then the carrier ptr_call has is.null(stage_id) identical to TRUE
+
+Scenario: SC-4 placeholder-bearing stage gets a stage_id (existing behaviour preserved)
+  Given the formula "ggplot(mtcars |> mutate(x = ppVar(col)))"
+  When ptr_translate_formula() runs
+  Then the carrier ptr_call has a non-NULL stage_id
+
+Scenario: SC-5 stamp_default_stage_enabled_ids is removed
+  Given the package is loaded after this plan merges
+  When exists("stamp_default_stage_enabled_ids", envir = asNamespace("ggpaintr"), inherits = FALSE) is checked
+  Then the return value is identical to FALSE
+
+Scenario: SC-6 ppVerbOff(hide=TRUE) still boots OFF after stamp helper is removed
+  Given the formula "ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), TRUE))"
+  When ptr_translate_formula() runs and assign_stage_ids completes
+  Then the carrier ptr_call at the pipeline-stage position has identical(node$default_stage_enabled, FALSE)
+  And  the same node has a non-NULL character node$stage_id
+
+Scenario: SC-7 structural equality survives the gate extension
+  Given tree_A from "ggplot(mtcars |> ppVerbSwitch(mutate(x = 1), FALSE))"
+  And   tree_B from "ggplot(mtcars |> mutate(x = 1))"
+  When ptr_tree_structural_equal(tree_A, tree_B) is called
+  Then the return value is identical to TRUE
+
+Scenario: SC-8 existing ppVerbOff tests pass unchanged
+  Given the test files test-pp-off-readers.R and test-pp-off-e2e.R are unedited by this plan
+  When the DoD command is run
+  Then every test_that block in those files PASSes (count unchanged from baseline)
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from project CLAUDE.md "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</code>. Baseline N = plan-03's post-merge N; expected N after = baseline + 7.</p>
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → every shinytest2 browser test silently SKIPs. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire. The browser fixtures instead <strong>cleanly SKIP</strong> via the source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is a harness defect, not a product failure.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+  <li>Project-specific proxy: testing the gate via a single targeted <code>testthat::test_file()</code> can silently skip the e2e file that exercises <code>ppVerbOff(hide=TRUE)</code>-boots-off behaviour (SC-6 regression coverage); always run the full suite.</li>
+</ul>
+<p>This plan adds <strong>7 new <code>test_that</code> blocks</strong> at <code>tests/testthat/test-pp-verb-switch-gate.R</code> (SC-1..SC-7). The gate must show PASS count rise by exactly 7 with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-disable.R</code> (one predicate body change), <code>R/paintr-translate.R</code> (one function deletion, one call-site deletion, one comment-block update, and IF SC-6 Option A is chosen, a one-line stamp in <code>unwrap_pp_verb_off_stage</code>), the new test file. No NAMESPACE / man churn.</p>
+<p>Branch convention: <code>0021-gate-disjunction-and-stamp-removal</code> in a worktree at <code>.claude/worktrees/0021-pp-verb-switch/gate-disjunction-and-stamp-removal/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command, verifies expected PASS-count rise, AND independently runs <code>grep -n 'stamp_default_stage_enabled_ids' R/</code> expecting zero hits.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after plan-03 merged (record the SHA). Pre-existing failures (if any) named in <code>dev/baselines/</code>.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files (e.g. comments in <code>R/paintr-build-ui.R</code> that reference "ADR 0020 PLAN-02" — those updates belong in plan 05 if and only if 05 is touching the same lines, otherwise they are deferred to plan 06's documentation pass) are surfaced (recorded in the audit report). The Option-A choice in SC-6 is to be recorded in the post-impl audit with a one-line rationale.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>03</strong> (the gate disjunction reads <code>node$has_user_control</code> on carriers that plan 03 stamps; without plan 03 the new disjunct is dead code and SC-1/SC-2 fail). Parallel with plan 05 (disjoint files). Provides for: plan 05 (the UI emitter assumes <code>has_user_control = TRUE</code> stages are present in the entries list, which only happens after the gate extension lands), plan 06 (the hard-removal removes the SC-6 Option-A stamp along with <code>unwrap_pp_verb_off_stage</code>).</p>
+
+<!-- implementable: PASS date=2026-05-25 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=56069c7ec11d -->
+</body>
+</html>

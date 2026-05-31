@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0012 — Role-based tree, terminal-grounded pipeline lift, and ptr_spec</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0012 — Role-based tree, terminal-grounded pipeline lift, and <code>ptr_spec</code></h1>
+<p class="meta">Date: 2026-05-21 · Author: Claude Opus 4.7 (design session with user, post-ADR-0011 root-cause flip) · Status: <span class="badge b-draft">DRAFT — design locked, implementation not started</span> · Cross-refs: supersedes the diagnosis &amp; fix shapes in <a href="0011-bug-3a-3b-handoff.html">ADR 0011</a> · vignette-review HEAD at draft time: <code>ce298f1</code></p>
+
+<div class="note"><strong>One-line summary.</strong> The tree currently leaks surface syntax: <code>|&gt;</code> vs <code>%&gt;%</code> vs nested calls produce three structurally different trees for the same plot. Make the tree purely semantic — one canonical <code>ptr_pipeline</code> regardless of how the user wrote the chain — by lifting any nested-call data-arg whose innermost first-arg grounds to a known data source. Reuse the existing <code>default_drop_when_empty</code> verb list for stage elision. Add <code>ptr_spec</code> as a sibling artifact on <code>ptr_state</code> so preserve-mode code panels round-trip the user's picks (including stage-checkbox state) without forcing the wrong defaults on replay.</div>
+
+<h2>1. Context — why the current model is wrong</h2>
+
+<h3>1.1 The subbed-1 vs subbed-2 probe</h3>
+
+<p>During the ADR-0011 debug session, dumping the post-substitute tree for two formulas that differ only in pipe syntax exposed the divergence in one comparison:</p>
+
+<table>
+  <tr><th>Input</th><th><code>data_arg</code> shape</th></tr>
+  <tr><td class="kw">ppUpload %&gt;% filter(ppVar &gt; ppNum) %&gt;% mutate(new_var = ppVar + 1) %&gt;% ggplot(...)</td><td><code>ptr_pipeline</code> with three explicit <code>$stages</code>: source <code>penguins</code>, <code>filter(ppVar &gt; ppNum)</code>, <code>mutate(new_var = ppVar + 1)</code></td></tr>
+  <tr><td class="kw">ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; mutate(new_var = ppVar + 1) |&gt; ggplot(...)</td><td>single nested <code>ptr_call</code>: <code>mutate(filter(ppUpload, ppVar &gt; ppNum), new_var = ppVar + 1)</code> — no pipeline, no stages</td></tr>
+</table>
+
+<p>The plots are semantically identical. The trees are not.</p>
+
+<h3>1.2 Root cause</h3>
+
+<p>R parses <code>a |&gt; f(b)</code> as <code>f(a, b)</code> <em>at parse time</em> — the native pipe is purely syntactic sugar with no surviving AST marker. <code>%&gt;%</code>, by contrast, is an ordinary infix function from magrittr whose call structure survives parsing intact. The current translator only constructs <code>ptr_pipeline</code> when it sees the <code>%&gt;%</code> symbol (the <code>is_pipe_head</code> predicate in <code>R/paintr-translate.R</code>) or the sentinel injected by <code>preprocess_native_pipe</code> for string-input <code>|&gt;</code> tokens (also in <code>R/paintr-translate.R</code> — locate by symbol name).</p>
+
+<p><strong>Crucially, <code>preprocess_native_pipe</code> only fires for string-input.</strong> In expression-input mode (<code>R/paintr-app.R:184-279</code>), the formula is captured via <code>rlang::enexpr()</code> then deparsed via <code>rlang::expr_text()</code> — and because the <code>|&gt;</code> has already been desugared at parse time, <code>expr_text</code> returns the nested form. The preprocessor finds zero PIPE tokens and is a no-op.</p>
+
+<h3>1.3 Consequences</h3>
+
+<table>
+  <tr><th>Symptom</th><th>Source</th></tr>
+  <tr><td><strong>ADR-0011 Bug 3b</strong>: empty <code>filter()</code> survives prune under <code>|&gt;</code> input. </td><td><code>prune_walk.ptr_pipeline</code> elides stages whose args all prune to missing. With no <code>ptr_pipeline</code> node, that elision never runs — the bare <code>ptr_call</code> <code>filter(penguins)</code> looks like a valid one-arg call and is kept. </td></tr>
+  <tr><td><strong>ADR-0011 Bug 3a</strong>: pickers inside a pipe-stage call see the wrong upstream. </td><td><code>runtime_upstream_data</code>'s per-layer fast-path (the <code>if (!is.null(state$resolved_data[[layer_name]])) ...</code> block inside <code>runtime_upstream_data</code> in <code>R/paintr-server.R</code>) returns the post-pipeline resolved data to every consumer in the layer, including consumers inside an inner stage whose true upstream is the prior stage's output. The fast-path needs an "is-inner" predicate today because the tree doesn't make the structural distinction. </td></tr>
+  <tr><td><strong>Preserve-mode code panel</strong> shows <code>filter(...)</code> even after the user unchecked the filter stage. </td><td>The unchecked-stage signal lives on the <code>stage_enabled</code> Shiny input, not on the tree. Preserve-mode re-renders the tree as-written, which still contains the filter stage. Reconstruction from the preserve text re-enables the filter — round-trip fidelity is broken. </td></tr>
+</table>
+
+<p>The diagnosis in ADR 0011 §2 (UseMethod / load_all shadow trap) is <strong>incorrect</strong>. The two fix attempts in §2.6 and §2.7 were chasing a non-existent S3 problem. The real cause is structural: the tree doesn't capture pipeline-ness from <code>|&gt;</code> or nested-call surface forms.</p>
+
+<h2>2. Decision</h2>
+
+<table>
+  <tr><th>Topic</th><th>Decision</th></tr>
+  <tr><td>Tree model</td><td>Semantic roles, not syntactic. <code>|&gt;</code> / <code>%&gt;%</code> / nested-call → one canonical <code>ptr_pipeline</code>.</td></tr>
+  <tr><td>Lift rule</td><td><em>Terminal-grounded.</em> A call chain becomes a <code>ptr_pipeline</code> iff the innermost first-arg of the chain is a known data source (today: <code>ptr_ph_data_source</code> or a literal symbol the existing data-classification pass recognizes). Unknown terminal → quiet failure, stays a <code>ptr_call</code>. No verb whitelist needed for the lift decision itself.</td></tr>
+  <tr><td>Elide rule (stage)</td><td>Reuses the existing <code>default_drop_when_empty()</code> list (<code>R/paintr-utils.R:175-188</code>). A stage whose qualified head is in the list AND whose non-data args have all pruned to missing → drop the stage. Same semantics as today's <code>prune_walk.ptr_pipeline</code>; the redesign just makes it apply uniformly because every surface form produces a <code>ptr_pipeline</code>.</td></tr>
+  <tr><td>Classification slot</td><td>New pass <code>ptr_classify_calls</code> inserted between <code>ptr_classify_data</code> and <code>ptr_shared_bind</code> in <code>ptr_translate</code> (the <code>if (annotate) { ... }</code> block in <code>R/paintr-translate.R</code> — locate by the <code>ptr_assign_ids</code> / <code>ptr_classify_data</code> / <code>ptr_shared_bind</code> call sequence). <em>Tree-rewriting</em>, not pure annotation — collapses nested <code>ptr_call</code>s into a <code>ptr_pipeline</code>. Single responsibility, dedicated test surface, easy to disable for debugging.</td></tr>
+  <tr><td><code>+</code> fence</td><td>Untouched. <code>+</code> in ggplot is a real semantic operator (layer concatenation) defined by <code>ggplot2::+.gg</code>, not surface sugar. The lift pass must not walk through <code>+</code> boundaries.</td></tr>
+  <tr><td><code>ptr_spec</code></td><td>Sibling artifact on <code>ptr_state</code>, alongside <code>state$tree()</code> and <code>state$runtime()</code>. Flat <code>list(fully_qualified_input_id = value)</code>, sparse — entries whose value equals the registry default are omitted. Emitted alongside preserve-mode code panel output so the panel round-trips picks (including stage-checkbox state).</td></tr>
+  <tr><td><code>spec=</code> plumbing</td><td>Lives in <code>ptr_server_internal</code> (the single engine — verified: <code>ptr_app</code> / <code>ptr_app_bslib</code> / <code>ptr_app_grid</code> / <code>ptr_server</code> all reach it). Exposed identically on every wrapper. Flat shape across all four wrappers — each engine instance walks the spec and applies entries whose fully-qualified id matches its own namespace prefix. Unknown ids silently dropped (same rule as stale-state recovery).</td></tr>
+  <tr><td>Apply timing of <code>spec=</code></td><td>One-shot at session boot. <code>updateXyzInput</code> is called once for each entry, then the spec is no longer consulted. No reactive re-application, no "reset to spec" button (out of scope).</td></tr>
+  <tr><td>Versioning</td><td>None. The fully-qualified id scheme is the contract. If we ever break it, an external <code>ptr_migrate_spec(old, from = "...")</code> helper handles the migration. No <code>.ver</code> field, no per-entry kind tags, no tree fingerprint.</td></tr>
+  <tr><td>Bug 3a fast-path</td><td>Delete it. Once the tree carries the pipeline structurally, an in-stage consumer's true upstream is "the prior stage's output" — natively, by structure. The per-layer <code>state$resolved_data[[layer_name]]</code> fast-path in <code>runtime_upstream_data</code> becomes redundant. The <code>c$upstream</code> per-position fallback (which the parser already populates correctly) handles every case.</td></tr>
+</table>
+
+<h2>3. Design details</h2>
+
+<h3>3.1 The lift transform</h3>
+
+<p>Engine sketch (purely structural; the "should we lift here" decision is delegated to the terminal-grounding check at the call site):</p>
+
+<pre>resugar_pipeline &lt;- function(expr) {
+  stages &lt;- list()
+  cur &lt;- expr
+  while (is.call(cur) &amp;&amp; length(cur) &gt;= 2L &amp;&amp; is.call(cur[[2L]])) {
+    head      &lt;- cur[[1L]]
+    rest_args &lt;- as.list(cur[-c(1L, 2L)])
+    stages    &lt;- c(list(as.call(c(list(head), rest_args))), stages)
+    cur       &lt;- cur[[2L]]
+  }
+  c(list(cur), stages)   # head = source; tail = stages in user-written order
+}</pre>
+
+<p>This runs inside <code>ptr_classify_calls</code> at every site that holds a data-arg subtree (currently <code>extract_call_data_arg</code> for <code>ggplot()</code>'s data and the named <code>data =</code> arg). The result list is fed into the same <code>ptr_pipeline</code> constructor that today's <code>translate_pipeline</code> / <code>collect_pipe_stages</code> path uses for <code>%&gt;%</code>, so downstream code (prune, render, runtime upstream resolution) sees one node shape.</p>
+
+<h3>3.2 Terminal-grounding check</h3>
+
+<p>The lift fires iff the deepest first-arg of the chain (after <code>resugar_pipeline</code> walks inward) is <strong>not itself a call</strong> — i.e., it must be a symbol, a literal, a <code>ptr_ph_data_source</code>, or any other non-call AST node.</p>
+
+<p>This rule (verified 2026-05-21 against <code>R/paintr-classify.R</code>) is the structural form that supersedes an earlier three-category enumeration (placeholder source / data-frame-bound symbol / literal data frame). The earlier rule would have required <code>ptr_classify_data</code> to tag bare symbols and literals as data sources, which the current pass does not do. The non-call rule is purely structural: it requires no eval-env probe and naturally captures every intended terminal — a placeholder source is a non-call <code>ptr_ph_data_source</code> node; a bare data-name symbol like <code>penguins</code> is a non-call symbol; a literal value is a non-call literal.</p>
+
+<p>Opaque terminals — any chain whose deepest first-arg is itself a call (<code>make_data()</code>, <code>read_csv("foo.csv")</code>, <code>data.frame(x = 1)</code>) — stay as a plain <code>ptr_call</code>: quiet failure, no warning. This matches the principle from §2: we don't pretend to recognize a pipeline when the source is a black-box call.</p>
+
+<h3>3.3 Stage elision</h3>
+
+<p>Unchanged from today's <code>prune_walk.ptr_pipeline</code>. The list <code>default_drop_when_empty()</code> is the contract; a stage call whose qualified head is in the list and whose non-data args have pruned to missing is dropped from the pipeline. The redesign's contribution is purely that <em>every</em> pipeline (regardless of surface form) hits this code path.</p>
+
+<h3>3.4 The <code>+</code> fence</h3>
+
+<p>The lift pass walks data-arg subtrees only. <code>+</code>-composed layers are already split into separate <code>ptr_layer</code> nodes by <code>split_top_plus</code> (in <code>R/paintr-translate.R</code> — called from <code>ptr_translate</code>'s setup) before any per-layer translation runs. The lift can never walk through a <code>+</code> because it never sees one.</p>
+
+<h3>3.5 <code>ptr_spec</code> construction and shape</h3>
+
+<p>Ingredients already in hand:</p>
+
+<ul>
+  <li>Every placeholder-bearing node has a raw input id from <code>ptr_assign_ids</code> (in <code>R/paintr-translate.R</code>, called from the annotate block of <code>ptr_translate</code>).</li>
+  <li>Every stage has a <code>stage_id</code> for its enabled-checkbox (visible in the subbed-1 dump from §1.1: <code>ggplot_2_stage_enabled</code>).</li>
+  <li>The runtime freezes a snapshot of all input values on every Update click (<code>res$snapshot</code>, used by ADR-0009 preserve-mode).</li>
+  <li>Each placeholder hook declares its default in the registry.</li>
+</ul>
+
+<p>Construction is a one-pass diff: <code>ptr_spec = snapshot ∖ registry_defaults</code>, keyed by fully-qualified Shiny input id. The result is added to <code>state</code> as <code>state$spec</code> (reactive over the runtime snapshot).</p>
+
+<p>Code-panel emission, preserve mode, single self-contained call:</p>
+
+<pre>ptr_app(
+  ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point(),
+  spec = ptr_spec
+)</pre>
+
+<p>The preserve-mode code panel emits the formula on top, then — when the spec has at least one non-default entry — a blank line followed by a <code>ptr_spec &lt;- list(...)</code> assignment:</p>
+
+<pre>ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()
+
+ptr_spec &lt;- list(
+  `ggplot_2_stage_enabled` = FALSE,
+  `ggplot_1_1_ppVar_NA`    = "bill_length_mm"
+)</pre>
+
+<p>The panel does <strong>not</strong> wrap the formula in a <code>ptr_app(...)</code> call; the user composes the formula + spec into <code>ptr_app(formula, spec = ptr_spec)</code> themselves when they want to recreate the app. When the spec is empty (every value at default), the panel output is bit-identical to today's preserve-mode output — just the formula, no <code>ptr_spec</code> assignment. Spec encodes only deltas from default — readable, meaningful, small.</p>
+
+<h3>3.6 <code>spec=</code> apply at session boot</h3>
+
+<p>Inside <code>ptr_server_internal</code>, after the state is constructed and input bindings are wired:</p>
+
+<ol>
+  <li>For each entry in <code>spec</code>, check whether the id matches this engine instance's namespace prefix. Skip if not.</li>
+  <li>If the id is unknown to this engine instance (not present in the registry / no widget bound to it), silently drop with a single aggregate <code>cli::cli_inform</code> at the end listing the dropped ids.</li>
+  <li>For each surviving entry, call the appropriate <code>updateXyzInput</code> at session boot via <code>session$onFlushed</code> (so widgets exist before we touch them).</li>
+  <li>If the value is no longer a valid choice for the widget (e.g., a column that's gone from the user's data), drop with a <code>cli::cli_warn</code>. Let the registry default take over.</li>
+</ol>
+
+<p>One-shot only. The spec is consulted at boot and then never again — no reactive watcher, no overriding subsequent user input.</p>
+
+<h3>3.7 Bug 3a fast-path deletion</h3>
+
+<p>The <code>if (!is.null(state$resolved_data[[layer_name]])) { ... }</code> block inside <code>runtime_upstream_data</code> (in <code>R/paintr-server.R</code>) — the per-layer fast-path — goes away. With the role-based tree, every consumer's <code>c$upstream</code> already encodes its true resolution point — for in-stage consumers, that subtree is the prior stage, not the full pipeline. The existing <code>ptr_resolve_upstream(c$upstream, snapshot, ...)</code> fallback handles every case correctly.</p>
+
+<p>Regression-net: an e2e fixture per the §1.8 plan in ADR 0011 (<code>adr12-filter-upstream</code>): upload <code>penguins.csv</code>, assert the in-filter <code>ppVar</code> picker shows penguins' columns, assert the <code>aes</code> pickers still work whether or not filter has args.</p>
+
+<h2>4. Staging</h2>
+
+<p>This ADR is design-only. Implementation is staged into independent PRs so each one is reviewable:</p>
+
+<table>
+  <tr><th>Step</th><th>What</th><th>Gate</th></tr>
+  <tr><td>S1</td><td>Add <code>ptr_classify_calls</code> as a no-op pass slotted into <code>ptr_translate</code>. Tests still pass — baseline unchanged.</td><td>0/0/0/N (N = current baseline at PR time)</td></tr>
+  <tr><td>S2</td><td>Implement <code>resugar_pipeline</code> + terminal-grounding check inside <code>ptr_classify_calls</code>. Lift fires for nested-call data-args grounding to a known source. Add unit tests for the lift transform (pure-function tests, no Shiny). Existing <code>%&gt;%</code> formulas still pass. Add a unit test asserting subbed-1 and subbed-2 from §1.1 now produce <em>identical</em> trees.</td><td>0/0/0/N + new lift tests; subbed-1 ≡ subbed-2</td></tr>
+  <tr><td>S3</td><td>Add unit test <code>test-prune-bare-pipe-stage.R</code> asserting bug 3b is fixed: <code>ptr_render(ptr_prune(...))</code> on <code>ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(...)</code> does not contain <code>filter</code>. Pure R-level test — no Shiny, no browser.</td><td>0/0/0/N + bug-3b regression</td></tr>
+  <tr><td>S4</td><td>Delete the <code>runtime_upstream_data</code> per-layer fast-path. Add e2e fixture <code>adr12-bug-3a</code> per §3.7.</td><td>0/0/0/N + bug-3a regression</td></tr>
+  <tr><td>S5</td><td>Introduce <code>state$spec</code> reactive + <code>format_spec_for_panel()</code> helper. Wire into preserve-mode code panel output. Unit tests for sparse encoding (default omission).</td><td>0/0/0/N + spec round-trip tests</td></tr>
+  <tr><td>S6</td><td>Thread <code>spec=</code> through <code>ptr_server_internal</code> and expose on <code>ptr_app</code> / <code>ptr_app_bslib</code> / <code>ptr_app_grid</code> / <code>ptr_server</code>. Implement one-shot apply at session boot. e2e fixture <code>adr12-spec-roundtrip</code> asserting <code>ptr_app(code, spec = state$spec())</code> reproduces the original picks.</td><td>0/0/0/N + roundtrip regression</td></tr>
+</table>
+
+<p>Each step is independently revertable. S2 alone closes bug 3b. S4 alone closes bug 3a. S5+S6 are the new feature surface — they can land later if review pressure spikes.</p>
+
+<h2>5. Open questions carried into implementation</h2>
+
+<ol>
+  <li><strong>Terminal-grounding precision — RESOLVED 2026-05-21.</strong> Verified that <code>ptr_classify_data</code> only tags <code>ptr_ph_data_source</code> nodes (no eval-env probing of bare symbols). The terminal-grounding rule was rewritten to "deepest first-arg is not itself a call" — a purely structural predicate that captures every intended terminal without requiring classify-data to do new work. See §3.2 for the rule and plan 02 SC for the implementer-facing form.</li>
+  <li><strong>Render-time pipe style preservation — RESOLVED 2026-05-22.</strong> Implemented in <code>dev/plans/0012b-pipe-op-preservation/01-pipe-op-preservation.html</code>. Approach: lift pass records the first pipe op seen in the source string on each <code>ptr_layer</code> via a new <code>source_pipe_op</code> slot (<code>%&gt;%</code>, <code>|&gt;</code>, or <code>NULL</code>); the preserve-mode renderer applies an asymmetric policy — <code>%&gt;%</code>-source layers render with chain-level <code>%&gt;%</code> preservation, while <code>|&gt;</code>-source (and unannotated) layers stay on today's nested-with-pipe-inside path. Closes both prior SKIP-deferrals at <code>test-rewrite-render.R</code>:38 and :51 (P10.4, P10.5).</li>
+  <li><strong><code>state$spec()</code> at grid level — RESOLVED in S5.</strong> Each plot has its own <code>ptr_state$spec()</code>. S5 adds an internal helper <code>ptr_spec_combine(specs)</code> that unions per-plot specs into one flat list keyed by fully-qualified namespaced id. The grid wrapper (S6) uses this combiner to expose a single combined-flat spec for the grid, matching the <code>spec=</code> intake shape. A separate per-plot accessor (returning the list of per-plot specs un-combined) remains a future enhancement, not in S1–S6.</li>
+</ol>
+
+<h2>6. Relationship to ADR 0011</h2>
+
+<p>ADR 0011 documented the bug-3a / 3b investigation up to the (incorrect) UseMethod / load_all shadow-trap diagnosis. This ADR supersedes that diagnosis and proposes the structural fix. The two failed fix attempts in 0011 §2.6 and §2.7 should not be re-attempted — they were solving a non-existent problem.</p>
+
+<p>0011's §1.5–§1.8 (Bug 3a hypothesis and fix shape) is partially correct: the per-layer fast-path is indeed the trip-wire, but the "is-inner" predicate proposed in §1.7 is no longer needed under this ADR — the structural pipeline lift makes every consumer's <code>c$upstream</code> resolve correctly without a per-layer override.</p>
+
+<p>0011 stays as the historical investigation log; this ADR is the live design.</p>
+
+</body>
+</html>

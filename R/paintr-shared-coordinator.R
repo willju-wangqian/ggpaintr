@@ -51,6 +51,115 @@ shared_partition <- function(trees) {
 }
 
 
+# Compute the "source signature" of one consumer's `$upstream` subtree under
+# the active partition. Returns a list with `kind` in
+# c("none", "panel", "formula_local_source", "bare") plus
+# `desc` (verbatim, human-readable source expression for the abort message)
+# and `cmp` (the comparable key used to decide signature equality across
+# formulas — same `cmp` across formulas => panel-owned consumer is
+# coordinated).
+#
+# - "none"                  : upstream is NULL (consumer has no upstream)
+# - "panel"                 : upstream contains a `ptr_ph_data_source` whose
+#                             `$shared` is in `panel_keys`
+# - "formula_local_source"  : upstream contains a `ptr_ph_data_source` that is
+#                             NOT panel-owned (no `$shared`, or `$shared` not in
+#                             `panel_keys`). This kind always fails the
+#                             invariant — independent widgets in each formula
+#                             cannot collaboratively drive a single
+#                             panel-scope picker.
+# - "bare"                  : upstream is a non-source subtree (typically a
+#                             `ptr_literal` like `mtcars`); `cmp` is its
+#                             deparsed AST so identical bare-data passes.
+shared_upstream_source_signature <- function(upstream, panel_keys) {
+  if (is.null(upstream)) {
+    return(list(kind = "none", desc = "(no upstream source)", cmp = "none"))
+  }
+  sources <- find_nodes(upstream, is_ptr_ph_data_source)
+  if (length(sources) > 0L) {
+    s <- sources[[1L]]
+    if (!is.null(s$shared) && s$shared %in% panel_keys) {
+      return(list(
+        kind = "panel",
+        desc = paste0("panel-owned source \"", s$shared, "\""),
+        cmp  = paste0("panel", s$shared)
+      ))
+    }
+    desc <- paste(deparse(s$expr), collapse = " ")
+    return(list(
+      kind = "formula_local_source",
+      desc = desc,
+      cmp  = paste0("formula_local", desc)
+    ))
+  }
+  ast <- upstream$expr %||% upstream
+  desc <- paste(deparse(ast), collapse = " ")
+  list(kind = "bare", desc = desc, cmp = paste0("bare", desc))
+}
+
+# ADR 0023 §6 — parse-time invariant. For each panel-owned consumer key,
+# walk every formula it appears in and abort if any formula's upstream
+# source is formula-local OR if the per-formula source signatures differ.
+# Reads the partition + trees already in scope; no fresh AST walk added.
+shared_assert_panel_consumer_sources <- function(trees, panel_keys, formulas) {
+  if (length(panel_keys) == 0L) return(invisible(NULL))
+  for (key in panel_keys) {
+    formula_idxs <- integer(0)
+    sigs <- list()
+    for (i in seq_along(trees)) {
+      occ <- find_nodes(trees[[i]], function(x) {
+        is_ptr_ph_data_consumer(x) && identical(x$shared, key)
+      })
+      if (length(occ) == 0L) next
+      formula_idxs <- c(formula_idxs, i)
+      sigs[[length(sigs) + 1L]] <- shared_upstream_source_signature(
+        occ[[1L]]$upstream, panel_keys
+      )
+    }
+    if (length(formula_idxs) < 2L) next
+    any_local_src <- any(vapply(sigs, function(s) {
+      identical(s$kind, "formula_local_source")
+    }, logical(1)))
+    cmps <- vapply(sigs, function(s) s$cmp, character(1))
+    sigs_differ <- length(unique(cmps)) > 1L
+    if (!any_local_src && !sigs_differ) next
+
+    formula_lines <- vapply(seq_along(formula_idxs), function(j) {
+      paste0("formula ", formula_idxs[[j]], ": ", sigs[[j]]$desc)
+    }, character(1))
+    body <- if (any_local_src) {
+      paste0(
+        "Panel-owned shared consumer \"", key,
+        "\" requires every source it depends on to be panel-owned, but the ",
+        "upstream sources are formula-local (each widget is independent and ",
+        "cannot collaboratively drive a single panel-scope picker)."
+      )
+    } else {
+      paste0(
+        "Panel-owned shared consumer \"", key,
+        "\" requires every source it depends on to be panel-owned, but the ",
+        "upstream sources differ across formulas."
+      )
+    }
+    hint <- paste0(
+      "Make the upstream source panel-owned by giving it the same ",
+      "`shared = \"...\"` annotation across formulas (e.g. ",
+      "`ppUpload(shared = \"ds\")`), or drop `shared = \"", key,
+      "\"` on the consumer so it becomes formula-local."
+    )
+    msg <- c(body, stats::setNames(formula_lines, rep("*", length(formula_lines))),
+             i = hint)
+    rlang::abort(
+      message  = msg,
+      class    = "ptr_panel_consumer_source_mismatch",
+      key      = key,
+      formulas = as.character(formulas)[formula_idxs],
+      sources  = vapply(sigs, function(s) s$desc, character(1))
+    )
+  }
+  invisible(NULL)
+}
+
 # ---- ptr_shared (coordinator) ---------------------------------------------
 
 #' Build the Shared Coordinator for a Multi-Instance Embedding
@@ -72,14 +181,44 @@ shared_partition <- function(trees) {
 #' Errors when no formula declares a `shared = "..."` annotation -- building
 #' the coordinator is a declaration of intent.
 #'
-#' @param formulas A character vector or list of formula strings, one per
-#'   embedded [`ptr_ui()`] instance.
-#' @param shared_ui Named list of `function(id) -> shiny.tag` builders, one
-#'   per shared key the embedder wants to customise. Unsupplied keys are
-#'   auto-rendered from the first formula that mentions them.
+#' @param formulas A non-empty character vector or list, one element per
+#'   embedded [`ptr_ui()`] instance. Each element is either a formula
+#'   **string** or a **quoted ggplot expression** (`rlang::expr(...)` /
+#'   `quote(...)`); quoted expressions are deparsed to their source string,
+#'   and the two forms are interchangeable (mixed lists are allowed). A built
+#'   ggplot object (e.g. `g <- ggplot(...) + geom_point()` then passing `g`)
+#'   is **not** accepted -- its source is unrecoverable, so quote it with
+#'   `expr()` instead. Note: a native pipe `|>` inside a quoted expression is
+#'   desugared by R's parser before capture, so it does not survive into the
+#'   generated code panel (use `%>%` or a formula string to preserve it).
+#' @param id Optional character scalar that namespaces every id this
+#'   coordinator emits, so two or more coordinators can coexist in one
+#'   Shiny session without colliding on shared `input` slots. When
+#'   non-`NULL`, every id (`shared_<key>`, `shared_<key>_stage_enabled`,
+#'   `ptr_shared_draw_all`, `ptr_shared_errors`, the stage-block DOM id,
+#'   and each consumer `renderUI` container) is prefixed `<id>-` using
+#'   Shiny `NS()`'s separator. The default `NULL` preserves today's flat
+#'   ids byte-for-byte -- single-panel apps need no change. Must be `NULL`
+#'   or a non-empty string matching `^[A-Za-z][A-Za-z0-9_]*$`;
+#'   [`ptr_shared_panel()`], [`ptr_ui_shared_panel()`], and
+#'   [`ptr_shared_server()`] all read it off `obj$id` -- their signatures
+#'   do not change.
+#' @section Removed `shared_ui`:
+#' `shared_ui` (a named list of `function(id) -> shiny.tag` builders) is no
+#' longer supported. Its original intent was to let two placeholders that
+#' share a key share the same UI settings. But each placeholder already
+#' carries its own `build_ui` rule, and two `shared=` placeholders simply
+#' reuse that one rule when their widget collapses to the panel. The
+#' customisation therefore comes from the placeholder's `build_ui`
+#' (`ptr_define_placeholder_*(build_ui = ...)`), not from a separate
+#' `shared_ui` override — so the override was redundant, and for `var`
+#' consumers it actively dropped the formula default and froze the column
+#' list. To customise a shared widget, define a custom placeholder with the
+#' `build_ui` you want and use it in the formula. Label-only divergence for
+#' the shared widget still has its own channel (`node$shared_label`).
 #' @param ui_text Optional copy overrides forwarded to the auto-built
 #'   widgets (see [`ptr_app()`]'s `ui_text` argument).
-#' @param expr_check Whether to validate `expr` placeholders during formula
+#' @param expr_check Whether to validate `ppExpr` placeholders during formula
 #'   translation. Default `TRUE`.
 #' @param draw_all_label Label for the "Draw all" button rendered in the
 #'   panel when two or more formulas are supplied.
@@ -91,17 +230,37 @@ shared_partition <- function(trees) {
 #'   [`ptr_shared_server()`], [`ptr_ui()`].
 #' @examples
 #' obj <- ptr_shared(c(
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #' ))
 #' obj$panel_keys   # "x" — shared by both formulas
+#'
+#' # Quoted expressions work too, and may be mixed with strings:
+#' obj2 <- ptr_shared(list(
+#'   rlang::expr(ggplot(mtcars, aes(x = ppVar(shared = "x"), y = mpg)) + geom_point()),
+#'   "ggplot(mtcars, aes(x = ppVar(shared = 'x'), y = hp)) + geom_line()"
+#' ))
+#' obj2$panel_keys  # "x"
 #' @export
 ptr_shared <- function(formulas,
-                       shared_ui = list(),
+                       id = NULL,
                        ui_text = NULL,
                        expr_check = TRUE,
                        draw_all_label = "Draw all") {
-  assertthat::assert_that(is.list(shared_ui))
+  if (!(is.null(id) ||
+        (is.character(id) && length(id) == 1L && !is.na(id) &&
+         nzchar(id) && grepl("^[A-Za-z][A-Za-z0-9_]*$", id)))) {
+    rlang::abort(paste0(
+      "`id` must be NULL or a single non-empty string matching ",
+      "\"^[A-Za-z][A-Za-z0-9_]*$\"; got ",
+      paste0(utils::capture.output(print(id)), collapse = " "), "."
+    ))
+  }
+  # Normalize once here so the spec's `formulas` field and the
+  # panel-consumer-source assertion below both see plain strings (quoted
+  # expressions deparsed). `shared_translate_formulas()` re-normalizes
+  # idempotently -- strings pass straight through.
+  formulas <- normalize_shared_formulas(formulas)
   trees <- shared_translate_formulas(formulas, expr_check = expr_check)
 
   firsts <- shared_first_nodes(trees)
@@ -118,33 +277,51 @@ ptr_shared <- function(formulas,
     )
   }
 
-  if (length(shared_ui) > 0L) {
-    nms <- names(shared_ui)
-    if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
-      rlang::abort(
-        "`shared_ui` must have unique non-empty names matching the `shared` annotations in `formulas`."
-      )
-    }
-    if (!all(vapply(shared_ui, is.function, logical(1)))) {
-      rlang::abort(
-        "Every entry of `shared_ui` must be a function `function(id) -> shiny.tag`."
-      )
-    }
-    extra <- setdiff(nms, formula_keys)
-    if (length(extra) > 0L) {
-      rlang::abort(paste0(
-        "`shared_ui` references key ",
-        paste0("\"", extra, "\"", collapse = ", "),
-        " which is not used in any plot formula. Available formula keys: ",
-        paste0("\"", formula_keys, "\"", collapse = ", "), "."
-      ))
-    }
-  }
+  # `shared_ui` removed (see ?ptr_shared "Removed `shared_ui`"). The widget a
+  # shared key renders is the representative placeholder's own `build_ui`; to
+  # customise it, define a custom placeholder. The former validation of a
+  # `shared_ui` named list is retained here, commented, for provenance:
+  # if (length(shared_ui) > 0L) {
+  #   nms <- names(shared_ui)
+  #   if (is.null(nms) || any(!nzchar(nms)) || any(duplicated(nms))) {
+  #     rlang::abort(
+  #       "`shared_ui` must have unique non-empty names matching the `shared` annotations in `formulas`."
+  #     )
+  #   }
+  #   if (!all(vapply(shared_ui, is.function, logical(1)))) {
+  #     rlang::abort(
+  #       "Every entry of `shared_ui` must be a function `function(id) -> shiny.tag`."
+  #     )
+  #   }
+  #   extra <- setdiff(nms, formula_keys)
+  #   if (length(extra) > 0L) {
+  #     rlang::abort(paste0(
+  #       "`shared_ui` references key ",
+  #       paste0("\"", extra, "\"", collapse = ", "),
+  #       " which is not used in any plot formula. Available formula keys: ",
+  #       paste0("\"", formula_keys, "\"", collapse = ", "), "."
+  #     ))
+  #   }
+  # }
 
   part <- shared_partition(trees)
 
+  # PLAN-03 / ADR 0023 §6: a panel-owned consumer key must be driven by a
+  # panel-owned source. A single panel-scope picker cannot list columns from
+  # two formula-local datasets without inventing arbitrary semantics
+  # (union/intersection/per-instance widgets). Fail fast here, naming the
+  # consumer key, the offending formulas (1-indexed), and the verbatim source
+  # expressions; the embedder can `tryCatch()` it via class
+  # "ptr_panel_consumer_source_mismatch".
+  shared_assert_panel_consumer_sources(
+    trees       = trees,
+    panel_keys  = part$panel_keys,
+    formulas    = formulas
+  )
+
   structure(
     list(
+      id = id,
       formulas = formulas,
       trees = trees,
       formula_count = length(trees),
@@ -154,7 +331,8 @@ ptr_shared <- function(formulas,
       keys_by_formula = part$keys_by_formula,
       firsts = firsts,
       consumer_reps = consumer_reps,
-      shared_ui = shared_ui,
+      # shared_ui removed (see ?ptr_shared). Field intentionally absent;
+      # `shared_panel_body_tag()` no longer reads `obj$shared_ui`.
       ui_text = ui_text,
       expr_check = expr_check,
       draw_all_label = draw_all_label
@@ -173,29 +351,40 @@ shared_panel_body_tag <- function(obj, keys) {
   firsts <- obj$firsts
   consumer_reps <- obj$consumer_reps
   consumer_keys <- names(consumer_reps)
-  shared_ui <- obj$shared_ui
+  # `shared_ui <- obj$shared_ui` removed: the per-key custom-override path is
+  # gone (see ?ptr_shared "Removed `shared_ui`"). Every key now auto-renders
+  # from its placeholder's own `build_ui` (consumer branch -> the binder's
+  # reactive renderUI; value branch -> `build_ui_for(node)`).
   ui_text <- obj$ui_text
+  ns <- shared_ns(obj)
 
   shared_label_override <- lapply(firsts$occurrences, shared_widget_label)
+  # PLAN-07: first-occurrence default for each shared bucket. Seeded onto
+  # `node$default` below so `invoke_build_ui` picks it up via the same
+  # path as per-layer widgets.
+  shared_default_override <- lapply(firsts$occurrences, shared_widget_default)
 
   shared_widgets <- lapply(keys, function(k) {
     canonical <- canonical_shared_id(k)
-    if (k %in% names(shared_ui)) {
-      shared_ui[[k]](canonical)
-    } else if (k %in% consumer_keys) {
+    # The `shared_ui` per-key override branch was removed here (see
+    # ?ptr_shared "Removed `shared_ui`"):
+    #   if (k %in% names(shared_ui)) shared_ui[[k]](ns(canonical))
+    # A shared key's widget is now always its placeholder's own `build_ui`.
+    if (k %in% consumer_keys) {
       node <- consumer_reps[[k]]
       build_ui_for(
         node,
-        ns_fn = identity,
+        ns_fn = ns,
         label_override = node$shared_label
       )
     } else {
       node <- firsts$nodes[[k]]
       node$id <- canonical
+      node$default <- shared_default_override[[k]]
       build_ui_for(
         node,
         ui_text = ui_text,
-        ns_fn = identity,
+        ns_fn = ns,
         label_override = shared_label_override[[k]]
       )
     }
@@ -222,7 +411,7 @@ shared_panel_body_tag <- function(obj, keys) {
         shiny::tags$code(paste0(paste(verbs, collapse = "/"), "()"))
       } else NULL
       controllable_region(
-        shared_stage_input_id(k), head_label, w, ns_fn = identity
+        shared_stage_input_id(k), head_label, w, ns_fn = ns
       )
     })
   }
@@ -234,9 +423,9 @@ shared_panel_body_tag <- function(obj, keys) {
     ),
     shared_widgets,
     if (obj$formula_count >= 2L) {
-      list(shiny::actionButton("ptr_shared_draw_all", obj$draw_all_label))
+      list(shiny::actionButton(ns("ptr_shared_draw_all"), obj$draw_all_label))
     } else list(),
-    list(shiny::uiOutput("ptr_shared_errors"))
+    list(shiny::uiOutput(ns("ptr_shared_errors")))
   )
 
   shiny::wellPanel(
@@ -253,6 +442,8 @@ shared_panel_body_tag <- function(obj, keys) {
 #' dropped straight into a host layout. Its server counterpart
 #' [`ptr_shared_server()`] must run at the top level.
 #'
+#' Namespacing is inherited from `obj$id`; supply it to [`ptr_shared()`].
+#'
 #' @param obj A `ptr_shared_spec` from [`ptr_shared()`].
 #' @param css Optional character vector of paths to additional CSS files;
 #'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
@@ -265,8 +456,8 @@ shared_panel_body_tag <- function(obj, keys) {
 #'   [`ptr_shared_server()`].
 #' @examples
 #' obj <- ptr_shared(c(
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #' ))
 #' ptr_shared_panel(obj)
 #' @export
@@ -293,6 +484,8 @@ ptr_shared_panel <- function(obj, css = NULL) {
 #' **no** asset bundle. The L3 user supplies their own shell / assets (e.g.
 #' via [`ptr_ui_page()`]).
 #'
+#' Namespacing is inherited from `obj$id`; supply it to [`ptr_shared()`].
+#'
 #' @param obj A `ptr_shared_spec` from [`ptr_shared()`].
 #'
 #' @return A `shiny.tag` wellPanel with no wrapper and no injected assets, or
@@ -301,8 +494,8 @@ ptr_shared_panel <- function(obj, css = NULL) {
 #'   [`ptr_shared_server()`].
 #' @examples
 #' obj <- ptr_shared(c(
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-#'   "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+#'   "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 #' ))
 #' ptr_ui_shared_panel(obj)
 #' @export

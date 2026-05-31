@@ -1,7 +1,7 @@
 # P9 — prune. Drop missing and empty-after-substitution. One S3 visitor.
 
 test_that("P9.1 positional missing arg escalates the call", {
-  r <- ptr_translate("ggplot(mtcars) + geom_point(data = subset(mtcars, mpg >= num))")
+  r <- ptr_translate("ggplot(mtcars) + geom_point(data = subset(mtcars, mpg >= ppNum))")
   s <- ptr_substitute(r, input_snapshot = list())  # num missing
   p <- ptr_prune(s)
   # geom_point's data subset(mtcars, mpg >= ptr_missing()) should escalate
@@ -13,7 +13,7 @@ test_that("P9.1 positional missing arg escalates the call", {
 })
 
 test_that("P9.2 named missing arg dropped", {
-  r <- ptr_translate("ggplot(mtcars) + geom_point(color = text, size = 3)")
+  r <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText, size = 3)")
   s <- ptr_substitute(r, input_snapshot = list())  # text missing
   p <- ptr_prune(s)
   geom <- Filter(function(l) l$name == "geom_point", p$layers)[[1]]
@@ -23,28 +23,28 @@ test_that("P9.2 named missing arg dropped", {
 })
 
 test_that("P9.3 empty call in remove_set escalates (theme dropped)", {
-  r <- ptr_translate("ggplot(mtcars) + theme(plot.title = text)")
+  r <- ptr_translate("ggplot(mtcars) + theme(plot.title = ppText)")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   expect_false(any(vapply(p$layers, function(l) l$name == "theme", logical(1))))
 })
 
 test_that("P9.4 empty call NOT in remove_set survives", {
-  r <- ptr_translate("ggplot(mtcars) + pcp_theme(title = text)")
+  r <- ptr_translate("ggplot(mtcars) + pcp_theme(title = ppText)")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   expect_true(any(vapply(p$layers, function(l) l$name == "pcp_theme", logical(1))))
 })
 
 test_that("P9.5 standalone-eligible empty layer survives even when in remove_set", {
-  r <- ptr_translate("ggplot(mtcars) + geom_point(color = text)")
+  r <- ptr_translate("ggplot(mtcars) + geom_point(color = ppText)")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s, safe_to_remove = c("geom_point"))
   expect_true(any(vapply(p$layers, function(l) l$name == "geom_point", logical(1))))
 })
 
 test_that("P9.6 user safe_to_remove extends remove_set", {
-  r <- ptr_translate("ggplot(mtcars) + pcp_theme(title = text)")
+  r <- ptr_translate("ggplot(mtcars) + pcp_theme(title = ppText)")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s, safe_to_remove = c("pcp_theme"))
   expect_false(any(vapply(p$layers, function(l) l$name == "pcp_theme", logical(1))))
@@ -54,13 +54,20 @@ test_that("P9.7 positional missing in pipeline stage drops the arg, keeps the ca
   # Per relaxed P9 (P12.1): empty `num` drops the arg from `head(num)`,
   # leaving `head()` empty. `head` is NOT in default_drop_when_empty, so the
   # call survives and renders as-is — eval relies on head's default n = 6.
-  r <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = mpg))")
+  # PLAN-02 (ADR 0012 §1): the lift requires a chain depth >= 2 to fire.
+  # A 2-stage chain (filter + head) above the source produces the canonical
+  # 3-stage pipeline shape the test originally exercised under the legacy
+  # `|>` translator.
+  r <- ptr_translate(
+    "mtcars |> filter(mpg > 10) |> head(ppNum) |> ggplot(aes(x = mpg))"
+  )
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   ggp <- p$layers[[1]]
   expect_true(is_ptr_pipeline(ggp$data_arg))
-  expect_equal(length(ggp$data_arg$stages), 2L)
-  head_stage <- ggp$data_arg$stages[[2L]]
+  # 3 stages: source (mtcars) + filter(mpg > 10) + head().
+  expect_equal(length(ggp$data_arg$stages), 3L)
+  head_stage <- ggp$data_arg$stages[[3L]]
   expect_true(is_ptr_call(head_stage))
   expect_equal(bare_call_name(head_stage$fun), "head")
   expect_equal(length(head_stage$args), 0L)
@@ -69,12 +76,13 @@ test_that("P9.7 positional missing in pipeline stage drops the arg, keeps the ca
 test_that("P9.7b empty call IN default_drop_when_empty drops from pipeline", {
   # `aes` is in default_drop_when_empty. With var empty, `aes(x = var)` becomes
   # `aes()` empty -> drop sentinel -> the wrapping pipeline-or-arg drops it.
-  r <- ptr_translate("mtcars |> ggplot(aes(x = var))")
+  r <- ptr_translate("mtcars |> ggplot(aes(x = ppVar))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   ggp <- p$layers[[1]]
-  # data_arg pipeline has just mtcars (single stage -> collapsed to literal),
-  # ggplot's children should not include the empty aes() arg.
+  # data_arg is the bare `mtcars` literal (no verb stages above source,
+  # so the lift's `is_ptr_call(da)` filter skipped it); ggplot's children
+  # should not include the empty aes() arg.
   arg_names <- names(ggp$children) %||% rep_len("", length(ggp$children))
   expect_false(any(vapply(ggp$children, function(c) {
     is_ptr_call(c) && identical(bare_call_name(c$fun), "aes")
@@ -150,14 +158,14 @@ test_that("P9.18 invalid safe_to_remove rejected", {
 })
 
 test_that("P9.19 safe_to_remove = NULL accepted; default applies", {
-  r <- ptr_translate("ggplot(mtcars) + theme(plot.title = text)")
+  r <- ptr_translate("ggplot(mtcars) + theme(plot.title = ppText)")
   s <- ptr_substitute(r, input_snapshot = list())
   expect_silent(p <- ptr_prune(s, safe_to_remove = NULL))
   expect_false(any(vapply(p$layers, function(l) l$name == "theme", logical(1))))
 })
 
-test_that("P9.21 top-level theme(plot.title = text) collapses with text missing", {
-  r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + theme(plot.title = text)")
+test_that("P9.21 top-level theme(plot.title = ppText) collapses with ppText missing", {
+  r <- ptr_translate("ggplot(mtcars, aes(x = mpg)) + theme(plot.title = ppText)")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   layer_names <- vapply(p$layers, function(l) l$name, character(1))
@@ -165,7 +173,7 @@ test_that("P9.21 top-level theme(plot.title = text) collapses with text missing"
 })
 
 test_that("P9.22 top-level standalone geom_point() survives even when in remove_set", {
-  r <- ptr_translate("ggplot(mtcars) + geom_point(colour = var)")
+  r <- ptr_translate("ggplot(mtcars) + geom_point(colour = ppVar)")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s, safe_to_remove = c("geom_point"))
   layer_names <- vapply(p$layers, function(l) l$name, character(1))
@@ -186,8 +194,8 @@ test_that("P9.17 depth limit triggers abort", {
 
 # ---- P9.23–P9.26 — gap-fillers from test-prune-empty-substitution.R ----
 
-test_that("P9.23 facet_wrap(vars(var)) drops when var missing (cascade)", {
-  r <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(vars(var))")
+test_that("P9.23 facet_wrap(vars(ppVar)) drops when ppVar missing (cascade)", {
+  r <- ptr_translate("ggplot(mtcars) + geom_point() + facet_wrap(vars(ppVar))")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   layer_names <- vapply(p$layers, function(l) l$name, character(1))
@@ -196,7 +204,7 @@ test_that("P9.23 facet_wrap(vars(var)) drops when var missing (cascade)", {
 
 test_that("P9.24 annotation_custom(grob = expr) drops when expr missing", {
   r <- ptr_translate(
-    "ggplot(mtcars) + geom_point() + annotation_custom(grob = expr)"
+    "ggplot(mtcars) + geom_point() + annotation_custom(grob = ppExpr)"
   )
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
@@ -208,13 +216,17 @@ test_that("P9.25 binary operator inside data_arg escalates when operand missing"
   # `subset(mtcars, mpg > num)` with num missing: the `>` operator has a
   # positional missing operand → escalates to ptr_missing per P9 (G2);
   # the surrounding subset call's positional second arg is now missing →
-  # subset itself escalates. Exercises G2 (operator escalation) and the
-  # nested-cascade rule together.
-  r <- ptr_translate("ggplot(subset(mtcars, mpg > num)) + geom_point()")
+  # subset itself drops the arg. Exercises G2 (operator escalation) and
+  # the nested-cascade rule together. Note: post-ADR-0012 the data_arg
+  # lifts to a `ptr_pipeline` and the rendered output may contain the
+  # `|>` token; assert on the operand symbol `mpg` instead of the raw
+  # `>` character (which would false-positive on `|>`).
+  r <- ptr_translate("ggplot(subset(mtcars, mpg > ppNum)) + geom_point()")
   s <- ptr_substitute(r, input_snapshot = list())
   p <- ptr_prune(s)
   rendered <- ptr_render(p)
-  expect_false(grepl(">", rendered, fixed = TRUE))
+  expect_false(grepl("mpg", rendered, fixed = TRUE))
+  expect_false(grepl("ppNum", rendered, fixed = TRUE))
 })
 
 test_that("P9.26 anonymous-head call (paren-wrapped) is preserved by prune", {
@@ -222,11 +234,11 @@ test_that("P9.26 anonymous-head call (paren-wrapped) is preserved by prune", {
   # call-head is itself a call (not a symbol). The pruner can't match
   # `call_name` to remove_set, so the wrapper survives.
   r <- ptr_translate(
-    "ggplot(mtcars) + geom_point() + labs(title = (function(x) x)(text))"
+    "ggplot(mtcars) + geom_point() + labs(title = (function(x) x)(ppText))"
   )
   ph_id <- find_nodes(
     r,
-    function(n) is_ptr_placeholder(n) && n$keyword == "text"
+    function(n) is_ptr_placeholder(n) && n$keyword == "ppText"
   )[[1]]$id
   s <- ptr_substitute(r, input_snapshot = stats::setNames(list("hi"), ph_id))
   p <- ptr_prune(s)

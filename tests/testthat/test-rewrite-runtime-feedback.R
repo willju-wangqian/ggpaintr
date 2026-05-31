@@ -12,7 +12,7 @@
 
 .expr_input_id <- function(state) {
   spec <- state$input_spec
-  spec$input_id[spec$keyword == "expr"][[1]]
+  spec$input_id[spec$keyword == "ppExpr"][[1]]
 }
 
 test_that("2.1 a failed render blanks the plot canvas", {
@@ -20,7 +20,7 @@ test_that("2.1 a failed render blanks the plot canvas", {
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(
       input, output, session,
-      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + facet_wrap(expr)",
+      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + facet_wrap(ppExpr)",
       envir = e
     )
   }
@@ -50,7 +50,7 @@ test_that("2.2 substitute-stage errors carry 'Input error: ' (not double-applied
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(
       input, output, session,
-      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + facet_wrap(expr)",
+      "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + facet_wrap(ppExpr)",
       envir = e
     )
   }

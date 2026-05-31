@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 06: ptr_app_grid on the coordinator (#G)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head><body>
+
+<h1>Step 06 — <code>ptr_app_grid</code> on the coordinator (pass #G)</h1>
+<p class="meta">Phase 6. Depends on: Steps 01, 02. Authority: ADR 0005 §2/§3.</p>
+
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-16, branch <code>l2l3-step-06-grid-coord</code> @ <code>6aa4e9c</code>.
+All success criteria met. <code>ptr_app_grid_components</code> now builds <code>obj &lt;- ptr_shared(formulas = plots, shared_ui, ui_text, expr_check, draw_all_label)</code> once and renders <code>ptr_shared_panel(obj, css = NULL)</code> + per-formula <code>ptr_module_ui</code>; the server uses <code>ptr_shared_server(obj, envir = envir)</code> and threads the bundle into each <code>ptr_module_server(shared_state=)</code>. The dead <code>ptr_shared_ui()</code> call (removed in Step 01) is gone — no second partition implementation; the count-based partition lives entirely in <code>ptr_shared()</code> and is consumed, not re-derived (<code>any_shared</code> is only the "does a coordinator exist" gate). "Draw all" (≥2 formulas) is sourced from <code>obj$draw_all_label</code> via <code>shared_panel_body_tag</code>; the <code>.ptr-app ptr-app--page</code> full-viewport opt-in for the L1 entrypoint is unchanged (the nested L2 <code>.ptr-app</code> panel is theme scope only — the bundled <code>htmlDependency</code> dedups, so no second <code>&lt;link&gt;</code>). Single-formula <code>ptr_app</code>/<code>ptr_app_components</code> untouched: shared keys inline, no panel, no coordinator constructed. No public signature change to <code>ptr_app</code>/<code>ptr_app_grid</code>. The 4 Step-06-deferred skips (<code>test-shared-stage-checkbox.R</code> ×2, <code>test-rewrite-shared.R</code> ×2) had their <code>skip("...step 06...")</code> lines removed and are green. Verify gate: focused <code>devtools::test(filter="rewrite-shared|rewrite-app|shared-coordinator|shared-server-partition|shared-server-consistency|shared-stage-checkbox|grid")</code> = 168 pass / 0 fail / 0 skip. Full-suite diff vs. <code>20b61ee</code> baseline: <strong>zero new reds</strong>, and the pre-existing <code>test-asset-bundle.R:131</code> ("grid path emits user css exactly once") flipped green as a side effect (the grid no longer calls the removed <code>ptr_shared_ui</code>). The remaining 6 full-suite reds (<code>asset-bundle</code> {46,55,80,104} direct <code>ptr_shared_ui</code> calls, <code>shared-lockstep-shinytest2:37</code>, <code>ui-pieces:240</code>) fail identically at baseline — pre-existing Step-01 fallout owned by Steps 05/10, explicitly out of scope. Generated files deferred: no roxygen changed, <code>NAMESPACE</code>/<code>man/</code> clean (Step 10 owns the doc tree).</p>
+
+<h2>Goal</h2>
+<p>Route the L1 multi-formula path (<code>ptr_app_grid</code>; internally calls <code>ptr_shared_ui</code> ~<code>R/paintr-app.R:965</code> and <code>ptr_shared_server</code> ~<code>:1007</code>) through the new coordinator so L1 and L2/L3 share one partition implementation and behave identically. Single-formula <code>ptr_app</code> is unaffected (all keys inline; no coordinator).</p>
+
+<h2>Success criteria</h2>
+<ul>
+<li><code>ptr_app_grid</code> builds <code>obj &lt;- ptr_shared(formulas, …)</code> internally and renders <code>ptr_shared_panel(obj)</code> + per-formula modules; server side uses <code>ptr_shared_server(obj)</code>.</li>
+<li>Same-named external behavior: a grid with a cross-formula key shows one panel widget driving all plots; formula-local keys appear in each formula's inline section.</li>
+<li>No second partition implementation anywhere — <code>ptr_app_grid</code> consumes <code>obj</code>.</li>
+<li><code>ptr_app</code> (single formula) unchanged: shared keys inline, no panel, no coordinator constructed.</li>
+<li>Existing grid/shared tests + <code>feature-sweep.R</code> examples 15/15b/15c still pass.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>No public signature change to <code>ptr_app</code>/<code>ptr_app_grid</code> (L1 stays as-is externally).</li>
+<li>Reuse Step 01/02 outputs; do not re-derive partition.</li>
+<li>Preserve the <code>ptr_app_grid</code> "Draw all" affordance (renders when ≥2 formulas) — now sourced from <code>obj</code>'s <code>draw_all_label</code>.</li>
+<li>Keep the <code>.ptr-app--page</code> full-viewport canvas opt-in behavior for the L1 entry points (unchanged).</li>
+<li><strong>Generated files are deferred.</strong> If you run <code>devtools::document()</code> it is a local verify check only — do <strong>not</strong> commit the regenerated <code>NAMESPACE</code>/<code>man/*.Rd</code> on this feature branch (<code>git restore NAMESPACE man/</code> before committing). Step 10 is the global doc gate and owns the committed doc tree; per-branch commits of generated output are the sole source of cross-step merge conflicts. This step changes no exports (<code>ptr_app_grid</code> stays exported; <code>ptr_app_grid_components</code> is internal); its generated delta is the <code>ptr_shared_ui</code>→coordinator <code>@seealso</code>/Rd churn, which overlaps Step 03's link sweep on <code>man/ptr_css.Rd</code>/<code>man/ptr_server.Rd</code>. <code>devtools::test()</code> uses <code>load_all()</code> and needs no committed <code>NAMESPACE</code>, so the full-suite verify still runs.</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: L1 grid uses the same partition as L2/L3
+
+  Scenario: Grid with a cross-formula key
+    Given ptr_app_grid(formulas = list(f1="...num(shared='B')...",
+                                       f2="...num(shared='B')..."))
+    When the app runs
+    Then exactly one "shared_B" widget appears in a standalone panel
+      And changing it re-renders both grid plots
+
+  Scenario: Grid with a formula-local key
+    Given f1 also uses num(shared='A') (absent from f2)
+    When the app runs
+    Then "A" appears in f1's inline section, not in the panel
+
+  Scenario: Single-plot app is untouched
+    Given ptr_app("...num(shared='A')... num(shared='A')")
+    When the app runs
+    Then "A" appears once in the inline shared section
+      And no standalone panel and no ptr_shared coordinator are created
+
+  Scenario: feature-sweep parity
+    When dev/scripts/feature-sweep.R examples 15, 15b, 15c are launched
+    Then each behaves as documented in that script's comments</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::test()'   # full suite; focus shared + grid
+# manual: launch feature-sweep.R #15 / #15b / #15c</pre>
+</body></html>

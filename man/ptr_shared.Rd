@@ -6,24 +6,41 @@
 \usage{
 ptr_shared(
   formulas,
-  shared_ui = list(),
+  id = NULL,
   ui_text = NULL,
   expr_check = TRUE,
   draw_all_label = "Draw all"
 )
 }
 \arguments{
-\item{formulas}{A character vector or list of formula strings, one per
-embedded \code{\link[=ptr_ui]{ptr_ui()}} instance.}
+\item{formulas}{A non-empty character vector or list, one element per
+embedded \code{\link[=ptr_ui]{ptr_ui()}} instance. Each element is either a formula
+\strong{string} or a \strong{quoted ggplot expression} (\code{rlang::expr(...)} /
+\code{quote(...)}); quoted expressions are deparsed to their source string,
+and the two forms are interchangeable (mixed lists are allowed). A built
+ggplot object (e.g. \code{g <- ggplot(...) + geom_point()} then passing \code{g})
+is \strong{not} accepted -- its source is unrecoverable, so quote it with
+\code{expr()} instead. Note: a native pipe \verb{|>} inside a quoted expression is
+desugared by R's parser before capture, so it does not survive into the
+generated code panel (use \verb{\%>\%} or a formula string to preserve it).}
 
-\item{shared_ui}{Named list of \verb{function(id) -> shiny.tag} builders, one
-per shared key the embedder wants to customise. Unsupplied keys are
-auto-rendered from the first formula that mentions them.}
+\item{id}{Optional character scalar that namespaces every id this
+coordinator emits, so two or more coordinators can coexist in one
+Shiny session without colliding on shared \code{input} slots. When
+non-\code{NULL}, every id (\verb{shared_<key>}, \verb{shared_<key>_stage_enabled},
+\code{ptr_shared_draw_all}, \code{ptr_shared_errors}, the stage-block DOM id,
+and each consumer \code{renderUI} container) is prefixed \verb{<id>-} using
+Shiny \code{NS()}'s separator. The default \code{NULL} preserves today's flat
+ids byte-for-byte -- single-panel apps need no change. Must be \code{NULL}
+or a non-empty string matching \verb{^[A-Za-z][A-Za-z0-9_]*$};
+\code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui_shared_panel]{ptr_ui_shared_panel()}}, and
+\code{\link[=ptr_shared_server]{ptr_shared_server()}} all read it off \code{obj$id} -- their signatures
+do not change.}
 
 \item{ui_text}{Optional copy overrides forwarded to the auto-built
 widgets (see \code{\link[=ptr_app]{ptr_app()}}'s \code{ui_text} argument).}
 
-\item{expr_check}{Whether to validate \code{expr} placeholders during formula
+\item{expr_check}{Whether to validate \code{ppExpr} placeholders during formula
 translation. Default \code{TRUE}.}
 
 \item{draw_all_label}{Label for the "Draw all" button rendered in the
@@ -53,12 +70,35 @@ object: \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui
 Errors when no formula declares a \code{shared = "..."} annotation -- building
 the coordinator is a declaration of intent.
 }
+\section{Removed \code{shared_ui}}{
+
+\code{shared_ui} (a named list of \verb{function(id) -> shiny.tag} builders) is no
+longer supported. Its original intent was to let two placeholders that
+share a key share the same UI settings. But each placeholder already
+carries its own \code{build_ui} rule, and two \verb{shared=} placeholders simply
+reuse that one rule when their widget collapses to the panel. The
+customisation therefore comes from the placeholder's \code{build_ui}
+(\code{ptr_define_placeholder_*(build_ui = ...)}), not from a separate
+\code{shared_ui} override — so the override was redundant, and for \code{var}
+consumers it actively dropped the formula default and froze the column
+list. To customise a shared widget, define a custom placeholder with the
+\code{build_ui} you want and use it in the formula. Label-only divergence for
+the shared widget still has its own channel (\code{node$shared_label}).
+}
+
 \examples{
 obj <- ptr_shared(c(
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_point()",
-  "ggplot(mtcars, aes(x = var(shared='x'), y = var)) + geom_bar()"
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_point()",
+  "ggplot(mtcars, aes(x = ppVar(shared='x'), y = ppVar)) + geom_bar()"
 ))
 obj$panel_keys   # "x" — shared by both formulas
+
+# Quoted expressions work too, and may be mixed with strings:
+obj2 <- ptr_shared(list(
+  rlang::expr(ggplot(mtcars, aes(x = ppVar(shared = "x"), y = mpg)) + geom_point()),
+  "ggplot(mtcars, aes(x = ppVar(shared = 'x'), y = hp)) + geom_line()"
+))
+obj2$panel_keys  # "x"
 }
 \seealso{
 \code{\link[=ptr_shared_panel]{ptr_shared_panel()}}, \code{\link[=ptr_ui_shared_panel]{ptr_ui_shared_panel()}},

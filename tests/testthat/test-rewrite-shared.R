@@ -3,7 +3,7 @@
 
 test_that("P3.1 two var nodes with same shared key share one canonical id", {
   r <- ptr_translate(
-    'ggplot(aes(x = var(shared = "axis"), y = var(shared = "axis"))) + geom_point()'
+    'ggplot(aes(x = ppVar(shared = "axis"), y = ppVar(shared = "axis"))) + geom_point()'
   )
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
   expect_equal(length(consumers), 2L)
@@ -13,7 +13,7 @@ test_that("P3.1 two var nodes with same shared key share one canonical id", {
 
 test_that("P3.2 different shared keys remain distinct", {
   r <- ptr_translate(
-    'ggplot(aes(x = var(shared = "x"), y = var(shared = "y"))) + geom_point()'
+    'ggplot(aes(x = ppVar(shared = "x"), y = ppVar(shared = "y"))) + geom_point()'
   )
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
   ids <- vapply(consumers, function(c) c$id, character(1))
@@ -22,33 +22,33 @@ test_that("P3.2 different shared keys remain distinct", {
 
 test_that("P3.3 shared metadata surfaces in runtime input spec", {
   r <- ptr_translate(
-    'ggplot(mtcars, aes(x = mpg)) + geom_point(size = num(shared = "size_filter"))'
+    'ggplot(mtcars, aes(x = mpg)) + geom_point(size = ppNum(shared = "size_filter"))'
   )
   spec <- ptr_runtime_input_spec(r)
   ph_rows <- spec[spec$role %in% "placeholder", ]
-  size_rows <- ph_rows[ph_rows$keyword == "num", ]
+  size_rows <- ph_rows[ph_rows$keyword == "ppNum", ]
   expect_equal(nrow(size_rows), 1L)
   expect_equal(size_rows$shared, "size_filter")
 })
 
 test_that("P3.4 upload companion row carries shared", {
-  r <- ptr_translate('ggplot(data = upload(shared = "ds"))')
+  r <- ptr_translate('ggplot(data = ppUpload(shared = "ds"))')
   spec <- ptr_runtime_input_spec(r)
-  upload_rows <- spec[spec$keyword %in% "upload", ]
+  upload_rows <- spec[spec$keyword %in% "ppUpload", ]
   expect_equal(nrow(upload_rows), 2L)  # placeholder + companion
   expect_true(all(upload_rows$shared == "ds"))
 })
 
 test_that("P3.5 bare-symbol placeholder has shared = NA in input spec", {
-  r <- ptr_translate("ggplot(aes(x = var)) + geom_point()")
+  r <- ptr_translate("ggplot(aes(x = ppVar)) + geom_point()")
   spec <- ptr_runtime_input_spec(r)
-  var_rows <- spec[spec$keyword %in% "var", ]
+  var_rows <- spec[spec$keyword %in% "ppVar", ]
   expect_equal(nrow(var_rows), 1L)
   expect_true(is.na(var_rows$shared))
 })
 
 test_that("P3 bare-symbol placeholders pass through unchanged", {
-  r <- ptr_translate("ggplot(mtcars, aes(x = var)) + geom_point()")
+  r <- ptr_translate("ggplot(mtcars, aes(x = ppVar)) + geom_point()")
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
   expect_equal(length(consumers), 1L)
   expect_null(consumers[[1]]$shared)
@@ -62,7 +62,7 @@ test_that("P3.6 missing shared binding falls back to ptr_missing at substitute",
   # Formula carries `shared = "axis"` but caller supplies no matching
   # entry in shared_bindings → P8 should treat the placeholder as missing.
   r <- ptr_translate(
-    'ggplot(mtcars, aes(x = var(shared = "axis"))) + geom_point()'
+    'ggplot(mtcars, aes(x = ppVar(shared = "axis"))) + geom_point()'
   )
   s <- ptr_substitute(r, input_snapshot = list(), shared_bindings = list())
   missings <- find_nodes(s, is_ptr_missing)
@@ -103,12 +103,12 @@ test_that("P3.11 ptr_validate_shared_bindings rejects non-reactive values", {
 #     none inside layer tabs.
 test_that("P06.a single-plot renders shared widget once in shared section", {
   parts <- ptr_app_components(
-    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))',
+    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum(shared = "sz"))',
     envir = .shared_test_env()
   )
   ui_html <- as.character(parts$ui)
   # The shared widget id appears exactly once in the rendered DOM.
-  matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  matches <- gregexpr('id="shared_sz_ui"', ui_html, fixed = TRUE)[[1L]]
   expect_equal(sum(matches > 0L), 1L)
 })
 
@@ -116,13 +116,13 @@ test_that("P06.a single-plot renders shared widget once in shared section", {
 #      label, not the per-param copy of whichever occurrence came first.
 test_that("shared_widget_label combines params for multi-param shared var", {
   one <- collect_shared_consumer_occurrences(
-    ptr_translate('ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + geom_point()')
+    ptr_translate('ggplot(data = mtcars, aes(alpha = ppVar(shared = "v"))) + geom_point()')
   )[["v"]]
   expect_null(shared_widget_label(one))
 
   two <- collect_shared_consumer_occurrences(ptr_translate(paste0(
-    'ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + ',
-    'geom_point(aes(size = var(shared = "v")))'
+    'ggplot(data = mtcars, aes(alpha = ppVar(shared = "v"))) + ',
+    'geom_point(aes(size = ppVar(shared = "v")))'
   )))[["v"]]
   expect_equal(shared_widget_label(two), "Pick a column for: alpha, size")
 
@@ -130,7 +130,7 @@ test_that("shared_widget_label combines params for multi-param shared var", {
   # rather than borrow the first occurrence's "...for size".
   num_two <- collect_shared_placeholders(ptr_translate(paste0(
     'ggplot(data = mtcars, aes(x = mpg)) + ',
-    'geom_point(size = num(shared = "sz")) + geom_line(alpha = num(shared = "sz"))'
+    'geom_point(size = ppNum(shared = "sz")) + geom_line(alpha = ppNum(shared = "sz"))'
   )))
   expect_equal(
     Filter(function(e) e$key == "sz", num_two)[[1L]]$label_override,
@@ -139,13 +139,13 @@ test_that("shared_widget_label combines params for multi-param shared var", {
   # ...but a value placeholder shared under the *same* param keeps the copy.
   num_one <- collect_shared_placeholders(ptr_translate(paste0(
     'ggplot(data = mtcars, aes(x = mpg)) + ',
-    'geom_point(size = num(shared = "sz")) + geom_line(size = num(shared = "sz"))'
+    'geom_point(size = ppNum(shared = "sz")) + geom_line(size = ppNum(shared = "sz"))'
   )))
   expect_null(Filter(function(e) e$key == "sz", num_one)[[1L]]$label_override)
 
   tree <- ptr_translate(paste0(
-    'ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + ',
-    'geom_point(aes(size = var(shared = "v")))'
+    'ggplot(data = mtcars, aes(alpha = ppVar(shared = "v"))) + ',
+    'geom_point(aes(size = ppVar(shared = "v")))'
   ))
   entry <- Filter(function(e) e$key == "v", collect_shared_placeholders(tree))[[1L]]
   expect_equal(entry$label_override, "Pick a column for: alpha, size")
@@ -156,8 +156,8 @@ test_that("shared_widget_label combines params for multi-param shared var", {
 test_that("shared section renders combined label + panel heading", {
   parts <- ptr_app_components(
     paste0(
-      'ggplot(data = mtcars, aes(alpha = var(shared = "v"))) + ',
-      'geom_point(aes(size = var(shared = "v")))'
+      'ggplot(data = mtcars, aes(alpha = ppVar(shared = "v"))) + ',
+      'geom_point(aes(size = ppVar(shared = "v")))'
     ),
     envir = .shared_test_env()
   )
@@ -180,7 +180,7 @@ test_that("shared section renders combined label + panel heading", {
 # (b) B1 regression — shared widget value drives the runtime.
 test_that("P06.b shared input value flows into rendered code", {
   parts <- ptr_app_components(
-    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))',
+    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum(shared = "sz"))',
     envir = .shared_test_env()
   )
   shiny::testServer(parts$server, {
@@ -193,7 +193,7 @@ test_that("P06.b shared input value flows into rendered code", {
 # (c) Validation: extra binding key (typo) raises error when tree is supplied.
 test_that("P06.c validation errors on extra binding key (typo)", {
   tree <- ptr_translate(
-    'ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = num(shared = "axis"))'
+    'ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = ppNum(shared = "axis"))'
   )
   expect_error(
     ptr_validate_shared_bindings(
@@ -207,7 +207,7 @@ test_that("P06.c validation errors on extra binding key (typo)", {
 # (c') Validation: missing-from-bindings key raises error in strict mode.
 test_that("P06.c' validation errors on missing binding key (strict)", {
   tree <- ptr_translate(
-    'ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = num(shared = "sz"))'
+    'ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = ppNum(shared = "sz"))'
   )
   expect_error(
     ptr_validate_shared_bindings(list(), tree = tree, strict_missing = TRUE),
@@ -224,13 +224,13 @@ test_that("P06.d dedup: same key in two layers renders once", {
   parts <- ptr_app_components(
     paste0(
       'ggplot(data = mtcars, aes(x = mpg, y = hp)) + ',
-      'geom_point(size = num(shared = "sz")) + ',
-      'geom_line(size = num(shared = "sz"))'
+      'geom_point(size = ppNum(shared = "sz")) + ',
+      'geom_line(size = ppNum(shared = "sz"))'
     ),
     envir = .shared_test_env()
   )
   ui_html <- as.character(parts$ui)
-  matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  matches <- gregexpr('id="shared_sz_ui"', ui_html, fixed = TRUE)[[1L]]
   expect_equal(sum(matches > 0L), 1L)
 })
 
@@ -238,7 +238,7 @@ test_that("P06.d dedup: same key in two layers renders once", {
 #     per-layer placeholder list.
 test_that("P06.e find_layer_placeholders excludes shared placeholders", {
   tree <- ptr_translate(
-    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = "sz"))'
+    'ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum(shared = "sz"))'
   )
   expect_gte(length(collect_shared_placeholders(tree)), 1L)
   for (layer in tree$layers) {
@@ -257,40 +257,40 @@ test_that("P06.e find_layer_placeholders excludes shared placeholders", {
 test_that("P06.f grid auto-renders default widget for unbound shared key", {
   parts <- ptr_app_grid_components(
     plots = list(
-      "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = num(shared = \"sz\"))",
-      "ggplot(data = mtcars, aes(x = wt,  y = qsec)) + geom_point(alpha = num(shared = \"sz\")/10)"
+      "ggplot(data = mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum(shared = \"sz\"))",
+      "ggplot(data = mtcars, aes(x = wt,  y = qsec)) + geom_point(alpha = ppNum(shared = \"sz\")/10)"
     ),
-    shared_ui = list(),
     envir = .shared_test_env()
   )
   ui_html <- as.character(parts$ui)
   # PR-B (shared-multi-instance): shared widget ids now use the
   # canonical `shared_<key>` form, matching the single-instance
   # `ptr_app()` convention.
-  expect_match(ui_html, 'id="shared_sz"', fixed = TRUE)
-  bare_matches <- gregexpr('id="shared_sz"', ui_html, fixed = TRUE)[[1L]]
+  expect_match(ui_html, 'id="shared_sz_ui"', fixed = TRUE)
+  bare_matches <- gregexpr('id="shared_sz_ui"', ui_html, fixed = TRUE)[[1L]]
   expect_equal(sum(bare_matches > 0L), 1L)
 })
 
-# (g) Grid still rejects extra keys in shared_ui that no formula uses.
-test_that("P06.g grid rejects shared_ui keys not present in any formula", {
-  expect_error(
-    ptr_app_grid_components(
-      plots = list(
-        "ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = num(shared = \"sz\"))"
-      ),
-      shared_ui = list(typo = function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
-      envir = .shared_test_env()
-    ),
-    "typo"
-  )
-})
+# (g) REMOVED: `shared_ui` (and its key validation) no longer exists -- see
+#     ?ptr_shared "Removed `shared_ui`". Retained commented for provenance:
+# test_that("P06.g grid rejects shared_ui keys not present in any formula", {
+#   expect_error(
+#     ptr_app_grid_components(
+#       plots = list(
+#         "ggplot(data = mtcars, aes(x = mpg)) + geom_point(size = ppNum(shared = \"sz\"))"
+#       ),
+#       shared_ui = list(typo = function(id) shiny::sliderInput(id, "x", 1, 10, 5)),
+#       envir = .shared_test_env()
+#     ),
+#     "typo"
+#   )
+# })
 
 # (h) Single-plot shared `var`: top-level uiOutput emits a picker
 #     populated with columns from the resolved upstream.
 test_that("P06.h shared `var` in single-plot renders picker with upstream cols", {
   parts <- ptr_app_components(
-    'ggplot(data = mtcars, aes(x = var(shared = "axis"), y = mpg)) + geom_point()',
+    'ggplot(data = mtcars, aes(x = ppVar(shared = "axis"), y = mpg)) + geom_point()',
     envir = .shared_test_env()
   )
   ui_html <- as.character(parts$ui)
@@ -308,7 +308,7 @@ test_that("P06.h shared `var` in single-plot renders picker with upstream cols",
 #     emits an alert AND the error panel mirrors it.
 test_that("P06.i diverging sources surface as alert + error-panel entry", {
   parts <- ptr_app_components(
-    'ggplot(data = mtcars, aes(x = var(shared = "v"))) + geom_point(data = iris, aes(y = var(shared = "v")))',
+    'ggplot(data = mtcars, aes(x = ppVar(shared = "v"))) + geom_point(data = iris, aes(y = ppVar(shared = "v")))',
     envir = .shared_test_env(list(iris = iris))
   )
   shiny::testServer(parts$server, {
@@ -331,8 +331,8 @@ test_that("P06.i diverging sources surface as alert + error-panel entry", {
 test_that("P06.k shared var validates against host-resolved upstream", {
   parts <- ptr_app_components(
     paste0(
-      'ggplot(data = mtcars |> dplyr::select(mpg, cyl), aes(x = var(shared = "v"))) + ',
-      'geom_point(data = mtcars |> dplyr::select(hp, wt), aes(y = var(shared = "v")))'
+      'ggplot(data = mtcars |> dplyr::select(mpg, cyl), aes(x = ppVar(shared = "v"))) + ',
+      'geom_point(data = mtcars |> dplyr::select(hp, wt), aes(y = ppVar(shared = "v")))'
     ),
     envir = .shared_test_env()
   )
@@ -354,15 +354,15 @@ test_that("P06.k shared var validates against host-resolved upstream", {
 #      `data = ...` (otherwise the 2nd+ layer's data arg silently drops).
 test_that("P06.l2 shared upload occurrences share canonical id + companion", {
   r <- ptr_translate(paste0(
-    'ggplot(data = upload(shared = "ds"), aes(x = var, y = var)) + ',
-    'geom_point(data = upload(shared = "ds"), aes(x = var, y = var))'
+    'ggplot(data = ppUpload(shared = "ds"), aes(x = ppVar, y = ppVar)) + ',
+    'geom_point(data = ppUpload(shared = "ds"), aes(x = ppVar, y = ppVar))'
   ))
   srcs <- lapply(r$layers, function(l) l$data_arg)
   expect_true(all(vapply(srcs, is_ptr_ph_data_source, logical(1))))
   expect_equal(unique(vapply(srcs, function(s) s$id, character(1))), "shared_ds")
   expect_equal(
-    unique(vapply(srcs, function(s) s$companion_id, character(1))),
-    "shared_ds_name"
+    unique(vapply(srcs, function(s) s$shortcut_id, character(1))),
+    "shared_ds_shortcut"
   )
 })
 
@@ -370,8 +370,8 @@ test_that("P06.l2 shared upload occurrences share canonical id + companion", {
 test_that("P06.j same source, different upstreams falls back to source", {
   parts <- ptr_app_components(
     paste0(
-      'ggplot(data = mtcars |> dplyr::select(mpg, cyl), aes(x = var(shared = "v"))) + ',
-      'geom_point(data = mtcars |> dplyr::select(hp, wt), aes(y = var(shared = "v")))'
+      'ggplot(data = mtcars |> dplyr::select(mpg, cyl), aes(x = ppVar(shared = "v"))) + ',
+      'geom_point(data = mtcars |> dplyr::select(hp, wt), aes(y = ppVar(shared = "v")))'
     ),
     envir = .shared_test_env()
   )

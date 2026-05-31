@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>LLM materials audit — corpus + enum + README/external (#LLMA)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head><body>
+
+<h1>LLM materials audit — corpus + enum + README/external (pass #LLMA)</h1>
+<p class="meta">Created 2026-05-17. Follows the L2/L3 redesign + Step 08 (LLM topics rewrite). Authority: ADR 0005 · <code>CONTEXT.md</code> (LOCKED). Motivated by the Step-10 discovery that <code>ggpaintr-llm.Rmd</code> still hard-coded the Step-08-removed <code>level2_embed</code> topic — proof Step 08 swept the corpus but the wider LLM surface was not verified end-to-end.</p>
+
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-17, branch <code>l2l3-followup-llm-audit</code>. Verification-only outcome: the Step-08 corpus was found <strong>already clean and CONTEXT.md-aligned</strong>, so no <code>inst/llm/</code> edit was needed. Verify gate green: removed-symbol grep over <code>inst/llm/</code> returns only the allowed explicit "removed/superseded" negative framing; <code>ptr_llm_topics()</code> = exactly the 12 shipped files (<code>identical(files, topics)==TRUE</code>), <code>invisible(lapply(ptr_llm_topics(), ptr_llm_topic))</code> errors-free, <code>level2_embed</code> unreachable; corpus token-consistent with <code>ggpaintr-use-cases.Rmd</code> + <code>ggpaintr-llm.Rmd</code> (combinator recipe + canonical <code>moduleServer(id)</code> render scaffold byte-identical); <code>ptr_llm_*</code> roxygen names no removed symbol (no <code>devtools::document()</code> needed).
+Three boundary defects were put to the user (<code>AskUserQuestion</code>) and the user chose <strong>flag-only, no edit</strong> for both code/README items: (A) <code>ptr_llm_register()</code>'s <code>type_enum</code> <em>description string</em> (<code>R/paintr-llm.R:169-176</code>) still names dead topics <code>level2_embed</code>/<code>level2_namespacing</code>+"split paths" and omits <code>level2_module</code>/<code>level2_shared</code>/<code>level3_layout</code> — left for an <code>R/</code>-owning follow-up; (B) <code>README.Rmd:60</code> (use-cases bullet, outside the LLM-section scope) names removed <code>ptr_controls_ui</code>/<code>ptr_outputs_ui</code>/<code>ptr_ui_code_toggle</code>, already in <code>README.md:61-67</code> — left for the README/use-cases copy owner (<code>README.md</code> deliberately <strong>not</strong> re-knit: an unedited <code>README.Rmd</code> re-render would not clear the flagged leak); (C) residual semantic gap in <code>ggpaintr-llm.Rmd</code> §7 (<code>:165-203</code>, implicitly overstates helper truthfulness; downstream of A) — flagged for the vignette owner, vignette not edited.
+Deliverable: <code>dev/notes/2026-05-17-llm-audit-findings.md</code> (line + rationale for A/B/C + the PASS evidence) + this status block. Scope honored: no <code>R/</code>, <code>vignettes/</code>, <code>tests/</code>, <code>NAMESPACE</code>, <code>man/</code>, or generated-file change; commits on this branch only.</p>
+
+<h2>Goal</h2>
+<p>Step 08 rewrote <code>inst/llm/topics/*</code> + <code>primer.md</code>. This pass is the <strong>verification + gap-fill</strong> over the <em>entire</em> LLM surface: the corpus, the <code>ptr_llm_topics()</code> enumeration, the <code>ptr_llm_*</code> exported behavior, README/ellmer discoverability copy, and a <strong>consistency audit</strong> (read-only) of <code>ggpaintr-llm.Rmd</code> against the post-Step-08 corpus. It guarantees an LLM consuming ggpaintr's bundle is told only the shipped API and the same examples the human docs use.</p>
+
+<h2>Scope — surface &amp; ownership</h2>
+<ul>
+<li><strong>Edited by this plan:</strong> <code>inst/llm/topics/*.md</code>, <code>inst/llm/primer.md</code>, the topic-id registry/enumeration behind <code>ptr_llm_topics()</code>, and LLM-discoverability copy in <code>README.Rmd</code> (the "use with an LLM / ellmer" section) + any <code>inst/llm</code> registration guidance.</li>
+<li><strong>Audited (read-only) by this plan, edited by the vignette-prose-sweep plan:</strong> <code>vignettes/ggpaintr-llm.Rmd</code>. This plan files concrete findings (line + required change); it must <strong>not</strong> edit the vignette.</li>
+<li><strong>Reference truth:</strong> <code>CONTEXT.md</code> (L1/L2/L3, partition, combinators) and the already-shipped <code>vignettes/ggpaintr-use-cases.Rmd</code> (canonical examples) — the corpus must not diverge from these.</li>
+<li><code>ptr_llm_*</code> roxygen is audited; edit only if it names a removed symbol (no signature changes).</li>
+</ul>
+
+<h2>Success criteria</h2>
+<ul>
+<li>No file under <code>inst/llm/</code>, nor <code>README.Rmd</code>'s LLM section, mentions a removed symbol (<code>ptr_controls_ui</code>, <code>ptr_outputs_ui</code>, <code>ptr_ui_code_toggle</code>, <code>ptr_shared_ui</code>), the <code>ptr_ui_plot</code> flags, dead topic ids (<code>level2_embed</code>, <code>level2_namespacing</code>), or <code>state$server_ns_fn</code> as a user tool — except as an explicit "removed/superseded" note.</li>
+<li><code>ptr_llm_topics()</code> enumerates exactly the files present; <code>invisible(lapply(ptr_llm_topics(), ptr_llm_topic))</code> runs with no error; no dead id is reachable and no present topic is unlisted.</li>
+<li>The corpus states, per CONTEXT.md: the <code>ptr_&lt;x&gt;</code>=L2 / <code>ptr_ui_&lt;x&gt;</code>=L3 convention, the partition rule, single-vs-multi-instance, the combinator recipe, and custom-render-is-L3 via the <code>moduleServer(id)</code> pattern; no headless/testServer-as-feature framing.</li>
+<li>Corpus examples are token-consistent with <code>ggpaintr-use-cases.Rmd</code> (same formulas, ids, combinator recipes) — a diff shows zero divergence.</li>
+<li><code>README.Rmd</code> LLM/ellmer section reflects the current topic set and API; <code>README.md</code> regenerated from it.</li>
+<li>An <code>llm-audit-findings</code> note (this plan's deliverable for the vignette) lists every required <code>ggpaintr-llm.Rmd</code> change with line + rationale, handed to the vignette-prose-sweep plan.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>Content-only — no change to <code>ptr_llm_*</code> code or signatures, no <code>R/</code> logic, <code>tests/</code>, <code>NAMESPACE</code>, or <code>man/</code> (roxygen text edits only if a removed symbol is named, then <code>devtools::document()</code> as verify, generated files committed by whoever owns the doc tree, not casually).</li>
+<li>Markdown: no hard-wrap — one paragraph = one line.</li>
+<li><code>README.Rmd</code> is the editable source; never hand-edit <code>README.md</code> — re-knit it.</li>
+<li>Do <strong>not</strong> edit <code>vignettes/ggpaintr-llm.Rmd</code> (the vignette-prose-sweep plan owns its edits) or <code>ggpaintr-use-cases.Rmd</code> (Step 07). This plan's vignette output is a findings list, nothing more.</li>
+<li>Stay consistent with the human docs — if the corpus and <code>ggpaintr-use-cases.Rmd</code> disagree, the vignette + CONTEXT.md win; flag, do not silently re-invent examples.</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: The LLM surface tells the truth about the shipped API
+
+  Scenario: No removed symbol or dead topic leaks into LLM guidance
+    When every file under inst/llm and README.Rmd's LLM section are scanned
+    Then none names ptr_controls_ui/ptr_outputs_ui/ptr_ui_code_toggle/ptr_shared_ui
+      And none names level2_embed/level2_namespacing as a live topic
+      And none recommends state$server_ns_fn to users
+
+  Scenario: Enumeration is internally consistent
+    When ptr_llm_topics() is called and each id passed to ptr_llm_topic()
+    Then every id resolves to content with no error
+      And every inst/llm/topics/*.md file is listed exactly once
+
+  Scenario: Corpus matches the canonical human examples
+    Given the level2_*/level3_* topics and ggpaintr-use-cases.Rmd
+    Then their formulas, ids, and combinator recipes are identical
+      And a divergence diff is empty
+
+  Scenario: README LLM section is current
+    Given README.Rmd's "use with an LLM / ellmer" section
+    Then it references the current topic set and API
+      And README.md is regenerated from README.Rmd
+
+  Scenario: Vignette findings are handed off, not applied
+    Given ggpaintr-llm.Rmd
+    Then this plan produces a findings list (line + required change)
+      And it makes no edit to that vignette</div>
+
+<h2>Verify</h2>
+<pre>grep -rnE 'ptr_controls_ui|ptr_outputs_ui|ptr_ui_code_toggle|ptr_shared_ui|level2_embed|level2_namespacing|server_ns_fn' inst/llm/ README.Rmd
+Rscript -e 'devtools::load_all("."); tp<-ptr_llm_topics(); stopifnot(length(tp)>0); invisible(lapply(tp, ptr_llm_topic))'
+Rscript -e 'devtools::load_all("."); rmarkdown::render("README.Rmd", envir = globalenv())'</pre>
+</body></html>

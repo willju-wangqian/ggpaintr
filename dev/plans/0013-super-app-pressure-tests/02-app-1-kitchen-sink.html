@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — Super-app 1: kitchen-sink default (built-ins only) (from ADR 0013)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: app-1-kitchen-sink
+  source_adr: dev/adr/0013-super-app-pressure-test-suite.html
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-02 — Super-app 1: kitchen-sink default (built-ins only)</h1>
+<p class="meta">Source: ADR 0013 §"App 1 — Kitchen sink default" + D1/D3/D4/D5/D6 (G2 row) + D7 implicitly-not-triggered · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0013 §App-1 locks the slot picks: <code>ptr_app()</code> · literal <code>mtcars</code> head · G2 bare-expression capture · window code panel · default theme. The roster (per ADR): ppVar×4 → 2 widgets after shared "grp" collapse · ppNum×4 → 3 widgets after shared "lw" collapse · ppText×3 · ppExpr×2 · ppRange×1 (one custom value placeholder, registered locally in the app process). Total widgets ≈ 10.</p>
+
+<p>ADR §App-1 names the unique pressure axes: (i) ppExpr-derived column flows into a downstream ppVar picker via <code>dplyr::mutate(adj = ppExpr(mpg / wt))</code>; (ii) shared "grp" key spans aes() and facet_wrap(vars(...)) — two different call types under one key; (iii) C6 shared-default tiebreak with <code>ppNum(1, shared = "lw")</code> seeded then <code>ppNum(shared = "lw")</code> default-less; (iv) C3+C4+C5 override channels via <code>ui_text$defaults</code> with <code>{param}</code> interpolation and per-arg <code>ui_text$params$linewidth</code>; (v) B3 toggle in the canonical-host default window code panel.</p>
+
+<p>This plan ships the App-1 fixture (one app.R + one reference.R) and inserts one <code>test_that()</code> block between PLAN-01's <code># &gt;&gt;&gt; super-1 begin</code> and <code># &lt;&lt;&lt; super-1 end</code> markers. No <code>R/paintr-*.R</code> source change.</p>
+
+<h2>Governing principle</h2>
+
+<p>ADR 0013 commits the suite to <strong>propagation assertions</strong>: every placeholder in this app gets a literally-unique sentinel that round-trips through final-mode substitution (the sentinel appears at its expected role-specific position) and preserve-mode round-trip (the sentinel appears wrapped as <code>ppX(&lt;sentinel&gt;)</code> for value placeholders, or as a bare symbol for var placeholders, consistent with how <code>render_placeholder_preserved</code> (<code>R/paintr-render.R:535</code>) dispatches per keyword).</p>
+
+<p>App 1 is the <strong>canonical-host baseline</strong>: the simplest host (<code>ptr_app()</code>), the simplest data head (<code>mtcars</code> literal), the simplest capture (G2 bare-expression). If a propagation assertion fails here, every other super-app's same-shape assertion is also at risk. App 1 therefore carries the B3 toggle test in its canonical-host form — the original regression (<code>2c504da</code>) lived in exactly this host shape; the propagation assertion is what would have caught it on first run. Soft "the code text is non-empty" wording is forbidden under this plan; if the orchestrator-driven implementation reveals that a particular sentinel cannot be propagated as written, STOP and escalate — narrowing the <code>Then</code> clause to assert something weaker is an ADR-0013 violation.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>Fixture directory exists with the two required files.</strong> <code>tests/testthat/fixtures/vignette-apps/super-1-kitchen-sink/app.R</code> exists. <code>tests/testthat/fixtures/vignette-apps/super-1-kitchen-sink/reference.R</code> exists. Both are tracked. No <code>.csv</code> sibling needed (no upload).</li>
+
+  <li><strong><code>app.R</code> shape.</strong> First line is the pkgload scaffolding: <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code> (verbatim from the existing fixture convention, project memory <code>shinytest2-appdir-pkgload</code>). The body declares the custom <code>ppRange</code> value placeholder via <code>ptr_define_placeholder_value(keyword = "ppRange", ..., default_arg = ptr_default_numeric_vector(length = 2))</code>, then calls <code>ptr_app(&lt;G2 bare-expression formula&gt;, ui_text = list(defaults = list(ppNum = list(label = "{param}"), ppText = list(label = "{param} text")), params = list(linewidth = list(ppNum = list(label = "Line thickness")))))</code>. The formula contains the roster ADR 0013 §App-1 specifies (ppVar×4 with shared "grp" collapse to 2 widgets; ppNum×4 with shared "lw" collapse to 3 widgets; ppText×3; ppExpr×2; ppRange×1), verbatim-equivalent to the ADR's code block in §App-1.</li>
+
+  <li><strong><code>reference.R</code> shape.</strong> Doc-only ggplot2 expression that is the all-defaults equivalent of the App-1 formula with no placeholders. NOT parsed by any test, NOT asserted against the substituted output. Filename is exactly <code>reference.R</code>; first line is a leading comment <code># Doc-only reference (ADR 0013 D3). Not parsed by tests.</code>.</li>
+
+  <li><strong>One <code>test_that()</code> block lands between PLAN-01's <code># &gt;&gt;&gt; super-1 begin</code> and <code># &lt;&lt;&lt; super-1 end</code> markers in <code>tests/testthat/test-super-pressure.R</code>.</strong> No code is inserted outside that pair. <code>grep -c "^test_that" tests/testthat/test-super-pressure.R</code> rises from <code>0</code> to <code>1</code> after this plan.</li>
+
+  <li><strong>Sentinel propagation — ppNum.</strong> The test sets the <code>size = ppNum(2)</code> input id (the one rendered for the <code>size</code> argument of <code>geom_point</code>) to the literally-unique numeric sentinel <code>0.7314159</code> via <code>set_sentinel</code>, clicks Update via <code>draw_and_wait</code>, then in <code>final</code> mode calls <code>expect_sentinel_in_code(app, &lt;code_output_id&gt;, "0.7314159", "geom_point\\([^)]*size\\s*=\\s*([^,)]*)", "final")</code>. In <code>preserve</code> mode (after <code>toggle_code_mode(app, "preserve")</code>), it calls <code>expect_sentinel_in_code(app, &lt;code_output_id&gt;, "0.7314159", "ppNum\\(([^)]*)\\)", "preserve")</code>. Both succeed.</li>
+
+  <li><strong>Sentinel propagation — ppVar (root).</strong> The test sets the <code>x = ppVar(mpg)</code> input id to the literally-unique column choice <code>"disp"</code> (an mtcars column distinct from the seeded default <code>"mpg"</code>), draws, and asserts in <code>final</code> mode <code>expect_sentinel_in_code(app, code_output_id, "disp", "aes\\([^)]*x\\s*=\\s*([^,)]*)", "final")</code> AND in <code>preserve</code> mode the same regex still matches with the captured group containing <code>"disp"</code> as a bare symbol (ADR D4: "ppVar sentinel <code>\"cyl\"</code> appears as the bare symbol <code>cyl</code>").</li>
+
+  <li><strong>Sentinel propagation — ppText.</strong> The test sets the <code>title = ppText("Title")</code> input id to the literally-unique string sentinel <code>"S_T_2718"</code>, draws, asserts final-mode <code>expect_sentinel_in_code(app, code_output_id, "\"S_T_2718\"", "labs\\([^)]*title\\s*=\\s*([^,)]*)", "final")</code> AND preserve-mode <code>expect_sentinel_in_code(app, code_output_id, "\"S_T_2718\"", "ppText\\(([^)]*)\\)", "preserve")</code>.</li>
+
+  <li><strong>Sentinel propagation — ppExpr feeding a downstream ppVar picker.</strong> The test sets the second <code>ppExpr</code> (<code>mutate(adj = ppExpr(mpg / wt))</code>) to the expression sentinel <code>hp + 1</code> (a syntactically valid AST whose result is a new numeric column equal to <code>hp + 1</code>), draws, and asserts in <code>final</code> mode that <code>expect_sentinel_in_code(app, code_output_id, "hp + 1", "dplyr::mutate\\(adj\\s*=\\s*([^)]*)", "final")</code> matches AND the downstream <code>y = ppVar(adj)</code> picker's option set still includes <code>"adj"</code> as a choice (asserted via <code>expect_picker_populated(app, &lt;y_input_id&gt;, "adj")</code>, reusing the helper from <code>helper-vignette-apps.R</code> via the package's testthat helper-load conventions).</li>
+
+  <li><strong>Shared collapse — "grp" reaches both aes() and facet_wrap.</strong> The test sets the shared <code>"grp"</code> widget (input id <code>"shared_grp"</code>, the project's canonical-shared-id form per <code>R/paintr-app.R:1322</code>) to the unique choice <code>"gear"</code> (an mtcars column not seeded as the default), draws, and asserts in <code>final</code> mode that <code>"gear"</code> appears as a bare symbol in BOTH <code>aes\\([^)]*color\\s*=\\s*([^,)]*)</code> AND <code>facet_wrap\\(vars\\(([^)]*)\\)</code> captures via two independent <code>expect_sentinel_in_code</code> calls. This is the call-type-agnostic check that ADR §App-1 names as pressure axis (ii).</li>
+
+  <li><strong>C6 shared-default tiebreak.</strong> The test reads the initial value of input id <code>"shared_lw"</code> at app boot (before any user interaction). Asserts <code>app$get_value(input = "shared_lw") == 1</code> (first-occurrence default, from <code>ppNum(1, shared = "lw")</code> in geom_smooth). The defaultless <code>ppNum(shared = "lw")</code> in geom_line is silently ignored — no error, no warning.</li>
+
+  <li><strong>B3 toggle differential.</strong> After the propagation assertions, the test toggles code mode preserve↔final once, asserts that final-mode code does NOT contain the literal substring <code>"ppVar("</code> (<code>expect_sentinel_nowhere(app, code_output_id, "ppVar(")</code>), and preserve-mode code DOES contain it (<code>expect_sentinel_in_code(app, code_output_id, "ppVar(", "(ppVar)\\(", "preserve")</code>). This is the canonical-host instance of the B3 regression net.</li>
+
+  <li><strong>No plot error class on happy path.</strong> <code>expect_no_plot_error(app)</code> succeeds in both final and preserve modes.</li>
+
+  <li><strong>Authoritative gate</strong> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</code> after this plan lands, when the browser stack (shinytest2 + chromote + Chrome) is available. When the stack is absent, the new <code>test_that()</code> SKIPs cleanly (one new SKIP) — that is acceptable on a developer machine without the stack, but the orchestrator-side authoritative gate must show PASS+1, not SKIP+1.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-1-kitchen-sink/app.R</code> (NEW)</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-1-kitchen-sink/reference.R</code> (NEW)</li>
+      <li>The lines between <code># &gt;&gt;&gt; super-1 begin</code> and <code># &lt;&lt;&lt; super-1 end</code> in <code>tests/testthat/test-super-pressure.R</code> (PLAN-01 created the markers; this plan inserts the test_that block between them).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Any <code>R/paintr-*.R</code> file.</li>
+      <li>The other four anchor regions in <code>tests/testthat/test-super-pressure.R</code> (super-2a / super-2b / super-3 / super-4) and their begin/end markers.</li>
+      <li><code>tests/testthat/helper-super-pressure.R</code> and <code>tests/testthat/helper-vignette-apps.R</code>.</li>
+      <li>Any other fixture subdir under <code>tests/testthat/fixtures/vignette-apps/</code>.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, anything under <code>man/</code>.</li>
+    </ul>
+  </li>
+  <li>No new package dependencies. The <code>ppRange</code> custom value placeholder is registered inside <code>app.R</code> via <code>ptr_define_placeholder_value()</code>, so its keyword is local to the child app process (memory <code>shinytest2-appdir-pkgload</code>). The test process never registers <code>ppRange</code> at the parent — no cross-test contamination.</li>
+  <li>The formula must be a <strong>bare expression</strong> passed to <code>ptr_app(&lt;expression&gt;, ...)</code>, NOT a string. This is the G2 row of ADR D6.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If an implementer discovers that (for example) the shared widget id is not <code>"shared_grp"</code> as the canonical-id helper documents, STOP and escalate. Do not weaken the shared-collapse <code>Then</code> clause to "either the aes() capture OR the facet_wrap capture contains gear". The clause requires BOTH; that is what makes it call-type-agnostic. If the discovered id is correct but the propagation fails on one of the two captures, that is a product defect to surface, not a test-shape to bend.</li>
+  <li>Conventions to honor: project's <code>CLAUDE.md</code>, <code>.claude/rules/testing.md</code>. Two-space indent, snake_case, <code>set_sentinel</code>/<code>draw_and_wait</code>/<code>toggle_code_mode</code>/<code>expect_*</code> helpers from PLAN-01. Use <code>app$get_value(output = ...)</code> for code text, <code>app$get_html("#id")</code> for picker contents — never <code>app$get_values()</code> (project memory).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: App-1 kitchen-sink propagation contract
+
+Scenario: ppNum value propagates final and preserve
+  Given the super-1-kitchen-sink fixture booted in headless Chrome
+  When I set the ppNum widget for geom_point(size = ...) to 0.7314159
+  And I draw and the app settles
+  Then the rendered final-mode code contains "geom_point(" with size = 0.7314159 inside its arg list
+  And after toggling to preserve mode the rendered code contains "ppNum(0.7314159)"
+  And no plot-error class appears on the host output in either mode
+
+Scenario: ppVar root sentinel propagates as bare symbol
+  Given the super-1-kitchen-sink fixture booted
+  When I set the ppVar widget for aes(x = ...) to "disp"
+  And I draw and the app settles
+  Then the rendered final-mode code contains the bare symbol "disp" inside aes(... x = disp, ...)
+  And the rendered preserve-mode code contains the bare symbol "disp" inside aes(... x = disp, ...) (var placeholders dispatch to bare-symbol in preserve mode per render_placeholder_preserved)
+
+Scenario: ppText sentinel propagates quoted in final and wrapped in preserve
+  Given the super-1-kitchen-sink fixture booted
+  When I set the ppText widget for labs(title = ...) to "S_T_2718"
+  And I draw and the app settles
+  Then the rendered final-mode code contains labs(... title = "S_T_2718" ...)
+  And the rendered preserve-mode code contains ppText("S_T_2718")
+
+Scenario: ppExpr feeds a downstream ppVar picker
+  Given the super-1-kitchen-sink fixture booted
+  When I set the second ppExpr (mutate adj = ...) to "hp + 1"
+  And I draw and the app settles
+  Then the rendered final-mode code contains "dplyr::mutate(adj = hp + 1"
+  And the y-axis ppVar picker offers "adj" as a column choice
+
+Scenario: shared "grp" key reaches aes(color=) and facet_wrap(vars(...))
+  Given the super-1-kitchen-sink fixture booted
+  When I set the shared widget input "shared_grp" to "gear"
+  And I draw and the app settles
+  Then the rendered final-mode code contains aes(... color = gear ...)
+  And the rendered final-mode code contains facet_wrap(vars(gear))
+
+Scenario: shared-default tiebreak — first occurrence wins
+  Given the super-1-kitchen-sink fixture booted (no user interaction yet)
+  Then the initial Shiny input value of "shared_lw" equals 1
+  And no warning is emitted at app boot about the conflicting later default
+
+Scenario: B3 toggle differential — final strips, preserve retains
+  Given the super-1-kitchen-sink fixture booted and drawn at defaults
+  When I toggle code mode to "final"
+  Then the rendered code does not contain the substring "ppVar("
+  When I toggle code mode to "preserve"
+  Then the rendered code contains the substring "ppVar("
+  And the host output has no plot-error class in either mode
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</strong>.</p>
+
+<p><strong>Proxy traps — do not be fooled (verbatim from <code>CLAUDE.md</code>):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file ERRORing (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> runs the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds <strong>1</strong> new <code>test_that()</code> call at <code>tests/testthat/test-super-pressure.R</code> (in the super-1 anchor region). The gate must show PASS count rise by ≥ 1 with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline. When the browser stack is unavailable, SKIP may rise by 1 — that is acceptable on a developer machine but is NOT the gate; the orchestrator must verify on a stack-present machine.</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>This plan owns: the two fixture files listed in Constraints and the super-1 anchor region of <code>test-super-pressure.R</code>. NAMESPACE/man/ — not touched. Generated files — none.</p>
+<p>Branch convention: this plan lives on branch <code>0013-app-1-kitchen-sink</code> in a worktree at <code>.claude/worktrees/0013-super-app-pressure-tests/app-1-kitchen-sink/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command, verifies <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</code>, AND independently reads the inserted <code>test_that</code> block to confirm every Success-Criteria propagation assertion is present as written (not weakened to presence proxies) before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Known-good baseline: orchestrator branch HEAD after PLAN-01 merged. PASS count immediately after PLAN-01: <code>N_baseline</code> (unchanged from pre-suite baseline, since PLAN-01 added zero tests). New failures = anything not in <code>N_baseline</code>'s passing set; PLAN-02's net effect must be exactly one additional PASS.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>If during implementation the implementer discovers that an ADR-claimed slot pick is structurally infeasible (e.g. a shared input id naming convention differs from what the canonical-id helper documents, or <code>ppNum</code>'s preserve-mode wrapper uses different syntax), STOP and escalate. Do not edit <code>R/paintr-*.R</code> from this plan's worktree. The fix is either a follow-up plan against the relevant source file, or an ADR clarification.</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: PLAN-01 (anchor markers + helpers).</p>
+<p>Provides for: nothing downstream — App-1 is the canonical-host baseline. PLAN-03/04/05/06 do not depend on this plan's content, only on PLAN-01's anchors and helpers. Within parallel group G2, PLAN-02 has no ordering claim over its siblings beyond the numeric merge order.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=26c4dffeb13f -->
+</body>
+</html>

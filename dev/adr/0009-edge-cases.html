@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0009 — edge cases for review</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0009 — edge cases for review</h1>
+<p class="meta">Date: 2026-05-20 · Source ADR: <code>dev/adr/0009-pp-placeholders-and-expression-input.html</code> · Plans audited: <code>dev/plans/placeholder-rename-expr-mode/</code></p>
+
+<p>These are cases where ADR 0009 is <em>silent</em> or <em>ambiguous</em> — not cases already pinned down. Each lists candidate behaviors so you can pick one; my lean is marked "Recommended". After you decide each, I'll fold the resolutions into ADR 0009 (and propagate any plan changes), restamp, and re-audit.</p>
+
+<p>Cases are grouped by area. Skim the area headers to triage which ones matter most.</p>
+
+<!-- ======================================================================== -->
+<h2>A · Defaults & validators</h2>
+
+<div class="case">
+  <h3><span class="case-id">A1</span>Unary minus / scientific in numeric defaults</h3>
+  <p>Examples: <code>ppNum(-5)</code>, <code>ppRange(c(-1, 1))</code>, <code>ppNum(-2.5e3)</code>.</p>
+  <p>In R's AST, <code>-5</code> is NOT a literal — it's a call <code>(`-`)(5)</code>. <code>2.5e3</code> IS a literal (numeric). <code>-2.5e3</code> is again a call.</p>
+  <p><span class="silent">ADR is silent.</span> The literal-only helpers as drafted would <em>reject</em> any unary-minus default, which is surprising.</p>
+  <p>Candidates:</p>
+  <div class="opt rec"><strong>A1.a (Recommended).</strong> Extend the numeric validators to accept unary <code>-</code> / <code>+</code> over a numeric literal: pattern-match <code>(`-`)(n)</code> and <code>(`+`)(n)</code> where <code>n</code> is a literal, return <code>-n</code> / <code>+n</code>. No eval; deterministic. <code>ppNum(-5)</code> and <code>ppRange(c(-1, 1))</code> both work.</div>
+  <div class="opt"><strong>A1.b.</strong> Reject all non-literal numerics, including <code>-5</code>. User must use <code>ppNum(5)</code> for negatives via a wrapper or just live without negatives. Maximally pure; surprising.</div>
+  <div class="opt"><strong>A1.c.</strong> Eval the AST inside a safety-walked sandbox to allow arbitrary literal arithmetic (<code>ppNum(1 + 1)</code> too). Bigger surface, opens translate-time eval the ADR deliberately closed.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">A2</span>Non-literal numeric: <code>ppNum(1 + 1)</code></h3>
+  <p>Strictly: <code>1 + 1</code> is a call, not a literal. Literal-only validators reject.</p>
+  <p><span class="silent">ADR implies reject (literal-only), but doesn't say so explicitly.</span></p>
+  <div class="opt rec"><strong>A2.a (Recommended).</strong> Reject. Error message: "default for <code>ppNum</code> must be a numeric literal; got an expression." Documented in the helper's roxygen.</div>
+  <div class="opt"><strong>A2.b.</strong> Accept any constant-folded literal arithmetic by evaluating in an empty environment. Opens translate-time eval — same risk as A1.c.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">A3</span>Empty string default: <code>ppText("")</code></h3>
+  <p>An empty string is technically a string literal but conveys "no default."</p>
+  <p><span class="silent">ADR is silent.</span></p>
+  <div class="opt rec"><strong>A3.a (Recommended).</strong> Accept. Treat as a real default with value <code>""</code>; the textarea boots empty. No semantic difference from omitting the arg, but doesn't surprise the author.</div>
+  <div class="opt"><strong>A3.b.</strong> Reject with "empty string is not a meaningful default; omit the positional instead." Tighter contract.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">A4</span>Backticked / whitespace symbols in <code>ppVar</code></h3>
+  <p>Example: <code>ppVar(`my column`)</code>. <code>as.character(quote(`my column`))</code> returns <code>"my column"</code>.</p>
+  <p><span class="silent">ADR is silent; <code>ptr_default_symbol_or_string()</code> would accept this by mechanical pass-through.</span></p>
+  <div class="opt rec"><strong>A4.a (Recommended).</strong> Accept. ggplot already lets users write <code>aes(x = `my col`)</code>; ppVar follows the same convention. The default stored on the node is the string <code>"my column"</code>.</div>
+  <div class="opt"><strong>A4.b.</strong> Reject backticked names; require <code>ppVar("my column")</code> (string form) for non-syntactic column names. Tighter; loses parallelism with ggplot.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">A5</span><code>ppExpr(quote(x + 1))</code> — user pre-quotes the expression</h3>
+  <p>A user trying to be careful writes <code>ppExpr(quote(x + 1))</code>. The validator's AST input is the <em>call</em> <code>quote(x + 1)</code>, not <code>x + 1</code>.</p>
+  <p><span class="silent">ADR is silent; ppExpr's "store verbatim" rule would store the <code>quote(x + 1)</code> call as-is, which renders as <code>quote(x + 1)</code> in the textarea — confusing.</span></p>
+  <div class="opt rec"><strong>A5.a (Recommended).</strong> ppExpr's validator detects <code>quote(...)</code> / <code>bquote(...)</code> / <code>expression(...)</code> wrappers and unwraps once: the inner expression becomes the default. Documented as a usability ergonomic.</div>
+  <div class="opt"><strong>A5.b.</strong> Store verbatim and document the gotcha: "do not wrap in <code>quote()</code>; ppExpr already captures unevaluated."</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>B · Shared-key interactions</h2>
+
+<div class="case">
+  <h3><span class="case-id">B1</span>Different keywords sharing the same key</h3>
+  <p>Example: <code>aes(x = ppVar(mpg, shared = "k"), alpha = ppNum(0.5, shared = "k"))</code> — same key on a column-name placeholder and a numeric placeholder.</p>
+  <p><span class="silent">ADR is silent; the runtime widget type collapses to the first occurrence's, but the registry-level type mismatch is a footgun.</span></p>
+  <div class="opt rec"><strong>B1.a (Recommended).</strong> Abort at translate-time with "shared key 'k' is used by incompatible placeholder roles (ppVar=consumer, ppNum=value)." Hard error; surfaces the bug at the earliest possible moment.</div>
+  <div class="opt"><strong>B1.b.</strong> Allow; first occurrence wins for widget kind; later occurrences are silently degraded. Maximally permissive; almost certainly hides bugs.</div>
+  <div class="opt"><strong>B1.c.</strong> Warn (not error) at translate-time. Half-measure.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">B2</span>Default conflict on a shared key — first has no default, later does</h3>
+  <p>Example: <code>aes(x = ppVar(shared = "k"), y = ppVar(mpg, shared = "k"))</code>.</p>
+  <p><span class="silent">ADR §8 says first-occurrence-wins silently. So the shared widget initializes with <code>character(0)</code> (no default) even though the second occurrence specifies <code>mpg</code>.</span> This is consistent but possibly surprising; the second occurrence's intent is silently dropped.</p>
+  <div class="opt rec"><strong>B2.a (Recommended).</strong> Keep ADR §8 verbatim: first wins, no default → shared widget empty. Consistent with the label-conflict rule. Document the consequence in the helper roxygen.</div>
+  <div class="opt"><strong>B2.b.</strong> Promote: if first has no default but a later occurrence does, use the later one. "Most-specific-wins" semantics. Breaks the consistency of the first-occurrence-wins rule applied elsewhere (labels, widget config) — surprising in the opposite direction.</div>
+  <div class="opt"><strong>B2.c.</strong> Warn when defaults disagree among shared occurrences. Aligns with B1.c.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">B3</span>Same default repeated on a shared key</h3>
+  <p>Example: <code>aes(x = ppVar(mpg, shared = "k"), y = ppVar(mpg, shared = "k"))</code> — identical defaults.</p>
+  <p>No conflict; first wins; everyone is happy. But: a redundancy you might want to warn about (the author is duplicating intent).</p>
+  <div class="opt rec"><strong>B3.a (Recommended).</strong> Silent. No warning. Redundancy is harmless and may be useful for documentation in long formulas.</div>
+  <div class="opt"><strong>B3.b.</strong> Lint at translate-time: "redundant default on shared key 'k' (occurrence 2)." Pedantic.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>C · Default validity vs runtime data</h2>
+
+<div class="case">
+  <h3><span class="case-id">C1</span><code>ppVar(mpg)</code> when the bound data doesn't have column <code>mpg</code></h3>
+  <p>The default <code>"mpg"</code> sits on the node. At UI boot, build_ui's <code>intersect(selected, cols)</code> silently drops it; the picker boots empty.</p>
+  <p><span class="silent">ADR is silent on whether to warn / abort / silently drop.</span></p>
+  <div class="opt rec"><strong>C1.a (Recommended).</strong> Silent drop (current behavior). The default is a best-effort hint. Users who care can check the data shape before booting. Matches today's intersect-and-drop behavior for prior input.</div>
+  <div class="opt"><strong>C1.b.</strong> Emit a one-shot UI hint ("default <code>mpg</code> not in data; picker reset.") in the placeholder's error/help slot. Helpful for demo authors; noisy for power users.</div>
+  <div class="opt"><strong>C1.c.</strong> Hard error at boot: "default <code>mpg</code> not in upstream data." Strict; breaks vignettes whose demo data evolves.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">C2</span>Default applies before async data arrives</h3>
+  <p>Scenario: <code>ppVar(mpg)</code> in a formula whose pipeline starts with a <code>ppUpload</code>. At first render, columns are <code>character(0)</code>. Does the picker show <code>mpg</code> selected (which will be dropped when columns resolve) or boot empty?</p>
+  <p><span class="silent">ADR is silent.</span></p>
+  <div class="opt rec"><strong>C2.a (Recommended).</strong> Seed with <code>node$default</code> regardless; <code>intersect(default, cols)</code> is empty until columns arrive, so the picker boots empty THEN promotes to <code>mpg</code> once columns include it. Same code path as for non-async data; one less special case.</div>
+  <div class="opt"><strong>C2.b.</strong> Hold the default in a "pending" state until cols are known, then apply. Adds a new reactive state to the build-ui orchestrator.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>D · Plain-R behavior</h2>
+
+<div class="case">
+  <h3><span class="case-id">D1</span>Plain-R <code>ppExpr(x + 1)</code> outside <code>aes()</code></h3>
+  <p>The plain-R export is identity: <code>ppExpr &lt;- function(x, ...) x</code>. Calling <code>ppExpr(x + 1)</code> outside <code>aes()</code> means evaluating <code>x + 1</code> in the caller frame; if <code>x</code> is not bound, the user gets a confusing "object 'x' not found" error.</p>
+  <p><span class="silent">ADR §3 makes ppExpr identity for symmetry with ppVar/ppNum/ppText; the consequence is unspoken.</span></p>
+  <div class="opt rec"><strong>D1.a (Recommended).</strong> Accept the consequence. Document in <code>?ppExpr</code> that plain-R use evaluates the arg in the caller frame; meaningful only inside aes-style NSE or when symbols are bound. Don't special-case.</div>
+  <div class="opt"><strong>D1.b.</strong> Make <code>ppExpr</code>'s plain-R behavior return the language object instead of evaluating: <code>ppExpr &lt;- function(x) substitute(x)</code>. Asymmetric with the other identities; type-correct for "expression" placeholders. Surprising downstream — if a user writes <code>ggplot(aes(x = ppExpr(y + 1)))</code>, tidy-eval expects a vector, gets language.</div>
+  <div class="opt"><strong>D1.c.</strong> Guard like ppUpload: error when called outside <code>ptr_app()</code>. Loses the "Example 2" symmetry that motivated the design.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">D2</span>Plain-R <code>ppVar(mpg)</code> as bare statement (not inside aes)</h3>
+  <p>Example: <code>result &lt;- ppVar(mpg)</code> at the top level of a script. Since identity, this evaluates <code>mpg</code> in the caller frame — error if not bound.</p>
+  <p>This is the same surface as D1, but for ppVar. Less surprising because the user explicitly invoked an "input widget" function outside a Shiny context.</p>
+  <div class="opt rec"><strong>D2.a (Recommended).</strong> Same as D1.a — document, don't special-case.</div>
+  <div class="opt"><strong>D2.b.</strong> Same guard pattern as ppUpload.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>E · Expression-mode input</h2>
+
+<div class="case">
+  <h3><span class="case-id">E1</span>Pre-quoted expression: <code>ptr_app(rlang::expr(ggplot(...)))</code></h3>
+  <p><code>substitute(formula)</code> captures the <em>call</em> <code>rlang::expr(...)</code>, not its body. Naive deparse gives <code>"rlang::expr(ggplot(...))"</code> — won't parse as a ggplot formula.</p>
+  <p><span class="silent">ADR is silent. PLAN-04's dispatch handles strings + language + symbol-to-string indirection, but not pre-quoted wrappers.</span></p>
+  <div class="opt rec"><strong>E1.a (Recommended).</strong> ptr_capture_formula detects the wrapper calls <code>rlang::expr(...)</code>, <code>rlang::quo(...)</code>, <code>quote(...)</code>, <code>bquote(...)</code> at the captured language root and unwraps once. Documented in <code>?ptr_app</code>. Three wrappers cover the common cases.</div>
+  <div class="opt"><strong>E1.b.</strong> Don't special-case. Users who pre-quote get a parse error; they switch to passing the language object via a variable (<code>f &lt;- expr(...); ptr_app(f)</code>) which works via PLAN-04's symbol-resolution branch.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">E2</span>Native pipe in expression mode</h3>
+  <p>R's parser desugars <code>mtcars |&gt; ggplot(...)</code> to <code>ggplot(mtcars, ...)</code> at parse time. Generated "preserve placeholders" code shows the desugared form, not the user-typed one. The user's <code>|&gt;</code> is gone forever.</p>
+  <p><span class="silent">ADR §2 mentions this as a limitation but doesn't say whether the design wants to do anything about it.</span></p>
+  <div class="opt rec"><strong>E2.a (Recommended).</strong> Accept the loss; document the limitation prominently in <code>?ptr_app</code>. Users who want <code>|&gt;</code> preserved stay in string mode. (String mode's preprocess_native_pipe trick doesn't transfer to expression mode because we never see the source string.)</div>
+  <div class="opt"><strong>E2.b.</strong> Auto-suggest in error/warn messages: "in expression mode, native pipe is desugared; use string mode or <code>%&gt;%</code> if you want <code>|&gt;</code> in generated code." Helpful nudge.</div>
+  <div class="opt"><strong>E2.c.</strong> Refuse expression mode entirely when the source AST root resembles a piped chain (detect with a heuristic). Strict; breaks the symmetry the design was after.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>F · Custom-placeholder authors</h2>
+
+<div class="case">
+  <h3><span class="case-id">F1</span>Custom keyword shadows a base R function</h3>
+  <p>Example: <code>ppSqrt &lt;- ptr_define_placeholder_value(keyword = "sqrt", ...)</code>. Now <code>sqrt(4)</code> inside a formula is treated as a placeholder call. Likely catastrophic.</p>
+  <p>Or less dramatically: <code>keyword = "c"</code>, <code>keyword = "list"</code>, <code>keyword = "do.call"</code>.</p>
+  <p><span class="silent">ADR is silent; the registry currently accepts any string as a keyword.</span></p>
+  <div class="opt rec"><strong>F1.a (Recommended).</strong> Reject at <code>ptr_define_placeholder_*()</code> registration time any keyword that resolves to a function in <code>base</code>, <code>stats</code>, <code>utils</code>, <code>methods</code>, <code>graphics</code>, <code>grDevices</code>, or <code>ggplot2</code>. Hard error with the conflicting name and the conflicting package. The pp-prefix convention makes this nearly automatic for users who follow it.</div>
+  <div class="opt"><strong>F1.b.</strong> Warn at registration: "keyword 'sqrt' shadows <code>base::sqrt</code>; this will conflict inside formulas." User chooses to proceed.</div>
+  <div class="opt"><strong>F1.c.</strong> Do nothing; trust the author. The footgun is real but rare since the pp-prefix convention is in place.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">F2</span>Custom validator that calls <code>eval()</code></h3>
+  <p>ADR says validators should be AST-only. There's no enforcement. A custom-placeholder author writes <code>default_arg = function(x) eval(x)</code>. Translate-time evaluates arbitrary user formulas.</p>
+  <p><span class="silent">ADR is silent on enforcement.</span></p>
+  <div class="opt rec"><strong>F2.a (Recommended).</strong> Document the AST-only contract; don't enforce. The author is opting into the risk. Trusting the author keeps the registry surface simple and avoids ceremony around a rare misuse.</div>
+  <div class="opt"><strong>F2.b.</strong> Static check at registration: <code>deparse(body(validator))</code> doesn't contain <code>eval</code> / <code>parse</code> / <code>get</code> / <code>do.call</code>. Heuristic; easy to fool; might still be worth it as a tripwire.</div>
+  <div class="opt"><strong>F2.c.</strong> Wrap every validator call in a sandbox (e.g. <code>callr</code>). Heavy; rules out legitimate use cases like accessing internal package helpers.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>G · Code-gen / renderer</h2>
+
+<div class="case">
+  <h3><span class="case-id">G1</span>Preserve-mode render: bareword vs string for ppVar</h3>
+  <p>The user-selected column is "mpg". In preserve mode, the renderer can emit <code>ppVar(mpg)</code> (bareword) or <code>ppVar("mpg")</code> (string). Both are valid input to <code>ptr_app()</code>.</p>
+  <p><span class="silent">ADR is silent on the choice.</span></p>
+  <div class="opt rec"><strong>G1.a (Recommended).</strong> Bareword if the column name is a syntactic R name; quoted string otherwise (column names with spaces / dots-leading / starting with a digit). Maximally readable; falls back to string when needed.</div>
+  <div class="opt"><strong>G1.b.</strong> Always emit quoted string. Less ambiguous; reads less like ggplot.</div>
+  <div class="opt"><strong>G1.c.</strong> Always emit bareword; quote-with-backticks when needed. Closest to ggplot idiom; renderer needs to know when to use backticks.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">G2</span>Preserve-mode render for shared placeholders — do all occurrences emit the same default?</h3>
+  <p>Example: shared coordinator picked <code>mpg</code> for shared key <code>"k"</code>. In preserve mode, do we render <code>ppVar(mpg, shared = "k")</code> at every occurrence, or only the first?</p>
+  <p><span class="silent">ADR is silent; PLAN-05 doesn't specify.</span></p>
+  <div class="opt rec"><strong>G2.a (Recommended).</strong> Render <code>ppVar(mpg, shared = "k")</code> at every occurrence. The rendered formula round-trips to the same app: first-occurrence-wins still picks <code>mpg</code> on re-translation. Easy to implement (renderer doesn't track occurrence index).</div>
+  <div class="opt"><strong>G2.b.</strong> Render the default only at the first occurrence; later ones emit <code>ppVar(shared = "k")</code>. More faithful to the "first wins" intent; renderer must know it's not the first occurrence.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">G3</span>Preserve-mode for value placeholders whose current pick differs from the literal default</h3>
+  <p>User authored <code>ppNum(5)</code>; runtime picked <code>7.5</code>. Preserve mode emits <code>ppNum(7.5)</code> (current_pick wins) or <code>ppNum(5)</code> (author default wins)?</p>
+  <p>PLAN-05 says "current pick supplied as the default" — i.e. current_pick wins. Confirm.</p>
+  <div class="opt rec"><strong>G3.a (Recommended).</strong> Emit current pick. The preserve-mode view is "the formula plus the current state", consistent across var/num/text/expr.</div>
+  <div class="opt"><strong>G3.b.</strong> Emit author default. The preserve-mode view is "the source formula as authored." Confusing because the visible default no longer matches the runtime state.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>H · Migration / breaking-change peripherals</h2>
+
+<div class="case">
+  <h3><span class="case-id">H1</span>Shiny bookmark / saved-state URLs from before the rename</h3>
+  <p>Today's apps generate Shiny input ids like <code>layer1_var1</code>. After rename, ids may change (e.g. <code>layer1_ppVar1</code>). Bookmarked URLs encoding old input ids would no longer restore correctly.</p>
+  <p><span class="silent">ADR is silent on bookmark compatibility.</span></p>
+  <div class="opt rec"><strong>H1.a (Recommended).</strong> Out of scope. ggpaintr's id-assignment is documented as internal and unstable. Bookmarks from old apps don't survive any internal rename; this is no different.</div>
+  <div class="opt"><strong>H1.b.</strong> Preserve the old id-suffix shape (e.g. ids still contain <code>var</code> not <code>ppVar</code>) to maintain bookmark stability. Couples the new public surface to an old internal naming choice. Probably not worth it.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">H2</span>User had a custom placeholder registered as <code>"var"</code> before the rename</h3>
+  <p>Pre-ADR-0009, the built-in <code>var</code> blocked user-registered <code>"var"</code>. Post-ADR-0009, <code>"var"</code> is no longer a built-in; the user's custom registration would now work. Surprise — the user's previously-shadowed code suddenly takes effect.</p>
+  <div class="opt rec"><strong>H2.a (Recommended).</strong> No action. Document in NEWS.md that the names <code>var/num/text/expr/upload</code> are no longer reserved by ggpaintr. Users get what they asked for; they were already aware they were trying to shadow a built-in.</div>
+  <div class="opt"><strong>H2.b.</strong> Reserve <code>var/num/text/expr/upload</code> as legacy-blocked keywords in the registry (registering one is an error with "this name was a previous built-in; use a non-conflicting name to avoid confusion"). Prevents silent re-purposing of an old name.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>I · Validation messages</h2>
+
+<div class="case">
+  <h3><span class="case-id">I1</span>Multi-positional rejection wording</h3>
+  <p><code>ppVar(mpg, disp)</code> — two positionals, second one isn't named. PLAN-06 aborts with "Placeholder <code>ppVar(...)</code> accepts at most one positional argument (the default); got 2."</p>
+  <p>Is "got 2" sufficient, or do we want to name the offending positional explicitly?</p>
+  <div class="opt rec"><strong>I1.a (Recommended).</strong> Current wording is fine; concise and the user can re-read the line. Don't pretty-print extra context.</div>
+  <div class="opt"><strong>I1.b.</strong> Quote the offending args in the error: "got 2: <code>mpg</code>, <code>disp</code>." More helpful for long lines but verbose.</div>
+</div>
+
+<div class="case">
+  <h3><span class="case-id">I2</span>Unknown-named arg wording</h3>
+  <p><code>ppVar(mpg, label = "X-axis")</code> — <code>label</code> not declared in <code>named_args</code>. PLAN-06 aborts with "Placeholder <code>ppVar(...)</code> got unknown argument(s): label. Allowed: shared."</p>
+  <p>Does the message hint that custom <code>named_args</code> can add slots, or stay terse?</p>
+  <div class="opt rec"><strong>I2.a (Recommended).</strong> Terse; users learn the contract from <code>?ptr_define_placeholder_value</code>. The error names the conflict and lists allowed args — enough to fix the immediate problem.</div>
+  <div class="opt"><strong>I2.b.</strong> Add a single-line hint: "Custom placeholders may declare extra named args via <code>named_args</code>; see <code>?ptr_define_placeholder_value</code>." Helps newcomers; clutters the error for power users.</div>
+</div>
+
+<!-- ======================================================================== -->
+<h2>How to use this doc</h2>
+
+<p>Read each case. For each, tell me which option (a/b/c) you want, or describe a different resolution. I'll then:</p>
+<ol>
+  <li>Fold the resolutions into ADR 0009 (one Edit per case, grouped into a single commit).</li>
+  <li>Propagate any plan-level consequences (e.g. A1.a means <code>ptr_default_numeric</code> in PLAN-01 needs the unary-minus pattern; B1.a means PLAN-06's parser needs a per-shared-key role check).</li>
+  <li>Restamp affected plans / ADR.</li>
+  <li>Re-audit with subagents.</li>
+  <li>Merge to all worktrees.</li>
+</ol>
+
+<p>Skip-OK: cases where you accept the "Recommended" option as-is can be answered with a single "all rec" or "rec except X, Y, Z" — no need to enumerate every one.</p>
+
+</body>
+</html>

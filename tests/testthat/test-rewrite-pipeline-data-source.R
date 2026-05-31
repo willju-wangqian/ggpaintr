@@ -8,15 +8,15 @@
 
 test_that("find_source_companion_ids_in_upstream finds upload companions", {
   r <- ptr_translate(
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   )
   consumer <- find_nodes(r, is_ptr_ph_data_consumer)[[1L]]
   ids <- find_source_companion_ids_in_upstream(consumer$upstream)
   expect_length(ids, 1L)
-  expect_match(ids, "_name$")
+  expect_match(ids, "_shortcut$")
 
   # No source in the upstream -> nothing.
-  r2 <- ptr_translate("mtcars |> head(num) |> ggplot(aes(x = var))")
+  r2 <- ptr_translate("mtcars |> head(ppNum) |> ggplot(aes(x = ppVar))")
   c2 <- find_nodes(r2, is_ptr_ph_data_consumer)[[1L]]
   expect_length(find_source_companion_ids_in_upstream(c2$upstream), 0L)
   expect_length(find_source_companion_ids_in_upstream(NULL), 0L)
@@ -24,7 +24,7 @@ test_that("find_source_companion_ids_in_upstream finds upload companions", {
 
 test_that("ptr_init_state tracks resolved_sources for pipeline-head sources only", {
   s_pipe <- ptr_init_state(
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()",
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = globalenv()
   )
   expect_length(s_pipe$resolved_sources, 1L)
@@ -32,28 +32,28 @@ test_that("ptr_init_state tracks resolved_sources for pipeline-head sources only
 
   # Bare-data-source layer: handled via `state$resolved_data`, not sources.
   s_bare <- ptr_init_state(
-    "ggplot(data = upload, aes(x = var, y = var)) + geom_point()",
+    "ggplot(data = ppUpload, aes(x = ppVar, y = ppVar)) + geom_point()",
     envir = globalenv()
   )
   expect_length(s_bare$resolved_sources, 0L)
   expect_named(s_bare$resolved_data, "ggplot")
 
   # No data source at all.
-  s_none <- ptr_init_state("ggplot(mtcars, aes(x = var))", envir = globalenv())
+  s_none <- ptr_init_state("ggplot(mtcars, aes(x = ppVar))", envir = globalenv())
   expect_length(s_none$resolved_sources, 0L)
 })
 
 test_that("ptr_init_state gives state its own child eval env", {
   e <- new.env()
-  s <- ptr_init_state("ggplot(mtcars, aes(x = var))", envir = e)
+  s <- ptr_init_state("ggplot(mtcars, aes(x = ppVar))", envir = e)
   expect_false(identical(s$eval_env, e))
   expect_identical(parent.env(s$eval_env), e)
 })
 
-test_that("pipeline-head `upload` resolves downstream consumers and renders", {
+test_that("pipeline-head `ppUpload` resolves downstream consumers and renders", {
   e <- new.env(parent = globalenv())
   formula <-
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(input, output, session, formula,
                                           envir = e)
@@ -67,19 +67,21 @@ test_that("pipeline-head `upload` resolves downstream consumers and renders", {
     fp <- fixture_path("simple_numeric.csv")
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
-    # `updateTextInput()` does not echo back inside `testServer`, so set the
-    # dataset-name companion the way the browser auto-fill would.
-    do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$companion_id))
-    session$flushReact()
+    # ADR 0025 §2/§3: the file and shortcut are mutually exclusive and the
+    # shortcut no longer NAMES an upload (F2 retired). Leave the shortcut
+    # EMPTY so the upload binds under the deterministic system auto-name
+    # (`panel_source_canonical_name(node)` == node$auto_name for a non-shared
+    # source), never a user-typed name. Elapse past the 400ms shortcut
+    # debounce so the empty-shortcut value settles before asserting.
+    session$elapse(500); session$flushReact()
 
-    # The resolved frame is bound under its dataset name in the state's
+    # The resolved frame is bound under the system auto-name in the state's
     # (child) eval env, not the caller's env.
-    expect_true(exists("simple_numeric", envir = state$eval_env,
-                       inherits = FALSE))
-    expect_s3_class(get("simple_numeric", envir = state$eval_env),
-                    "data.frame")
-    expect_false(exists("simple_numeric", envir = e, inherits = FALSE))
+    auto <- ggpaintr:::panel_source_canonical_name(src)
+    expect_true(is.character(auto) && nzchar(auto))
+    expect_true(exists(auto, envir = state$eval_env, inherits = FALSE))
+    expect_s3_class(get(auto, envir = state$eval_env), "data.frame")
+    expect_false(exists(auto, envir = e, inherits = FALSE))
 
     # Downstream `var` pickers see the upstream columns.
     snap <- list()
@@ -108,14 +110,14 @@ test_that("pipeline-head `upload` resolves downstream consumers and renders", {
   })
 })
 
-test_that("pipeline-head `upload` populates the consumer picker UI (renderUI path)", {
+test_that("pipeline-head `ppUpload` populates the consumer picker UI (renderUI path)", {
   # Exercises the full renderUI path, including a pipeline stage (`head(num)`,
   # `dplyr::filter(num > 0)`) that prunes away when the producer is unset --
   # this is where `prune_walk.ptr_call()` meets a `ptr_missing` arg.
   e <- new.env(parent = globalenv())
   formula <- paste(
-    "upload |> head(num) |> dplyr::filter(num > 0) |>",
-    "ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> dplyr::filter(ppNum > 0) |>",
+    "ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   )
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(input, output, session, formula,
@@ -125,18 +127,23 @@ test_that("pipeline-head `upload` populates the consumer picker UI (renderUI pat
     tree <- shiny::isolate(session$userData$state$tree())
     src <- find_nodes(tree, is_ptr_ph_data_source)[[1L]]
     cons <- find_nodes(tree, is_ptr_ph_data_consumer)[[1L]]
-    out_id <- consumer_output_id(cons$id)
+    out_id <- placeholder_output_id(cons$id)
 
-    # Before any upload the renderUI must still resolve (no crash), just with
-    # an empty picker.
-    expect_no_error(output[[out_id]])
+    # ADR 0015: pre-upload, the consumer's `entry_reactive` `req()`s on the
+    # upstream source-ready reactive. Reading the renderUI before any upload
+    # therefore short-circuits with a `shiny.silent.error` — Shiny's standard
+    # "not yet ready" signal that yields no DOM. The contract this test pins
+    # is that AFTER the upload the picker populates; the pre-upload state is
+    # whatever Shiny's req() semantics produce.
+    expect_error(output[[out_id]], class = "shiny.silent.error")
 
     fp <- fixture_path("simple_numeric.csv")
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
-    do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$companion_id))
-    session$flushReact()
+    # ADR 0025 §3: empty shortcut -> upload binds under the system auto-name;
+    # the consumer picker populates from the uploaded frame's columns
+    # regardless of the bind symbol. Advance past the 400ms shortcut debounce.
+    session$elapse(500); session$flushReact()
 
     ui_html <- paste(as.character(output[[out_id]]), collapse = "")
     for (col in c("x", "y", "group")) {
@@ -145,10 +152,17 @@ test_that("pipeline-head `upload` populates the consumer picker UI (renderUI pat
   })
 })
 
-test_that("pipeline-head source clears its slot when the file is removed", {
+test_that("pipeline-head source vacates its slot when the file is removed (ADR 0025 §7 A1)", {
+  # ADR 0025 retires ADR-0024's "companion names the upload" role: an upload
+  # with an EMPTY shortcut binds under the system auto-name. §7 A1 then
+  # vacates the slot when the file is removed while the shortcut is empty, so
+  # clearing JUST the fileInput now fully clears the slot -- there is no
+  # separate companion bind to also clear. (Pre-ADR-0025 the companion held
+  # the bind name, clearing the file alone left the slot sticky, and the test
+  # had to clear BOTH; that two-step path is gone.)
   e <- new.env(parent = globalenv())
   formula <-
-    "upload |> head(num) |> ggplot(aes(x = var, y = var)) + geom_point()"
+    "ppUpload |> head(ppNum) |> ggplot(aes(x = ppVar, y = ppVar)) + geom_point()"
   server <- function(input, output, session) {
     session$userData$state <- ptr_server_internal(input, output, session, formula,
                                           envir = e)
@@ -157,15 +171,16 @@ test_that("pipeline-head source clears its slot when the file is removed", {
     state <- session$userData$state
     src <- find_nodes(shiny::isolate(state$tree()), is_ptr_ph_data_source)[[1L]]
     fp <- fixture_path("simple_numeric.csv")
+    # Upload with an empty shortcut -> binds under the system auto-name.
     do.call(session$setInputs,
             stats::setNames(list(mock_upload_input(fp)), src$id))
-    do.call(session$setInputs,
-            stats::setNames(list("simple_numeric"), src$companion_id))
-    session$flushReact()
+    session$elapse(500); session$flushReact()
     expect_s3_class(state$resolved_sources[[src$id]](), "data.frame")
 
+    # Clear the file. The shortcut is empty, so §7 A1 vacate fires and the
+    # slot becomes NULL -- clearing the file alone now suffices.
     do.call(session$setInputs, stats::setNames(list(NULL), src$id))
-    session$flushReact()
+    session$elapse(500); session$flushReact()
     expect_null(state$resolved_sources[[src$id]]())
   })
 })

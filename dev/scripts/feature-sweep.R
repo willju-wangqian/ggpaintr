@@ -72,13 +72,14 @@ ptr_app(
 )
 
 # 7. Multi-layer with every value-placeholder type (text/num/expr) and a
-#    layer-checkbox default that starts geom_smooth OFF.
+#    layer-checkbox default that starts geom_smooth OFF. ADR 0020: use
+#    `ppLayerOff()` inside the formula instead of the removed
+#    `checkbox_defaults =` argument.
 ptr_app(
   "ggplot(data = mtcars, aes(x = var, y = var)) +
    geom_point(size = num) +
-   geom_smooth(method = expr) +
-   labs(title = text, x = text, y = text)",
-  checkbox_defaults = list(geom_smooth = FALSE)
+   ppLayerOff(geom_smooth(method = expr), TRUE) +
+   labs(title = text, x = text, y = text)"
 )
 
 # 8. Pipeline data placeholder -- num threads through head() before ggplot
@@ -134,7 +135,7 @@ ptr_define_placeholder_value(
                 min = 0, max = 100, value = 50)
   },
   resolve_expr = function(value, node, ...) value / 100,
-  copy_defaults = list(label = "Pick a percentage for {param}")
+  ui_text_defaults = list(label = "Pick a percentage for {param}")
 )
 ptr_app(
   "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(alpha = pct)"
@@ -161,7 +162,7 @@ ptr_define_placeholder_consumer(
     }
     rlang::sym(value)
   },
-  copy_defaults = list(label = "Column for {param}")
+  ui_text_defaults = list(label = "Column for {param}")
 )
 ptr_app(
   "ggplot(data = mtcars, aes(x = dropvar, y = dropvar)) + geom_point()"
@@ -207,7 +208,7 @@ ptr_define_placeholder_consumer(
     # straight into the substituted tree.
     rlang::call2("c", !!!as.list(value))
   },
-  copy_defaults = list(label = "Columns for {param}")
+  ui_text_defaults = list(label = "Columns for {param}")
 )
 ptr_app(
   "iris |> subset(select = colvars) |>
@@ -382,7 +383,7 @@ ptr_app_grid(
 #     if (!is.character(value) || length(value) != 1L || !nzchar(value)) return(NULL)
 #     rlang::sym(value)
 #   },
-#   copy_defaults = list(label = "Column for {param}")
+#   ui_text_defaults = list(label = "Column for {param}")
 # )
 ptr_app(
   "ggplot(data = mtcars, aes(x = dropvar(shared = \"v\"), y = mpg)) +
@@ -609,7 +610,7 @@ ptr_define_placeholder_consumer(
     # straight into the substituted tree.
     rlang::call2("c", !!!as.list(value))
   },
-  copy_defaults = list(label = "Columns for {param}")
+  ui_text_defaults = list(label = "Columns for {param}")
 )
 
 ptr_app(

@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-06 — Super-app 4: user_css + safety + adversarial (from ADR 0013)</title>
+<style>
+  body { font: 14.5px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+         max-width: 1000px; margin: 2rem auto; padding: 0 1.2rem; color: #1b1d22; }
+  h1 { border-bottom: 2px solid #1b1d22; padding-bottom: .3rem; }
+  h2 { margin-top: 1.8rem; border-bottom: 1px solid #ccd; padding-bottom: .15rem; }
+  h3 { margin-top: 1.1rem; font-size: 1.05em; }
+  code { background: #f4f4f7; padding: 1px 4px; border-radius: 3px; font-size: 90%; }
+  pre  { background: #f4f4f7; padding: .6rem .85rem; border-radius: 5px; overflow-x: auto; font-size: 12.5px; line-height: 1.45; }
+  .meta { color: #555; font-size: 13px; }
+  .note { border-left: 4px solid #2c7; background: #eafaf0; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  .warn { border-left: 4px solid #c97a00; background: #fdf3e1; padding: .55rem .85rem; margin: .8rem 0; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: .4rem 0 1rem; font-size: 13.5px; }
+  th, td { border: 1px solid #ccd; padding: .35rem .55rem; text-align: left; vertical-align: top; }
+  th { background: #f0f0f4; }
+</style>
+</head>
+<body>
+<!--
+plan:
+  number: 06
+  slug: app-4-user-css-safety-adversarial
+  source_adr: dev/adr/0013-super-app-pressure-test-suite.html
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-06 — Super-app 4: user_css + safety + adversarial</h1>
+<p class="meta">Source: ADR 0013 §"App 4 — user_css + safety + adversarial" + D1/D4/D5/D6 (G5 row)/D9 + J1/J3/J4 + K2/K3/K4 + I5 · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+
+<p>ADR 0013 §App-4 locks the slot picks: <code>ptr_app()</code> + <code>css</code> · literal <code>mtcars</code> head · G5 string-builder force-eval (<code>paste0</code> + <code>sprintf</code>, both inside the closed whitelist at <code>R/paintr-app.R:260-262</code>) · window code panel. One custom value placeholder <code>ppColor</code> registers locally (textInput wrapped in a styled <code>&lt;div class="ptr-super4-colorpicker"&gt;</code>, <code>validate_input</code> rejects non-hex strings).</p>
+
+<p>The roster: ppVar×3 · ppNum×4 · ppText×2 · ppExpr×1 · ppColor×1. Total widgets ≈ 11. Plus test-injected adversarial probes (NOT in app.R; the test sets bad values at runtime). One sibling <code>user.css</code> declares two CSS rules: a colorpicker border-color rule and a sentinel rule whose presence on the page proves user_css reached the DOM.</p>
+
+<p>Unique pressure axes (ADR §App-4): (i) K2 + K3 coexistence — <code>user_css</code> + core <code>htmlDependency</code> assets coexist (project memory <code>htmldependency-resource-prefix</code> documents the explicit <code>addResourcePath("ggpaintr", ...)</code> at <code>R/paintr-build-ui.R:591</code>; the user_css's private resource prefix <code>ggpaintr-user-&lt;hash&gt;</code> is registered at <code>R/paintr-build-ui.R:633</code>); (ii) K4 user_css resource-path pruning — after the test session ends, no leak into subsequent sessions (the cleanup helper <code>prune_dead_ggpaintr_resource_paths()</code> documented in memory <code>shinytest2-appdir-pkgload</code> is exercised); (iii) G5 force-eval with closed-whitelist string builders; (iv) J1+J3 adversarial probe via ppExpr (test sets the widget to a string containing <code>eval(parse(text = "1+1"))</code> — the deny list at <code>R/paintr-utils.R:448</code> + AST walker reject with the canonical literal <code>"is not allowed in an `expr` input"</code> at <code>R/paintr-utils.R:609</code>); (v) I5 inline <code>validate_input</code> rejection without crashing the runtime; (vi) custom widget styling reaches the page (user_css selector applies to the rendered widget).</p>
+
+<p>K1 (bslib theming) is dropped from App 4's partition because <code>ptr_app_bslib()</code> is slated for removal (ADR §D1).</p>
+
+<h2>Governing principle</h2>
+
+<p>ADR 0013 commits the suite to <strong>propagation assertions</strong>. App 4's distinguishing load: the assertion contract must hold under a user-supplied stylesheet + core ggpaintr asset bundle coexisting on the same page. Safety regressions tend to live in eval-paths that look local (the denylist matches; the AST walker descends), so the adversarial probe MUST be the literal shape that historically bypassed — the project memory <code>project-denylist-complete</code> records that the walker's recursive descent is the primary safety mechanism, not the denylist alone. The test-injected probe MUST surface the rejection through the runtime panel with the canonical literal <code>"is not allowed in an `expr` input"</code> (<code>R/paintr-utils.R:609</code>), not just at parse time — that is the contract the deny list + walker promise jointly.</p>
+
+<p>K4 user_css pruning is the only failure mode that bites <em>later</em> tests, not this one — a leak shows up as a downstream <code>boot_vignette_app()</code> failure with "Couldn't normalize path", order-dependently (memory <code>htmldependency-resource-prefix</code>). The plan's <code>withr::defer</code> + helper cleanup must close that asymmetry by construction; STOP-and-escalate if the implementer finds the helper does not run after AppDriver tear-down.</p>
+
+<h2>Success Criteria</h2>
+
+<ul>
+  <li><strong>Fixture directory exists with three files.</strong> <code>tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/app.R</code>, <code>tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/reference.R</code>, <code>tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/user.css</code>. All tracked.</li>
+
+  <li><strong><code>app.R</code> shape.</strong> First line is the pkgload scaffolding. Body: <code>ppColor</code> registration via <code>ptr_define_placeholder_value(keyword = "ppColor", build_ui = function(id, default = "#3366FF", label = "Color", ...) shiny::tags$div(class = "ptr-super4-colorpicker", shiny::textInput(id, label, value = default, placeholder = "#RRGGBB")), resolve_expr = function(value, ...) value, default_arg = ptr_default_string(), validate_input = function(value, ...) if (grepl("^#[0-9A-Fa-f]{6}$", value)) TRUE else "must be #RRGGBB hex")</code>. Local string-builder fragments: <code>y_arg &lt;- "ppVar(wt)"</code> and <code>title_segment &lt;- sprintf("Speed vs %s", "Weight")</code>. Then <code>ptr_app(paste0(...), css = "user.css")</code>. The paste0 string body matches ADR §App-4 verbatim.</li>
+
+  <li><strong><code>user.css</code> shape.</strong> Two CSS rules:<br>
+    <code>.ptr-super4-colorpicker input { border-color: #FF6633; }</code><br>
+    <code>.ptr-super4-sentinel { color: #ABCDEF; }</code><br>
+    The second is the user_css-reached-the-page sentinel asserted by the test.</li>
+
+  <li><strong><code>reference.R</code> shape.</strong> The all-defaults equivalent ggplot2 expression with the paste0/sprintf <em>resolved</em> (so <code>y_arg</code> → <code>wt</code>, the sprintf → <code>"Speed vs Weight"</code>). Doc-only.</li>
+
+  <li><strong>One <code>test_that()</code> block lands between PLAN-01's <code># &gt;&gt;&gt; super-4 begin</code> and <code># &lt;&lt;&lt; super-4 end</code> markers.</strong></li>
+
+  <li><strong>K2 + K3 coexistence — user_css + core htmlDependency assets both reach the page.</strong> The test asserts: (a) the user_css rule reached the page — verified by reading <code>app$get_html("head")</code> and checking it contains the literal substring <code>".ptr-super4-sentinel"</code> (or alternatively a stylesheet link whose path begins with <code>ggpaintr-user-</code>, the resource-prefix produced by <code>R/paintr-build-ui.R:633</code>); (b) the core ggpaintr htmlDependency reached the page — verified by checking the <code>head</code> contains a stylesheet path beginning with <code>/ggpaintr/</code> (the explicit <code>addResourcePath</code>-backed prefix at <code>R/paintr-build-ui.R:591</code>).</li>
+
+  <li><strong>G5 force-eval propagation.</strong> The test sets the <code>y</code>-axis ppVar widget to a literally-unique column choice <code>"qsec"</code>, draws, asserts final-mode <code>expect_sentinel_in_code(app, code_output_id, "qsec", "aes\\([^)]*y\\s*=\\s*([^,)]*)", "final")</code>. This proves the paste0-assembled formula's <code>y_arg = "ppVar(wt)"</code> was parsed into a real placeholder (not a literal string) — the widget exists and accepts a new value.</li>
+
+  <li><strong>Custom widget container carries the styling class at the DOM AND the user_css rule applies.</strong> The test reads the ppColor widget's rendered HTML via <code>app$get_html(&lt;widget container selector&gt;)</code> and asserts the container's <code>class</code> attribute contains <code>"ptr-super4-colorpicker"</code>. Additionally, the head HTML contains the literal CSS rule text <code>".ptr-super4-colorpicker"</code> (proving the user_css selector for that class is wired up).</li>
+
+  <li><strong>I5 inline validate_input rejection without crash.</strong> The test sets the ppColor widget to <code>"notahex"</code>, draws, asserts: (a) the widget container shows the literal error string <code>"must be #RRGGBB hex"</code>; (b) <code>expect_no_plot_error(app)</code> still passes (the previous valid plot remains); (c) the code panel's previous sentinel content is preserved.</li>
+
+  <li><strong>J1+J3 adversarial probe via ppExpr.</strong> The test sets the ppExpr input (the <code>subtitle = ppExpr(nrow(mtcars))</code> placeholder) to the literally-unique adversarial string <code>"eval(parse(text = \"1+1\"))"</code>, draws, asserts: (a) the inline error pane contains the canonical literal substring <code>"is not allowed in an `expr` input"</code> (from <code>R/paintr-utils.R:609</code>; the full template is <code>"`&lt;name&gt;` is not allowed in an `expr` input (&lt;where&gt;)"</code>); (b) the host output retains its prior plot (no crash); (c) <code>expect_sentinel_nowhere(app, code_output_id, "eval(parse")</code> succeeds (the adversarial text never reaches the rendered code).</li>
+
+  <li><strong>K4 user_css pruning — no leak after teardown.</strong> The test scopes a <code>withr::defer(prune_dead_ggpaintr_resource_paths(), envir = parent.frame())</code> at the top of the block (the helper is in <code>helper-vignette-apps.R</code>, exercised by other browser tests per project memory). After the test_that block completes, the test asserts (via a <code>withr::defer</code>-scoped post-check) that <code>shiny::resourcePaths()</code> contains no entry whose name begins with <code>"ggpaintr-user-"</code> AND whose target is a torn-down tempdir. Either the helper successfully pruned, or the user_css's resource path was registered to a persistent location that does not leak.</li>
+
+  <li><strong>B3 toggle differential.</strong> Toggle preserve↔final once. In final mode the rendered code does not contain any of <code>ppVar(</code>, <code>ppNum(</code>, <code>ppText(</code>, <code>ppExpr(</code>, <code>ppColor(</code>; in preserve mode every one of those wrappers appears at least once. Host has no plot-error class in either mode.</li>
+
+  <li><strong>Authoritative gate</strong> returns <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</code> when the browser stack is available.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Files this plan owns:</strong>
+    <ul>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/app.R</code> (NEW)</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/reference.R</code> (NEW)</li>
+      <li><code>tests/testthat/fixtures/vignette-apps/super-4-user-css-safety-adversarial/user.css</code> (NEW)</li>
+      <li>The lines between <code># &gt;&gt;&gt; super-4 begin</code> and <code># &lt;&lt;&lt; super-4 end</code> in <code>tests/testthat/test-super-pressure.R</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li>Any <code>R/paintr-*.R</code> file. The deny list <code>unsafe_expr_denylist</code> at <code>R/paintr-utils.R:448</code> is project-memory-locked as complete — project memory <code>project-denylist-complete</code>. Do NOT add entries from this plan.</li>
+      <li>The other four anchor regions in <code>tests/testthat/test-super-pressure.R</code>.</li>
+      <li>The helper files.</li>
+      <li>Any other fixture subdir.</li>
+      <li><code>NAMESPACE</code>, <code>DESCRIPTION</code>, anything under <code>man/</code>.</li>
+    </ul>
+  </li>
+  <li>The formula MUST be a paste0/sprintf-assembled string (G5 row). <code>paste0</code> and <code>sprintf</code> are inside the project's closed force-eval whitelist at <code>R/paintr-app.R:260-262</code>; <code>paste</code> with a non-default <code>sep=</code> is NOT in scope of the whitelist's literal arg form — implementer must verify any string-builder beyond <code>paste0</code> + <code>sprintf</code> against the whitelist before using it.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> Three specific weakenings to avoid: (a) on the adversarial probe, do NOT settle for "no crash" — the assertion contract is that the runtime panel surfaces the canonical literal <code>"is not allowed in an `expr` input"</code> AND the adversarial text never reaches the rendered code. (b) On K2 user_css presence, do NOT settle for "user.css is in the resource paths" — the assertion is that the CSS rule's literal text reaches <code>app$get_html("head")</code>. (c) On K4 pruning, do NOT settle for "the helper was called" — the assertion is that <code>shiny::resourcePaths()</code> contains no dead <code>ggpaintr-user-</code> entries after teardown.</li>
+  <li>Conventions: <code>CLAUDE.md</code>, <code>.claude/rules/testing.md</code>, <code>.claude/rules/reviewing.md</code>'s Pass-1 (formula parsing &amp; metaprogramming safety) lens.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: App-4 user_css + safety + adversarial propagation + safety contract
+
+Scenario: K2 + K3 coexist — user_css + core ggpaintr assets both reach the page
+  Given the super-4 fixture booted in headless Chrome
+  Then the head contains the literal string ".ptr-super4-sentinel" (user_css reached the DOM)
+  And the head contains a stylesheet path beginning with "/ggpaintr/" (core htmlDependency assets)
+
+Scenario: G5 string-builder formula produces a real ppVar widget
+  Given the super-4 fixture booted
+  When I set the y-axis ppVar widget to "qsec"
+  And I draw and the app settles
+  Then the rendered final-mode code contains "aes(... y = qsec ...)"
+
+Scenario: ppColor custom widget container carries the styling class at the DOM
+  Given the super-4 fixture booted
+  Then the ppColor widget's container element has class "ptr-super4-colorpicker"
+  And the head contains the literal CSS rule selector ".ptr-super4-colorpicker"
+
+Scenario: I5 validate_input rejection — inline error, no crash, prior plot retained
+  Given the super-4 fixture booted with a prior successful draw at defaults
+  When I set the ppColor widget to "notahex"
+  And I draw and the app settles
+  Then the ppColor widget container shows the literal error "must be #RRGGBB hex"
+  And the host output retains its prior successful plot
+  And the rendered code panel still contains the sentinel from the prior successful draw
+
+Scenario: J1+J3 adversarial ppExpr probe — denylist rejection surfaces, no eval
+  Given the super-4 fixture booted with a prior successful draw at defaults
+  When I set the ppExpr widget to the string "eval(parse(text = \"1+1\"))"
+  And I draw and the app settles
+  Then the inline error pane contains the literal substring "is not allowed in an `expr` input"
+  And the rendered code panel does not contain the substring "eval(parse"
+  And the host output retains its prior successful plot (no crash)
+
+Scenario: K4 user_css resource path pruning after teardown
+  Given the super-4 fixture was booted and is now stopped
+  When the test_that block exits
+  Then shiny::resourcePaths() contains no entry whose name begins with "ggpaintr-user-" pointing at a torn-down tempdir
+
+Scenario: B3 toggle differential
+  Given the super-4 fixture booted and drawn at defaults
+  When I toggle code mode to "final"
+  Then the rendered code does not contain any of: ppVar(, ppNum(, ppText(, ppExpr(, ppColor(
+  When I toggle code mode to "preserve"
+  Then the rendered code contains every one of those wrappers
+  And the host output has no plot-error class in either mode
+</pre>
+
+<h2>Definition of Done</h2>
+
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline + 1)</strong> when the browser stack is available.</p>
+
+<p><strong>Proxy traps — do not be fooled (verbatim from <code>CLAUDE.md</code>):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead cleanly SKIP via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file ERRORing (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> runs the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds <strong>1</strong> new <code>test_that()</code> call at the super-4 anchor region. Gate must show PASS+1 with FAIL/ERROR still 0 and SKIP unchanged from pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+
+<p>Owns: the three fixture files (<code>app.R</code> + <code>reference.R</code> + <code>user.css</code>) + the super-4 anchor region. NAMESPACE/man/ untouched. The deny list <code>unsafe_expr_denylist</code> at <code>R/paintr-utils.R:448</code> is project-memory-locked as complete — this plan does NOT add entries.</p>
+<p>Branch convention: this plan lives on branch <code>0013-app-4-user-css-safety-adversarial</code> in a worktree at <code>.claude/worktrees/0013-super-app-pressure-tests/app-4-user-css-safety-adversarial/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+
+<p>The auditor independently re-runs the gate, verifies <code>PASS (baseline + 1)</code>, AND reads the inserted <code>test_that</code> to confirm: (a) the adversarial probe's <code>Then</code> clauses match the canonical denylist rejection literal (<code>"is not allowed in an `expr` input"</code>, <code>R/paintr-utils.R:609</code>) and the adversarial-text-absent claim, not the weaker "no crash"; (b) the K2 assertion checks the CSS rule's literal text in <code>app$get_html("head")</code>, not just resource-path presence; (c) the K4 pruning assertion checks <code>shiny::resourcePaths()</code>, not just that the helper was called.</p>
+
+<h2>Baseline / drift reference</h2>
+
+<p>Baseline = orchestrator HEAD after PLAN-01. PLAN-06 net effect: +1 PASS.</p>
+
+<h2>Out-of-scope handling</h2>
+
+<p>Follow-up plan candidates surfaced by this plan: (a) if a new adversarial-probe variant survives the deny-list + walker, file a follow-up against the walker's recursion logic (memory <code>project-denylist-complete</code> — walker is the primary mechanism); (b) if K4 pruning leaks across tests, the fix lives in <code>prune_dead_ggpaintr_resource_paths()</code> or its callers, not in this plan; (c) ADR §"Coverage gaps deliberately left unfilled" enumerates more safety probes (D7 keyword shadow rejection, G7/G8 capture-time rejection) — those become narrow fixtures, not super-app pile-on.</p>
+
+<h2>Dependencies / ordering</h2>
+
+<p>Depends on: PLAN-01. Parallel-group sibling of 02/03/04/05.</p>
+
+<!-- implementable: PASS date=2026-05-23 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=06920a680687 -->
+</body>
+</html>

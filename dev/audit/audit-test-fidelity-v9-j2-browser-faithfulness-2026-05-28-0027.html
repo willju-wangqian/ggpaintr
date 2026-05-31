@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<title>Test Fidelity v9 — J2 browser-faithfulness pre-audit — 2026-05-28 00:27</title>
+<link rel="stylesheet" href="../assets/doc.css">
+<style>
+.tag-mer{background:#dff5e2;color:#155724;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-ret{background:#fee0e0;color:#7a1a1a;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-rev{background:#fff3cd;color:#856404;padding:0 6px;border-radius:3px;font-weight:600}
+.tag-def{background:#e2e3f5;color:#1e2a78;padding:0 6px;border-radius:3px;font-weight:600}
+.lit{font-family:ui-monospace,Menlo,Consolas,monospace;background:#f4f4f4;padding:0 3px;border-radius:3px}
+.muted{color:#666}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid #ddd;padding:6px 8px;vertical-align:top;text-align:left}
+th{background:#f7f7f7}
+</style>
+</head><body>
+<h1>Test Fidelity v9 — J2 browser-faithfulness pre-audit — 2026-05-28 00:27</h1>
+
+<p><strong>Branch:</strong> <code>tests-inspect</code> @ <code>7a78295</code> · <strong>Scope:</strong> the 9 absorbed L2s for journey J2 (prologue-csv-upload + NEW upload-name-precedence + upload-bad-ext) from <code>dev/audit/audit-test-fidelity-clusters-2026-05-27-1849.html</code> lines 260–283.</p>
+
+<p>This doc replays the v6/v7/v8 browser-faithfulness lens row-by-row against J2's 9 absorbed L2 entries before any code is touched. Once the routing is approved, the build is mechanical.</p>
+
+<h2>1. The lens (one-line restatement)</h2>
+
+<p>For each absorbed L2: <em>if the orchestrator/runtime regressed only at THIS contract, would the browser DOM differ?</em> If no → <strong>RETAIN as unit pin</strong>, do not migrate. If yes → <strong>MERGE</strong>. If yes-but-needs-extra-fixture → <strong>MERGE-deferred</strong>.</p>
+
+<p>Two sub-questions sharpen the lens (from v6/v7/v8 §1):</p>
+<ol>
+<li>Does the assertion observe an <em>internal-shape</em> value (S3 class, list field name, NULL vs empty-list, named-list shape, object identity) that the rendered DOM does not reflect?</li>
+<li>Does the assertion's <em>trigger</em> come from an R-side mutation (e.g. <code>local_mocked_bindings(.package=)</code>, direct call to an internal helper with fabricated state) that no DOM event can dispatch?</li>
+</ol>
+<p>"Yes" to either → not browser-encodable as-is.</p>
+
+<h2>2. Per-L2 verdicts</h2>
+
+<table>
+<thead><tr><th style="width:24%">file:line</th><th>v5</th><th>v9</th><th>browser-faithfulness analysis</th></tr></thead>
+<tbody>
+
+<tr><td>test-resolve-upload-source-helper.R:90<br><span class="muted">"NULL file_info with resolvable default-arg binds the resolved frame"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: <code class="lit">bound_names[["layerA"]]() == "df_main"</code>, <code class="lit">get("df_main", envir=env) == mtcars</code>, <code class="lit">w$slot() == mtcars</code>. Trigger: direct call to <code>resolve_upload_source()</code> with <code class="lit">input_slot=NULL</code> and a synthetic <code>node$default="df_main"</code>. Underlying contract: when no file is uploaded but the source carries a default-arg symbol resolvable in <code>envir</code>'s parent chain, the helper bind eval_env / slot from that frame. <strong>DOM-equivalent already exists</strong>: <code class="lit">test-upload-clears-stale-cache.R:21–22</code> drives a fixture with <code class="lit">ppUpload(df_main) |> ggplot(aes(x=ppVar(mpg), y=ppVar(cyl)))</code> and asserts the consumer pickers seed with <code class="lit">"mpg"</code> / <code class="lit">"cyl"</code> at boot — only reachable if the default-arg bind fired. Regression: if <code>try_bind_source_default_resolved</code> never ran, the pickers would empty (no upstream cols) and the existing L3 fails. <strong>MERGE via pre-existing L3</strong> — no new stage needed in the journey.</td></tr>
+
+<tr><td>test-resolve-upload-source-helper.R:119<br><span class="muted">"populated file_info dispatches entry$resolve_data and binds result"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: bound_names == shortcut value, eval_env contains the binding, slot returns the resolved frame. Trigger: direct call with populated <code>input_slot</code> (CSV temp path) and <code>shortcut_slot$value="iris_df"</code>. Underlying contract: populated file_info → <code>entry$resolve_data</code> dispatched → eval_env bound under shortcut value. <strong>DOM-equivalent already exists</strong>: <code class="lit">test-prologue-csv-upload.R:13–55</code> uploads <code class="lit">fixtures/mtcars.csv</code> to <code class="lit">prologue-csv-upload</code> and asserts <code class="lit">^[A-Za-z0-9_.]+ &lt;- read\.csv\("mtcars\.csv"\)\n</code> + <code class="lit">_ppUpload_NA &lt;- read\.csv\("mtcars\.csv"\)$</code> on <code>output$ptr_code</code> — only reachable if <code>entry$resolve_data</code> dispatched AND eval_env was bound (the prologue line + body symbol come from <code>state$active_uploads</code> which only registers on successful bind, see <code class="lit">paintr-server.R:1308–1311</code>). <strong>MERGE via pre-existing L3</strong>.</td></tr>
+
+<tr><td>test-resolve-upload-source-helper.R:152<br><span class="muted">"resolve_data error surfaces via set_resolve_error and clears the slot"</span></td><td>MERGE</td><td><span class="tag-def">MERGE-deferred</span></td><td>Assertions: <code class="lit">resolve_errors[["layerC"]]</code> matches <code>"boom"</code>; <code>slot() == NULL</code>; <code>eval_env</code> stays empty. Trigger: direct call with <code>entry$resolve_data = function(...) stop("boom")</code> and populated file_info. DOM-faithful equivalent: a fixture registering a custom <code>ppXxx</code> source whose <code>resolve_data</code> deterministically throws; upload a file; assert <code class="lit">#ptr_error</code> displays <code class="lit">"boom"</code> AND the downstream consumer picker empties (because <code>slot(NULL)</code> drops the upstream cache → consumer fires against an unbound eval_env → no cols). Both halves DOM-visible. <strong>MERGE-deferred</strong> — needs NEW fixture <code class="lit">j2-custom-source-error</code> registering a throwing custom source.</td></tr>
+
+<tr><td>test-upload-binds-under-auto-name.R:34<br><span class="muted">"empty shortcut textbox → bind_source_value name = node$auto_name"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: <code class="lit">captured$name == "ggplot_1_0_ppUpload_NA"</code> via <code>local_mocked_bindings(bind_source_value=...)</code>. Trigger: populated file_info + empty shortcut. Underlying contract: empty shortcut falls back to <code>node$auto_name</code> for the eval_env binding name. <strong>DOM-equivalent already exists</strong>: same <code class="lit">test-prologue-csv-upload.R:13–55</code> as :119 — the prologue LHS the test asserts (<code class="lit">_ppUpload_NA &lt;- read\.csv\(...\)</code>) IS the auto_name, captured at the precise binding name <code>bind_source_value</code> received. Regression: if <code>resolve_upload_source</code> stopped falling back to auto_name on empty shortcut, the prologue LHS would change shape and the existing L3 fails. <strong>MERGE via pre-existing L3</strong>.</td></tr>
+
+<tr><td>test-upload-binds-under-auto-name.R:114<br><span class="muted">"non-empty shortcut textbox wins over node$auto_name"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion: <code class="lit">captured$name == "my_name"</code> via the same mocked binding pattern. Trigger: populated file_info + <code>shortcut_slot$value="my_name"</code>. DOM-faithful equivalent: type a literal name into the shortcut textbox, upload a CSV, assert <code>output$ptr_code</code> prologue line begins with that literal (NOT the auto_name). <strong>MERGE — new stage</strong> in the J2 journey: <code class="lit">set_input(app, "ggplot_0_ppUpload_NA_shortcut", "my_data")</code> followed by <code class="lit">app$upload_file()</code> followed by <code class="lit">draw(app, "ptr_update_plot")</code>, then <code class="lit">expect_match(code_text, "^my_data &lt;- read\\.csv\\(")</code>.</td></tr>
+
+<tr><td>test-upload-unsupported-extension.R:23<br><span class="muted">"uploading an unsupported extension surfaces the abort in state$resolve_errors"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertions: <code class="lit">st$resolve_errors()</code> non-empty after uploading a <code>.txt</code>; message contains the literal <code class="lit">"Please upload a .csv, .tsv, .rds, .xlsx, .xls, or .json file."</code> Trigger: <code>session$setInputs</code> of a fabricated <code>file_info</code> data.frame with <code>name="bad_extension.txt"</code> — driving <code>ptr_setup_pipelines</code>'s upload observer. DOM-faithful equivalent: <code class="lit">app$upload_file(ggplot_0_ppUpload_NA = fixture_path("bad_extension.txt"))</code> (the fixture file already exists at <code class="lit">tests/testthat/fixtures/bad_extension.txt</code>), then assert <code class="lit">app$get_html("#ptr_error")</code> or the inline-error sink contains the literal abort string. Both the trigger (real fileInput upload) and the assertion (rendered error string) are fully DOM-driveable. <strong>MERGE — new stage</strong>.</td></tr>
+
+<tr><td>test-upload-unsupported-extension.R:74<br><span class="muted">"clearing the file input clears the resolve error slot"</span></td><td>MERGE</td><td><span class="tag-mer">MERGE</span></td><td>Assertion shape after the upload above: <code class="lit">setInputs(NULL)</code> on the file input → <code>resolve_errors</code> empty. Trigger: <code>session$setInputs(src$id = NULL)</code>. DOM-faithful equivalent: after the bad-ext upload, upload a GOOD csv (which IS observable through the fileInput control) — the upload observer reruns with new file_info, <code>set_resolve_error(state, key, NULL)</code> fires inside <code>resolve_upload_source</code> when <code>df</code> is non-NULL (paintr-server.R:1266), and <code>#ptr_error</code> vacates. <strong>MERGE — combined stage</strong> with :23. (Note: shinytest2 lacks a native "clear file input" action equivalent to <code>setInputs(NULL)</code>; the "next-upload-clears-error" path observed in <code>test-upload-unsupported-extension.R:57–70</code> proves the same <code>set_resolve_error(NULL)</code> branch and is browser-driveable.)</td></tr>
+
+<tr><td>test-upload.R:139<br><span class="muted">"Excel upload errors clearly when readxl is missing"</span></td><td>MERGE</td><td><span class="tag-ret">RETAIN</span></td><td>Assertion: <code class="lit">expect_error(ptr_read_uploaded_data(mock_upload_input(xlsx_file)), "requires the 'readxl' package")</code>. Trigger: <code class="lit">testthat::local_mocked_bindings(requireNamespace = function(package, ...) !identical(package, "readxl"), .package = "base")</code>. The mocked binding is process-local and does NOT cross the shinytest2 child-process boundary (project memory <code class="lit">shinytest2-appdir-pkgload</code>: parent-process <code>trace()</code> / mocked-bindings are invisible to the child). DOM-faithful equivalent would require either (a) physically uninstalling readxl in the test process (impractical, breaks parallel tests), or (b) baking an <code>assignInNamespace("requireNamespace", ...)</code> hack into a fixture <code>app.R</code> — which is itself an R-side fakery that "no DOM event can dispatch" per lens §1 sub-question 2. The error wording IS a load-bearing contract, but its trigger is fundamentally helper-level. <strong>RETAIN as unit pin</strong> — same shape as J10/J11/J12 RETAINs.</td></tr>
+
+<tr><td>test-upload.R:230<br><span class="muted">"JSON upload errors clearly when jsonlite is missing"</span></td><td>MERGE</td><td><span class="tag-ret">RETAIN</span></td><td>Identical shape to :139, mocking jsonlite. Same RETAIN rationale.</td></tr>
+
+</tbody>
+</table>
+
+<h2>3. Tally</h2>
+
+<table>
+<thead><tr><th>verdict</th><th>count</th><th>which</th></tr></thead>
+<tbody>
+<tr><td><span class="tag-mer">MERGE</span></td><td class="num">6</td><td>resolve-upload-source-helper.R:90, :119; upload-binds-under-auto-name.R:34, :114; upload-unsupported-extension.R:23, :74</td></tr>
+<tr><td><span class="tag-rev">MERGE-revised</span></td><td class="num">0</td><td>—</td></tr>
+<tr><td><span class="tag-def">MERGE-deferred</span></td><td class="num">1</td><td>resolve-upload-source-helper.R:152 (needs new fixture <code class="lit">j2-custom-source-error</code>)</td></tr>
+<tr><td><span class="tag-ret">RETAIN</span></td><td class="num">2</td><td>upload.R:139, :230 (helper-level mocked-requireNamespace; trigger doesn't cross child boundary)</td></tr>
+<tr><td><strong>total</strong></td><td class="num"><strong>9</strong></td><td>✓</td></tr>
+</tbody>
+</table>
+
+<p>v5's 9/9 MERGE → v9 holds 6 MERGE + 1 MERGE-deferred (still in-journey) + 2 RETAIN. <strong>Demotion rate 22%</strong> (between J11's 33% and J12's 0%). The two RETAINs come from the helper-level missing-optional-dep tests — both already flagged by the clusters audit itself (<em>"the missing-dep test runs at the helper level via mocked requireNamespace, NOT via real package removal"</em>); the lens just promotes that recognition to a routing decision.</p>
+
+<p>Three of the six MERGE rows (<code class="lit">:90</code>, <code class="lit">:119</code>, <code class="lit">:34</code>) are covered by <strong>pre-existing L3 siblings</strong> — <code class="lit">test-prologue-csv-upload.R</code> and <code class="lit">test-upload-clears-stale-cache.R</code> already drive the same contracts end-to-end. No new journey stage is needed for those three; the L2 deletes are pure subtraction.</p>
+
+<h2>4. J2 journey shape — stage plan</h2>
+
+<p>3 stages covering 4 L2 deletes via new journey work; 3 additional L2 deletes ride pre-existing L3 siblings. Total L2 deletes: 7. Stages 5–6 of the clusters audit (missing readxl/jsonlite) drop from the journey because v9 demoted both to RETAIN.</p>
+
+<table>
+<thead><tr><th>stage</th><th>fixture</th><th>action + assertion</th><th>covers</th></tr></thead>
+<tbody>
+
+<tr><td>1</td><td><code class="lit">prologue-csv-upload</code> (reuse) — formula <code class="lit">ppUpload() |> ggplot(aes(x = ppVar('mpg'))) + geom_point()</code></td><td>set <code class="lit">ggplot_0_ppUpload_NA_shortcut="my_data"</code> (wait_=FALSE); <code class="lit">app$upload_file(ggplot_0_ppUpload_NA = fixtures/mtcars.csv)</code>; <code class="lit">draw(app, "ptr_update_plot")</code>; assert <code class="lit">get_value(output="ptr_code")</code> begins with <code class="lit">"my_data &lt;- read.csv("</code> AND does NOT contain <code class="lit">"_ppUpload_NA &lt;-"</code></td><td>upload-binds-under-auto-name.R:114 (typed shortcut wins over auto_name)</td></tr>
+
+<tr><td>2</td><td><code class="lit">j2-custom-source-error</code> (NEW) — fixture <code>app.R</code> registers <code class="lit">ppFailingSource</code> via <code class="lit">ptr_define_placeholder_source(keyword="ppFailingSource", resolve_data=function(file_info, node) stop("boom"), resolve_expr=function(value, node) rlang::sym("failing_ds"))</code>; <code class="lit">ptr_app("ppFailingSource() |> ggplot(aes(x = ppVar('mpg'))) + geom_point()")</code></td><td><code class="lit">app$upload_file(ggplot_0_ppFailingSource_NA = fixtures/mtcars.csv)</code>; <code class="lit">app$wait_for_idle()</code>; assert <code class="lit">app$get_html("#ptr_error")</code> (or the inline-error host) contains <code class="lit">"boom"</code> AND the downstream consumer picker <code class="lit">#ggplot_1_1_ppVar_NA</code> holds NO selection (slot(NULL) → eval_env unbound → no cols)</td><td>resolve-upload-source-helper.R:152 (resolve_data error path; slot-clear DOM-faithful via empty consumer picker)</td></tr>
+
+<tr><td>3</td><td><code class="lit">prologue-csv-upload</code> (reuse)</td><td><code class="lit">app$upload_file(ggplot_0_ppUpload_NA = fixtures/bad_extension.txt)</code>; <code class="lit">app$wait_for_idle()</code>; assert <code class="lit">app$get_html("#ptr_error")</code> contains the literal <code class="lit">"Please upload a .csv, .tsv, .rds, .xlsx, .xls, or .json file."</code> Then <code class="lit">app$upload_file(ggplot_0_ppUpload_NA = fixtures/mtcars.csv)</code>; <code class="lit">app$wait_for_idle()</code>; assert <code class="lit">app$get_html("#ptr_error")</code> no longer contains the literal (the error slot vacated when the good upload succeeded)</td><td>upload-unsupported-extension.R:23, :74 (both branches in one stage — upload bad + recover-by-good-upload)</td></tr>
+
+</tbody>
+</table>
+
+<h2>5. Fixture inventory</h2>
+
+<table>
+<thead><tr><th>fixture slug</th><th>kind</th><th>formula / scaffolding</th></tr></thead>
+<tbody>
+<tr><td><code class="lit">prologue-csv-upload</code></td><td>REUSE</td><td>Existing: <code class="lit">ptr_app("ppUpload() |> ggplot(aes(x = ppVar('mpg'))) + geom_point()")</code>. Used by stages 1 + 3. No modification.</td></tr>
+<tr><td><code class="lit">j2-custom-source-error</code></td><td>NEW</td><td><code>app.R</code> registers <code class="lit">ppFailingSource</code> with <code class="lit">resolve_data=function(file_info, node) stop("boom")</code>, <code class="lit">resolve_expr=function(value, node) rlang::sym("failing_ds")</code>, and the standard ppUpload-shaped <code>build_ui</code> hook (fileInput + textInput shortcut). Then <code class="lit">ptr_app("ppFailingSource() |> ggplot(aes(x = ppVar('mpg'))) + geom_point()")</code>. Stage 2.</td></tr>
+<tr><td><code class="lit">upload-clears-stale-cache</code></td><td>REUSE (already-covering L3)</td><td>Pre-existing L3 sibling at <code class="lit">test-upload-clears-stale-cache.R</code> already covers L2 :90 (default-arg bind via consumer-picker observation). Not driven by the new J2 journey — covered by the existing L3 file alone.</td></tr>
+</tbody>
+</table>
+
+<p>One NEW fixture (<code class="lit">j2-custom-source-error</code>). Two REUSE. Cost is lower than J12 (4 NEW) because half the J2 contracts already have L3 siblings.</p>
+
+<h2>6. Honest J2 net</h2>
+
+<p>If the user accepts this routing as written:</p>
+<ul>
+<li><strong>Delete</strong> 7 L2 blocks:
+  <ul>
+    <li><code class="lit">test-resolve-upload-source-helper.R:90</code> (NULL file_info default-arg) — covered by <code class="lit">test-upload-clears-stale-cache.R</code></li>
+    <li><code class="lit">test-resolve-upload-source-helper.R:119</code> (populated dispatch) — covered by <code class="lit">test-prologue-csv-upload.R</code></li>
+    <li><code class="lit">test-resolve-upload-source-helper.R:152</code> (resolve_data error) — covered by new J2 stage 2</li>
+    <li><code class="lit">test-upload-binds-under-auto-name.R:34</code> (empty shortcut → auto_name) — covered by <code class="lit">test-prologue-csv-upload.R</code> (the prologue LHS IS the auto_name)</li>
+    <li><code class="lit">test-upload-binds-under-auto-name.R:114</code> (typed shortcut wins) — covered by new J2 stage 1</li>
+    <li><code class="lit">test-upload-unsupported-extension.R:23</code> (bad ext → resolve_errors) — covered by new J2 stage 3</li>
+    <li><code class="lit">test-upload-unsupported-extension.R:74</code> (clear → cleared) — covered by new J2 stage 3 (recover-by-good-upload sub-assertion)</li>
+  </ul>
+</li>
+<li><strong>Keep</strong> 2 L2 blocks as unit pins:
+  <ul>
+    <li><code class="lit">test-upload.R:139</code> (missing readxl) — helper-level mocked <code>requireNamespace</code>; no DOM analog</li>
+    <li><code class="lit">test-upload.R:230</code> (missing jsonlite) — same</li>
+  </ul>
+</li>
+<li><strong>Defer</strong> 0 L2 blocks (all in-scope work either MERGEs into stages or rides existing L3).</li>
+<li><strong>Build</strong> 1 new shinytest2 journey file <code class="lit">test-j2-prologue-csv-upload-journey.R</code> with 3 stages across 2 fixtures (1 REUSE, 1 NEW).</li>
+<li><strong>Pre-existing RETAINs already moved</strong> by the clusters audit on 2026-05-27:
+  <ul>
+    <li><code class="lit">test-upload-binds-under-auto-name.R:77</code> (NULL shortcut textbox; UI can't dispatch NULL → only <code>""</code>)</li>
+    <li><code class="lit">test-resolve-upload-source-helper.R:185</code> (non-syntactic name; UI validation prevents it)</li>
+  </ul>
+  These are NOT re-touched by v9 — they remain as unit pins per the clusters audit's pre-demotion.
+</li>
+<li>Expected gate delta: 7 deletes (~17 expects total — :90 has 3, :119 has 4, :152 has 3, :34 has 3, :114 has 1, unsupported :23 has 3, :74 has 2 ≈ 19) vs +3 stages × ~3 expects ≈ +9. Net PASS delta around −10. Three zeros bar preserved. Exact delta recorded post-build.</li>
+</ul>
+
+<h2>7. Decisions the next step needs from the user</h2>
+
+<ol>
+<li><strong>Pre-existing-L3 deletes (3 rows: :90, :119, :34) — accept "ride pre-existing L3" as sufficient justification, or build duplicate stages in the J2 journey for explicit cross-reference?</strong> The pre-existing L3s already exercise the same code paths with stronger DOM observation. Adding duplicate stages in the J2 journey would be churn without coverage gain. Recommendation: <strong>accept ride</strong>. The journey file's header comment will name the covering L3 file:line per delete (same pattern as J12).</li>
+<li><strong>Stage 2 fixture <code class="lit">j2-custom-source-error</code> — accept the <code>ppFailingSource</code> registration shape (custom source whose <code>resolve_data</code> throws "boom") or reuse the existing <code class="lit">prologue-custom-source-skip</code> fixture by mutating its <code>resolve_data</code>?</strong> Reusing would couple the J2 journey to another fixture's purpose. The custom-source-error contract is its own thing — separate fixture is cleaner. Recommendation: <strong>NEW fixture</strong>.</li>
+<li><strong>Stage 3 sub-assertion: shinytest2 has no native "clear file input" (the L2 :74 uses <code>setInputs(NULL)</code>, which is testServer-only). The DOM-faithful proxy is "next good upload clears the error slot", which exercises the same <code>set_resolve_error(state, key, NULL)</code> branch.</strong> Accept the recover-by-good-upload proxy, or split :74 to MERGE-deferred until shinytest2 grows a clear-file primitive? Recommendation: <strong>accept the proxy</strong> — same branch, same observable, no behavioral gap.</li>
+<li><strong>RETAINs (:139, :230) — keep as helper-level unit pins, or attempt a fixture-level <code>assignInNamespace("requireNamespace", ...)</code> hack inside <code>app.R</code> to make them browser-driveable?</strong> The hack would prove the same wording invariant but at the cost of a fixture that bears no resemblance to real-world Shiny apps. Recommendation: <strong>RETAIN as unit pin</strong> — the wording contract is real, the trigger is helper-level, the J10/J11/J12 precedent supports this routing.</li>
+</ol>
+
+<p>None of these decisions touch product code. They shape the J2 journey + fixtures only. Once decisions land, the build is mechanical: write 1 new fixture, write the test, run the gate, delete the 7 absorbed L2 blocks in the same commit.</p>
+
+<h2>8. Pre-build gate baseline (recorded before any change)</h2>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+
+[ baseline -- 2026-05-28 00:18, duration 487.7s ]
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 3292 ]
+</pre>
+
+<p>Matches v8 post-build (3292). Three zeros confirmed. Post-build gate must match within the deletes-vs-stages delta computed above (~−10 PASS).</p>
+
+</body></html>

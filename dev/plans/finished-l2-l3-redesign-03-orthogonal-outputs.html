@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 03: orthogonal outputs + combinators (#O)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head><body>
+
+<h1>Step 03 — Orthogonal outputs + combinators (pass #O)</h1>
+<p class="meta">Phase 3 (independent of shared; parallelisable with Steps 01–02). Authority: ADR 0005 §4 · <code>CONTEXT.md</code> §"Combinator".</p>
+
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-16, branch <code>l2l3-step-03-outputs</code> @ <code>bd876c9</code> (test unskip follow-up <code>HEAD</code>).
+All Step-03-owned success criteria met; <code>devtools::document()</code> clean. <code>test-ui-pieces</code> = <strong>FAIL 1</strong> / SKIP 1 / PASS 96 — the one FAIL is the pre-existing Step 02 <code>ptr_shared_server</code>-API test, left <em>unskipped and visible</em> by request (so Step 10's suite sweep cannot miss it), not a Step 03 regression. Every Step-03 piece/combinator test passes.
+<code>ptr_ui_plot</code> is now <code>function(id = NULL)</code> (bare; formals == <code>"id"</code>); <code>ptr_ui_code_toggle</code> deleted (no alias); net-new <code>ptr_ui_inline_error</code> / <code>ptr_ui_toggle_code</code> combinators in the <code>R/paintr-app.R</code> output-piece region. Shared helpers <code>code_toggle_button()</code> / <code>code_window_tag()</code> extracted so <code>code_block_tag(style="window")</code> and <code>ptr_outputs_panel()</code> stay byte-identical — <strong>no JS change</strong> (decision: only <code>ptr_ui_toggle_code</code> owns the single <code>.ptr-output</code>; <code>ptr_ui_inline_error</code> emits none since it has no toggle — resolves the CONTEXT.md "one .ptr-output" tension).
+Plan-sanctioned deferred fallout: <code>ptr_outputs_ui</code> (hence <code>ptr_module_ui</code>/<code>ptr_app_grid</code>/<code>ptr_app_bslib</code>) still calls the removed <code>ptr_ui_code_toggle</code> → Step 05 rewires; <code>ptr_shared_server</code> API test is pre-existing Step 02 fallout → Step 10 suite sweep. Generated <code>NAMESPACE</code>/<code>man/</code> restored per constraint (Step 10 owns the doc tree); the only real NAMESPACE delta is <code>−ptr_ui_code_toggle</code> / <code>+ptr_ui_inline_error</code> / <code>+ptr_ui_toggle_code</code>.</p>
+
+<h2>Goal</h2>
+<p>Make output pieces truly bare and move behavior into nestable combinators. Remove <code>error=</code>/<code>code_toggle=</code> from <code>ptr_ui_plot</code> (<code>R/paintr-app.R:412–413</code>). Delete <code>ptr_ui_code_toggle</code> (<code>R/paintr-app.R:480–487</code>). Add <code>ptr_ui_inline_error(plot, error)</code> and <code>ptr_ui_toggle_code(plotish, code)</code>.</p>
+
+<h2>Verified mechanism (no server coupling)</h2>
+<p><code>inst/www/ggpaintr-ui.js</code> drives the toggle DOM-locally: click <code>.ptr-code-toggle</code> → nearest <code>.ptr-output</code> ancestor → toggle <code>.ptr-code-window</code>'s <code>.ptr-open</code>. Combinators only need to emit that markup. Reuse <code>plot_card_tag</code> (<code>:315</code>), <code>code_block_tag</code> (<code>:339</code>), the <code>.ptr-output</code> wrapper (<code>ptr_outputs_panel</code>, <code>~:376</code>).</p>
+
+<h2>Signatures</h2>
+<pre>ptr_ui_plot(id = NULL)                 # bare: just the plot slot. NO error=/code_toggle=
+ptr_ui_error(id = NULL)                # bare (unchanged)
+ptr_ui_code(id = NULL, style = c("panel","window"))  # bare (unchanged)
+ptr_ui_inline_error(plot, error)       # -> .ptr-output card with error inline
+ptr_ui_toggle_code(plotish, code)      # -> wraps plotish + code; code behind </> toggle
+# nest: ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot(id), ptr_ui_error(id)), ptr_ui_code(id))</pre>
+
+<h2>Success criteria</h2>
+<ul>
+<li><code>ptr_ui_plot</code> arity is <code>function(id = NULL)</code> — no behavior flags. Grep shows no remaining <code>error=</code>/<code>code_toggle=</code> callers except the new combinators / Step 05.</li>
+<li><code>ptr_ui_code_toggle</code> removed from <code>NAMESPACE</code> and source; its only internal caller (<code>ptr_outputs_ui</code>) is itself removed in Step 05's prerequisite or rewired there.</li>
+<li>Combinators are nestable and return a single tag; the innermost <code>plotish</code> may be a bare <code>ptr_ui_plot()</code> or the output of <code>ptr_ui_inline_error()</code>.</li>
+<li>Snapshot test: <code>ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p")), ptr_ui_code("p"))</code> produces DOM with one <code>.ptr-output</code>, a <code>.ptr-code-toggle</code> and a <code>.ptr-code-window</code> sharing it, and ids <code>p-ptr_plot</code>/<code>p-ptr_error</code>/<code>p-ptr_code</code> — i.e. functionally equivalent to the deleted <code>ptr_ui_code_toggle("p")</code>.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>Pure DOM helpers — no <code>session</code>, no reactivity, no change to the server-registered ids (<code>ptr_plot</code>/<code>ptr_error</code>/<code>ptr_code</code>).</li>
+<li>Must not require the bundled JS to change. If the existing JS scoping (<code>closest('.ptr-output')</code>) cannot resolve a nested composition, fix the markup, not the JS — and document why.</li>
+<li>No deprecation alias for <code>ptr_ui_code_toggle</code>.</li>
+<li>Do not touch <code>ptr_module_ui</code> internals here (Step 05 consumes these combinators).</li>
+<li><strong>Generated files are deferred.</strong> Run <code>devtools::document()</code> as a local verify check only — it must stay clean — but do <strong>not</strong> commit the regenerated <code>NAMESPACE</code>/<code>man/*.Rd</code> on this feature branch (<code>git restore NAMESPACE man/</code> before committing). Step 10 is the global doc gate and owns the committed doc tree; per-branch commits of generated output are the sole source of cross-step <code>NAMESPACE</code>/<code>man/*.Rd</code> merge conflicts (this step is the <em>only</em> one of 03/04/06 with a real <code>NAMESPACE</code> delta — the <code>ptr_ui_code_toggle</code> removal + two combinator exports — and <code>man/ptr_ui_controls.Rd</code> overlaps Step 04). <code>devtools::test()</code> uses <code>load_all()</code> and needs no committed <code>NAMESPACE</code>, so the per-branch test gate still passes.</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: Compose the output region from bare pieces
+
+  Scenario: Bare plot has no behavior flags
+    Given the exported ptr_ui_plot
+    When its formals are inspected
+    Then they are exactly ("id")
+      And calling ptr_ui_plot("p") yields a plot slot with id "p-ptr_plot" and no toggle button
+
+  Scenario: Toggle-code combinator reproduces the old composite
+    Given ui &lt;- ptr_ui_toggle_code(ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p")), ptr_ui_code("p"))
+    Then the HTML has one ".ptr-output" containing both a ".ptr-code-toggle" and a ".ptr-code-window"
+      And it carries ids "p-ptr_plot", "p-ptr_error", "p-ptr_code"
+      And it is DOM-equivalent to the (now-removed) ptr_ui_code_toggle("p")
+
+  Scenario: Toggle works in the browser without server wiring
+    Given the composed UI mounted in a page that includes the asset bundle
+    When the user clicks the ".ptr-code-toggle" button
+    Then the sibling ".ptr-code-window" gains class "ptr-open"
+      And no Shiny input/output is required for this
+
+  Scenario: Inline-error alone (no code)
+    Given ui &lt;- ptr_ui_inline_error(ptr_ui_plot("p"), ptr_ui_error("p"))
+    Then it renders the plot card with the error region inline
+      And it contains no ".ptr-code-toggle"</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::document(); devtools::test(filter="ui-pieces")'
+# document() here is a VERIFY check (must be clean), not a commit:
+# `git restore NAMESPACE man/` before committing this branch — Step 10 owns the doc tree.</pre>
+</body></html>

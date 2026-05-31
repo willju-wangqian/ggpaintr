@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-06 — Spec round-trip fallback to bound_names (from ADR 0025)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 06
+  slug: spec-roundtrip-bound-names-fallback
+  source_adr: dev/adr/0025-source-shortcut-rename-and-upload-auto-name.html
+  depends_on: [01, 02]
+  parallel_group: G3
+  status: draft
+-->
+
+<h1>PLAN-06 — Spec round-trip fallback to bound_names</h1>
+<p class="meta">Source: ADR 0025 §6 + Worked example #3 · Depends on: 01, 02 · Parallel group: G3 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0025 §6 specifies that <code>ptr_runtime_input_spec()</code>'s source-placeholder dump path (the snapshot writer that produces <code>spec[[shortcut_id]]</code>) falls back to <code>state$bound_names[[key]]()</code> when the textbox is empty AND a bound name is available:</p>
+
+<pre><code># R/paintr-input-spec.R, source-placeholder branch with `shortcut = TRUE`
+val &lt;- input[[shortcut_id]] %||% ""
+if (!nzchar(val)) {
+  bound &lt;- state$bound_names[[key]]()
+  if (!is.null(bound)) val &lt;- bound
+}
+spec[[shortcut_id]] &lt;- val
+</code></pre>
+
+<p>Reproducing a session = the consumer runs <code>&lt;auto-name&gt; &lt;- read.csv("...")</code> (the prologue from Plan 04) in their R session, then <code>ptr_app(formula, spec = list(...))</code>. The spec seeds the textbox at boot with the auto-name; resolution finds <code>&lt;auto-name&gt;</code> via env shortcut. Equivalent to running <code>ppUpload(&lt;auto-name&gt;)</code> as the formula — the spec is the bridge between live upload state and reproducible env-resident state. The actual snapshot-write site in this codebase is <code>R/paintr-server.R:1521–1525</code> (the per-row snapshot loop) plus the panel-shared snap update at <code>R/paintr-server.R:2371–2382</code>.</p>
+
+<h2>Governing principle</h2>
+<p>The spec is the round-trip contract — a value dumped by <code>ptr_runtime_input_spec()</code> must, when supplied as <code>spec = …</code> to a fresh <code>ptr_app()</code> with the same formula and caller-env bindings, reproduce the rendered plot. Group 3 (the deployed-app consumer who uploaded a file) and Group 1 (the formula author who reproduces it from disk) live on opposite ends of this bridge; the dumped <code>spec[[shortcut_id]]</code> value is the only handle between them. If the dump records "" when the user has actually uploaded a file, the bridge is broken. Naming the WHY: ADR 0010's <code>ppUpload(name)</code> form already establishes that "shortcut textbox seed = env name to look up"; ADR 0025 §6 extends that contract to the spec round-trip so the same name flows through dump→seed→resolve.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>After a user uploads a file (no text in shortcut textbox), <code>state$spec()</code> returns a list containing the entry <code>&lt;ns(shortcut_id)&gt; = &lt;node$auto_name&gt;</code> (a single character string equal to the auto-name) — NOT <code>""</code>, NOT absent. Verified by <code>test-spec-roundtrip-bound-names-fallback.R</code> using a <code>shinytest2</code> case that uploads, clicks Update, and inspects <code>app$get_value(output = "ptr_code")</code> in <code>"spec"</code> mode (the rendered spec text contains the auto-name string).</li>
+  <li>When the textbox has a user-typed value (e.g. <code>"mtcars"</code>) and <code>state$bound_names[[key]]()</code> is also non-NULL, the dumped spec value is <code>"mtcars"</code> (textbox wins over bound-name fallback). Verified by the same test.</li>
+  <li>When the textbox is empty AND <code>state$bound_names[[key]]()</code> is NULL (no upload, no bind), the dumped spec value is <code>""</code> or the entry is dropped via the sparse-diff (matches today's behaviour). Verified by <code>test-spec-roundtrip-empty.R</code>.</li>
+  <li>ADR Example 3 round-trip: a session's spec dump <code>list(&lt;ns(shortcut_id)&gt; = "ggplot_1_0_ppUpload_NA")</code>, when supplied to a fresh <code>ptr_app(formula, spec = ...)</code> with <code>ggplot_1_0_ppUpload_NA &lt;- read.csv("...")</code> in the caller env, boots with the shortcut textbox seeded to <code>"ggplot_1_0_ppUpload_NA"</code> AND the env-shortcut resolves the caller-env frame AND the plot renders. Verified by <code>test-spec-roundtrip-end-to-end.R</code> using two shinytest2 boots (boot-1 uploads a file and exports the spec via <code>app$get_value(output = "ptr_code")</code>; boot-2 supplies that spec + the env binding and asserts the plot renders).</li>
+  <li>For panel-shared sources, the panel-side snap update at <code>R/paintr-server.R:2371–2382</code> also applies the bound-name fallback (so multi-coordinator apps round-trip too). Verified by <code>test-spec-roundtrip-shared.R</code>.</li>
+  <li>Full authoritative gate (Definition of Done) shows FAIL 0 / WARN 0 / SKIP 0.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns:
+    <ul>
+      <li><code>R/paintr-server.R</code> — modify the snapshot-write loop at lines ~1518–1525 (inside <code>ptr_setup_runtime()</code>'s <code>observe</code> block). After the raw read <code>snapshot[[raw_id]] &lt;- input[[ns(raw_id)]]</code>, for rows whose role is <code>"source_companion"</code>: if the read value is NULL or empty-string AND the corresponding <code>state$bound_names[[key]]()</code> is non-NULL, overwrite <code>snapshot[[raw_id]]</code> with the bound name. The mapping from <code>raw_id</code> (the companion id) to <code>key</code> (the source's <code>node$id</code>) goes through the existing <code>spec$source_id</code> linkage in <code>state$input_spec</code>.</li>
+      <li><code>R/paintr-server.R</code> — apply the same fallback to the panel-shared snap update at lines ~2366–2387 (the <code>snap[[psn$shortcut_id]] &lt;- bname</code> path — post-Plan-01 rename; the current source still reads <code>psn$companion_id</code>) so coordinator-eval-env-bound auto-names also flow into the spec.</li>
+      <li>New tests:
+        <ul>
+          <li><code>tests/testthat/test-spec-roundtrip-bound-names-fallback.R</code> — upload → empty textbox → spec dump contains the auto-name.</li>
+          <li><code>tests/testthat/test-spec-roundtrip-empty.R</code> — no upload + empty textbox → "" or dropped (matches today).</li>
+          <li><code>tests/testthat/test-spec-roundtrip-end-to-end.R</code> — ADR Example 3 two-boot round-trip.</li>
+          <li><code>tests/testthat/test-spec-roundtrip-shared.R</code> — coordinator-bound auto-name flows through the panel-shared snap path.</li>
+        </ul>
+      </li>
+    </ul>
+  </li>
+  <li>Files this plan must NOT touch:
+    <ul>
+      <li>Auto-name derivation (Plan 02), UI mutex (Plan 03), prologue (Plan 04), vacate-on-empty + debounce (Plan 05), docs (Plan 07).</li>
+      <li><code>R/paintr-input-spec.R</code>'s <code>ptr_runtime_input_spec()</code> tree-walker — that function returns the input schema (a data.frame of which inputs exist); the value-dump fallback belongs in the snapshot loop, NOT in the schema walker. ADR §6's pseudocode is illustrative; the actual write site is <code>R/paintr-server.R:1521–1525</code> / <code>2371–2382</code>. (The drift audit will flag this.)</li>
+      <li>The sparse-diff helper (<code>ptr_spec_from_snapshot</code> at <code>R/paintr-server.R:391</code>) — its contract is unchanged; this plan only changes what value lands in <code>snapshot</code> for the companion rows before the diff runs.</li>
+      <li>Generated <code>man/*.Rd</code> — integration step.</li>
+    </ul>
+  </li>
+  <li>The fallback reads <code>state$bound_names[[key]]()</code> reactively in production (inside the <code>observe</code>'s isolate block that already wraps the snapshot loop). Plan 05's A1 makes <code>bound_names[[key]]()</code> return NULL after a vacate — the fallback then leaves <code>snapshot[[raw_id]]</code> as <code>""</code>, which the sparse-diff drops; matches the "empty after vacate" criterion above.</li>
+  <li>The <code>key</code> for a source row is its <code>node$id</code> (the source's own id), distinct from the <code>raw_id</code> (the companion id == <code>node$shortcut_id</code>). Use the existing <code>spec$source_id</code> column to map companion-row → source-id.</li>
+  <li>SCOPE NARROWING FORBIDDEN. Do not gate the fallback on "only when the value didn't come from a spec= seed" — both paths must fall back, by design.</li>
+  <li>Conventions: snake_case, 2-space indent, <code>%||%</code> guard for the NULL companion row case.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+
+<pre>
+Feature: Spec round-trip falls back to bound_names (ADR 0025 §6)
+
+Scenario: upload with empty textbox dumps the auto-name into spec
+  Given a `ppUpload() |&gt; ggplot(aes(x = ppVar('mpg'))) + geom_point()` app
+   When the user uploads `mtcars.csv` and clicks Update (textbox stays "")
+   Then `state$spec()[[ns(node$shortcut_id)]]` equals node$auto_name (a non-empty character string)
+
+Scenario: typed textbox wins over bound-name fallback
+  Given the user typed "my_data" into the shortcut textbox
+    And state$bound_names[[node$id]]() is non-NULL (a prior upload's auto-name)
+   When state$spec() reactive fires
+   Then `state$spec()[[ns(node$shortcut_id)]]` equals "my_data" (NOT the prior bound-name)
+
+Scenario: no upload + empty textbox produces no spec entry
+  Given the user has not interacted with the source surface
+   When state$spec() reactive fires
+   Then the spec list either has no entry for node$shortcut_id OR the entry is "" (and is dropped by the sparse diff)
+
+Scenario: ADR worked example #3 — full round-trip via auto-name
+  Given a boot-1 session ends with state$bound_names[[node$id]] = "ggplot_1_0_ppUpload_NA"
+    And ptr_runtime_input_spec() (via state$spec()) was dumped to obtain `spec_round_trip`
+   When a boot-2 session calls `ptr_app(formula, spec = spec_round_trip)` with `ggplot_1_0_ppUpload_NA &lt;- read.csv("penguins.csv")` in caller env
+   Then the shortcut textbox at boot-2 reads "ggplot_1_0_ppUpload_NA"
+    And the env-shortcut path resolves the caller-env frame
+    And the rendered plot at boot-2 is identical to boot-1's rendered plot (same data, same aesthetics)
+
+Scenario: panel-shared source round-trip
+  Given a `ptr_shared(list(f1, f2), id = "main")` coordinator with `ppUpload(shared = 'ds')`
+    And the user uploads to the panel and the textbox stays ""
+   When state$spec() fires
+   Then the dumped value at the namespaced shortcut id equals "main_ds" (NOT "")
+</pre>
+
+<h2>Worked-example coverage</h2>
+
+<pre>
+| ADR anchor                                                     | kind     | summary (one line)                                                                                       | Scenario in this plan                                          |
+|----------------------------------------------------------------|----------|----------------------------------------------------------------------------------------------------------|----------------------------------------------------------------|
+| Worked examples — what becomes possible #3                     | positive | Spec round-trip reproduces an uploaded-data session: dump auto-name from boot-1 + seed boot-2 + env bind. | ADR worked example #3 — full round-trip via auto-name          |
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see <code>CLAUDE.md</code> §"Authoritative gate (Definition of Done)". Same command, same proxy-trap list.</p>
+
+<p><strong>Plan-specific gate risks</strong>: the end-to-end test uses two shinytest2 boots in one test (project memory <code>shinytest2-appdir-pkgload</code>). Re-run before attribution.</p>
+
+<p>This plan adds 4 new test files. Expected PASS delta ≥ 6 cases with FAIL/ERROR/SKIP still 0.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns the files listed under Constraints. Generated <code>man/*.Rd</code> are owned by the integration step.</p>
+<p>Branch convention: this plan lives on branch <code>0025-spec-roundtrip-bound-names-fallback</code> in a worktree at <code>.claude/worktrees/0025-source-shortcut-rename-and-upload-auto-name/spec-roundtrip-bound-names-fallback/</code>. Merge into the orchestrator branch via <code>--no-ff</code> after Plan 02 lands.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch with Plans 01 and 02 merged. e2e flake list per project memory <code>shinytest2-appdir-pkgload</code>.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. Specifically: the prologue text (Plan 04) is used by the round-trip workflow's human-side; it is not produced by this plan.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: 01 (the panel-snap field name flips from <code>psn$companion_id</code> to <code>psn$shortcut_id</code> via Plan 01's rename — Plan 06 reads the renamed field), 02 (the fallback writes <code>node$auto_name</code> equivalents — <code>state$bound_names[[key]]()</code> returns the auto-name Plan 02 wrote). Provides for: 07 (vignettes describing the round-trip workflow). May parallelise with Plans 04 and 05 in G3 since the touched regions of <code>R/paintr-server.R</code> are disjoint (Plan 06 owns the snapshot-write loop region; Plan 04 owns format_code_with_extras; Plan 05 owns resolve_upload_source no-file branch + debounce wrap).</p>
+
+<!-- implementable: PASS date=2026-05-26 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=0b47cf51cdc5 -->
+</body>
+</html>

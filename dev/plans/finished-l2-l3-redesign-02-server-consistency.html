@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<title>L2/L3 redesign — Step 02: partition consistency UI↔server (#P2)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head><body>
+
+<h1>Step 02 — Partition consistency UI↔server (pass #P2)</h1>
+<p class="meta">Phase 2. Depends on: Step 01. Authority: ADR 0005 · <code>CONTEXT.md</code> §"Shared coordinator". This is a <strong>correctness invariant</strong>, not a feature.</p>
+
+<p style="border-left:4px solid #2c7;background:#eafaf0;padding:.6rem .9rem;margin:.8rem 0">
+<strong>✅ COMPLETE</strong> — 2026-05-16, branch <code>vignette-review</code> @ <code>30b24ca</code>.
+All success criteria met. <code>ptr_shared_server(obj)</code> now builds <code>shared</code> reactives over <code>obj$panel_keys</code> only (single source of truth — partition consumed, not re-derived); formula-local keys are self-bound per module inside <code>moduleServer</code> (mirrors single-plot <code>ptr_app()</code>; <code>auto_bind_shared</code> alone only relaxes the validator). <code>ptr_module_server</code>'s missing-key path is silent on the <code>shared_state</code> convenience path (formula-local by construction) and keeps a reworded heads-up only on the raw escape hatch. Bundle shape + <code>validate_ptr_shared_state()</code> unchanged; <code>shared_resolutions</code>/<code>shared_stage_enabled</code> left whole-spec (decided). Verify gate green: <code>devtools::test(filter="shared")</code> = 0 fail / 0 error / 164 pass / 4 skip (the 4 are <code>ptr_app_grid</code>-dependent, explicitly deferred to Step 06). New <code>test-shared-server-partition.R</code> (22 assertions) encodes all three BDD scenarios via app-level <code>testServer</code>; <code>test-shared-lockstep-shinytest2.R</code> verifies the two Step-02 DOM facts in a real browser (exactly one <code>#shared_B</code>; no bare <code>#shared_A</code> in the standalone panel) — passes with <code>shinytest2</code> installed, skips cleanly without it. The UI half of BDD scenario 2 (formula-local key rendered under its module) is correctly deferred to Steps 04/05 per the "No UI work here" constraint; its server half is covered by the always-run testServer S-P2.2. Full-suite diff vs. Step 01 baseline: <strong>zero regressions</strong> (the 32 non-shared reds are pre-existing Step-01 fallout owned by Steps 05/06/10).</p>
+
+<h2>Goal</h2>
+<p>Make <code>ptr_shared_server(obj)</code> derive the <em>same</em> partition Step 01 computed, and make <code>ptr_module_server</code>'s <code>shared_state</code> path (<code>R/paintr-app.R:801–874</code>) mirror <strong>only</strong> the formula-local keys for that formula. Cross-formula keys are owned solely by the top-level <code>ptr_shared_server</code>. The returned <code>ptr_shared_state</code> bundle and the <code>ptr_module_server(shared_state=)</code> downstream contract are otherwise unchanged.</p>
+
+<h2>Success criteria</h2>
+<ul>
+<li><code>ptr_shared_server(obj)</code> (was <code>ptr_shared_server(formulas, ...)</code>, <code>R/paintr-shared-ui.R:338+</code>) reads the partition from <code>obj</code> — it must not re-derive it independently.</li>
+<li>For a key in <code>obj$panel_keys</code>: exactly one reactive source exists (top-level <code>ptr_shared_server</code>); no per-module mirror is created for it.</li>
+<li>For a formula-local key: it is driven by that formula's own server (the inline section), never by the panel.</li>
+<li>Bundle shape (<code>{shared, draw_trigger, shared_resolutions, shared_stage_enabled}</code>) and <code>validate_ptr_shared_state()</code> unchanged.</li>
+<li>2-formula integration test green (below).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+<li>Do not duplicate the partition algorithm — consume <code>obj</code> (single source of truth, ADR 0005). If <code>ptr_shared_server</code> and <code>ptr_shared()</code> disagree, that is a bug, not a tunable.</li>
+<li>Preserve global ids (<code>shared_&lt;key&gt;</code>, <code>ptr_shared_draw_all</code>, <code>ptr_shared_errors</code>) and that <code>ptr_shared_server</code> runs at the top level (never inside <code>moduleServer</code>).</li>
+<li>No change to <code>ptr_server</code>'s public signature.</li>
+<li>No UI work here (Steps 01/04/05 own UI).</li>
+</ul>
+
+<h2>BDD</h2>
+<div class="bdd">Feature: One widget per shared key, correctly scoped
+
+  Scenario: Cross-formula key drives both plots in lockstep
+    Given f1 = "...x = var(shared='B')... y=Sepal.Length"
+      And f2 = "...x = var(shared='B')... y=Sepal.Width"
+      And obj &lt;- ptr_shared(formulas = list(f1, f2))
+      And a running app: ptr_shared_panel(obj) + two modules id "p1"/"p2"
+      And ptr_shared_server(obj) at top level; ptr_module_server("p1",f1,shared_state=.) and ("p2",f2,...)
+    When the user changes the panel widget "shared_B"
+    Then both p1 and p2 re-render against the new B value
+      And there is exactly one input element with id "shared_B" in the DOM
+
+  Scenario: Formula-local key is module-scoped, not in the panel
+    Given f1 additionally uses num(shared='A') (A absent from f2)
+    When the app renders
+    Then "A" appears in p1's inline section namespaced under "p1"
+      And "shared_A" does NOT appear in the standalone panel
+      And changing it re-renders only p1
+
+  Scenario: Server partition matches UI partition
+    Given obj from f1/f2 (panel_keys = "B")
+    When ptr_shared_server(obj) initialises
+    Then it creates a shared reactive for "B" only
+      And it creates no shared reactive for "A" or "C"</div>
+
+<h2>Verify</h2>
+<pre>Rscript -e 'devtools::test(filter="shared")'   # incl. a new 2-formula lockstep test (testServer or shinytest2)</pre>
+<p class="meta">Note: per project memory, a bare <code>ptr_server</code> <code>testServer</code> is not a faithful proxy for <code>ptr_app</code> wiring — use an app-level harness for the lockstep scenario.</p>
+</body></html>

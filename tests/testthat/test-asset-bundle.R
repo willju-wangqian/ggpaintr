@@ -16,7 +16,7 @@ linked_csses <- function(html) {
   sub('.*href="([^"]+\\.css)".*', "\\1", m)
 }
 
-fixture_formula <- "ggplot(mtcars, aes(x = var, y = var)) + geom_point()"
+fixture_formula <- "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 
 write_temp_css <- function() {
   dir <- withr::local_tempdir(.local_envir = parent.frame())
@@ -31,8 +31,8 @@ mount_calls <- function(css = NULL) {
   # standalone panel is ptr_shared_panel(obj, css=). Bare L3 pieces are
   # assetless and not enumerated here.
   shared_obj <- ptr_shared(list(
-    "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))",
-    "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))"
+    "ggplot(mtcars) + geom_point(aes(x = ppVar(shared = \"x\")))",
+    "ggplot(mtcars) + geom_point(aes(x = ppVar(shared = \"x\")))"
   ))
   list(
     ptr_app          = ptr_app_components(fixture_formula, css = css)$ui,
@@ -101,8 +101,8 @@ test_that("ptr_shared_panel accepts css = path", {
   f <- write_temp_css()
   ui <- ptr_shared_panel(
     ptr_shared(list(
-      "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))",
-      "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))"
+      "ggplot(mtcars) + geom_point(aes(x = ppVar(shared = \"x\")))",
+      "ggplot(mtcars) + geom_point(aes(x = ppVar(shared = \"x\")))"
     )),
     css = f
   )
@@ -128,8 +128,8 @@ test_that("grid path emits user css exactly once (no double link via shared_ui)"
   f <- write_temp_css()
   parts <- ptr_app_grid_components(
     list(
-      "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))",
-      "ggplot(mtcars) + geom_point(aes(x = var(shared = \"x\")))"
+      "ggplot(mtcars) + geom_point(aes(x = ppVar(shared = \"x\")))",
+      "ggplot(mtcars) + geom_point(aes(x = ppVar(shared = \"x\")))"
     ),
     css = f
   )

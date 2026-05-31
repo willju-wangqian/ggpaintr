@@ -21,8 +21,8 @@ focused example instead of the entire manual.
 }
 \details{
 Each topic is derived from (and kept in sync with) either
-\code{README.Rmd} or one of the post-rewrite vignettes
-(\code{ggpaintr-use-cases}, \code{ggpaintr-customization}).
+\code{README.Rmd} or the tutorial vignette
+(\code{ggpaintr-tutorial}).
 }
 \examples{
 cat(ptr_llm_topic("level1_ptr_app"))

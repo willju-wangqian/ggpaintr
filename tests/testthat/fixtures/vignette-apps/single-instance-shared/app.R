@@ -4,10 +4,10 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-use-cases.Rmd chunk `single-instance-shared` >>>
+# >>> verbatim: archive/retired_vignettes/ggpaintr-use-cases.Rmd chunk `single-instance-shared` >>>
 # One instance, one key used twice: the widget auto-renders inline. No coordinator.
 ptr_app(
-  "ggplot(iris, aes(x = var(shared = 'col'), y = var - var(shared = 'col'),
+  "ggplot(iris, aes(x = ppVar(shared = 'col'), y = ppVar - ppVar(shared = 'col'),
                     color = Species)) + geom_point()"
 )
 # <<<

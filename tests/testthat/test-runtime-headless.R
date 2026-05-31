@@ -32,10 +32,10 @@ test_that("ptr_run_formula handles bar + facet formulas", {
 })
 
 test_that("ptr_run_formula resolves a `var` chain from supplied inputs", {
-  fml <- "ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()"
+  fml <- "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
   res <- ptr_run_formula(
     fml,
-    inputs = list(ggplot_1_1_var_NA = "mpg", ggplot_1_2_var_NA = "hp"),
+    inputs = list(ggplot_1_1_ppVar_NA = "mpg", ggplot_1_2_ppVar_NA = "hp"),
     envir = .headless_env()
   )
   expect_true(isTRUE(res$ok))
@@ -44,12 +44,12 @@ test_that("ptr_run_formula resolves a `var` chain from supplied inputs", {
   expect_match(res$code_text, "y = hp")
 })
 
-test_that("ptr_run_formula completes a `labs(title = text())` formula with defaults", {
+test_that("ptr_run_formula completes a `labs(title = ppText())` formula with defaults", {
   res <- ptr_run_formula(
-    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + labs(title = text())",
+    "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + labs(title = ppText())",
     envir = .headless_env()
   )
-  # text() with no supplied value is pruned -> the labs() call drops out.
+  # ppText() with no supplied value is pruned -> the labs() call drops out.
   expect_true(isTRUE(res$ok))
   expect_s3_class(res$plot, "ggplot")
 })
@@ -65,10 +65,10 @@ test_that("ptr_run_formula reports a failed plot render (missing required aes)",
 })
 
 test_that("ptr_run_formula catches a disallowed `expr` value at the complete stage", {
-  fml <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + ggtitle(label = expr())"
+  fml <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + ggtitle(label = ppExpr())"
   res <- ptr_run_formula(
     fml,
-    inputs = list(ggtitle_1_expr_NA = 'system("echo hi")'),
+    inputs = list(ggtitle_1_ppExpr_NA = 'system("echo hi")'),
     envir = .headless_env()
   )
   expect_false(isTRUE(res$ok))
@@ -78,7 +78,7 @@ test_that("ptr_run_formula catches a disallowed `expr` value at the complete sta
   # ...and an allowed value flows through to the rendered code.
   ok <- ptr_run_formula(
     fml,
-    inputs = list(ggtitle_1_expr_NA = '"My title"'),
+    inputs = list(ggtitle_1_ppExpr_NA = '"My title"'),
     envir = .headless_env()
   )
   expect_true(isTRUE(ok$ok))
@@ -86,7 +86,7 @@ test_that("ptr_run_formula catches a disallowed `expr` value at the complete sta
 })
 
 test_that("ptr_default_snapshot defaults checkboxes/stage toggles on, others NULL", {
-  tree <- ptr_translate("ggplot(data = mtcars, aes(x = var, y = var)) + geom_point()")
+  tree <- ptr_translate("ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
   spec <- ptr_runtime_input_spec(tree)
   snap <- ptr_default_snapshot(spec, tree)
   expect_true(all(spec$input_id %in% names(snap)))

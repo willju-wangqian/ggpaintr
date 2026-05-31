@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-02 — snapshot + UI readers honor default_active / default_stage_enabled (from ADR 0020)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 02
+  slug: readers-honor-new-fields
+  source_adr: dev/adr/0020-pp-layer-off-pp-verb-off-toggles.html
+  depends_on: [01]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-02 — snapshot + UI readers honor <code>default_active</code> / <code>default_stage_enabled</code></h1>
+<p class="meta">Source: ADR 0020 (Decision §4-§5, Verified facts 2, 3, 4) · Depends on: 01 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+<p>Plan 01 stamps <code>default_active</code> on <code>ptr_layer</code> from <code>ppLayerOff(..., hide=)</code> and <code>default_stage_enabled</code> on <code>ptr_call</code> from <code>ppVerbOff(..., hide=)</code>. Until reader sites consume those fields, the formula-side metadata has no effect — the snapshot still hardcodes <code>TRUE</code> for stage checkboxes (<code>R/paintr-headless.R:110</code>) and consults <code>checkbox_defaults</code> for layer checkboxes (<code>R/paintr-headless.R:98, 102-106</code>); the UI still routes through <code>resolve_layer_default()</code> for the layer checkbox (<code>R/paintr-build-ui.R:144-145</code>) and hardcodes <code>TRUE</code> for both stage-checkbox call sites (<code>R/paintr-build-ui.R:230-232</code> per-layer; <code>R/paintr-build-ui.R:486-488</code> shared); <strong>and</strong> <code>ptr_init_state()</code> in <code>R/paintr-server.R:136-142</code> resolves <code>resolved_cd</code> from <code>checkbox_defaults</code>, stuffs it into <code>state$checkbox_defaults</code> (line 236), and <code>ptr_spec_defaults_from_state()</code> at <code>R/paintr-server.R:329-348</code> reads <code>state$checkbox_defaults</code> to seed the diff baseline used by spec emission. (<strong>ADR 0020 enumerated only the two snapshot/UI sites; this server-side reader is a third site found during plan carving — same logical role, must learn the new field for the same correctness reason.</strong>)</p>
+
+<p>This plan teaches all reader sites to honor the new node-level fields. <code>checkbox_defaults</code> consultation is dropped from the snapshot, from the layer-checkbox UI <em>at the read site</em>, and from <code>ptr_init_state()</code> + <code>ptr_spec_defaults_from_state()</code>. <code>state$checkbox_defaults</code> as a state field is removed (no remaining consumers). The <code>checkbox_defaults =</code> formal across the public API surface is <strong>not</strong> removed here (Plan 04). After this plan merges, <code>checkbox_defaults =</code> still appears in signatures and is silently ignored; this is the deprecation half-step.</p>
+
+<p><strong>Drift risk this plan must close:</strong> all four sites must read the same node-level field. If only some learn, snapshot ↔ UI disagree at boot — and that disagreement is exactly what ADR 0020's Risk §1 names as the highest-priority regression class.</p>
+
+<h2>Governing principle</h2>
+<p><strong>One field, all readers.</strong> A node-level default field on a translated tree node is a single source of truth — it MUST be read identically by every consumer that decides the boot value of the corresponding widget. The snapshot (which seeds the initial reactive state and decides spec-emission diffs) and the UI emitter (which decides what the user first sees in the rendered checkbox) read the same field, in the same way, with the same fallback (<code>%||% TRUE</code>). Anything that lets a layer's snapshot value disagree with its checkbox's rendered value violates the ADR's Risk §1 invariant and produces a boot-time UI/state mismatch that no other layer in the stack can repair.</p>
+
+<p>Corollary: this plan does not "fix bugs" in <code>checkbox_defaults</code> consultation — it removes that consultation from these reader sites entirely. <code>checkbox_defaults</code>'s formal argument lingers (Plan 04 removes it from the public surface) but no read site this plan owns reads from it after merge. Mixing the old and new mechanisms produces split state and re-introduces exactly the side-channel inconsistency ADR 0020 was written to eliminate.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC1 — Snapshot honors <code>default_active</code> for layer_checkbox.</strong> Given a translated tree where layer "geom_point" has <code>default_active = FALSE</code>, <code>ptr_default_snapshot(spec, tree)</code>'s entry for <code>"geom_point_checkbox"</code> equals <code>FALSE</code>. Layers without a <code>default_active</code> field (or with <code>NULL</code>) default to <code>TRUE</code>. Verified by <code>testthat::test_file("tests/testthat/test-pp-off-readers.R")</code>; expected new <code>PASS &gt;= 2</code> for these.</li>
+
+  <li><strong>SC2 — Snapshot honors <code>default_stage_enabled</code> for stage_enabled.</strong> Given a translated tree where the stage <code>"ggplot_&lt;path&gt;_stage_enabled"</code> carries a <code>ptr_call</code> with <code>default_stage_enabled = FALSE</code>, <code>ptr_default_snapshot(spec, tree)</code>'s entry for that <code>stage_id</code> equals <code>FALSE</code>. Stage <code>ptr_call</code>s without the field (or with <code>NULL</code>) default to <code>TRUE</code>. Verified by <code>testthat::test_file("tests/testthat/test-pp-off-readers.R")</code>; expected new <code>PASS &gt;= 2</code>.</li>
+
+  <li><strong>SC3 — Snapshot no longer consults <code>checkbox_defaults</code> for layer_checkbox.</strong> <code>ptr_default_snapshot(spec, tree, checkbox_defaults = list(geom_point = FALSE))</code> returns the same value for <code>"geom_point_checkbox"</code> as <code>ptr_default_snapshot(spec, tree)</code> — i.e. the <code>checkbox_defaults</code> argument has no effect at the snapshot site. Verified by <code>expect_equal()</code> over both calls in <code>tests/testthat/test-pp-off-readers.R</code>.</li>
+
+  <li><strong>SC4 — Layer-checkbox UI honors <code>node$default_active</code>.</strong> The UI emitted by <code>ptr_app(ggplot() + ppLayerOff(geom_point(), TRUE))</code> renders the <code>"geom_point_checkbox"</code> input with <code>value = FALSE</code>. The check site is <code>R/paintr-build-ui.R:144-145</code>; after this plan, <code>default_on &lt;- isTRUE(node$default_active %||% TRUE)</code> (or equivalent) — <strong>no <code>checkbox_defaults</code> consultation here</strong>. Verified by <code>tests/testthat/test-pp-off-readers.R</code> using <code>build_layer_ui()</code> directly (or any internal helper that returns the constructed <code>shiny::checkboxInput</code> tag list, asserting <code>tag$attribs$value == "FALSE"</code> on the relevant input).</li>
+
+  <li><strong>SC5 — Per-layer Data-panel stage-checkbox UI honors <code>default_stage_enabled</code>.</strong> Given a formula <code>ggplot(mtcars |&gt; ppVerbOff(mutate(x = 1), TRUE), aes(x = mpg, y = wt)) + geom_point()</code>, the per-layer Data-panel stage block for the ggplot layer renders its <code>controllable_region(..., default_on = ...)</code> with <code>default_on = FALSE</code>. Verified by inspecting the rendered UI structure (or by calling the entry-builder <code>find_layer_placeholders_with_stage()</code> directly and asserting the entry shape now carries <code>default_stage_enabled = FALSE</code>) in <code>tests/testthat/test-pp-off-readers.R</code>.</li>
+
+  <li><strong>SC6 — Shared-stage UI honors <code>default_stage_enabled</code>.</strong> Given a formula <code>ggplot(mtcars |&gt; ppVerbOff(filter(ppVar(shared = "v") &gt; 0), TRUE), aes(x = ppVar(shared = "v"))) + geom_point()</code> (i.e. a shared-only orphan stage), the shared-section <code>controllable_region()</code> for that stage is rendered with <code>default_on = FALSE</code>. Verified by inspecting <code>collect_orphan_shared_stages(tree)</code>'s emitted record shape (now carries <code>default_stage_enabled</code>) and the consumer's <code>default_on</code> wiring in <code>tests/testthat/test-pp-off-readers.R</code>.</li>
+
+  <li><strong>SC7 — End-to-end: snapshot agrees with UI value.</strong> For each of <code>ppLayerOff(..., TRUE)</code>, <code>ppLayerOff(..., FALSE)</code>, <code>ppVerbOff(..., TRUE)</code>, <code>ppVerbOff(..., FALSE)</code>, the snapshot entry, the UI's <code>checkboxInput(..., value=)</code> attribute, and (after a shinytest2 boot) <code>app$get_value(input = &lt;id&gt;)</code> all agree. Asserted in <code>tests/testthat/test-pp-off-readers.R</code> for the snapshot+UI half and (gated under <code>skip_on_cran() + skip_if_not_installed("shinytest2")</code>) in <code>tests/testthat/test-pp-off-e2e.R</code> for the post-flush half — see <a href="../../../.claude/rules/testing.md">testing.md</a> for the app-dir + <code>pkgload::load_all()</code> fixture pattern this project uses; mirror an existing browser test (e.g. <code>tests/testthat/test-shared-stage-checkbox.R</code>).</li>
+
+  <li><strong>SC8 — <code>spec =</code> at boot still overrides the new default.</strong> Given <code>ppLayerOff(geom_point(), TRUE)</code> (formula says off), a <code>spec = list(geom_point_checkbox = TRUE)</code> entry at boot flips the layer back on (the existing <code>apply_spec_at_boot()</code> dispatch in <code>R/paintr-server.R</code> is unchanged). Verification is split: the state-field-removal sub-claim and the <code>ptr_spec_defaults_from_state()</code> reader switch are asserted in <code>tests/testthat/test-pp-off-readers.R</code>; the literal "input value after flush equals TRUE" BDD <code>Then</code> is asserted in <code>tests/testthat/test-pp-off-e2e.R</code> via a shinytest2 fixture (retargeted 2026-05-24 after first attempt found <code>MockShinySession</code> does NOT mirror <code>updateCheckboxInput()</code> back into <code>input[[]]</code> — same one-way limitation as <code>test-adr12b-spec-custom-keyword.R:19-27</code> — so testServer cannot observe the post-flush input value).</li>
+
+  <li><strong>SC9 — Authoritative gate.</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> → <code>FAIL 0 / ERROR 0 / SKIP 0</code>; PASS rises by ≥ 9 over baseline (the new <code>test-pp-off-readers.R</code> + <code>test-pp-off-e2e.R</code> files; the existing <code>test-checkbox-defaults.R</code> may need adjustment if it relied on snapshot consulting <code>checkbox_defaults</code> — see Constraints).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li><strong>Files this plan owns (read+write):</strong>
+    <ul>
+      <li><code>R/paintr-headless.R</code> — at <code>ptr_default_snapshot()</code> (lines ~86-117 of the pre-plan file): (a) drop the <code>expr_list_proxy</code> + <code>ptr_resolve_checkbox_defaults()</code> block (lines ~92-98); (b) layer_checkbox branch reads <code>node$default_active %||% TRUE</code> from the carrier ptr_layer, looking it up by <code>layer_name</code> in <code>tree$layers</code>; (c) stage_enabled branch reads <code>node$default_stage_enabled %||% TRUE</code> from the carrier <code>ptr_call</code>, looking it up by <code>stage_id</code> (a small helper that walks <code>tree</code> for the matching node may be needed; if so, the helper lives in the same file or in <code>R/paintr-utils.R</code> as an unexported function). The <code>checkbox_defaults</code> formal stays present (Plan 04 removes it) but is no longer read.</li>
+      <li><code>R/paintr-server.R</code> — three edits, narrow:
+        <ol>
+          <li><strong><code>ptr_init_state()</code> body (lines ~136-143):</strong> drop the <code>layer_names</code> / <code>expr_list_proxy</code> / <code>resolved_cd &lt;- ptr_resolve_checkbox_defaults(...)</code> block entirely. The <code>checkbox_defaults =</code> formal at line 89 stays (Plan 04 removes it); the value is no longer read.</li>
+          <li><strong><code>ptr_init_state()</code> state assembly (line ~236):</strong> remove the <code>checkbox_defaults = resolved_cd,</code> field from the constructed state list. The <code>state$checkbox_defaults</code> slot ceases to exist after this plan.</li>
+          <li><strong><code>ptr_spec_defaults_from_state()</code> (lines ~329-348):</strong> replace the body's <code>resolved_cd &lt;- state$checkbox_defaults %||% list()</code> + <code>val &lt;- resolved_cd[[layer_name]]</code> reader with a tree-walk that looks up the carrier <code>ptr_layer</code> by <code>layer_name</code> in <code>state$tree</code> and reads <code>node$default_active %||% TRUE</code>; analogously, the <code>stage_enabled</code> branch reads <code>node$default_stage_enabled %||% TRUE</code> from the carrier <code>ptr_call</code> (this branch currently hardcodes <code>TRUE</code>). The tree-walk helper from the headless.R edit (above) should be lifted to <code>R/paintr-utils.R</code> as an unexported helper and reused here (single source of truth for "find node by id"). The function's leading comment block (lines ~325-328) updates to describe the new lookup path.</li>
+        </ol>
+      </li>
+      <li><code>R/paintr-build-ui.R</code> — four edits, no others:
+        <ol>
+          <li><strong>Layer-checkbox emission</strong> at lines ~140-160: change <code>default_on &lt;- resolve_layer_default(layer_name, checkbox_defaults, node$default_active)</code> to <code>default_on &lt;- if (identical(layer_name, "ggplot")) TRUE else isTRUE(node$default_active %||% TRUE)</code> (keeping the existing "ggplot always TRUE" exception that <code>resolve_layer_default()</code> currently provides). Do <strong>not</strong> delete <code>resolve_layer_default()</code> itself — Plan 04 owns that.</li>
+          <li><strong>Per-layer Data-panel entry shape</strong> at <code>find_layer_placeholders_with_stage()</code> (~lines 303-355): extend each emitted entry from <code>list(ph, stage_id, verb)</code> to <code>list(ph, stage_id, verb, default_stage_enabled)</code>. The carrier-call's <code>default_stage_enabled</code> is read only on the pipeline-stage descent branch (where <code>s</code> is the stage carrier <code>ptr_call</code>, around the <code>is_ptr_call(s) &amp;&amp; !is.null(s$stage_id)</code> guard); inside the nested <code>visit()</code> recursion through <code>n$args</code>, <code>s</code> is not in scope. <strong>Thread the new <code>default_stage_enabled</code> through <code>visit()</code>'s closure args</strong> alongside <code>current_sid</code> / <code>current_verb</code> (e.g. add a fourth parameter <code>current_def_stage</code>): pick the value up on the stage-descent branch from <code>s$default_stage_enabled</code>, pass it forward in every recursive call, and include it in BOTH emission paths — the placeholder leaf emission inside <code>visit()</code> (line ~314-316) AND any other emission site that constructs entries. For non-stage paths where no carrier ptr_call is on the descent, the threaded value stays <code>NULL</code> → the consumer's <code>%||% TRUE</code> covers it. <strong>If you only extend one of the two emission paths, SC5 will silently misbehave for nested-call placeholders</strong> — surface this in the implementer's checklist.</li>
+          <li><strong>Per-layer Data-panel consumer</strong> in <code>build_pipeline_stage_ui()</code> (~lines 220-240): pass <code>default_on = entries[[i]]$default_stage_enabled %||% TRUE</code> to <code>controllable_region()</code>. All entries in one stage block share the same value (they all come from the same stage carrier); reading the head entry is sufficient. If multiple entries somehow disagree (defense in depth), prefer the first non-null value with a clear comment.</li>
+          <li><strong>Shared-stage producer + consumer</strong> in <code>collect_orphan_shared_stages()</code> (~lines 405-420) and <code>wrap_shared_widgets_with_stage_blocks()</code> (~lines 480-490): extend the emitted record from <code>list(stage_id, verb, shared_keys)</code> to <code>list(stage_id, verb, shared_keys, default_stage_enabled = n$default_stage_enabled)</code> (carrier ptr_call is <code>n</code>, already in scope); consumer passes <code>default_on = st$default_stage_enabled %||% TRUE</code> to <code>controllable_region()</code>.</li>
+        </ol>
+      </li>
+      <li><code>tests/testthat/test-pp-off-readers.R</code> — NEW. Tests SC1–SC6, SC8 (snapshot+UI agreement; spec override).</li>
+      <li><code>tests/testthat/test-pp-off-e2e.R</code> — NEW. Tests SC7's post-flush half via shinytest2; gated <code>skip_on_cran(); skip_if_not_installed("shinytest2"); skip_if_not_installed("chromote")</code>. Mirror the app-dir + <code>pkgload::load_all(Sys.getenv("GGP_PKG"))</code> fixture pattern from <code>tests/testthat/fixtures/vignette-apps/</code> + the existing <code>test-shared-stage-checkbox.R</code>; do NOT call <code>app$get_values()</code> (testing.md gotcha).</li>
+      <li><code>tests/testthat/fixtures/pp-off-apps/&lt;slug&gt;/app.R</code> — NEW fixture directories as needed (one per shinytest2 scenario in SC7 — minimum 2: one for <code>ppLayerOff(..., TRUE)</code>, one for <code>ppVerbOff(..., TRUE)</code>).</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li><code>R/paintr-translate.R</code>, <code>R/paintr-nodes.R</code>, <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code> (Plan 01 — already merged before this plan starts).</li>
+      <li><code>R/paintr-checkbox-defaults.R</code> (Plan 04 — deletion).</li>
+      <li><code>R/paintr-options.R</code> (Plan 04 — global option removal).</li>
+      <li><code>R/paintr-app.R</code>, <code>R/paintr-app-bslib.R</code> (Plan 04 — <code>checkbox_defaults =</code> formal removal). This plan leaves the formal in <code>ptr_default_snapshot()</code> + <code>ptr_run_formula()</code> in <code>R/paintr-headless.R</code> and <code>ptr_init_state()</code> in <code>R/paintr-server.R</code> in place (no longer read; Plan 04 removes the formals). Outside the three pinned edit sites listed above, <strong>do not touch <code>R/paintr-server.R</code></strong>.</li>
+      <li><code>resolve_layer_default()</code> body at <code>R/paintr-build-ui.R:531-539</code> — leave in place (no longer called from line 144 after this plan; Plan 04 removes the function).</li>
+      <li><code>tests/testthat/test-adr12-consumer-uniformity.R</code> (Plan 03).</li>
+      <li><code>tests/testthat/test-checkbox-defaults.R</code> (Plan 04 — file deletion). If this file's tests <strong>fail</strong> as a side effect of this plan's snapshot changes (likely — they test the old snapshot path, including line 258's "ptr_init_state exposes resolved vector on ptr_state$checkbox_defaults"), that is expected and Plan 04 will delete the file. Mark the failures with <code>testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will delete this file")</code> at the top of each affected <code>test_that()</code> block to keep the gate clean while this plan is in flight, and call them out in the post-impl audit. <strong>Do not</strong> rewrite the file — that's Plan 04 (which deletes it outright).</li>
+      <li><code>tests/testthat/test-options.R</code> — if the <code>checkbox_default_all_other_layer</code> tests at lines 85-117 fail because the snapshot no longer consults the global option, same protocol: <code>skip()</code> with the same message; Plan 04 removes them.</li>
+      <li><code>tests/testthat/test-rewrite-server-state.R</code> — line 23-27 tests assert <code>state$checkbox_defaults</code> is populated from the schema-side <code>checkbox_defaults =</code> arg. With this plan removing <code>state$checkbox_defaults</code>, those <code>test_that()</code> blocks must be wrapped in <code>testthat::skip("superseded by ADR 0020 ppLayerOff; Plan 04 will rewrite using ppLayerOff equivalents")</code> at the top of the block. Other tests in the same file may stay live.</li>
+      <li><code>tests/testthat/test-rewrite-layer-panel.R</code> — lines 73, 84, 97 test layer-panel checkbox boot state via <code>checkbox_defaults =</code>. Same skip protocol if they fail; do not rewrite.</li>
+      <li><code>tests/testthat/test-module-ui.R</code> — if it references <code>checkbox_defaults</code> (grep showed a hit), same skip protocol.</li>
+    </ul>
+  </li>
+  <li>No scope creep. The reader-side <em>only</em>. Do not rip out machinery; Plan 04 owns that.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If SC4 ("UI checkbox renders with <code>value = FALSE</code>") breaks because some path other than <code>R/paintr-build-ui.R:144-145</code> also seeds the checkbox value, STOP and escalate — do not narrow SC4 to "the value-write site we changed is correct, downstream rebuild is a separate concern". The criterion is end-to-end: the rendered widget must reflect the formula. Similarly for SC5/SC6 — if the <code>controllable_region(default_on=)</code> arg is honored but a CSS class on the wrapping div is keyed on the old hardcoded TRUE, escalate; do not narrow.</li>
+  <li>Conventions: snake_case for internals; 2-space indent; use existing <code>%||%</code> idiom (already in <code>R/paintr-utils.R</code>); error signaling unchanged (no new <code>abort()</code>s in this plan).</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: snapshot and UI honor node-level default_active / default_stage_enabled
+
+Scenario: snapshot's layer_checkbox entry reads default_active from the carrier ptr_layer
+  Given tree = ptr_translate(quote(ggplot() + ppLayerOff(geom_point(), TRUE)))
+  And   spec = ptr_runtime_input_spec(tree)
+  When  snap = ptr_default_snapshot(spec, tree)
+  Then  snap[["geom_point_checkbox"]] equals FALSE
+
+Scenario: snapshot's layer_checkbox entry defaults to TRUE when default_active is unset
+  Given tree = ptr_translate(quote(ggplot() + geom_point()))
+  And   spec = ptr_runtime_input_spec(tree)
+  When  snap = ptr_default_snapshot(spec, tree)
+  Then  snap[["geom_point_checkbox"]] equals TRUE
+
+Scenario: snapshot's stage_enabled entry reads default_stage_enabled from the carrier ptr_call
+  Given tree = ptr_translate(quote(ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), TRUE))))
+  And   spec = ptr_runtime_input_spec(tree)
+  And   the stage_id for the mutate stage is "sid"
+  When  snap = ptr_default_snapshot(spec, tree)
+  Then  snap[[sid]] equals FALSE
+
+Scenario: snapshot ignores checkbox_defaults argument for layer_checkbox
+  Given tree = ptr_translate(quote(ggplot() + geom_point()))
+  And   spec = ptr_runtime_input_spec(tree)
+  When  snap_a = ptr_default_snapshot(spec, tree, checkbox_defaults = NULL)
+  And   snap_b = ptr_default_snapshot(spec, tree, checkbox_defaults = list(geom_point = FALSE))
+  Then  identical(snap_a, snap_b) is TRUE
+  And   snap_a[["geom_point_checkbox"]] equals TRUE
+
+Scenario: layer-checkbox UI value reads node$default_active (not checkbox_defaults)
+  Given the formula F = quote(ggplot() + ppLayerOff(geom_point(), TRUE))
+  And   the rendered UI from ptr_app(F) captured via shinytest2 boot
+  When  the geom_point_checkbox input is queried
+  Then  its value at boot equals FALSE
+
+Scenario: per-layer Data-panel stage block default_on reflects default_stage_enabled
+  Given the formula F = quote(ggplot(mtcars |> ppVerbOff(mutate(x = 1), TRUE), aes(x = mpg)) + geom_point())
+  And   tree = ptr_translate(F)
+  And   the per-layer entries from find_layer_placeholders_with_stage(tree)
+  Then  the entry list for the mutate stage carries default_stage_enabled = FALSE
+  And   build_pipeline_stage_ui(...) for that stage emits controllable_region(default_on = FALSE)
+
+Scenario: shared-stage block default_on reflects default_stage_enabled on the orphan-stage carrier
+  Given the formula F = quote(ggplot(mtcars |> ppVerbOff(filter(ppVar(shared = "v") > 0), TRUE), aes(x = ppVar(shared = "v"))) + geom_point())
+  And   tree = ptr_translate(F)
+  When  records = collect_orphan_shared_stages(tree)
+  Then  the orphan-stage record for the filter stage carries default_stage_enabled = FALSE
+  And   wrap_shared_widgets_with_stage_blocks(...) emits controllable_region(default_on = FALSE) for that stage
+
+Scenario: spec-emission diff baseline (ptr_spec_defaults_from_state) honors default_active and default_stage_enabled
+  Given a translated tree T from quote(ggplot() + ppLayerOff(geom_point(), TRUE) + ppLayerOff(geom_smooth(), FALSE))
+  And   state = ptr_init_state(<the same formula>)
+  When  defaults = ptr_spec_defaults_from_state(state)
+  Then  defaults[["geom_point_checkbox"]] equals FALSE
+  And   defaults[["geom_smooth_checkbox"]] equals TRUE
+  And   "checkbox_defaults" %in% names(state) is FALSE   # state$checkbox_defaults removed
+
+Scenario: spec = at boot overrides the formula-side default
+  Given the formula F = quote(ggplot() + ppLayerOff(geom_point(), TRUE))
+  And   spec = list(geom_point_checkbox = TRUE)
+  When  the app boots with spec
+  Then  the geom_point_checkbox input value after flush equals TRUE
+
+Scenario: end-to-end agreement (browser-tested)
+  Given ppLayerOff(geom_point(), TRUE) in a real app
+  When  the app boots in shinytest2
+  Then  snapshot[["geom_point_checkbox"]] equals FALSE
+  And   the rendered checkboxInput tag value attribute equals "FALSE"
+  And   app$get_value(input = "geom_point_checkbox") equals FALSE
+  And   the rendered plot omits the geom_point layer
+
+Scenario: snapshot/UI agreement when formula says on (regression for null-field path)
+  Given a translated tree from a bare ggplot() + geom_point() formula
+  When  the app boots
+  Then  snapshot[["geom_point_checkbox"]] equals TRUE
+  And   the rendered checkboxInput value equals TRUE
+  And   app$get_value(input = "geom_point_checkbox") equals TRUE
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>'s "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N = baseline + this plan's new tests; the SKIP count may rise by the number of <code>test-checkbox-defaults.R</code> / <code>test-options.R</code> tests this plan skips with the "superseded by ADR 0020" message — record the delta in the audit report so the post-merge integration step can verify Plan 04 removes the skipped tests rather than letting them rot).</p>
+
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>not</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP for fixture-backed tests). That alone is the gate.</li>
+</ul>
+
+<p>This plan adds <strong>at least 9 new tests</strong> across <code>test-pp-off-readers.R</code> + <code>test-pp-off-e2e.R</code>. The gate must show PASS count rise by ≥ 9 with FAIL/ERROR still 0. SKIP may rise by the count of <code>checkbox_defaults</code>-related tests this plan defers to Plan 04 (record the exact delta in the audit report).</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-headless.R</code> (<code>ptr_default_snapshot()</code> body only), <code>R/paintr-server.R</code> (three pinned sites: <code>ptr_init_state()</code>'s <code>resolved_cd</code> computation at ~136-143, the <code>state$checkbox_defaults</code> field at ~236, and <code>ptr_spec_defaults_from_state()</code> at ~329-348 — and the helper-lift to <code>R/paintr-utils.R</code> if used), <code>R/paintr-build-ui.R</code> (the four pinned sites only — layer-checkbox emission, <code>find_layer_placeholders_with_stage()</code>, <code>build_pipeline_stage_ui()</code>, <code>collect_orphan_shared_stages()</code> + <code>wrap_shared_widgets_with_stage_blocks()</code>), <code>R/paintr-utils.R</code> (optional new unexported tree-walk helper only — for the single-source-of-truth lookup-node-by-id used by snapshot + ptr_spec_defaults_from_state), <code>tests/testthat/test-pp-off-readers.R</code>, <code>tests/testthat/test-pp-off-e2e.R</code>, and any new <code>tests/testthat/fixtures/pp-off-apps/&lt;slug&gt;/app.R</code> fixtures. Generated files (<code>NAMESPACE</code>, <code>man/</code>) are NOT touched by this plan (no <code>@export</code> changes).</p>
+
+<p>Branch convention: this plan lives on branch <code>0020-readers-honor-new-fields</code> in a worktree at <code>.claude/worktrees/0020-pp-layer-off-pp-verb-off-toggles/readers-honor-new-fields/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch at the commit where this plan's worktree was created (post-Plan-01 merge SHA — record in the worktree's first commit message). The pre-plan baseline already has Plan 01's translate changes merged, so <code>ppLayerOff</code> / <code>ppVerbOff</code> exist and stamp fields. Pre-existing failures (if any) named in <code>dev/baselines/</code> as of that SHA.</p>
+
+<h2>Out-of-scope handling</h2>
+<p><strong>Surface, do not absorb:</strong> any of these findings during the audit means a follow-up plan, not a silent edit here:</p>
+<ul>
+  <li>Existing <code>test-checkbox-defaults.R</code> / <code>test-options.R</code> tests still passing that look like they should have failed — flag for Plan 04's deletion sweep.</li>
+  <li>Any reader of <code>node$default_active</code> / <code>node$default_stage_enabled</code> outside the snapshot + four UI sites — flag in the audit; Plan 02 owns only the pinned sites, and any other reader is either a bug (read-side drift) or a real consumer this ADR didn't enumerate.</li>
+  <li><code>resolve_layer_default()</code> still being callable (dead-code-but-present) — flag for Plan 04; do not delete here.</li>
+  <li><code>checkbox_defaults =</code> formal still in <code>ptr_default_snapshot()</code> / <code>ptr_run_formula()</code> signatures — same.</li>
+</ul>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>Plan 01</strong> — needs <code>ppLayerOff</code> / <code>ppVerbOff</code> to be parseable so the integration tests can build the trees this plan reads.</p>
+<p>Provides for: <strong>Plan 04</strong> — Plan 04 removes the now-vestigial <code>checkbox_defaults =</code> formal and deletes <code>R/paintr-checkbox-defaults.R</code> + <code>resolve_layer_default()</code>; safe to do so only after this plan has removed all read sites.</p>
+
+<!-- implementable: PASS date=2026-05-24 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=f2356321e8cc -->
+</body>
+</html>

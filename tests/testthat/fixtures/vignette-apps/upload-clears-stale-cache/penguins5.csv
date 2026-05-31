@@ -1,0 +1,6 @@
+bill_length_mm,bill_depth_mm,flipper_length_mm,body_mass_g,species,island,sex,year
+39.1,18.7,181,3750,Adelie,Torgersen,male,2007
+39.5,17.4,186,3800,Adelie,Torgersen,female,2007
+40.3,18.0,195,3250,Adelie,Torgersen,female,2007
+36.7,19.3,193,3450,Adelie,Torgersen,female,2007
+39.3,20.6,190,3650,Adelie,Torgersen,male,2007

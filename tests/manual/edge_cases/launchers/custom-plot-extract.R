@@ -10,7 +10,7 @@
 #   - The default code binder still updates.
 source("tests/manual/edge_cases/launchers/_setup.R")
 
-formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(size = num)"
+formula <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point(size = ppNum)"
 
 ui <- fluidPage(
   ptr_ui(formula, "m"),

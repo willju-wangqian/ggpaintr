@@ -18,7 +18,11 @@ test_that("literal subtree evaluates to data frame", {
 })
 
 test_that("pipeline subtree folds and evaluates", {
-  tree <- ptr_translate("mtcars |> head(2) |> ggplot()")
+  # PLAN-02 (ADR 0012 §1): the canonical pipeline shape only emerges when
+  # the lift's chain-depth gate fires (>= 2 stages above the source). A
+  # 2-stage chain (filter + head) produces the 3-stage pipeline this test
+  # exercises.
+  tree <- ptr_translate("mtcars |> subset(mpg > 0) |> head(2) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   expect_true(is_ptr_pipeline(data_arg))
   result <- ptr_resolve_upstream(data_arg, eval_env = .test_env())
@@ -27,7 +31,7 @@ test_that("pipeline subtree folds and evaluates", {
 })
 
 test_that("placeholder inside pipeline substitutes from snapshot", {
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot()")
+  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   num_id <- find_nodes(data_arg, is_ptr_ph_value)[[1L]]$id
   result <- ptr_resolve_upstream(
@@ -42,7 +46,7 @@ test_that("missing positional placeholder drops arg but keeps the call (P12.1)",
   # Per relaxed P9: empty `num` drops the arg from `head(num)`, leaving
   # `head()` empty. head() at eval uses its default n = 6, so the upstream
   # data has 6 rows.
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot()")
+  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   result <- ptr_resolve_upstream(
     data_arg,
@@ -55,7 +59,7 @@ test_that("missing positional placeholder drops arg but keeps the call (P12.1)",
 
 test_that("entire pipeline pruning to missing returns NULL", {
   # All stages depend on a missing source
-  tree <- ptr_translate("upload |> ggplot()")
+  tree <- ptr_translate("ppUpload |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   result <- ptr_resolve_upstream(
     data_arg,
@@ -111,7 +115,7 @@ test_that("cache returns identical value without re-eval", {
 
 test_that("different snapshot produces fresh eval", {
   cache <- new.env(parent = emptyenv())
-  tree <- ptr_translate("mtcars |> head(num) |> ggplot()")
+  tree <- ptr_translate("mtcars |> head(ppNum) |> ggplot()")
   data_arg <- tree$layers[[1L]]$data_arg
   num_id <- find_nodes(data_arg, is_ptr_ph_value)[[1L]]$id
 

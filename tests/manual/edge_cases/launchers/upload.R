@@ -16,6 +16,6 @@
 #                          generated code uses "my_data".
 source("tests/manual/edge_cases/launchers/_setup.R")
 shiny::runApp(
-  ptr_app("ggplot(data = upload, aes(x = var, y = var)) + geom_point()"),
+  ptr_app("ggplot(data = ppUpload, aes(x = ppVar, y = ppVar)) + geom_point()"),
   port = PORT, host = "127.0.0.1", launch.browser = FALSE
 )

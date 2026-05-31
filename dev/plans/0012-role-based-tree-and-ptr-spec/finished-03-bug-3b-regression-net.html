@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-03 — bug-3b regression net (from ADR 0012)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 03
+  slug: bug-3b-regression-net
+  source_adr: dev/adr/0012-role-based-tree-and-ptr-spec.html
+  depends_on: [02, 04]
+  parallel_group: G3
+  status: draft
+-->
+
+<h1>PLAN-03 — Bug-3b regression net (empty filter elides under <code>|&gt;</code>)</h1>
+<p class="meta">Source: ADR 0012 (§1.3 row "ADR-0011 Bug 3b", §4 S3) · Depends on: 02, 04 (the atomic G2 pair — see index.md) · Parallel group: G3 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0012 §1.3 records: <em>"empty <code>filter()</code> survives prune under <code>|&gt;</code> input … <code>prune_walk.ptr_pipeline</code> elides stages whose args all prune to missing. With no <code>ptr_pipeline</code> node, that elision never runs."</em> Plan 02 lifts nested-call data args into a canonical <code>ptr_pipeline</code>, which restores the elision path. This plan adds the regression net that asserts the bug stays fixed.</p>
+<p>Pure unit test against the public translate / substitute / prune / render pipeline. No browser, no Shiny — the bug is provable at the R level (ADR 0011 §2.2 confirmed the R-level reproduction).</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>tests/testthat/test-prune-bare-pipe-stage.R</code> exists with at least four assertions:
+    <ol>
+      <li><code>ptr_render(ptr_prune(substitute_walk(ptr_translate("ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"), list(snapshot = list(), upstream_cols = list()))))</code> does <strong>not</strong> contain the substring <code>"filter"</code>. (Empty filter must be elided.)</li>
+      <li>The same assertion with <code>%&gt;%</code> in place of <code>|&gt;</code> (regression net for the previously-working path).</li>
+      <li>The same assertion against the nested-call form <code>"ggplot(filter(ppUpload, ppVar &gt; ppNum), aes(ppVar, ppVar)) + geom_point()"</code> — written directly as nested calls, not as a pipe at all. This proves the lift catches the structural pattern regardless of surface syntax.</li>
+      <li>Non-empty filter is preserved: <code>ptr_render(ptr_prune(substitute_walk(ptr_translate("penguins |&gt; filter(bill_length_mm &gt; 40) |&gt; ggplot(aes(bill_length_mm)) + geom_point()"), list(snapshot = list(), upstream_cols = list()))))</code> <strong>does</strong> contain <code>"filter"</code> and <code>"bill_length_mm &gt; 40"</code>. (Don't over-elide.)</li>
+    </ol>
+  </li>
+  <li>An additional assertion across all elidable verbs in <code>default_drop_when_empty()</code>: for at least <code>filter</code>, <code>mutate</code>, <code>arrange</code>, <code>group_by</code> — empty form under <code>|&gt;</code> elides; non-empty form survives. Use a loop / <code>purrr::walk</code> over a small named vector of verb name → empty-args fixture pair.</li>
+  <li>Authoritative gate (see Definition of Done) shows FAIL 0 / ERROR 0 / SKIP 0 with PASS rising by exactly the number of test assertions added.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>tests/testthat/test-prune-bare-pipe-stage.R</code> (new file).</li>
+  <li>Files this plan must NOT touch: any <code>R/paintr-*.R</code> source file, any vignette, any fixture under <code>tests/testthat/fixtures/</code>, <code>NAMESPACE</code>, <code>man/</code>. This is a pure test-additions plan — no production source changes.</li>
+  <li>Use only public + already-existing internal API: <code>ptr_translate</code>, <code>ggpaintr:::substitute_walk</code>, <code>ptr_prune</code>, <code>ptr_render</code>, <code>ggpaintr:::default_drop_when_empty</code>. Do not introduce new internals.</li>
+  <li>No <code>library(dplyr)</code> at test file top level — the test runs against the package's own substitute+prune+render machinery, not against dplyr's filter behavior. Where the test needs <code>filter</code> to resolve to <code>dplyr::filter</code> for <code>qualified_call_name</code>, attach <code>"dplyr"</code> in the test setup via <code>withr::local_attached_package("dplyr")</code> or equivalent, scoped to the test.</li>
+  <li>testthat edition 3 conventions: <code>test_that("…", { … })</code> blocks; group by behavior, not by surface syntax.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: Empty pipe-stage calls elide regardless of surface syntax
+
+Scenario: Empty filter elides under |&gt;
+  Given the formula "ppUpload |&gt; filter(ppVar &gt; ppNum) |&gt; ggplot(aes(ppVar, ppVar)) + geom_point()"
+  When  the tree is translated, substituted with an empty input snapshot, pruned, and rendered
+  Then  the rendered code text does NOT contain the substring "filter"
+
+Scenario: Empty filter elides under %&gt;%
+  Given the same formula with %&gt;% instead of |&gt;
+  When  translated, substituted, pruned, rendered
+  Then  the rendered code text does NOT contain the substring "filter"
+
+Scenario: Empty filter elides when written as nested calls
+  Given the formula "ggplot(filter(ppUpload, ppVar &gt; ppNum), aes(ppVar, ppVar)) + geom_point()"
+  When  translated, substituted, pruned, rendered
+  Then  the rendered code text does NOT contain the substring "filter"
+
+Scenario: Non-empty filter is preserved
+  Given the formula "penguins |&gt; filter(bill_length_mm &gt; 40) |&gt; ggplot(aes(bill_length_mm)) + geom_point()"
+  When  translated, substituted (with empty snapshot — no placeholders to fill), pruned, rendered
+  Then  the rendered code text contains "filter" AND contains "bill_length_mm &gt; 40"
+
+Scenario: Across-verb elision sweep
+  Given a verb name in c("filter", "mutate", "arrange", "group_by")
+  When  the empty-args form of the verb is placed in a |&gt;-piped formula and pruned
+  Then  the verb name does NOT appear in the rendered code
+  And   when the verb has non-empty args, it does appear
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copied verbatim from <code>CLAUDE.md</code>):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected: <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS (baseline_after_plan_02 + N_new)</code>.</p>
+<p><strong>Proxy traps — do not be fooled (copied verbatim from CLAUDE.md):</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>NOT</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard. If a check run shows the e2e file <strong>ERRORing</strong>, that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests. That alone is the gate.</li>
+</ul>
+<p>This plan adds approximately 5–7 new tests in one file. The gate must show PASS rise by that count, FAIL/ERROR still 0, SKIP unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>tests/testthat/test-prune-bare-pipe-stage.R</code> (new file). No source files. No fixtures.</p>
+<p>Branch convention: <code>0012-bug-3b-regression-net</code>, worktree at <code>.claude/worktrees/0012-role-based-tree-and-ptr-spec/bug-3b-regression-net/</code>. Merge into orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command and verifies the new tests pass and no existing test regresses.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch HEAD after the atomic G2 pair (plan 02 + plan 04) has fully merged. Record SHA + PASS count in worktree first commit message.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside <code>tests/testthat/test-prune-bare-pipe-stage.R</code> are surfaced, never absorbed. If the test reveals that plan 02's lift missed an elision case, file a follow-up plan to extend plan 02's coverage; do not edit production source here.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: the atomic G2 pair (plan 02 + plan 04). Plan 02's lift to <code>ptr_pipeline</code> is what makes the empty-filter elision work for non-<code>%&gt;%</code> surface forms; plan 04's consumer-uniformity test net guarantees <code>prune_walk.ptr_pipeline</code> handles the lifted shape uniformly across all three surface forms. Running this plan against plan-01's tree would fail the first scenario.</p>
+<p>Provides for: nothing — this is a pure regression net. Sequenced after the atomic G2 pair; see index.md for the merge order. Plan 03 lives in G3 alone now (was previously grouped with plan 04 in G3 before the atomic-pair regroup).</p>
+
+<!-- implementable: PASS date=2026-05-22 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=f25e7f6d9b99 -->
+</body>
+</html>

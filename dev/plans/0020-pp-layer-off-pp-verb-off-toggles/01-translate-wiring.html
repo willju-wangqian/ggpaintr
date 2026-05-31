@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — translate-side wiring for ppLayerOff / ppVerbOff (from ADR 0020)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: translate-wiring
+  source_adr: dev/adr/0020-pp-layer-off-pp-verb-off-toggles.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — translate-side wiring for <code>ppLayerOff</code> / <code>ppVerbOff</code></h1>
+<p class="meta">Source: ADR 0020 (Decision §1-§3, Verified facts 1, 6) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+<p>Today, layer-checkbox boot state can only be set via <code>checkbox_defaults =</code> (schema-side, by layer name) or by hand-writing a <code>spec =</code> entry against a namespaced input id. Stage-checkbox boot state has no schema or formula entry point at all — every stage starts <code>TRUE</code>. The formula is therefore not a faithful expression of the app's boot state.</p>
+
+<p>ADR 0020 introduces two new <code>pp*</code> keywords — <code>ppLayerOff(layer_expr, hide = TRUE)</code> and <code>ppVerbOff(.data, verb_expr, hide = TRUE)</code> — that are <strong>structural unwrappers</strong>, not value placeholders. They become normal layers / stages after translate-time unwrapping, with the <code>hide</code> argument stamped as a node-level default field. Outside <code>ptr_app</code>, the function bodies behave per their R semantics so naked-ggplot scripts still render.</p>
+
+<p>This plan implements the translate-side: exported function shells with naked-R semantics, <code>placeholder_keyword()</code> recognition, special unwrap rules in the translator, and node-field stamping. <strong>Reader sites (snapshot, UI) are out of scope</strong> — Plan 02 owns them.</p>
+
+<h2>Governing principle</h2>
+<p><strong>The formula is the single source of truth for the app's boot state.</strong> ADR 0020 commits to deprecating side-channel layer-checkbox state (the schema-side <code>checkbox_defaults =</code> and the global <code>checkbox_default_all_other_layer</code> option) so that what the user sees at boot is visible in the same expression that defines the plot. Inside ggpaintr, every first-class control's boot value must be derivable from the formula alone (or from an explicit <code>spec =</code> override). The translator's job in this plan is to faithfully convert each <code>hide =</code> literal into a node-level field that downstream readers (Plan 02) consume directly — no fallback through global state, no inference from other arguments. If the implementation lets a <code>ppLayerOff(..., hide = TRUE)</code> in the formula produce a node whose <code>default_active</code> is <code>TRUE</code> (or unset), the formula has silently lost authority over its own boot state and the rest of the ADR's machinery cannot recover.</p>
+
+<p>A second invariant from ADR 0012 applies: trees are <em>semantic</em>, not syntactic. <code>ppLayerOff(layer_expr, FALSE)</code> must produce a tree structurally indistinguishable from the bare <code>layer_expr</code> (modulo the <code>default_active</code> slot, which is the requested signal). Same for <code>ppVerbOff(.data, verb_expr, FALSE)</code> vs <code>.data |&gt; verb_expr</code>. Anything that preserves the wrapper-call shape in the tree (e.g. translating <code>ppLayerOff(geom_point(), FALSE)</code> as a generic <code>ptr_call(fun = ppLayerOff, ...)</code>) violates the ADR.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><strong>SC1 — Exported function shells (naked-R semantics).</strong> <code>ppLayerOff(geom_point(), TRUE)</code> returns <code>NULL</code>; <code>ppLayerOff(geom_point(), FALSE)</code> returns the unevaluated <code>geom_point()</code> expression evaluated in the caller's frame (i.e. a <code>ggplot2</code> layer object). <code>ppVerbOff(mtcars, mutate(mpg = mpg + 100), TRUE)</code> returns <code>mtcars</code> unchanged; <code>ppVerbOff(mtcars, mutate(mpg = mpg + 100), FALSE)</code> returns <code>mutate(mtcars, mpg = mpg + 100)</code>. Both functions default <code>hide = TRUE</code>. Verified by running <code>testthat::test_file("tests/testthat/test-pp-off-naked.R")</code>; expected <code>FAIL 0 / ERROR 0 / SKIP 0 / PASS &gt;= 4</code>.</li>
+
+  <li><strong>SC2 — Registry recognition.</strong> <code>"ppLayerOff" %in% ptr_registry_keywords()</code> and <code>"ppVerbOff" %in% ptr_registry_keywords()</code> both return <code>TRUE</code>. <code>placeholder_keyword(quote(ppLayerOff(geom_point(), FALSE)))</code> returns <code>"ppLayerOff"</code>; <code>placeholder_keyword(quote(ppVerbOff(.data, mutate(x = 1), FALSE)))</code> returns <code>"ppVerbOff"</code>. Verified by running <code>testthat::test_file("tests/testthat/test-pp-off-translate.R")</code>; expected <code>PASS &gt;= 2</code> for these assertions.</li>
+
+  <li><strong>SC3 — Layer-position unwrap with hide=TRUE.</strong> <code>ptr_translate(quote(ggplot() + ppLayerOff(geom_point(), TRUE)))</code> produces a <code>ptr_root</code> whose second layer (index 2) is a <code>ptr_layer</code> with <code>name == "geom_point"</code>, <code>active_input_id == "geom_point_checkbox"</code>, and <code>default_active == FALSE</code>. Verified by running <code>testthat::test_file("tests/testthat/test-pp-off-translate.R")</code>.</li>
+
+  <li><strong>SC4 — Layer-position unwrap with hide=FALSE produces structurally-equal tree.</strong> <code>ggpaintr:::ptr_tree_structural_equal(ptr_translate(quote(ggplot() + ppLayerOff(geom_point(), FALSE))), ptr_translate(quote(ggplot() + geom_point())))</code> returns <code>TRUE</code>. (Plan 03 will extend the comparator to ignore <code>default_active</code>; in the interim — i.e. when this plan merges first — the trees ARE identical on every slot because the bare-<code>geom_point</code> layer also has <code>default_active = TRUE</code>.) Verified by running <code>testthat::test_file("tests/testthat/test-pp-off-translate.R")</code>.</li>
+
+  <li><strong>SC5 — Stage-position unwrap with hide=TRUE.</strong> <code>ptr_translate(quote(ggplot(mtcars |&gt; ppVerbOff(mutate(mpg = mpg + 100), TRUE))))</code> produces a tree whose <code>ggplot</code> layer has a <code>data_arg</code> that is a <code>ptr_pipeline</code> containing a stage <code>ptr_call</code> with <code>fun == quote(mutate)</code>, <code>stage_id</code> set to the usual <code>"ggplot_&lt;path&gt;_stage_enabled"</code> form, and <code>default_stage_enabled == FALSE</code>. Verified by running <code>testthat::test_file("tests/testthat/test-pp-off-translate.R")</code>.</li>
+
+  <li><strong>SC6 — Stage-position unwrap with hide=FALSE produces structurally-equal tree.</strong> <code>ggpaintr:::ptr_tree_structural_equal(ptr_translate(quote(ggplot(mtcars |&gt; ppVerbOff(mutate(x = 1), FALSE)))), ptr_translate(quote(ggplot(mtcars |&gt; mutate(x = 1)))))</code> returns <code>TRUE</code>. Verified by running <code>testthat::test_file("tests/testthat/test-pp-off-translate.R")</code>.</li>
+
+  <li><strong>SC7 — Translate-time validation: non-literal hide.</strong> <code>ptr_translate(quote(ggplot() + ppLayerOff(geom_point(), some_var)))</code> aborts with class <code>"ptr_translate_error"</code> (introduced by this plan; see Constraints). Error message contains the keyword name (<code>ppLayerOff</code>) and the discriminator token <code>literal</code>. Same for non-literal hide in <code>ppVerbOff</code> (error message contains <code>ppVerbOff</code> and <code>literal</code>). Verified by <code>expect_error(..., class = "ptr_translate_error", regexp = "...")</code> in <code>tests/testthat/test-pp-off-translate.R</code>.</li>
+
+  <li><strong>SC8 — Translate-time validation: wrong-position keyword.</strong> <code>ptr_translate(quote(ggplot(aes(x = ppLayerOff(geom_point(), FALSE)))))</code> aborts with class <code>"ptr_translate_error"</code>; message contains <code>ppLayerOff</code> and <code>position</code>. <code>ptr_translate(quote(ggplot() + ppVerbOff(mtcars, mutate(x = 1), FALSE)))</code> aborts with class <code>"ptr_translate_error"</code>; message contains <code>ppVerbOff</code> and <code>position</code>. Verified by <code>expect_error(..., class = "ptr_translate_error", regexp = "...")</code> in <code>tests/testthat/test-pp-off-translate.R</code>.</li>
+
+  <li><strong>SC9 — <code>default_stage_enabled</code> slot exists on every <code>ptr_call</code>.</strong> A <code>ptr_call</code> constructed without a <code>default_stage_enabled</code> argument has the slot present and equal to <code>TRUE</code> (the on-by-default value). Verified by inspecting <code>names(ptr_call(...))</code> in <code>tests/testthat/test-pp-off-translate.R</code>.</li>
+
+  <li><strong>SC10 — Authoritative gate.</strong> <code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code> shows <code>FAIL 0 / ERROR 0 / SKIP 0</code>; PASS count rises by ≥ 8 over the pre-plan baseline (the new <code>test-pp-off-naked.R</code> + <code>test-pp-off-translate.R</code> files).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li><strong>Files this plan owns (read+write):</strong>
+    <ul>
+      <li><code>R/paintr-translate.R</code> — extend <code>placeholder_keyword()</code> recognition; add special-unwrap branches in the layer-translate path and the pipeline-stage-translate path; add the translate-time validators (literal-only <code>hide</code>; wrong-position errors).</li>
+      <li><code>R/paintr-nodes.R</code> — extend the <code>ptr_call()</code> constructor (formerly <code>R/paintr-nodes.R</code> at the <code>ptr_call</code> definition near <code>ptr_pipeline</code>) to add a <code>default_stage_enabled = TRUE</code> formal and slot. Do not touch <code>ptr_tree_structural_equal()</code> — that is Plan 03's territory.</li>
+      <li><code>R/paintr-registry.R</code> — register <code>ppLayerOff</code> / <code>ppVerbOff</code> in <code>ptr_registry_keywords()</code> via the existing built-in registration path (look at how <code>ppVar</code> / <code>ppText</code> / <code>ppExpr</code> are registered; mirror that). The registry hook fields these keywords need are minimal — they never become <code>ptr_ph_*</code> nodes — so a registry entry sufficient to make <code>placeholder_keyword()</code> return their names is enough; <code>extract_placeholder_args()</code> never runs on them because the special-unwrap branches in translate intercept first.</li>
+      <li><code>R/paintr-builtins.R</code> — define and <code>@export</code> <code>ppLayerOff</code> and <code>ppVerbOff</code> as user-callable functions with the naked-R semantics from SC1. Roxygen on both; for <code>ppVerbOff</code>, the roxygen MUST include a "Data-argument position" note stating the data must be in position 1 of <code>verb_expr</code> (matches <a href="0020-pp-layer-off-pp-verb-off-toggles.html#consequences">ADR 0020 Risks §3</a>).</li>
+      <li><code>tests/testthat/test-pp-off-naked.R</code> — NEW. Tests SC1 (naked-R semantics, both keywords, both <code>hide</code> values).</li>
+      <li><code>tests/testthat/test-pp-off-translate.R</code> — NEW. Tests SC2–SC9 (registry recognition, unwrap with both <code>hide</code> values for both keywords, structural-equality for the FALSE case, translate-time validation for non-literal and wrong-position).</li>
+      <li><code>NAMESPACE</code>, <code>man/ppLayerOff.Rd</code>, <code>man/ppVerbOff.Rd</code> — regenerate via <code>devtools::document()</code> after editing roxygen. Generated; the integration step (not this plan) verifies cleanliness; this plan must run <code>document()</code> before claiming gate-green so the new exports land in <code>NAMESPACE</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Files this plan must NOT touch:</strong>
+    <ul>
+      <li><code>R/paintr-headless.R</code> (Plan 02 — snapshot readers).</li>
+      <li><code>R/paintr-build-ui.R</code> (Plan 02 — UI plumbing + Plan 04 — <code>resolve_layer_default</code> removal).</li>
+      <li><code>R/paintr-nodes.R</code> <code>ptr_tree_structural_equal()</code> function body (Plan 03).</li>
+      <li><code>R/paintr-checkbox-defaults.R</code> (Plan 04 — deletion).</li>
+      <li><code>R/paintr-options.R</code> (Plan 04 — option removal).</li>
+      <li><code>R/paintr-app.R</code>, <code>R/paintr-app-bslib.R</code>, <code>R/paintr-server.R</code> (Plan 04 — formal removal).</li>
+      <li><code>tests/testthat/test-adr12-consumer-uniformity.R</code> (Plan 03).</li>
+      <li><code>vignettes/</code> (Plan 04 + Plan 05).</li>
+    </ul>
+  </li>
+  <li>No scope creep, no incidental refactors, no shims for "future plans". Do not pre-empt Plan 02's snapshot/UI changes even if reading them feels natural while wiring translate.</li>
+  <li><strong>SCOPE NARROWING FORBIDDEN.</strong> If implementing SC4/SC6 (the structural-equality-after-FALSE-unwrap criteria) breaks because <code>ptr_tree_structural_equal()</code> happens to compare a field this plan adds (<code>default_stage_enabled</code>) and the bare side does not set it: STOP and escalate. The intended fix lives in Plan 03 (extend the comparator's exclusion list); narrowing SC4/SC6 to "the trees differ only on the new slot, that's fine" is exactly the failure mode this plan is structured to prevent. Note that the SC9 contract — <em>every</em> <code>ptr_call</code> has <code>default_stage_enabled = TRUE</code> by default — closes the most likely failure here, but if a non-default code path somewhere produces a <code>ptr_call</code> without the slot, the answer is to fix the constructor, not weaken the criterion.</li>
+  <li>Translate-time errors: <code>rlang::abort()</code> with a new class string <code>"ptr_translate_error"</code>. There is no existing class convention in <code>R/paintr-translate.R</code> (its sole pre-existing <code>rlang::abort()</code> at line 122 carries no <code>class=</code> arg); this plan <em>introduces</em> the class for these two validators and any future translate-time validation should reuse it. Each error message MUST include the keyword name (<code>ppLayerOff</code> / <code>ppVerbOff</code>) verbatim; non-literal-<code>hide</code> errors MUST also include the token <code>literal</code>; wrong-position errors MUST also include the token <code>position</code>. Tests assert via <code>expect_error(..., class = "ptr_translate_error", regexp = "...")</code>.</li>
+  <li>Conventions: snake_case for internals; <code>ptr_</code> prefix for newly-exported helpers (the function names <code>ppLayerOff</code> / <code>ppVerbOff</code> are camelCase by design — they match the <code>pp*</code> family already in the registry); 2-space indent.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: ppLayerOff / ppVerbOff translate as structural unwrappers with default-state metadata
+
+Scenario: ppLayerOff at layer position with hide = TRUE produces an off-by-default layer
+  Given the ADR-0020 keyword "ppLayerOff" is registered
+  When  ptr_translate(quote(ggplot() + ppLayerOff(geom_point(), TRUE))) runs
+  Then  the resulting ptr_root has 2 layers
+  And   layer 2 is a ptr_layer with name "geom_point"
+  And   layer 2 has active_input_id "geom_point_checkbox"
+  And   layer 2 has default_active equal to FALSE
+  And   the wrapper call ppLayerOff(...) does NOT appear anywhere in the tree (no ptr_call with fun == quote(ppLayerOff))
+
+Scenario: ppLayerOff at layer position with hide = FALSE is structurally equal to the bare layer
+  Given a translated tree T_off  = ptr_translate(quote(ggplot() + ppLayerOff(geom_point(), FALSE)))
+  And   a translated tree T_bare = ptr_translate(quote(ggplot() + geom_point()))
+  When  ggpaintr:::ptr_tree_structural_equal(T_off, T_bare) is called
+  Then  it returns TRUE
+  And   T_off's layer 2 has default_active equal to TRUE
+
+Scenario: ppVerbOff at pipeline-stage position with hide = TRUE produces an off-by-default stage
+  Given the ADR-0020 keyword "ppVerbOff" is registered
+  When  ptr_translate(quote(ggplot(mtcars |> ppVerbOff(mutate(mpg = mpg + 100), TRUE)))) runs
+  Then  the resulting ggplot layer has a data_arg that is a ptr_pipeline
+  And   that pipeline's first downstream stage is a ptr_call with fun equal to quote(mutate)
+  And   that stage's stage_id matches the regex "^ggplot_.*_stage_enabled$"
+  And   that stage's default_stage_enabled equals FALSE
+  And   no ptr_call with fun == quote(ppVerbOff) appears anywhere in the tree
+
+Scenario: ppVerbOff at pipeline-stage position with hide = FALSE is structurally equal to the bare stage
+  Given a translated tree T_off  = ptr_translate(quote(ggplot(mtcars |> ppVerbOff(mutate(x = 1), FALSE))))
+  And   a translated tree T_bare = ptr_translate(quote(ggplot(mtcars |> mutate(x = 1))))
+  When  ggpaintr:::ptr_tree_structural_equal(T_off, T_bare) is called
+  Then  it returns TRUE
+
+Scenario: ppLayerOff with non-literal hide aborts at translate time
+  Given a translate input quote(ggplot() + ppLayerOff(geom_point(), some_var))
+  When  ptr_translate(input) runs
+  Then  it aborts with class "ptr_translate_error" (introduced by this plan)
+  And   the error message regex matches "ppLayerOff" AND "literal"
+  And   expect_error(..., class = "ptr_translate_error", regexp = "ppLayerOff.*literal|literal.*ppLayerOff") passes
+
+Scenario: ppLayerOff outside layer position aborts at translate time
+  Given a translate input quote(ggplot(aes(x = ppLayerOff(geom_point(), FALSE))))
+  When  ptr_translate(input) runs
+  Then  it aborts with class "ptr_translate_error"
+  And   the error message regex matches "ppLayerOff" AND "position"
+  And   expect_error(..., class = "ptr_translate_error", regexp = "ppLayerOff.*position|position.*ppLayerOff") passes
+
+Scenario: ppVerbOff outside pipeline-stage position aborts at translate time
+  Given a translate input quote(ggplot() + ppVerbOff(mtcars, mutate(x = 1), FALSE))
+  When  ptr_translate(input) runs
+  Then  it aborts with class "ptr_translate_error"
+  And   the error message regex matches "ppVerbOff" AND "position"
+  And   expect_error(..., class = "ptr_translate_error", regexp = "ppVerbOff.*position|position.*ppVerbOff") passes
+
+Scenario: naked-R ppLayerOff with hide = TRUE returns NULL outside ptr_app
+  Given no ggpaintr evaluator on the stack
+  When  ppLayerOff(geom_point(), TRUE) is called
+  Then  the return value is NULL
+
+Scenario: naked-R ppLayerOff with hide = FALSE returns the layer
+  Given no ggpaintr evaluator on the stack
+  When  result <- ppLayerOff(geom_point(), FALSE)
+  Then  the return value is a ggplot2 layer (inherits "Layer" or "LayerInstance")
+  And   ggplot(mtcars, aes(x = mpg, y = wt)) + result renders without error
+
+Scenario: naked-R ppVerbOff with hide = TRUE returns .data unchanged
+  Given no ggpaintr evaluator on the stack
+  When  result <- ppVerbOff(mtcars, mutate(mpg = mpg + 100), TRUE)
+  Then  identical(result, mtcars) is TRUE
+
+Scenario: naked-R ppVerbOff with hide = FALSE routes .data through the verb call
+  Given no ggpaintr evaluator on the stack
+  When  result <- ppVerbOff(mtcars, mutate(mpg = mpg + 100), FALSE)
+  Then  result$mpg[1] equals 121
+  And   nrow(result) equals nrow(mtcars)
+
+Scenario: ptr_call has default_stage_enabled = TRUE by default
+  Given no explicit default_stage_enabled argument
+  When  n <- ptr_call(fun = quote(mutate), args = list(quote(x), quote(1)))
+  Then  "default_stage_enabled" %in% names(n) is TRUE
+  And   n$default_stage_enabled equals TRUE
+</pre>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate (copy verbatim from <code>CLAUDE.md</code>'s "Authoritative gate" block):</p>
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+<p>Expected output: <strong>FAIL 0 / ERROR 0 / SKIP 0 / PASS N</strong> (N = 1583 as of 2026-05-17 vignette-review; the count grows — what matters is 0/0/0 and that the PASS count rises by ≥ 8 over the baseline captured in the worktree's first commit).</p>
+
+<p><strong>Proxy traps — do not be fooled:</strong></p>
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()/test_file()'</code> with <strong>no <code>NOT_CRAN</code></strong> → <code>skip_on_cran()</code> fires → <strong>every shinytest2 browser test silently SKIPs</strong>. "green, SKIP n" off that is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does <strong>not</strong> make <code>skip_on_cran()</code> fire (devtools runs the check subprocess with <code>NOT_CRAN=true</code>). The browser fixtures instead <strong>cleanly SKIP</strong> via <code>boot_vignette_app()</code>'s source-root guard (no <code>DESCRIPTION</code> in the <code>.Rcheck</code> sandbox). If a check run shows the e2e file <strong>ERRORing</strong> (<code>R CMD check found ERRORs</code>, pkgload "DESCRIPTION not found"), that guard is missing/broken — a <strong>harness defect, not a product failure, and never the gate</strong>.</li>
+  <li>Only <code>NOT_CRAN=true</code> / <code>devtools::test()</code> <strong>runs</strong> the browser tests (source tree present → 0 SKIP). That alone is the gate. Never claim the suite green, merge a branch, mark a step done, or clear context off the skipping/erroring harness.</li>
+</ul>
+
+<p>This plan adds <strong>2 new test files</strong> (<code>tests/testthat/test-pp-off-naked.R</code>, <code>tests/testthat/test-pp-off-translate.R</code>) with at least 12 BDD-scenario-derived tests total. The gate must show PASS count rise by ≥ 12 with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline. Additionally, <code>devtools::document()</code> must be run and the resulting <code>NAMESPACE</code> + <code>man/ppLayerOff.Rd</code> + <code>man/ppVerbOff.Rd</code> committed.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-translate.R</code>, <code>R/paintr-nodes.R</code> (constructor only — NOT comparator), <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code>, <code>tests/testthat/test-pp-off-naked.R</code>, <code>tests/testthat/test-pp-off-translate.R</code>. The R-package generated files <code>NAMESPACE</code> + <code>man/ppLayerOff.Rd</code> + <code>man/ppVerbOff.Rd</code> are also touched by this plan because they are direct consequences of the new <code>@export</code> roxygen and must ship in the same commit for the gate to run cleanly (load_all reads NAMESPACE). The plan's commit message should call out that <code>NAMESPACE</code>/<code>man/</code> changes are document() output, not hand edits.</p>
+
+<p>Branch convention: this plan lives on branch <code>0020-translate-wiring</code> in a worktree at <code>.claude/worktrees/0020-pp-layer-off-pp-verb-off-toggles/translate-wiring/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch at the commit where this plan's worktree was created (record the SHA in the worktree's first commit message). Pre-existing failures (if any) named in <code>dev/baselines/</code> as of that SHA; new failures = anything not in that list.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files (e.g., the snapshot still reading <code>checkbox_defaults</code> at <code>R/paintr-headless.R:98</code>; <code>resolve_layer_default()</code> still being called at <code>R/paintr-build-ui.R:144-145</code>; <code>R/paintr-checkbox-defaults.R</code> still present) are <strong>not</strong> regressions for this plan — they are Plan 02 / Plan 04's territory. Surface them in the audit report, never absorb them. Out-of-scope work becomes a follow-up plan, not a silent edit.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: <strong>none</strong>. This is the foundation plan.</p>
+<p>Provides for:
+<ul>
+  <li><strong>Plan 02 (readers honor new fields)</strong> — consumes <code>node$default_active</code> in the snapshot's <code>layer_checkbox</code> branch and <code>node$default_stage_enabled</code> in the snapshot's <code>stage_enabled</code> branch + 4 UI sites.</li>
+  <li><strong>Plan 03 (comparator + adr12 test switch)</strong> — extends <code>ptr_tree_structural_equal()</code>'s exclusion list to ignore the new fields; needs the fields to exist on nodes (this plan adds <code>default_stage_enabled</code>, <code>default_active</code> already existed).</li>
+  <li><strong>Plan 05 (use-cases vignette)</strong> — documents the new keywords; needs them to be exported.</li>
+</ul>
+</p>
+
+<!-- implementable: PASS date=2026-05-24 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=3dd9e1705539 -->
+</body>
+</html>

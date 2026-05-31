@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Post-merge drift audit — vignette-review @ 93f2d28</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>Post-merge drift audit — vignette-review @ <code>93f2d28</code></h1>
+<p>Read-only audit of the Bug-B merge (<code>bug-b-spec-apply-uniform → vignette-review</code>) as merged in commit <code>93f2d28</code>. Auditor: general-purpose Opus, 2026-05-22. Sole writable artifact: this HTML file.</p>
+
+<h2>Executive summary</h2>
+<p class="verdict-green"><strong>GREEN.</strong> Merge is structurally clean and gate-clean. <code>HEAD = 93f2d28</code> with two parents <code>343e518</code> (vignette-review tip) + <code>9be4295</code> (bug-b post-rebase tip). Authoritative gate runs <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS 2222</strong> in 109 s — matches the user-reported value from the bug-b worktree. All three originally-conflicting files are present and conflict-marker-free. H1 dead-branch deletion preserved in <code>apply_spec_entry</code>. No stale <code>eb769fa</code> references in tracked R/test code. No leaked production edits in <code>b62ad3d</code>. No iceberg <code>updateXyzInput</code> placeholder callsites left in <code>R/paintr-server.R</code>. <strong>12 PASS / 0 CONCERN / 0 FAIL.</strong></p>
+
+<h2>V1 — Merge sanity</h2>
+<p class="pass">PASS.</p>
+<pre>$ git rev-parse HEAD
+93f2d2896d32a1afa7d919a357cb8499c0b821b9
+$ git rev-list --parents -n 1 HEAD
+93f2d289... 343e518cd18e3215b2f6dd2ba6d4e490f940344e 9be42953f338677b4d862bf8215ffc245d2fc49c</pre>
+<ul>
+  <li>HEAD = <code>93f2d28</code>. Two parents: <code>343e518</code> (vignette-review pre-merge) + <code>9be4295</code> (bug-b post-rebase tip). Matches the brief exactly.</li>
+  <li><code>git diff --name-only vignette-review~1..vignette-review</code> = 20 files (2 R/, 16 tests/dev/, 2 plan addenda). Spans <code>R/paintr-build-ui.R</code>, <code>R/paintr-server.R</code>, 11 test files (incl. new <code>test-adr12b-renderui-emission.R</code> + <code>test-adr12b-spec-custom-keyword.R</code>), 1 fixture (<code>adr12-spec-roundtrip/app.R</code>), and 7 docs/plan HTML/MD files under <code>dev/</code>. Consistent with pre-merge audit's predicted file set.</li>
+  <li>Working tree clean: only the expected long-running untracked items (<code>.claude/worktrees/</code>, <code>.codex/</code>, the two <code>dev/notes/0012-exec-plan-*</code> artifacts, the two <code>0012b-bug-b-*-audit-*</code> HTML siblings). Zero tracked-file <code>M</code> lines.</li>
+</ul>
+
+<h2>V2 — Authoritative gate</h2>
+<p class="pass">PASS.</p>
+<pre>$ cd /Users/willju/Research/ggpaintr-rewrite-vignette-review
+$ NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'
+...
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 109.0 s
+
+[ FAIL 0 | WARN 0 | SKIP 0 | PASS 2222 ]</pre>
+<ul>
+  <li>Tally <strong>FAIL 0 / WARN 0 / SKIP 0 / PASS 2222</strong> matches the user-reported bug-b worktree gate exactly. SKIP 0 reflects vignette-review's <code>2a092f7</code> closure of ADR-0012 §5 OQ2 — the pre-rebase SKIP 2 is gone, as the pre-merge audit projected.</li>
+  <li>Browser e2e ran (no SKIP 2 deferral, source tree present, NOT_CRAN=true). All 2222 assertions green.</li>
+</ul>
+
+<h2>V3 — H1 cleanup preserved</h2>
+<p class="pass">PASS.</p>
+<p>Body of <code>apply_spec_entry</code> on HEAD (<code>R/paintr-server.R:619</code>):</p>
+<pre>apply_spec_entry &lt;- function(session, row) {
+  role    &lt;- row$role
+  keyword &lt;- row$keyword
+  id      &lt;- row$bare_id
+  value   &lt;- row$value
+
+  if (identical(role, "layer_checkbox") || identical(role, "stage_enabled")) {
+    if (!is.logical(value) || length(value) != 1L || is.na(value)) return(FALSE)
+    shiny::updateCheckboxInput(session, id, value = value)
+    return(TRUE)
+  }
+  if (identical(role, "source_companion")) {
+    if (is.null(value)) value &lt;- ""
+    shiny::updateTextInput(session, id, value = as.character(value)[[1L]])
+    return(TRUE)
+  }
+  if (identical(keyword, "ppUpload")) {
+    return(TRUE)
+  }
+  FALSE
+}</pre>
+<ul>
+  <li>Four per-keyword placeholder branches (ppText / ppNum / ppExpr / ppVar) deleted, as PLAN-02 SC-1 required.</li>
+  <li>Framework-internal branches preserved verbatim: <code>layer_checkbox</code> / <code>stage_enabled</code> → <code>updateCheckboxInput</code>; <code>source_companion</code> → <code>updateTextInput</code>; <code>ppUpload</code> → silent <code>TRUE</code>; terminal <code>FALSE</code>.</li>
+  <li>PLAN-02 SC-1 literal command (counting <code>update*Input</code> calls inside the function body) → <strong>0</strong>, matching the spec.</li>
+</ul>
+
+<h2>V4 — Net new tests</h2>
+<p class="pass">PASS.</p>
+<pre>$ git diff --name-only --diff-filter=A a76310a..9be4295 -- tests/testthat
+tests/testthat/test-adr12b-renderui-emission.R
+tests/testthat/test-adr12b-spec-custom-keyword.R
+$ ls tests/testthat/test-adr12b-*.R
+tests/testthat/test-adr12b-renderui-emission.R
+tests/testthat/test-adr12b-spec-custom-keyword.R</pre>
+<p>Both files present on the merged tree, both ran inside the V2 gate (no skip / no error). Pre-merge audit confirmed line citations are sound (one cosmetic off-by-2 in <code>test-adr12b-spec-custom-keyword.R</code>'s addendum citation, not a code defect).</p>
+
+<h2>V5 — Originally-conflicting files</h2>
+<p class="pass">PASS — all three present, no conflict markers, all participate in the V2 green gate.</p>
+<table>
+  <tr><th>File</th><th>Exists</th><th>Conflict markers</th><th>Build (V2)</th></tr>
+  <tr><td><code>R/paintr-server.R</code></td><td>2143 lines, 94 KiB</td><td>0</td><td>green</td></tr>
+  <tr><td><code>tests/testthat/test-adr12-spec-roundtrip.R</code></td><td>11 KiB</td><td>0</td><td>green</td></tr>
+  <tr><td><code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code></td><td>3.1 KiB</td><td>0</td><td>green (executed via shinytest2 e2e under V2)</td></tr>
+</table>
+<p><code>grep -lE '^(&lt;&lt;&lt;&lt;&lt;&lt;&lt;|=======|&gt;&gt;&gt;&gt;&gt;&gt;&gt;)'</code> on all three returned no matches (NO_MARKERS).</p>
+
+<h2>V6 — Post-rebase test-id retarget (<code>9be4295</code>)</h2>
+<p class="pass">PASS.</p>
+<pre>$ git show --stat 9be4295
+ tests/testthat/test-rewrite-layer-panel.R | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)</pre>
+<ul>
+  <li>Single file touched, 4 raw_id literals updated to 3-segment ids (<code>ggplot_2_1_ppNum_NA</code>, <code>ggplot_2_1_2_ppText_NA</code>). Commit body cites empirical verification via <code>ptr_runtime_input_spec()</code> on each formula.</li>
+  <li>V2 confirms the retargeted assertions pass on the merged tree (the file is part of the 2222 PASS count). The "4 raw_id sites" claim is consistent with the diff stat.</li>
+  <li>No remaining 2-segment <code>ggplot_2_pp*</code> id literals introduced by bug-b: the only file <code>9be4295</code> touched was <code>test-rewrite-layer-panel.R</code>, and that file's retargeted ids match vignette-review's 3-segment format.</li>
+</ul>
+
+<h2>V7 — Stale <code>eb769fa</code> references</h2>
+<p class="pass">PASS.</p>
+<pre>$ grep -r "eb769fa" R/ tests/ dev/
+dev/notes/0012b-bug-b-postmerge-audit-2026-05-22-93f2d28.html  (this report's V7 heading — pending now resolved)
+dev/notes/0012b-bug-b-premerge-audit-2026-05-22-r4F3Yu50jQ.html  (4 hits, all in historical narrative)</pre>
+<ul>
+  <li>Zero hits in tracked <code>R/</code> or <code>tests/</code> code.</li>
+  <li>All <code>dev/notes/</code> hits are in the pre-merge audit HTML (documenting <code>eb769fa</code> as the pre-rebase bug-b tip — a historical fact, not a code reference). Acceptable per the brief.</li>
+</ul>
+
+<h2>V8 — <code>b62ad3d</code> file scope</h2>
+<p class="pass">PASS.</p>
+<pre>$ git show --stat b62ad3d
+ R/paintr-server.R                                  |  73 +----
+ dev/notes/0012b-drift-audit-2026-05-22.html        | 349 +++++++++++++++++++++
+ dev/notes/0012b-m3-addendum-audit-2026-05-22.html  | 319 +++++++++++++++++++
+ dev/plans/0012b-spec-apply-uniform/01-addendum-bdd-input-and-env-wording.html | 144 +++++++++
+ dev/plans/0012b-spec-apply-uniform/01-addendum-ppupload-silent.html           | 144 +++++++++
+ dev/plans/0012b-spec-apply-uniform/index.md        |   2 +
+ 6 files changed, 973 insertions(+), 58 deletions(-)</pre>
+<ul>
+  <li>Only one production R file touched (<code>R/paintr-server.R</code> — the H1 collapse). All other changes are <code>dev/notes/</code> audit HTMLs, <code>dev/plans/</code> addenda, and a 2-line edit to <code>index.md</code> (the "Deferred to future rounds" additions). Zero test files, zero other R files, zero NAMESPACE / DESCRIPTION drift.</li>
+  <li>R/paintr-server.R diff is purely the dead-branch deletion + docstring rewrite (-58 lines / +15 net), no other logic touched.</li>
+</ul>
+
+<h2>V9 — Addendum citations in pre-merge audit</h2>
+<p class="pass">PASS.</p>
+<p>The pre-merge audit (<code>0012b-bug-b-premerge-audit-2026-05-22-r4F3Yu50jQ.html</code>) discusses H1-close addenda thoroughly:</p>
+<ul>
+  <li>Line 31, 67: identifies <code>eb769fa</code> as "0012b: close H1 (collapse apply_spec_entry placeholder branches) + audit addenda".</li>
+  <li>Lines 102, 177: V4 / V8 sections explicitly verify the H1 dead-branch deletion and confirm it "landed cleanly in bug-b's R/paintr-server.R".</li>
+  <li>Line 121: addendum line-citation off-by-2 flag (cosmetic, called out as LOW).</li>
+  <li>V10 (line 188) verifies neither addendum carries an <code>implementable: PASS</code> stamp, matching the brief's expectation.</li>
+</ul>
+<p>Addenda are documented at the level the brief requires.</p>
+
+<h2>V10 — <code>index.md</code> deferred rows</h2>
+<p class="pass">PASS.</p>
+<p><code>dev/plans/0012b-spec-apply-uniform/index.md</code> exists and accurately describes the landed work:</p>
+<ul>
+  <li>Header: ADR 0012 Bug B — spec-apply uniform via build_ui, both plans listed (01 = spec-seed-and-renderui-emission; 02 = collapse-apply-spec-entry-and-revert-workarounds).</li>
+  <li>Both plan rows tagged <code>draft</code>. (Status field not updated to "merged" — pre-existing wording; not a defect because the file did not exist on vignette-review pre-merge and the merge brought the bug-b copy verbatim.)</li>
+  <li><strong>Deferred to future rounds</strong> section names: Step C (framework-internal widgets to renderUI), per-plot vs combined spec accessor (ADR 0012 §5 OQ3), shinyWidgets HTML-divergence investigation, <strong>shinytest2 dynamic-input round-trip test (drift-audit M2)</strong> with full recipe + open question, and <strong>ppUpload source_companion seed-write coverage (M3 addendum follow-up)</strong>.</li>
+  <li>M2 + ppUpload are the two new "deferred" rows added by <code>b62ad3d</code> per its commit body — both present.</li>
+</ul>
+
+<h2>V11 — MAIN cleanliness post-gate</h2>
+<p class="pass">PASS.</p>
+<pre>$ git status --porcelain  # immediately after V2 completed
+?? .claude/worktrees/
+?? .codex/
+?? dev/notes/0012-exec-plan-deferred-questions-2026-05-22T07-46-14Z.jsonl
+?? dev/notes/0012-exec-plan-report-2026-05-22T07-46-14Z.html
+?? dev/notes/0012b-bug-b-postmerge-audit-2026-05-22-93f2d28.html
+?? dev/notes/0012b-bug-b-premerge-audit-2026-05-22-r4F3Yu50jQ.html
+$ git rev-parse HEAD
+93f2d2896d32a1afa7d919a357cb8499c0b821b9</pre>
+<p>HEAD unchanged. No <code>M</code> lines. <code>devtools::load_all()</code> did not drift any tracked file (no <code>R/</code>, <code>man/</code>, <code>NAMESPACE</code>, <code>DESCRIPTION</code> modification). Same untracked set as pre-gate.</p>
+
+<h2>V12 — Iceberg check</h2>
+<p class="pass">PASS — no placeholder-id <code>updateXyzInput</code> callsites slipped through.</p>
+<pre>$ grep -n -E "update(SelectInput|SelectizeInput|NumericInput|TextInput|FileInput|CheckboxInput)" R/*.R
+R/paintr-server.R:526:  # checkboxes that stay on `updateCheckboxInput` per PLAN-01's "no
+R/paintr-server.R:576:  # (layer_checkbox / stage_enabled) can call `updateCheckboxInput()`
+R/paintr-server.R:610:#   role == "layer_checkbox" | "stage_enabled" -> updateCheckboxInput
+R/paintr-server.R:611:#   role == "source_companion"                 -> updateTextInput
+R/paintr-server.R:629:    shiny::updateCheckboxInput(session, id, value = value)
+R/paintr-server.R:634:    shiny::updateTextInput(session, id, value = as.character(value)[[1L]])
+R/paintr-server.R:936:      shiny::updateTextInput(session, comp_id, value = auto)
+R/paintr-server.R:1470:# is set by `updateTextInput` from the boot dispatch (the companion</pre>
+<p>Categorization of every callsite:</p>
+<table>
+  <tr><th>File:line</th><th>Kind</th><th>Target id</th><th>Role</th></tr>
+  <tr><td><code>R/paintr-server.R:526</code></td><td>comment</td><td>—</td><td>doc</td></tr>
+  <tr><td><code>R/paintr-server.R:576</code></td><td>comment</td><td>—</td><td>doc</td></tr>
+  <tr><td><code>R/paintr-server.R:610</code></td><td>comment (docstring above <code>apply_spec_entry</code>)</td><td>—</td><td>doc</td></tr>
+  <tr><td><code>R/paintr-server.R:611</code></td><td>comment (docstring)</td><td>—</td><td>doc</td></tr>
+  <tr><td><code>R/paintr-server.R:629</code></td><td><strong>call</strong>: <code>updateCheckboxInput(session, id, value)</code></td><td><code>id = row$bare_id</code> from <code>layer_checkbox</code> / <code>stage_enabled</code> branch</td><td>framework-internal ✓</td></tr>
+  <tr><td><code>R/paintr-server.R:634</code></td><td><strong>call</strong>: <code>updateTextInput(session, id, ...)</code></td><td><code>id = row$bare_id</code> from <code>source_companion</code> branch</td><td>framework-internal ✓</td></tr>
+  <tr><td><code>R/paintr-server.R:936</code></td><td><strong>call</strong>: <code>updateTextInput(session, comp_id, value = auto)</code></td><td><code>comp_id</code> = source-companion text input that auto-fills from upload filename</td><td>framework-internal (source_companion auto-fill) ✓</td></tr>
+  <tr><td><code>R/paintr-server.R:1470</code></td><td>comment</td><td>—</td><td>doc</td></tr>
+</table>
+<p>Three real calls in the merged tree; all three target framework-internal ids (layer_checkbox / stage_enabled / source_companion / source_companion auto-fill). Zero placeholder-id callsites. No iceberg.</p>
+
+<h2>Verdict</h2>
+<p class="verdict-green"><strong>GREEN — 12 PASS / 0 CONCERN / 0 FAIL.</strong> The Bug-B merge into <code>vignette-review</code> at <code>93f2d28</code> is structurally clean (correct parents, expected file set, no conflict markers) and functionally clean (authoritative gate <code>FAIL 0 / WARN 0 / SKIP 0 / PASS 2222</code>, matching the user-reported value). H1 close is intact, the post-rebase id retarget covers exactly the four sites the commit body claims, no stale <code>eb769fa</code> references in tracked code, no leaked production edits in <code>b62ad3d</code>, no placeholder <code>updateXyzInput</code> callsites slipped through the H1 collapse. The plan's <code>index.md</code> documents the M2 + ppUpload deferred rows accurately. No MAIN drift introduced by the gate run. The merge can be considered settled.</p>
+
+</body>
+</html>

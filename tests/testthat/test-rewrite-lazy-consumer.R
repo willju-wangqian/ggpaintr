@@ -67,7 +67,7 @@ test_that("D6 build_ui receives the resolved upstream data frame", {
     state <- session$userData$state
     tree <- shiny::isolate(state$tree())
     consumer <- find_nodes(tree, is_ptr_ph_data_consumer)[[1L]]
-    output_id <- consumer_output_id(consumer$id)
+    output_id <- placeholder_output_id(consumer$id)
     # Force the renderUI to run by reading its output.
     output[[output_id]]
     session$flushReact()
@@ -80,11 +80,15 @@ test_that("D6 build_ui receives the resolved upstream data frame", {
 # ---- D2: per-consumer cache deps ----
 
 test_that("D2 find_consumer_ids_in_upstream walks producer subtrees", {
-  r <- ptr_translate("mtcars |> dplyr::select(var) |> dplyr::select(var)")
+  # PLAN-02 (ADR 0012 §1): the lift fires only inside a layer's data_arg
+  # subtree, gated on chain depth >= 2 above the source. A chain that
+  # terminates in a ggplot layer surfaces the consumers in upstream-walk
+  # order regardless of which surface form (pipe / nested) the user wrote.
+  r <- ptr_translate(
+    "mtcars |> dplyr::select(ppVar) |> dplyr::select(ppVar) |> ggplot(aes(x = mpg))"
+  )
   consumers <- find_nodes(r, is_ptr_ph_data_consumer)
-  # The downstream consumer's upstream contains the upstream consumer.
   expect_length(consumers, 2L)
-  # Order may follow tree walk; pick the one whose upstream contains the other.
   ids <- lapply(consumers, function(c) find_consumer_ids_in_upstream(c$upstream))
   has_one <- vapply(ids, function(x) length(x) == 1L, logical(1))
   has_zero <- vapply(ids, function(x) length(x) == 0L, logical(1))
@@ -93,7 +97,11 @@ test_that("D2 find_consumer_ids_in_upstream walks producer subtrees", {
 })
 
 test_that("D2 find_producer_ids_in_upstream picks ptr_ph_value", {
-  r <- ptr_translate("mtcars |> dplyr::filter(num > 0) |> dplyr::select(var)")
+  # PLAN-02: a 2-stage chain (filter + select) terminating in ggplot is the
+  # canonical pipeline shape with a producer (ppNum) upstream of a consumer.
+  r <- ptr_translate(
+    "mtcars |> dplyr::filter(ppNum > 0) |> dplyr::select(ppVar) |> ggplot(aes(x = mpg))"
+  )
   consumer <- find_nodes(r, is_ptr_ph_data_consumer)[[1L]]
   pids <- find_producer_ids_in_upstream(consumer$upstream)
   expect_length(pids, 1L)

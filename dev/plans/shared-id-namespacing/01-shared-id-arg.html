@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ggpaintr — shared-coordinator id (multi-panel namespacing)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<main>
+
+<h1>Shared-coordinator <code>id</code> argument — multi-panel namespacing</h1>
+<p class="meta">
+  Drafted 2026-05-25 on branch <code>shared-id-upgrade</code> · status: <strong>draft, awaiting <code>/implementable</code> stamp</strong>
+</p>
+
+<div class="callout">
+  Adds an <code>id</code> argument to <code>ptr_shared()</code> so two or more independent shared panels can coexist in one Shiny session without input-id collision. The id lives on the spec object; <code>ptr_shared_panel()</code>, <code>ptr_ui_shared_panel()</code>, and <code>ptr_shared_server()</code> consume it implicitly — their signatures do not change. <code>id = NULL</code> (the default) preserves today's flat ids verbatim — full backward compatibility.
+</div>
+
+<h2>Baseline (verified 2026-05-25)</h2>
+
+<p>The shared coordinator currently emits these <em>flat</em>, top-session ids — every collision point under the upgrade:</p>
+
+<table>
+<thead><tr><th>Site</th><th>Id (today)</th><th>Code location</th></tr></thead>
+<tbody>
+<tr><td>Widget input slot per key</td><td><code>shared_&lt;key&gt;</code></td><td><code>R/paintr-shared.R:35</code> — <code>canonical_shared_id()</code></td></tr>
+<tr><td>Stage-enabled checkbox per key</td><td><code>shared_&lt;key&gt;_stage_enabled</code></td><td><code>R/paintr-shared.R:43-45</code> — <code>shared_stage_input_id()</code></td></tr>
+<tr><td>Stage-block DOM id</td><td><code>shared_&lt;key&gt;_stage_enabled_stage_block</code></td><td><code>R/paintr-shared-ui.R:345</code></td></tr>
+<tr><td>Draw-all button</td><td><code>ptr_shared_draw_all</code></td><td><code>R/paintr-shared-coordinator.R:242</code></td></tr>
+<tr><td>Errors uiOutput</td><td><code>ptr_shared_errors</code></td><td><code>R/paintr-shared-coordinator.R:244</code>; <code>R/paintr-shared-ui.R:305,315</code></td></tr>
+<tr><td>Consumer renderUI container per key</td><td><code>shared_&lt;key&gt;_ui</code></td><td>via <code>consumer_output_id()</code> + <code>ns_fn = identity</code> in shared path</td></tr>
+</tbody></table>
+
+<p><code>ptr_shared(formulas, ...)</code> takes no <code>id</code>. <code>ptr_shared_panel(obj, css)</code> and <code>ptr_shared_server(obj, envir, shared, draw_trigger)</code> namespace through <code>ns_fn = identity</code> at every call site in <code>shared_panel_body_tag()</code> and <code>ptr_bind_local_shared_consumers()</code>. Two coordinators in one session collide at every row above.</p>
+
+<p><strong>Out-of-scope confirmation:</strong> <code>R/paintr-app.R:1156</code> reads <code>input[[canonical_shared_id(k)]]</code> from <code>ptr_server()</code>'s <code>auto_bind_shared</code> self-bind path. That path fires only when a layer has no coordinator (single-instance / <code>ptr_app()</code>) — outside the multi-panel use case. Left untouched.</p>
+
+<h2>Success criteria</h2>
+
+<ul>
+  <li>A user can write <code>panelA &lt;- ptr_shared(formulasA, id = "panelA")</code> and <code>panelB &lt;- ptr_shared(formulasB, id = "panelB")</code> in one app; both panels are functional simultaneously even when <code>formulasA</code> and <code>formulasB</code> both reference <code>shared = "x"</code> (or any overlapping key set).</li>
+  <li>The spec object exposes <code>obj$id</code> (character scalar or <code>NULL</code>); <code>ptr_shared_panel()</code>, <code>ptr_ui_shared_panel()</code>, and <code>ptr_shared_server()</code> derive their namespace from <code>obj$id</code> — no new args on those three functions.</li>
+  <li>When <code>id = "panelA"</code>, every id in the table above gains a <code>panelA-</code> prefix (Shiny-<code>NS()</code>-style separator <code>-</code>). When <code>id = NULL</code>, every id matches today exactly — byte-for-byte regression guard.</li>
+  <li><code>ptr_server(formula, …, shared_state = sA)</code> links to coordinator A by reactive-bundle handoff (unchanged API). The bundle returned by <code>ptr_shared_server(panelA)</code> carries the namespacing internally, so <code>ptr_server</code> needs no <code>shared_id</code> arg.</li>
+  <li><code>ptr_shared(id = …)</code> validates: <code>NULL</code> or a single non-empty string matching <code>^[A-Za-z][A-Za-z0-9_]*$</code>. Anything else aborts via <code>rlang::abort()</code> with a message naming the bad value.</li>
+  <li>The full test suite passes the project's authoritative gate (see <em>Definition of Done</em>) with zero edits to any pre-existing test file. Existing tests assert flat ids like <code>ptr_shared_draw_all</code> / <code>shared_B</code> — they keep passing because the default is <code>id = NULL</code>.</li>
+  <li>One new file <code>tests/testthat/test-shared-id-namespacing.R</code> covers the BDD scenarios below.</li>
+  <li><code>devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))</code> — 0 errors, 0 warnings; only the by-design NOTEs from project CLAUDE.md.</li>
+</ul>
+
+<h2>Constraints</h2>
+
+<ul>
+  <li><strong>Spec carries the id.</strong> Only <code>ptr_shared()</code> grows a new arg. <code>ptr_shared_panel()</code>, <code>ptr_ui_shared_panel()</code>, <code>ptr_shared_server()</code> retain their current signatures and read <code>obj$id</code> internally. Rationale: the id is a property of the coordinator's identity; duplicating it on three consumers invites drift.</li>
+  <li><strong>Backward compatibility is byte-level.</strong> <code>ptr_shared(formulas)</code> with no <code>id</code> must produce identical HTML and bind to identical Shiny inputs as today. No conditional behavior change beyond id prefixing.</li>
+  <li><strong>Namespacing scheme matches Shiny <code>NS()</code>.</strong> The separator is <code>"-"</code>; the prefix function is <code>function(x) if (is.null(id) || !nzchar(id)) x else paste(id, x, sep = "-")</code>. Build a single <code>shared_ns(obj)</code> helper that returns this function; reuse it on both UI and server sides.</li>
+  <li><strong>Reuse the <code>ns_fn</code> seam.</strong> <code>shared_panel_body_tag()</code>, <code>build_ui_for()</code>, <code>controllable_region()</code>, and <code>ptr_bind_local_shared_consumers()</code> already accept <code>ns_fn</code> and pass <code>identity</code> from the shared path today (<code>R/paintr-shared-coordinator.R:193,203,230</code>; <code>R/paintr-shared-ui.R:299</code>). Replace these <code>identity</code> values with <code>shared_ns(obj)</code>. Do not introduce a second namespacing mechanism.</li>
+  <li><strong>Out of scope</strong> (call out, do not modify):
+    <ul>
+      <li><code>ptr_server</code>'s <code>auto_bind_shared</code> self-bind path (<code>R/paintr-app.R:1156</code>) — fires only with no coordinator.</li>
+      <li><code>ptr_app()</code>, <code>ptr_app_components()</code>, <code>ptr_app_bslib()</code> — single-instance, never call <code>ptr_shared()</code>.</li>
+      <li>Detection of duplicate <code>id</code>s across coordinators in one session — no session-wide registry exists; user's responsibility.</li>
+      <li>CSS / JS literal id refs — grep confirms zero hits in <code>inst/</code> for <code>#shared_</code> or <code>ptr_shared_draw_all</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Docs nudge (in scope, minimal):</strong> <code>vignettes/ggpaintr-use-cases.Rmd:419</code> currently lists <code>ptr_shared_draw_all</code> / <code>ptr_shared_errors</code> as top-level reserved ids. Append one sentence: when <code>ptr_shared(id = "&lt;id&gt;")</code> is supplied, those ids carry an <code>&lt;id&gt;-</code> prefix.</li>
+  <li><strong>Coding rules</strong> (from <code>.claude/rules/coding.md</code>): tidyverse style, snake_case, 2-space indent; <code>rlang::abort()</code> not <code>stop()</code>; <code>assertthat::assert_that()</code> for arg validation; regenerate <code>NAMESPACE</code>/<code>man/</code> via <code>devtools::document()</code> — do not hand-edit.</li>
+  <li><strong>Serena edit-tool rule</strong> (from <code>.claude/rules/serena-tools.md</code>): sub-agents in nested worktrees must use <code>Edit</code>/<code>Write</code> only; never <code>mcp__serena__replace_symbol_body</code> / <code>insert_after_symbol</code> / <code>rename_symbol</code>.</li>
+</ul>
+
+<h2>API surface (after)</h2>
+
+<pre><code>ptr_shared(formulas,
+           id = NULL,                  # NEW
+           shared_ui = list(),
+           ui_text = NULL,
+           expr_check = TRUE,
+           draw_all_label = "Draw all") # -&gt; ptr_shared_spec  (now with $id)
+
+ptr_shared_panel(obj, css = NULL)       # unchanged signature; reads obj$id
+ptr_ui_shared_panel(obj)                # unchanged signature; reads obj$id
+ptr_shared_server(obj, envir = parent.frame(),
+                  shared = list(), draw_trigger = NULL) # unchanged; reads obj$id
+
+ptr_server(formula, …, shared_state = ?) # unchanged
+</code></pre>
+
+<h2>BDD scenarios</h2>
+
+<pre><code>Feature: ptr_shared(id =) namespacing
+
+  Scenario: default id keeps today's flat ids
+    Given a formulas vector that uses shared = "k" in two formulas
+    When  I call ptr_shared(formulas)
+    Then  obj$id is NULL
+    # ptr_shared_panel() emits every shared widget through a server-rendered
+    # `renderUI` container (the `_ui` slot); the picker/widget itself is
+    # inserted into that slot at server runtime. The static HTML contains
+    # only the container id. The bare input id ("shared_k") is verified as
+    # an addressable input slot via shiny::testServer in the "server reads"
+    # scenario below — that is the behavioral pin.
+    And   ptr_shared_panel(obj) HTML contains exactly one element with id "shared_k_ui"
+    And   ptr_shared_panel(obj) HTML contains exactly one element with id "ptr_shared_draw_all"
+    And   ptr_shared_panel(obj) HTML contains exactly one element with id "ptr_shared_errors"
+
+  Scenario: non-null id prefixes every panel-owned id
+    Given a formulas vector that uses shared = "k" in two formulas
+    When  I call ptr_shared(formulas, id = "panelA")
+    Then  obj$id equals "panelA"
+    And   ptr_shared_panel(obj) HTML contains an element with id "panelA-shared_k_ui"
+    And   ptr_shared_panel(obj) HTML contains no element with id "shared_k_ui"
+    And   ptr_shared_panel(obj) HTML contains an element with id "panelA-ptr_shared_draw_all"
+    And   ptr_shared_panel(obj) HTML contains an element with id "panelA-ptr_shared_errors"
+
+  Scenario: server reads inputs at the prefixed slot
+    Given panelA &lt;- ptr_shared(formulasA, id = "panelA") with one shared key "k"
+    When  I run ptr_shared_server(panelA) inside shiny::testServer
+    And   I set session$setInputs(`panelA-shared_k` = "wt", `panelA-ptr_shared_draw_all` = 1L)
+    Then  shared_state$shared$k() returns "wt"
+    And   shared_state$draw_trigger() advances to 1L
+
+  Scenario: two coordinators in one session, overlapping keys, no collision
+    Given panelA &lt;- ptr_shared(formulasA, id = "panelA") referencing shared = "x"
+    And   panelB &lt;- ptr_shared(formulasB, id = "panelB") referencing shared = "x"
+    When  both ptr_shared_server() calls run inside one Shiny session
+    And   session$setInputs(`panelA-shared_x` = "wt", `panelB-shared_x` = "drat")
+    Then  panelA's bundle$shared$x() returns "wt"
+    And   panelB's bundle$shared$x() returns "drat"
+
+  Scenario: shared-stage checkbox id is namespaced too
+    Given a formulas vector whose shared key "k" hosts an orphan pipeline stage
+    When  I call ptr_shared(formulas, id = "panelA")
+    Then  ptr_shared_panel(obj) HTML contains an element with id "panelA-shared_k_stage_enabled"
+    And   the stage-block DOM id is "panelA-shared_k_stage_enabled_stage_block"
+
+  Scenario: validation rejects bad ids
+    When  I call ptr_shared(formulas, id = "")
+    Then  rlang::abort fires with a message containing "id"
+    When  I call ptr_shared(formulas, id = "1bad")
+    Then  rlang::abort fires with a message containing "id"
+    When  I call ptr_shared(formulas, id = c("a","b"))
+    Then  rlang::abort fires with a message containing "id"
+</code></pre>
+
+<h2>Implementation outline</h2>
+
+<ol>
+  <li><strong>R/paintr-shared.R</strong> — add <code>shared_ns(obj)</code> helper: returns <code>function(x) if (is.null(obj$id) || !nzchar(obj$id)) x else paste(obj$id, x, sep = "-")</code>. Keep <code>canonical_shared_id()</code> and <code>shared_stage_input_id()</code> as the <em>unprefixed</em> id builders — the <code>ns_fn</code> wrapper does the prefixing at use-site.</li>
+  <li><strong>R/paintr-shared-coordinator.R / <code>ptr_shared()</code></strong> —
+    <ul>
+      <li>Add <code>id = NULL</code> parameter (after <code>formulas</code>).</li>
+      <li>Validate: <code>is.null(id) || (is.character(id) &amp;&amp; length(id) == 1L &amp;&amp; nzchar(id) &amp;&amp; grepl("^[A-Za-z][A-Za-z0-9_]*$", id))</code>; abort with the bad value otherwise.</li>
+      <li>Add <code>id = id</code> to the <code>structure(list(...), class = "ptr_shared_spec")</code> payload.</li>
+    </ul>
+  </li>
+  <li><strong>R/paintr-shared-coordinator.R / <code>shared_panel_body_tag()</code></strong> — replace the four <code>ns_fn = identity</code> sites (widget build, controllable_region, button, errors uiOutput) with the result of <code>shared_ns(obj)</code> wrapped around literal ids:
+    <ul>
+      <li>line 188 <code>shared_ui[[k]](canonical)</code> → pass <code>shared_ns(obj)(canonical)</code>.</li>
+      <li>lines 191-205 <code>build_ui_for(..., ns_fn = identity, ...)</code> → <code>ns_fn = shared_ns(obj)</code>.</li>
+      <li>line 230 <code>controllable_region(shared_stage_input_id(k), …, ns_fn = identity)</code> → <code>ns_fn = shared_ns(obj)</code>.</li>
+      <li>line 242 <code>shiny::actionButton("ptr_shared_draw_all", …)</code> → <code>shiny::actionButton(shared_ns(obj)("ptr_shared_draw_all"), …)</code>.</li>
+      <li>line 244 <code>shiny::uiOutput("ptr_shared_errors")</code> → <code>shiny::uiOutput(shared_ns(obj)("ptr_shared_errors"))</code>.</li>
+    </ul>
+  </li>
+  <li><strong>R/paintr-shared-ui.R / <code>ptr_shared_server()</code></strong> —
+    <ul>
+      <li>Build local <code>ns &lt;- shared_ns(obj)</code> at top of function.</li>
+      <li>line 266 <code>cid &lt;- canonical_shared_id(k)</code> → <code>cid &lt;- ns(canonical_shared_id(k))</code>.</li>
+      <li>line 283 <code>input$ptr_shared_draw_all</code> → <code>input[[ns("ptr_shared_draw_all")]]</code>.</li>
+      <li>line 299 <code>ptr_bind_local_shared_consumers(..., ns = identity, ...)</code> → <code>ns = ns</code>.</li>
+      <li>lines 305, 315 <code>output$ptr_shared_errors</code> → <code>output[[ns("ptr_shared_errors")]]</code>.</li>
+      <li>lines 329, 344 <code>sid_input &lt;- shared_stage_input_id(k)</code> → <code>sid_input &lt;- ns(shared_stage_input_id(k))</code> (so <code>input[[sid_input]]</code> and <code>block_dom_id</code> at line 345 both reach the right slot — <code>block_dom_id</code> is already derived from <code>sid_input</code> so flows through).</li>
+    </ul>
+  </li>
+  <li><strong>R/paintr-shared-ui.R / <code>ptr_shared_state</code></strong> — no change. The state already carries reactives, not ids. ptr_server consumes via reactive call.</li>
+  <li><strong>Docs:</strong>
+    <ul>
+      <li>Roxygen on <code>ptr_shared()</code>: add <code>@param id</code> paragraph naming the validation rule and back-compat default.</li>
+      <li>Roxygen on <code>ptr_shared_panel()</code>, <code>ptr_ui_shared_panel()</code>, <code>ptr_shared_server()</code>: one sentence each — "Namespacing is inherited from <code>obj$id</code>; supply it to <code>ptr_shared()</code>."</li>
+      <li><code>vignettes/ggpaintr-use-cases.Rmd:419</code>: append the prefix sentence noted in Constraints.</li>
+      <li>Regenerate with <code>devtools::document()</code>.</li>
+    </ul>
+  </li>
+  <li><strong>Tests</strong> — create <code>tests/testthat/test-shared-id-namespacing.R</code> with one <code>test_that()</code> per BDD scenario above. Use <code>shiny::testServer()</code> for the two server scenarios; HTML-render scenarios use <code>htmltools::renderTags()</code> on the panel and assert on the rendered string. <strong>Do not modify any pre-existing test file</strong> — back-compat is the regression guard.</li>
+</ol>
+
+<h2>Definition of Done</h2>
+
+<p>Run the project's authoritative gate (from <code>CLAUDE.md</code>):</p>
+
+<pre><code>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</code></pre>
+
+<p>Expected output (exact):</p>
+
+<pre><code>[ FAIL 0 | WARN ? | SKIP 0 | PASS N ]</code></pre>
+
+<p>where <code>N &gt;= 1583 + (number of new test_that blocks)</code> — i.e. every previously-passing test still passes, and the new file adds tests without skipping. <code>WARN</code> count is not gated.</p>
+
+<p>And the R CMD check gate:</p>
+
+<pre><code>Rscript -e 'devtools::check(document = FALSE, manual = FALSE, args = c("--as-cran","--no-manual"))'</code></pre>
+
+<p>Expected: <strong>0 errors, 0 warnings</strong>. By-design NOTEs only (CRAN incoming "new submission", <code>.git</code>, top-level <code>CONTEXT.md</code>). The e2e browser file <em>cleanly SKIPs</em> under check — that is the source-root guard working, not a regression.</p>
+
+<h3>Proxy traps — do NOT be fooled (from project CLAUDE.md)</h3>
+
+<ul>
+  <li>A raw <code>Rscript -e 'testthat::test_dir()'</code> <em>without</em> <code>NOT_CRAN=true</code> silently SKIPs every shinytest2 browser test. "Green, SKIP n" off that command is NOT the gate.</li>
+  <li><code>devtools::check(... --as-cran)</code> does NOT trip <code>skip_on_cran()</code> (devtools sets <code>NOT_CRAN=true</code> in the subprocess). The browser fixtures cleanly SKIP via the source-root guard instead. If the e2e file <em>ERRORs</em> under check, that's a harness defect — not a product failure, and never the gate.</li>
+  <li>A self-report from any sub-agent ("done / green / tests pass") is a claim to verify by running the authoritative command yourself — never proof.</li>
+</ul>
+
+<h2>Scope guard</h2>
+
+<ul>
+  <li>This plan is <strong>id-side only</strong>. No behavioral change to the partition logic, the draw-all wiring semantics, the consumer-binding logic, or the auto_bind_shared self-bind path.</li>
+  <li>No new public function. No new file under <code>R/</code>. <code>shared_ns()</code> is an unexported helper added to <code>R/paintr-shared.R</code>.</li>
+  <li>No change to <code>ptr_server()</code>, <code>ptr_app()</code>, <code>ptr_app_grid()</code>, <code>ptr_ui()</code>, or the placeholder registry.</li>
+</ul>
+
+<h2>Independence</h2>
+
+<p>The plan is self-contained: it touches <code>R/paintr-shared.R</code>, <code>R/paintr-shared-coordinator.R</code>, <code>R/paintr-shared-ui.R</code>, the three roxygen blocks above, one vignette sentence, and adds one new test file. No other plan is required to land first. No follow-up plan is required to land after.</p>
+
+<h2>Dependencies</h2>
+
+<p>None. The current <code>shared-id-upgrade</code> branch already merges ADR 0021 (ppVerbSwitch) and the eyeball-play fixes. <code>ns_fn</code> seam is already in place.</p>
+
+<h2>Out-of-scope follow-ups (file separately if/when needed)</h2>
+
+<ul>
+  <li>Session-wide duplicate-<code>id</code> detection (would require a session registry).</li>
+  <li>NS-aware <code>auto_bind_shared</code> self-bind path — only needed if a user mixes coordinated and uncoordinated layers in one session with overlapping keys.</li>
+  <li>NS-aware CSS hooks — only needed if a future stylesheet starts targeting <code>#shared_*</code> literally.</li>
+</ul>
+
+</main>
+<!-- implementable: PASS date=2026-05-25 gate="NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(\".\")); testthat::test_dir(\"tests/testthat\", reporter=\"progress\", stop_on_failure=FALSE)'" hash=f20c6fb6842a -->
+</body>
+</html>

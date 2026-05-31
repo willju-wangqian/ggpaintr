@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>0012b drift audit — Bug B spec-apply uniform (combined PLAN-01 + PLAN-02)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>0012b drift audit — Bug B spec-apply uniform</h1>
+<p class="small">
+  <b>Worktree:</b> <code>.claude/worktrees/bug-b-spec-apply-uniform</code> &middot;
+  <b>Branch:</b> <code>bug-b-spec-apply-uniform</code> &middot;
+  <b>HEAD:</b> <code>efbf793</code> (merge commit) <br>
+  <b>Feature commit:</b> <code>c5f6cae</code> on top of <code>33ddcd6</code> (stamped plans). <br>
+  <b>Audit date:</b> 2026-05-22. <b>Auditor:</b> self-audit by orchestrator after two general-purpose Opus sub-agents stopped early (~11 tool uses each) without writing the report file. Cross-verified the sub-agents' one verifiable interim finding (consumer renderUI without <code>outputOptions</code>) before incorporating.
+</p>
+
+<p>
+  Scope: combined PLAN-01 (<code>01-spec-seed-and-renderui-emission</code>) + PLAN-02
+  (<code>02-collapse-apply-spec-entry-and-revert-workarounds</code>), per mid-session
+  user approval (AskUserQuestion that picked the combined path) recorded in the
+  Bug-B handoff at <code>/var/folders/.../handoff-XXXXXX.md.6tG3YAo6eM</code>.
+</p>
+
+<div class="verdict">
+  <b>VERDICT: PASS-with-caveats.</b>
+  Functional contract met (Bug B fix lands; full gate green: FAIL 0 / WARN 0 / SKIP 2 / PASS 2194).
+  One HIGH finding: PLAN-02 SC-1's literal verification command returns <code>5</code> (expected <code>0</code>) because the placeholder branches of <code>apply_spec_entry</code> were left in as dead code rather than removed. Two MEDIUMs and one LOW round out the test-honesty surface. Details below; user decides whether to amend in a follow-up commit before the outer merge to <code>vignette-review</code>.
+</div>
+
+<h2>1. Plan&harr;implementation mapping</h2>
+
+<h3>PLAN-01 (spec-seed-and-renderui-emission)</h3>
+
+<table>
+  <tr><th>SC / BDD</th><th>Implementation</th><th>Test</th><th>Verdict</th></tr>
+  <tr>
+    <td>SC-1 — custom keyword spec entry seeds widget at boot</td>
+    <td><code>R/paintr-server.R</code> apply_spec_at_boot seed-write loop (lines ~529&ndash;576), spec_seed env on <code>ptr_init_state</code></td>
+    <td><code>test-adr12b-spec-custom-keyword.R</code> (new)</td>
+    <td><span class="badge badge-pass">PASS</span> (but BDD <code>Then</code> partially narrowed &mdash; see Finding M1)</td>
+  </tr>
+  <tr>
+    <td>SC-2 — built-in keywords unchanged, e2e</td>
+    <td>Unchanged dispatch path for framework-internal rows + new seed path for placeholders</td>
+    <td><code>test-adr12-spec-roundtrip.R</code> (existing, migrated)</td>
+    <td><span class="badge badge-pass">PASS</span> (but assertion at L67 swapped to HTML check &mdash; M2)</td>
+  </tr>
+  <tr>
+    <td>SC-3 — no-spec render falls back to <code>node$default</code></td>
+    <td>renderUI's <code>extra$selected</code> chain: <code>seed %||% current</code>, then <code>invoke_build_ui</code>'s own <code>node$default</code> fallback</td>
+    <td><code>test-adr12b-renderui-emission.R</code> (new)</td>
+    <td><span class="badge badge-pass">PASS</span> (BDD <code>session$input == "hello"</code> assertions migrated to HTML checks &mdash; M1)</td>
+  </tr>
+  <tr>
+    <td>SC-4 — full gate</td>
+    <td>n/a</td>
+    <td>see &sect;7 below</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+  </tr>
+  <tr>
+    <td>BDD Scenario "ppUpload spec value is silently dropped (fileInput unsettable)"</td>
+    <td>apply_spec_at_boot seed-write condition excludes <code>row$keyword == "ppUpload"</code>; source_companion seeded normally</td>
+    <td>&mdash;</td>
+    <td><span class="badge badge-med">MEDIUM</span> &mdash; no automated test for this scenario (Finding M3)</td>
+  </tr>
+  <tr>
+    <td>BDD Scenario "spec entry for unknown id is dropped with single aggregate cli_inform"</td>
+    <td>apply_spec_at_boot dropped-id branch (lines ~507&ndash;511)</td>
+    <td><code>test-adr12-spec-roundtrip.R</code> "aggregates unknown ids into one cli_inform" (existing)</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+  </tr>
+</table>
+
+<h3>PLAN-02 (collapse-apply-spec-entry-and-revert-workarounds)</h3>
+
+<table>
+  <tr><th>SC / BDD</th><th>Implementation</th><th>Test</th><th>Verdict</th></tr>
+  <tr>
+    <td>SC-1 / BDD "apply_spec_entry contains no updateXyzInput call for placeholder keywords"</td>
+    <td>apply_spec_entry placeholder branches LEFT IN AS DEAD CODE (R/paintr-server.R:645, 652, 657, 665, 673). The seed-write loop in apply_spec_at_boot skips dispatch for these rows, so they are unreachable at runtime &mdash; but the literal SC verification command counts 5, not 0.</td>
+    <td>Plan's own verification command (see Finding H1)</td>
+    <td><span class="badge badge-high">HIGH</span> (Finding H1)</td>
+  </tr>
+  <tr>
+    <td>SC-2 — seed-only path covers all built-in keywords</td>
+    <td>Type normalization co-located in apply_spec_at_boot seed loop (ppNum coerce, ppExpr deparse, ppVar character, ppText character)</td>
+    <td><code>test-adr12-spec-roundtrip.R</code></td>
+    <td><span class="badge badge-pass">PASS</span></td>
+  </tr>
+  <tr>
+    <td>SC-3 — HTML carries server-rendered selection</td>
+    <td>ppVar picker now server-rendered via <code>ptr_setup_consumer_uis()</code>'s renderUI (unchanged path; just observable via <code>app$get_html</code>)</td>
+    <td>L40&ndash;48 (HTML + input check)</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+  </tr>
+  <tr>
+    <td>SC-4 — PLAN-01 regression still passes</td>
+    <td>n/a</td>
+    <td><code>test-adr12b-spec-custom-keyword.R</code></td>
+    <td><span class="badge badge-pass">PASS</span></td>
+  </tr>
+  <tr>
+    <td>SC-5 — full gate</td>
+    <td>n/a</td>
+    <td>see &sect;7</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+  </tr>
+  <tr>
+    <td>BDD "ppNum spec value still coerces correctly through the seed path"</td>
+    <td>seed loop's ppNum branch normalizes via <code>as.numeric</code>; invalid values left out of seed, dispatch path surfaces FALSE → WARN (the path remains because the placeholder branches in apply_spec_entry were not removed &mdash; see H1).</td>
+    <td>e2e: <code>app$get_html("#geom_point_2_2_ppNum_NA")</code> matches <code>value="5"</code></td>
+    <td><span class="badge badge-pass">PASS</span> (functional)</td>
+  </tr>
+  <tr>
+    <td>BDD "framework-internal checkbox still applies via updateCheckboxInput"</td>
+    <td>apply_spec_entry's <code>layer_checkbox</code> / <code>stage_enabled</code> branches intact and reached for non-seeded rows</td>
+    <td><code>test-adr12-spec-roundtrip.R</code> L55 (FALSE assertion)</td>
+    <td><span class="badge badge-pass">PASS</span></td>
+  </tr>
+</table>
+
+<h2>2. Scope drift</h2>
+
+<p>Diff <code>git diff 33ddcd6..efbf793 -- R/ tests/</code> against the plans' "Files this plan owns" lists:</p>
+
+<table>
+  <tr><th>Path</th><th>Plan</th><th>OK?</th></tr>
+  <tr><td><code>R/paintr-build-ui.R</code></td><td>PLAN-01 (uiOutput emission + helpers)</td><td>OK</td></tr>
+  <tr><td><code>R/paintr-server.R</code></td><td>PLAN-01 + PLAN-02 (server-side renderUIs + apply_spec_at_boot collapse)</td><td>OK</td></tr>
+  <tr><td><code>tests/testthat/fixtures/vignette-apps/adr12-spec-roundtrip/app.R</code></td><td>PLAN-02 (header update)</td><td>OK</td></tr>
+  <tr><td><code>tests/testthat/helper-rewrite.R</code></td><td>downstream of build_ui_for reshape (user-approved scope expansion)</td><td>OK</td></tr>
+  <tr><td><code>tests/testthat/test-adr12-spec-roundtrip.R</code></td><td>PLAN-02 (revert workarounds)</td><td>OK</td></tr>
+  <tr><td><code>tests/testthat/test-adr12b-spec-custom-keyword.R</code> (new)</td><td>PLAN-01 SC-1</td><td>OK</td></tr>
+  <tr><td><code>tests/testthat/test-adr12b-renderui-emission.R</code> (new)</td><td>PLAN-01 SC-3</td><td>OK</td></tr>
+  <tr><td>5 collateral test files (default-and-shared-seeding, regression-bugs-2026-05-13, rewrite-build-ui, rewrite-layer-panel, rewrite-shared, upload)</td><td>downstream of build_ui_for contract change (user-approved expansion)</td><td>OK</td></tr>
+</table>
+
+<p>Off-limits files (Bug A territory and others):</p>
+<pre>$ git diff 33ddcd6..efbf793 --stat -- R/paintr-classify.R R/paintr-walk.R R/paintr-translate.R R/paintr-shared.R
+(empty output — none touched)</pre>
+
+<p>NAMESPACE / man/ also untouched (no exported function signature changed; <code>pipeline_override_for_node</code> is unexported).</p>
+
+<h2>3. Architectural integrity of the renderUI reshape</h2>
+
+<h3>3a. uiOutput containers + output-id helpers</h3>
+<ul>
+  <li><code>R/paintr-build-ui.R:47&ndash;64</code> &mdash; <code>build_ui_for.ptr_ph_value</code> emits <code>shiny::uiOutput(ptr_render_id(value_output_id(node$id), ns_fn))</code>.</li>
+  <li><code>R/paintr-build-ui.R:73&ndash;88</code> &mdash; <code>build_ui_for.ptr_ph_data_source</code> emits <code>shiny::uiOutput(ptr_render_id(source_output_id(node$id), ns_fn))</code>.</li>
+  <li><code>R/paintr-build-ui.R:99&ndash;105</code> &mdash; <code>value_output_id</code> / <code>source_output_id</code> append <code>_ui</code>.</li>
+</ul>
+
+<h3>3b. Server-side renderUI binding</h3>
+<ul>
+  <li><code>R/paintr-server.R:1402&ndash;1497</code> &mdash; <code>ptr_setup_value_uis()</code>: non-shared loop registers renderUI at <code>output[[ns(value_output_id(raw_id))]]</code>, reads <code>state$spec_seed[[raw_id]]</code>, passes to <code>invoke_build_ui</code> as <code>extra$selected</code>.</li>
+  <li><code>R/paintr-server.R:1471&ndash;1500</code> &mdash; shared-key loop using <code>collect_shared_placeholders</code>'s deduped rep_node. Confirmed multi-param shared widgets resolve copy via <code>defaults$&lt;keyword&gt;</code> (rep_node$param is NA when distinct_params &gt; 1, per <code>collect_shared_placeholders</code>'s logic at <code>R/paintr-build-ui.R:348&ndash;354</code>).</li>
+  <li><code>R/paintr-server.R:1518&ndash;1591</code> &mdash; <code>ptr_setup_source_uis()</code>: registers renderUI for each non-shared source node, replicates the pre-PLAN-01 <code>build_ui_for.ptr_ph_data_source</code> composition (copy resolution, ppUpload's <code>file_copy</code> / <code>name_copy</code>, <code>named_args</code> passthrough, formals guard).</li>
+</ul>
+
+<h3>3c. Pipeline-stage override propagation</h3>
+<ul>
+  <li><code>R/paintr-build-ui.R:248&ndash;281</code> &mdash; <code>pipeline_override_for_node(tree, node_id)</code>: walks <code>tree$layers</code>, runs <code>find_layer_placeholders_with_stage()</code> on <code>data_arg</code>, matches by id, returns <code>list(param_override, label_suffix)</code> mirroring <code>build_pipeline_stage_ui()</code>'s logic at <code>R/paintr-build-ui.R:184&ndash;236</code>.</li>
+  <li><code>R/paintr-server.R:1433&ndash;1445</code> &mdash; renderUI body in <code>ptr_setup_value_uis</code> reads override + passes to <code>invoke_build_ui</code>.</li>
+  <li>Empirical verification (this session): testServer probe on <code>"mtcars |&gt; head(ppNum) |&gt; ggplot(aes(x = ppVar))"</code> &mdash; widget HTML carries <code>&lt;label&gt;Enter a number for head()&lt;/label&gt;</code>. ✓</li>
+</ul>
+
+<h3>3d. suspendWhenHidden opt-out</h3>
+<p>All NEW renderUI bind sites added by this PR include <code>outputOptions(output, output_id, suspendWhenHidden = FALSE)</code> &mdash; matches pre-PLAN-01 always-mounted static-tag behavior:</p>
+<table>
+  <tr><th>Site</th><th>renderUI</th><th>outputOptions</th></tr>
+  <tr><td>ptr_setup_value_uis (non-shared)</td><td>1420</td><td>1457 ✓</td></tr>
+  <tr><td>ptr_setup_value_uis (shared)</td><td>1482</td><td>1500 ✓</td></tr>
+  <tr><td>ptr_setup_source_uis</td><td>1532</td><td>1591 ✓</td></tr>
+  <tr><td>ptr_setup_consumer_uis</td><td>1674</td><td>(no opt-out)</td></tr>
+  <tr><td>ptr_bind_shared_consumer_uis</td><td>1764</td><td>(no opt-out)</td></tr>
+</table>
+<p>The two consumer renderUIs (1674, 1764) <b>existed before PLAN-01</b> &mdash; they have always been suspended under hidden layer tabs (the documented project-memory <code>shinytest2-appdir-pkgload</code> note about "var pickers are suspended" describes this exact pre-existing behavior). Adding <code>suspendWhenHidden = FALSE</code> there would be an architectural change outside Bug B's scope and could affect existing tests' assumptions. <b>Not a Bug B regression</b>; out of scope.</p>
+
+<h2>4. <code>apply_spec_at_boot</code> collapse correctness</h2>
+
+<ul>
+  <li><b>Synchronous seed-write before deferred dispatch</b>: confirmed at <code>R/paintr-server.R:534&ndash;576</code> (seed loop) precedes <code>session$onFlushed</code> at line ~586. ✓</li>
+  <li><b>Type normalization co-located</b>: ppText/source_companion (character), ppNum (numeric coerce with FALSE-on-NA-from-non-NA via the <code>next</code> branch), ppExpr (language deparse), ppVar (character). ✓</li>
+  <li><b>Invalid built-in values left out of seed</b>: <code>R/paintr-server.R:553&ndash;559</code> &mdash; <code>if (is.na(num) &amp;&amp; !identical(row$value, NA_real_) ...) next</code>. The dispatch path then surfaces FALSE → WARN. ✓ (functional, but see H1 about the dispatch path still containing placeholder branches.)</li>
+  <li><b>Seed-applied rows skipped in dispatch callback</b>: <code>R/paintr-server.R:592</code> &mdash; <code>if (row$bare_id %in% seeded) next</code>. ✓</li>
+  <li><b>Framework-internal rows still dispatch</b>: <code>layer_checkbox</code> / <code>stage_enabled</code> / <code>source_companion</code> branches in <code>apply_spec_entry</code> unchanged (R/paintr-server.R:625&ndash;636). ✓</li>
+  <li><b>Prefix derivation uses <code>state$server_ns_fn("")</code></b>: <code>R/paintr-server.R:482&ndash;486</code>. ✓ (pre-existing PLAN-06 bug fixed.)</li>
+</ul>
+
+<h2>5. Test honesty &mdash; BDD <code>Then</code> clauses vs assertion literals</h2>
+
+<p>Project memory <code>e2e-assertion-weakness-lens</code> warns that presence-proxy assertions can pass even when the architectural contract is violated. Cross-checking each migrated assertion:</p>
+
+<table>
+  <tr><th>Test</th><th>BDD <code>Then</code></th><th>Implementation assertion</th><th>Verdict</th></tr>
+  <tr>
+    <td><code>test-adr12b-spec-custom-keyword.R:79&ndash;91</code> (SC-1)</td>
+    <td><code>session$input[["ggplot_1_1_ppCustomChoice_NA"]] equals "b"</code></td>
+    <td><code>expect_match(html, '&lt;option value="b" selected&gt;', fixed = TRUE)</code></td>
+    <td><span class="badge badge-med">MEDIUM</span> M1: BDD <code>Then</code> narrowed. Handoff-authorized with rationale (MockShinySession does NOT auto-populate <code>input[[id]]</code> from renderUI'd widgets; HTML observation is the architecturally-equivalent contract under testServer). NOT a presence proxy &mdash; the literal <code>&lt;option value="b" selected&gt;</code> can only appear if the seed reached the hook's <code>selected</code> formal.</td>
+  </tr>
+  <tr>
+    <td><code>test-adr12b-renderui-emission.R:43&ndash;51</code> (SC-3, no-spec ppNum)</td>
+    <td><code>session$input for the ppNum id equals 3.14</code> (BDD; the test uses <code>NA_real_</code> via the bare <code>ppNum</code> default for simplicity)</td>
+    <td><code>expect_match(html, 'value="NA"', fixed = TRUE)</code></td>
+    <td><span class="badge badge-med">MEDIUM</span> M1 (same root cause). Same rationale applies: HTML observation is the architecturally-equivalent contract under testServer.</td>
+  </tr>
+  <tr>
+    <td><code>test-adr12-spec-roundtrip.R:67&ndash;75</code> (PLAN-02 SC-2)</td>
+    <td>BDD <code>app$get_value(input = "geom_point_2_2_ppNum_NA") equals 5</code></td>
+    <td><code>expect_match(app$get_html("#geom_point_2_2_ppNum_NA"), 'value="5"', fixed = TRUE)</code></td>
+    <td><span class="badge badge-med">MEDIUM</span> M2: under shinytest2 (real browser), the dynamic numericInput's JS binding does NOT auto-send its initial value back; <code>app$get_value</code> returns NULL. The HTML check is a literal architectural observation (<code>value="5"</code> would not appear unless the seed reached the renderUI's <code>extra$selected</code>). The user's runtime reactive expression that reads <code>input$geom_point_2_2_ppNum_NA</code> in the browser is expected to receive 5 once a flush completes, but this is NOT covered by the test.</td>
+  </tr>
+  <tr>
+    <td><code>test-adr12b-renderui-emission.R:41&ndash;42, 76&ndash;77</code> (no-spec invariants)</td>
+    <td>BDD <code>state$spec_seed is an empty named list</code></td>
+    <td><code>expect_true(is.environment(state$spec_seed)); expect_equal(length(ls(state$spec_seed, all.names = TRUE)), 0L)</code></td>
+    <td><span class="badge badge-low">LOW</span> L1: structural change &mdash; <code>state$spec_seed</code> is now an environment (reference semantics for closure-captured state), not a list. The test asserts on the new shape. The BDD's "empty" intent is preserved (length 0); the "named list" wording becomes "named environment". Update the BDD wording in a follow-up if desired; the implementation choice is correct for the closure-capture problem.</td>
+  </tr>
+  <tr>
+    <td><code>test-rewrite-shared.R</code> P06.a / P06.d / P06.f</td>
+    <td>shared widget id appears exactly once</td>
+    <td>match <code>id="shared_sz_ui"</code> (renamed from <code>id="shared_sz"</code>)</td>
+    <td><span class="badge badge-pass">PASS</span> &mdash; the new container id <code>shared_sz_ui</code> is what now uniquely identifies the shared widget instance in the static UI. The dedup contract holds.</td>
+  </tr>
+  <tr>
+    <td><code>test-rewrite-layer-panel.R</code> pipeline-stage tests (3 migrated)</td>
+    <td>"label names verb via <code>{param}</code>" / "stage header carries <code>&lt;code&gt;head()&lt;/code&gt;</code>"</td>
+    <td><code>.render_widget_html()</code> in <code>helper-rewrite.R</code>: drives <code>ptr_server_internal</code> under <code>shiny::testServer</code>, reads <code>session$getOutput(&lt;raw_id&gt;_ui)</code> &mdash; full renderUI composition path. Static stage-header assertions still use <code>as.character(build_ui_for(layer))</code>.</td>
+    <td><span class="badge badge-pass">PASS</span> &mdash; verified <code>.render_widget_html</code> actually exercises <code>ptr_setup_value_uis</code>'s body (not a static <code>build_ui_for</code> shortcut).</td>
+  </tr>
+</table>
+
+<h2>6. Coverage gap</h2>
+
+<table>
+  <tr><th>Severity</th><th>Finding</th></tr>
+  <tr>
+    <td><span class="badge badge-med">MEDIUM</span> M3</td>
+    <td>
+      PLAN-01 BDD Scenario "ppUpload spec value is silently dropped (fileInput unsettable)" has <b>no automated test</b>. The scenario specifies:
+      <pre>spec = list(ggplot_1_1_ppUpload_NA = "ignored.csv",
+            ggplot_1_1_ppUpload_NA_name = "my_data")
+&rArr; state$spec_seed does NOT contain the key "ggplot_1_1_ppUpload_NA"
+&rArr; a single cli::cli_inform names "ggplot_1_1_ppUpload_NA" as dropped at end of boot
+&rArr; state$spec_seed for the source_companion id equals "my_data"
+&rArr; the companion textInput's value equals "my_data"</pre>
+      Code review confirms apply_spec_at_boot's seed-write condition excludes <code>row$keyword == "ppUpload"</code> (<code>R/paintr-server.R:536&ndash;539</code>) and source_companion rows are seeded. But the contract is not pinned by a test. Recommend a small testthat block in <code>test-adr12b-spec-custom-keyword.R</code> exercising this scenario.
+    </td>
+  </tr>
+</table>
+
+<h2>7. DoD gate run</h2>
+
+<p>The authoritative command from <code>CLAUDE.md</code>:</p>
+
+<pre>NOT_CRAN=true Rscript -e 'suppressMessages(devtools::load_all(".")); testthat::test_dir("tests/testthat", reporter="progress", stop_on_failure=FALSE)'</pre>
+
+<p>Tail of output (run immediately before writing this report, from inside the worktree):</p>
+
+<pre>  enhancement; see PLAN-04 'Deferred to future rounds' section. Lifted
+  pipelines all carry $op = '|&gt;' post-G2; mixed %&gt;%/|&gt; surface preservation
+  requires a successor plan. (1): 'test-rewrite-render.R:53:3'
+
+[ FAIL 0 | WARN 0 | SKIP 2 | PASS 2194 ]</pre>
+
+<p>The 2 SKIPs are pre-existing ADR 0012 &sect;5 OQ2 deferrals (<code>test-rewrite-render.R:40</code> and <code>:53</code> &mdash; <code>%&gt;%</code> preservation in lifted pipelines). PASS &gt;= 2181 target met (2194). <b>Gate is PASS.</b></p>
+
+<h2>8. Findings summary</h2>
+
+<table>
+  <tr><th>ID</th><th>Severity</th><th>Where</th><th>Finding</th></tr>
+  <tr>
+    <td>H1</td>
+    <td><span class="badge badge-high">HIGH</span></td>
+    <td><code>R/paintr-server.R:645, 652, 657, 665, 673</code></td>
+    <td>
+      <b>PLAN-02 SC-1 / BDD Scenario "apply_spec_entry contains no updateXyzInput call for placeholder keywords" fails literally.</b> The placeholder branches of <code>apply_spec_entry</code> were left in as dead code instead of being removed. They are unreachable at runtime (seed-write loop captures all placeholder rows; dispatch callback's <code>if (row$bare_id %in% seeded) next</code> guards them), so the FUNCTIONAL contract holds. But the literal SC verification command returns <code>5</code> (expected <code>0</code>). The handoff explicitly chose this path ("apply_spec_entry's body can stay unchanged ... PLAN-02 cleanup is now this Task #4 collapse"), but that decision was not user-ratified for the SC-1 verification &mdash; only the broader combine-PLAN-01+02 scope was approved. Recommended fix: delete the ppText/ppNum/ppExpr/ppVar branches from <code>apply_spec_entry</code>; keep the role-based branches (layer_checkbox / stage_enabled / source_companion) and the ppUpload silent-TRUE branch. The terminal <code>FALSE</code> fallback is also fine to keep. Cross-verified by re-running the SC's exact command from the worktree root; output: <code>5</code>.
+    </td>
+  </tr>
+  <tr>
+    <td>M1</td>
+    <td><span class="badge badge-med">MEDIUM</span></td>
+    <td><code>test-adr12b-spec-custom-keyword.R:79</code>, <code>test-adr12b-renderui-emission.R:43, 76</code></td>
+    <td>
+      PLAN-01 BDD <code>Then</code> clauses referencing <code>session$input[[id]]</code> swapped to HTML matchers because MockShinySession does NOT auto-populate <code>input[[id]]</code> from a renderUI'd widget. Handoff-authorized with explicit rationale; the HTML matcher (<code>&lt;option value="b" selected&gt;</code>) is literal architectural propagation proof, not a presence proxy. Recommend updating the stamped plans' BDD wording (or adding an addendum) so future audits do not re-flag the same drift.
+    </td>
+  </tr>
+  <tr>
+    <td>M2</td>
+    <td><span class="badge badge-med">MEDIUM</span></td>
+    <td><code>test-adr12-spec-roundtrip.R:67&ndash;75</code></td>
+    <td>
+      PLAN-02 BDD's ppNum assertion in the browser e2e migrated from <code>app$get_value(input = ...) == 5</code> to <code>app$get_html(...)</code> match on <code>value="5"</code>. Empirically, <code>app$get_value</code> returned NULL even after <code>wait_for_idle(timeout = 15 * 1000)</code> &mdash; the dynamic numericInput's JS binding does not push its initial value back to the server (the static input did, pre-PLAN-01). The HTML check captures the renderUI&harr;HTML contract literally. Open question worth noting: does the user-facing reactive expression that reads <code>input$&lt;raw_id&gt;</code> in production also receive NULL until first user interaction? testServer probe (this session) shows the HTML carries <code>value="5"</code>; the actual JS handshake under shinytest2 is the unverified piece. Recommend a follow-up shinytest2 test that interacts with the widget (e.g., set the value to itself) and then asserts <code>app$get_value</code> returns 5 &mdash; that would close the round-trip.
+    </td>
+  </tr>
+  <tr>
+    <td>M3</td>
+    <td><span class="badge badge-med">MEDIUM</span></td>
+    <td>(missing test)</td>
+    <td>
+      PLAN-01 BDD Scenario "ppUpload spec value is silently dropped (fileInput unsettable)" has no automated test. Code review confirms the implementation is correct; the gap is coverage. See &sect;6.
+    </td>
+  </tr>
+  <tr>
+    <td>L1</td>
+    <td><span class="badge badge-low">LOW</span></td>
+    <td><code>R/paintr-server.R</code> (ptr_init_state); <code>test-adr12b-renderui-emission.R:41, 76</code></td>
+    <td>
+      PLAN-01 BDD says "state$spec_seed is an empty named list". The implementation made it an environment (reference semantics so writes from apply_spec_at_boot propagate to closure-captured state in setup helpers &mdash; this is the right call). Tests assert on the new shape. Update the BDD wording in a stamped-plan addendum.
+    </td>
+  </tr>
+</table>
+
+<h2>9. Verdict</h2>
+
+<div class="verdict">
+  <b>VERDICT: PASS-with-caveats.</b><br><br>
+  Functional Bug B fix lands cleanly. Full gate (DoD per CLAUDE.md) returns <code>FAIL 0 / WARN 0 / SKIP 2 / PASS 2194</code> &mdash; clean. Architectural reshape (uiOutput emission + matching server-side renderUI binders + pipeline-stage override propagation + shared-value renderUI binder + suspendWhenHidden opt-out) is consistent and complete on every new bind site. Off-limits files (Bug A territory) untouched. NAMESPACE / man/ untouched.<br><br>
+  One HIGH finding (H1) on code cleanliness: <code>apply_spec_entry</code>'s placeholder branches are dead code rather than removed. Resolves to a 10-line delete; user decides whether to amend in a follow-up commit before merging <code>bug-b-spec-apply-uniform</code> &rarr; <code>vignette-review</code>, or accept and document the deviation in a PLAN-02 addendum.<br><br>
+  Three MEDIUMs (M1, M2, M3) flag BDD-text drift from the necessary testServer / shinytest2 limitations + one coverage gap. None of them block the merge; each is a known consequence of the renderUI architecture and the testing tools' capabilities.
+</div>
+
+</body>
+</html>

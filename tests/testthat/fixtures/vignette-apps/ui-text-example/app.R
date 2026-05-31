@@ -4,22 +4,22 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-customization.Rmd chunk `ui-text-example` >>>
+# >>> verbatim: archive/retired_vignettes/ggpaintr-customization.Rmd chunk `ui-text-example` >>>
 custom_text <- ptr_ui_text(list(
   shell = list(
     title       = list(label = "Iris explorer"),
     draw_button = list(label = "Render")
   ),
   params = list(
-    x     = list(var  = list(label = "X variable")),
-    title = list(text = list(label = "Plot heading"))
+    x     = list(ppVar = list(label = "X variable")),
+    title = list(ppText = list(label = "Plot heading"))
   )
 ))
 
 ptr_app(
-  "ggplot(iris, aes(x = var, y = var, color = var)) +
+  "ggplot(iris, aes(x = ppVar, y = ppVar, color = ppVar)) +
      geom_point() +
-     labs(title = text)",
+     labs(title = ppText)",
   ui_text = custom_text
 )
 # <<<

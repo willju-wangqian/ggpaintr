@@ -23,7 +23,7 @@
 # ---------------------------------------------------------------------------
 #
 # COVERED (one test_that each; fixture slug == test):
-#   ggpaintr-use-cases.Rmd
+#   archive/retired_vignettes/ggpaintr-use-cases.Rmd
 #     app-basic ............. L1 ptr_app() canonical (+ the BDD interaction:
 #                             set a var input, re-draw, code reflects it)
 #     app-grid-shared-added . L1 ptr_app_grid() with a shared widget
@@ -31,7 +31,7 @@
 #     single-instance-shared  L2 single-instance inline shared section
 #     l2-shared ............. L2 coordinator trio ptr_shared()/_panel()/_server()
 #                             (+ BDD: one shared panel widget drives both tiles)
-#     l2-shared-partition ... L2 partition: formula-local var(shared=) consumer
+#     l2-shared-partition ... L2 partition: formula-local ppVar(shared=) consumer
 #                             keys (ax1/ax2) bound per-module + a panel value
 #                             key (sz); asserts the inline pickers are POPULATED
 #                             (W1 #B1: the binder-less embed path)
@@ -41,10 +41,10 @@
 #     l3-pieces-toggle ...... L3 combinators ptr_ui_inline_error()/_toggle_code()
 #     l3-plotly ............. L3 own-the-render-path: moduleServer + state$runtime()
 #     l3-gg-extra ........... L3 ptr_gg_extra() programmatic layer injection
-#   ggpaintr-gallery.Rmd
+#   archive/retired_vignettes/ggpaintr-gallery.Rmd
 #     plotly-paintr ......... §5.1 worked L3 plotly custom-render example
 #     ggiraph-paintr ........ §5.2 worked L3 ggiraph custom-render example
-#   ggpaintr-customization.Rmd
+#   archive/retired_vignettes/ggpaintr-customization.Rmd
 #     ui-text-example ....... ptr_ui_text() copy overrides
 #     bslib ................. the bslib page_sidebar wrapper (lifted from the
 #                             eval=FALSE `ptr-app-bslib-source` chunk: runnable
@@ -52,6 +52,30 @@
 #     value-range ........... custom *value* placeholder (value-range-app)
 #     consumer-colvars ...... custom *consumer* placeholder (consumer-colvars-app)
 #     source-dataset ........ custom *source* placeholder (source-dataset-app)
+#   ADR 0009 features (no vignette pairing; browser-only contracts):
+#     adr9-code-mode-toggle . ptr_code_mode radio drives ptr_register_code's
+#                             final-vs-preserve branch. Regression net for the
+#                             bug fixed in 2c504da (PLAN-08 added the UI radio
+#                             but the server never read it). Differential
+#                             assertion: code_final must NOT contain ppVar(;
+#                             code_preserve MUST contain ppVar(; the two must
+#                             not be identical; round-trip back to final.
+#     adr9-default-seeding .. ppVar(<sym>) populates node$default (PLAN-06)
+#                             which reaches the widget via invoke_build_ui's
+#                             extra$selected gate (PLAN-07). Asserts the
+#                             picker's initial Shiny input value matches the
+#                             formula default with NO user interaction.
+#     adr9-shared-default ... PLAN-07 shared_widget_default() first-occurrence-
+#                             wins. Two ppVar(<sym>, shared='col') with
+#                             different defaults; the shared widget seeds from
+#                             the first occurrence and silently ignores the
+#                             second. Asserts initial value of #shared_col.
+#     adr9-named-args-custom  PLAN-03 named_args registry slot end-to-end:
+#                             a custom hinted_text placeholder declares
+#                             named_args = list(hint = ptr_arg_string()),
+#                             the formula passes hint = "...", and the value
+#                             reaches build_ui via do.call (PLAN-07) and lands
+#                             on textInput's placeholder= DOM attribute.
 #
 # EXCLUDED (with reason):
 #   * Non-app chunks (no shiny.appobj): every `setup`, `libs`, `clipboard`
@@ -78,9 +102,9 @@
 #            l3-pieces / l3-plotly.
 #     NOTE (W1 #B1/#B1b): `l2-shared-partition` was previously listed here as
 #     "represented by l2-shared" — that was WRONG and is why bug B1 survived.
-#     `l2-shared`'s `var(shared='metric')` is referenced in BOTH formulas: a
+#     `l2-shared`'s `ppVar(shared='metric')` is referenced in BOTH formulas: a
 #     PANEL (cross-formula) consumer key, host-bound by `ptr_shared_server()`.
-#     `l2-shared-partition`'s `var(shared='ax1')` is referenced in ONE
+#     `l2-shared-partition`'s `ppVar(shared='ax1')` is referenced in ONE
 #     formula: a FORMULA-LOCAL consumer key, bound by `ptr_server()`
 #     itself. These are DISTINCT ownership paths (ADR 0005 partition); a panel
 #     key and a formula-local key must EACH have their own booting fixture.
@@ -96,7 +120,7 @@
 #     (safety = prose + denylist; llm = ellmer wiring, not a Shiny app).
 # =============================================================================
 
-# --- ggpaintr-use-cases.Rmd --------------------------------------------------
+# --- archive/retired_vignettes/ggpaintr-use-cases.Rmd --------------------------------------------------
 
 test_that("use-cases app-basic: L1 ptr_app boots, renders, re-renders on input", {
   app <- boot_vignette_app("app-basic")
@@ -108,8 +132,8 @@ test_that("use-cases app-basic: L1 ptr_app boots, renders, re-renders on input",
   expect_dom_id(app, "ptr_error")
 
   # Happy path: pick valid x/y columns, then draw.
-  set_input(app, "ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
@@ -118,7 +142,7 @@ test_that("use-cases app-basic: L1 ptr_app boots, renders, re-renders on input",
   expect_match(code_before, "Sepal.Length")
 
   # BDD: change a var input and re-draw -> outputs reflect the new input.
-  set_input(app, "ggplot_1_1_var_NA", "Petal.Width")
+  set_input(app, "ggplot_1_1_ppVar_NA", "Petal.Width")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_no_inline_error(app, "ptr_error")
@@ -160,11 +184,17 @@ test_that("use-cases module-app: L2 ptr_ui/ptr_server (id omitted)", {
   expect_dom_id(app, "ptr_plot")
   expect_dom_id(app, "ptr_code")
 
-  set_input(app, "ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
+  # Strengthen the bare "code-nonempty" presence proxy: the literal value
+  # we just set must actually propagate into the rendered code panel.
+  # Without this, a regression that returns "ggplot()" with no aes() args
+  # would still pass `expect_code_nonempty` (see audit-weak-assertions
+  # 2026-05-27).
+  expect_match(app$get_value(output = "ptr_code"), "Sepal.Length", fixed = TRUE)
   expect_no_inline_error(app, "ptr_error")
 })
 
@@ -174,13 +204,13 @@ test_that("use-cases single-instance-shared: inline shared section, no coordinat
   expect_dom_id(app, "ptr_update_plot")
   expect_dom_id(app, "ptr_plot")
 
-  # y = var - var(shared='col'): the shared key `col` drives x AND one y
+  # y = var - ppVar(shared='col'): the shared key `col` drives x AND one y
   # operand; the OTHER y operand is a plain formula-local `var` the user
   # must pick (an unselected var legitimately yields no mapping), so the
   # happy path sets BOTH pickers. "Petal.Width" is a literal nowhere in
   # the formula, so its presence in the code can only come from the
   # inline shared widget propagating into both x and y.
-  set_input(app, "ggplot_1_2_1_var_NA", "Sepal.Length")  # unshared y operand
+  set_input(app, "ggplot_1_2_1_ppVar_NA", "Sepal.Length")  # unshared y operand
   set_input(app, "shared_col", "Petal.Width")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
@@ -225,7 +255,7 @@ test_that("use-cases l2-shared: coordinator trio drives both module tiles", {
                fixed = TRUE)
 })
 
-test_that("use-cases l2-shared-partition: formula-local var(shared=) pickers are POPULATED in the embed path (W1 #B1/#B1b)", {
+test_that("use-cases l2-shared-partition: formula-local ppVar(shared=) pickers are POPULATED in the embed path (W1 #B1/#B1b)", {
   app <- boot_vignette_app("l2-shared-partition")
   app$wait_for_idle(timeout = 25 * 1000)
 
@@ -237,7 +267,7 @@ test_that("use-cases l2-shared-partition: formula-local var(shared=) pickers are
   expect_dom_id(app, "plot_2-ptr_plot")
 
   # CORE W1 ASSERTION (must fail the way bug B1 fails): each formula-local
-  # var(shared=) consumer key renders a POPULATED column picker inside its
+  # ppVar(shared=) consumer key renders a POPULATED column picker inside its
   # owning module. Pre-fix these were blank uiOutputs (no host binder in the
   # embed path) — DOM-present but empty, so a bare expect_dom_id would NOT
   # have caught it. We assert a real iris column option is offered.
@@ -250,10 +280,10 @@ test_that("use-cases l2-shared-partition: formula-local var(shared=) pickers are
   expect_no_dom_id(app, "plot_2-shared_sz")
 
   # BDD: selecting a column in the formula-local picker then redrawing makes
-  # that plot use it (plot_1's x is var(shared='ax1') and y is
-  # var - var(shared='ax1'), so ax1 drives x and the shared y term; the
+  # that plot use it (plot_1's x is ppVar(shared='ax1') and y is
+  # var - ppVar(shared='ax1'), so ax1 drives x and the shared y term; the
   # other y operand is a plain formula-local var the user must also pick).
-  set_input(app, "plot_1-ggplot_1_2_1_var_NA", "Sepal.Length")  # unshared y operand
+  set_input(app, "plot_1-ggplot_1_2_1_ppVar_NA", "Sepal.Length")  # unshared y operand
   set_input(app, "plot_1-shared_ax1", "Petal.Length")
   set_input(app, "plot_2-shared_ax2", "Sepal.Length")
   draw(app, "ptr_shared_draw_all")
@@ -264,7 +294,7 @@ test_that("use-cases l2-shared-partition: formula-local var(shared=) pickers are
   expect_match(app$get_value(output = "plot_1-ptr_code"), "Petal.Length")
 })
 
-test_that("grid-shared-partition: ptr_app_grid binds formula-local var(shared=) per cell (W1 #B1, same host shape)", {
+test_that("grid-shared-partition: ptr_app_grid binds formula-local ppVar(shared=) per cell (W1 #B1, same host shape)", {
   app <- boot_vignette_app("grid-shared-partition")
   app$wait_for_idle(timeout = 25 * 1000)
 
@@ -302,8 +332,8 @@ test_that("use-cases l3-pieces: L3 bare pieces, hand-laid page", {
   expect_dom_id(app, "ptr_code")
   expect_dom_id(app, "ptr_error")
 
-  set_input(app, "ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
@@ -317,8 +347,8 @@ test_that("use-cases l3-pieces-toggle: L3 combinators (inline error + toggle cod
   expect_dom_id(app, "ptr_plot")
   expect_dom_id(app, "ptr_code")
 
-  set_input(app, "ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
@@ -341,8 +371,8 @@ test_that("use-cases l3-plotly: L3 own-the-render-path with state$runtime()", {
   expect_dom_id(app, "plot1-ptr_update_plot")
   expect_dom_id(app, "plot1-custom_plot")
 
-  set_input(app, "plot1-ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "plot1-ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "plot1-ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "plot1-ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "plot1-ptr_update_plot")
   expect_rendered(app, "#plot1-custom_plot", "plotly")
   # Bug-1 + combinator lock: ptr_ui_code("plot1") under moduleServer("plot1")
@@ -388,7 +418,7 @@ test_that("use-cases l3-gg-extra: ptr_gg_extra() programmatic layer injection", 
   expect_false(identical(img_before, img_after))
 })
 
-# --- ggpaintr-gallery.Rmd ----------------------------------------------------
+# --- archive/retired_vignettes/ggpaintr-gallery.Rmd ----------------------------------------------------
 
 test_that("gallery plotly-paintr (§5.1): module + custom plotly host output", {
   testthat::skip_if_not_installed("plotly")
@@ -397,8 +427,8 @@ test_that("gallery plotly-paintr (§5.1): module + custom plotly host output", {
   expect_dom_id(app, "plotly_demo-ptr_update_plot")
   expect_dom_id(app, "interactive_plot")
 
-  set_input(app, "plotly_demo-ggplot_1_1_var_NA", "displ")  # mpg data
-  set_input(app, "plotly_demo-ggplot_1_2_var_NA", "hwy")
+  set_input(app, "plotly_demo-ggplot_1_1_ppVar_NA", "displ")  # mpg data
+  set_input(app, "plotly_demo-ggplot_1_2_ppVar_NA", "hwy")
   draw(app, "plotly_demo-ptr_update_plot")
   expect_rendered(app, "#plotly_demo-ptr_plot", "ggplot")  # bundled pane
   # issues/02 durable fix: poll for the terminal success state (custom host
@@ -416,8 +446,8 @@ test_that("gallery ggiraph-paintr (§5.2): module + custom ggiraph host output",
   expect_dom_id(app, "ggiraph_demo-ptr_update_plot")
   expect_dom_id(app, "interactive_plot")
 
-  set_input(app, "ggiraph_demo-ggplot_1_1_var_NA", "displ")  # mpg data
-  set_input(app, "ggiraph_demo-ggplot_1_2_var_NA", "hwy")
+  set_input(app, "ggiraph_demo-ggplot_1_1_ppVar_NA", "displ")  # mpg data
+  set_input(app, "ggiraph_demo-ggplot_1_2_ppVar_NA", "hwy")
   draw(app, "ggiraph_demo-ptr_update_plot")
   expect_rendered(app, "#ggiraph_demo-ptr_plot", "ggplot")
   # issues/02 durable fix (same as §5.1, by parity).
@@ -425,7 +455,7 @@ test_that("gallery ggiraph-paintr (§5.2): module + custom ggiraph host output",
                       "ggiraph_demo-ptr_error")
 })
 
-# --- ggpaintr-customization.Rmd ---------------------------------------------
+# --- archive/retired_vignettes/ggpaintr-customization.Rmd ---------------------------------------------
 
 test_that("customization ui-text-example: ptr_ui_text copy overrides", {
   app <- boot_vignette_app("ui-text-example")
@@ -433,8 +463,8 @@ test_that("customization ui-text-example: ptr_ui_text copy overrides", {
   expect_dom_id(app, "ptr_update_plot")
   expect_dom_id(app, "ptr_plot")
 
-  set_input(app, "ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
@@ -454,11 +484,14 @@ test_that("customization bslib: page_sidebar wrapper (ptr_app_bslib)", {
   expect_dom_id(app, "ptr-ptr_plot")
   expect_dom_id(app, "ptr-ptr_code")
 
-  set_input(app, "ptr-ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "ptr-ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "ptr-ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "ptr-ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "ptr-ptr_update_plot")
   expect_rendered(app, "#ptr-ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr-ptr_code")
+  # See l.196 (use-cases l2-noid): strengthen the code-nonempty proxy with
+  # a literal-propagation check for one of the just-set values.
+  expect_match(app$get_value(output = "ptr-ptr_code"), "Sepal.Length", fixed = TRUE)
   expect_no_inline_error(app, "ptr-ptr_error")
 })
 
@@ -486,6 +519,12 @@ test_that("customization value-range: custom value placeholder", {
 
 test_that("customization consumer-colvars: custom consumer placeholder", {
   testthat::skip_if_not_installed("dplyr")
+  # The fixture mirrors the vignette formula
+  # `mtcars |> dplyr::select(colvars) |> ggplot(aes(...))`. ADR 0012 §1
+  # lifts the data_arg to a canonical `ptr_pipeline` (source + select);
+  # the colvars placeholder lives at stage 2, arg 1 — id is
+  # `ggplot_2_1_colvars_NA`. The picker-populated / rendered-code
+  # assertions exercise the consumer-uniformity upstream-resolution path.
   app <- boot_vignette_app("consumer-colvars")
 
   expect_dom_id(app, "ptr_update_plot")
@@ -497,8 +536,8 @@ test_that("customization consumer-colvars: custom consumer placeholder", {
   set_input(app, "ggplot_2_1_colvars_NA", c("mpg", "hp", "wt"))
   set_input(app, "ggplot_subtab", "Controls")
   app$wait_for_idle(timeout = 15 * 1000)
-  set_input(app, "ggplot_1_1_var_NA", "mpg")
-  set_input(app, "ggplot_1_2_var_NA", "hp")
+  set_input(app, "ggplot_1_1_ppVar_NA", "mpg")
+  set_input(app, "ggplot_1_2_ppVar_NA", "hp")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
@@ -522,8 +561,8 @@ test_that("customization source-dataset: custom source placeholder", {
   set_input(app, "ggplot_0_dataset_NA", "iris")
   set_input(app, "ggplot_subtab", "Controls")
   app$wait_for_idle(timeout = 15 * 1000)
-  set_input(app, "ggplot_1_1_var_NA", "Sepal.Length")
-  set_input(app, "ggplot_1_2_var_NA", "Petal.Length")
+  set_input(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
+  set_input(app, "ggplot_1_2_ppVar_NA", "Petal.Length")
   draw(app, "ptr_update_plot")
   expect_rendered(app, "#ptr_plot", "ggplot")
   expect_code_nonempty(app, "ptr_code")
@@ -531,6 +570,155 @@ test_that("customization source-dataset: custom source placeholder", {
   # B1-class: prove the custom SOURCE actually resolved — the downstream var
   # picker is populated from the resolved iris columns (empty if resolve_data
   # never ran), and the selection reaches the generated code.
-  expect_picker_populated(app, "ggplot_1_1_var_NA", "Sepal.Length")
+  expect_picker_populated(app, "ggplot_1_1_ppVar_NA", "Sepal.Length")
   expect_match(app$get_value(output = "ptr_code"), "Sepal.Length", fixed = TRUE)
+})
+
+# --- ADR 0009 features ------------------------------------------------------
+# These four fixtures are NOT vignette-paired — they cover ADR-0009 behaviours
+# that have no vignette chunk and that can ONLY be observed end-to-end in a
+# real browser (DOM widget initial state, radio-driven render branches,
+# named_args → rendered attribute). Each fixture lives at
+# tests/testthat/fixtures/vignette-apps/adr9-*/app.R and explains its purpose
+# in its own boot-block comment.
+
+test_that("adr9-code-mode-toggle: ptr_code_mode radio switches code panel between final and spec (ADR 0022)", {
+  app <- boot_vignette_app("adr9-code-mode-toggle")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ptr_code")
+  expect_dom_id(app, "ptr_code_mode")
+
+  # Drive a first render so the code panel has substituted text to compare
+  # against. ggpaintr only redraws on Update click, so the inputs must be
+  # set BEFORE the click.
+  set_input(app, "ggplot_1_1_ppVar_NA", "mpg")
+  set_input(app, "ggplot_1_2_ppVar_NA", "cyl")
+  draw(app, "ptr_update_plot")
+  expect_code_nonempty(app, "ptr_code")
+
+  # FINAL mode (default) — substituted text. The placeholder call form
+  # must NOT appear; the chosen values MUST appear.
+  code_final <- app$get_value(output = "ptr_code")
+  expect_false(grepl("ppVar(", code_final, fixed = TRUE),
+               label = "final-mode code text does not contain ppVar(")
+  expect_match(code_final, "mpg", fixed = TRUE)
+  expect_match(code_final, "cyl", fixed = TRUE)
+
+  # Flip to SPEC mode (ADR 0022 renamed the second radio choice from
+  # "preserve" to "spec"; the panel now emits only the `ptr_spec <-
+  # list(...)` block, not the formula text). radioGroupButtons writes a
+  # new value to input$ptr_code_mode; ptr_register_code re-renders.
+  # wait_=TRUE because this is one of the few inputs that DOES trigger an
+  # output update by itself (no Update click required). wait_for_input_binding
+  # guards against the renderUI/bindAll race; helper-vignette-apps.R::set_input
+  # already does this for wait_=FALSE call sites, but the wait_=TRUE path
+  # here uses app$set_inputs directly so the guard has to be explicit.
+  wait_for_input_binding(app, "ptr_code_mode")
+  app$set_inputs(ptr_code_mode = "spec", wait_ = TRUE, timeout_ = 10000)
+  code_spec <- app$get_value(output = "ptr_code")
+
+  # Spec-mode text MUST contain the spec block with the user's picks
+  # keyed by placeholder id, and MUST differ from final-mode text. This is
+  # the regression-net: if the ptr_register_code wiring breaks, the radio
+  # is inert and code_spec == code_final → both expectations fail.
+  expect_true(
+    grepl("ptr_spec <- list(", code_spec, fixed = TRUE),
+    label = "spec-mode code contains ptr_spec <- list(..."
+  )
+  expect_true(
+    grepl("`ggplot_1_1_ppVar_NA` = \"mpg\"", code_spec, fixed = TRUE),
+    label = "spec-mode code records the user's x pick keyed by placeholder id"
+  )
+  expect_true(
+    grepl("`ggplot_1_2_ppVar_NA` = \"cyl\"", code_spec, fixed = TRUE),
+    label = "spec-mode code records the user's y pick keyed by placeholder id"
+  )
+  expect_false(identical(code_final, code_spec),
+               label = "final and spec modes produce different code text")
+
+  # And back to FINAL — the toggle is bidirectional. Binding already
+  # waited for above; the second toggle inherits a settled DOM.
+  app$set_inputs(ptr_code_mode = "final", wait_ = TRUE, timeout_ = 10000)
+  expect_identical(app$get_value(output = "ptr_code"), code_final)
+})
+
+test_that("adr9-default-seeding: ppVar(default = <sym>) seeds the picker initial value", {
+  app <- boot_vignette_app("adr9-default-seeding")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ggplot_1_1_ppVar_NA")
+  expect_dom_id(app, "ggplot_1_2_ppVar_NA")
+
+  # No user interaction yet — assert the widgets initialised to the formula
+  # defaults via PLAN-07's invoke_build_ui seeding path. A pre-PLAN-07
+  # ggpaintr would render these pickers empty even though node$default was
+  # populated by PLAN-06's parser.
+  expect_equal(app$get_value(input = "ggplot_1_1_ppVar_NA"), "mpg",
+               label = "ppVar(default = mpg) seeds x picker")
+  expect_equal(app$get_value(input = "ggplot_1_2_ppVar_NA"), "cyl",
+               label = "ppVar(default = cyl) seeds y picker")
+
+  # And the seeded defaults reach the rendered code on a first draw with
+  # no further input — proves the default is a real value, not just a
+  # display-only ghost.
+  draw(app, "ptr_update_plot")
+  expect_rendered(app, "#ptr_plot", "ggplot")
+  expect_no_inline_error(app, "ptr_error")
+  code <- app$get_value(output = "ptr_code")
+  expect_match(code, "mpg", fixed = TRUE)
+  expect_match(code, "cyl", fixed = TRUE)
+})
+
+test_that("adr9-shared-default: shared widget seeds from FIRST occurrence's default (PLAN-07)", {
+  app <- boot_vignette_app("adr9-shared-default")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "shared_col")
+
+  # First-occurrence-wins: geom_point's ppVar(shared='col', default=hp) is
+  # the first 'col' occurrence in formula order; geom_smooth's
+  # ppVar(shared='col', default=wt) is the second and is silently ignored
+  # for seeding (matches ADR 0009 §8 "first wins silently; no
+  # translate-time abort"). The widget must initialise to "hp", NOT "wt".
+  # Poll (not a bare get_value): this host-scope shared renderUI picker's
+  # seeded value can land a flush after the DOM id appears, and under
+  # parallel-execution CPU contention that lag is seconds (boot-tail flake
+  # class re-confirmed on the post-merge parallel gate, 2026-05-30).
+  expect_input_eventually(app, "shared_col", "hp")
+
+  # Functional check: the seeded shared value reaches BOTH layers' code.
+  draw(app, "ptr_update_plot")
+  expect_rendered(app, "#ptr_plot", "ggplot")
+  expect_no_inline_error(app, "ptr_error")
+  code <- app$get_value(output = "ptr_code")
+  expect_match(code, "hp", fixed = TRUE)
+})
+
+test_that("adr9-named-args-custom: declared named_args reach the build_ui hook as a named arg", {
+  app <- boot_vignette_app("adr9-named-args-custom")
+
+  expect_dom_id(app, "ptr_update_plot")
+  expect_dom_id(app, "ptr_plot")
+
+  # The custom 'hinted_text' build_ui passes named_args$hint through to
+  # shiny::textInput's `placeholder=` attribute. If PLAN-06's parser fails
+  # to populate node$named_args, or PLAN-07's invoke_build_ui fails to
+  # thread it via do.call, the placeholder attribute is empty and this
+  # assertion fails. We search the full page HTML (defensive against the
+  # exact textInput id) for the rendered attribute.
+  html <- app$get_html("body")
+  expect_match(
+    html %||% "",
+    'placeholder="Type your plot title"',
+    fixed = TRUE,
+    info = "build_ui received named_args$hint and rendered it as textInput placeholder"
+  )
+
+  # And the placeholder still produces working code on draw.
+  set_input(app, "ggplot_1_1_ppVar_NA", "mpg")
+  set_input(app, "ggplot_1_2_ppVar_NA", "cyl")
+  draw(app, "ptr_update_plot")
+  expect_rendered(app, "#ptr_plot", "ggplot")
+  expect_no_inline_error(app, "ptr_error")
 })

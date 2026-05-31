@@ -8,15 +8,15 @@
 
 library(ggpaintr)
 
-fml <- "ggplot(data = mtcars, aes(x = var, y = var)) +
-  geom_point(aes(color = factor(cyl)), size = num)"
+fml <- "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) +
+  geom_point(aes(color = factor(cyl)), size = ppNum)"
 
 # Each row is a snapshot keyed by RAW input id (the `input_id` column of
 # ggpaintr:::ptr_runtime_input_spec(ggpaintr:::ptr_translate(fml))).
 grid <- list(
-  list(ggplot_1_1_var_NA = "wt",   ggplot_1_2_var_NA = "mpg",  geom_point_2_num_NA = 3),
-  list(ggplot_1_1_var_NA = "hp",   ggplot_1_2_var_NA = "mpg",  geom_point_2_num_NA = 2),
-  list(ggplot_1_1_var_NA = "disp", ggplot_1_2_var_NA = "qsec", geom_point_2_num_NA = 4)
+  list(ggplot_1_1_ppVar_NA = "wt",   ggplot_1_2_ppVar_NA = "mpg",  geom_point_2_ppNum_NA = 3),
+  list(ggplot_1_1_ppVar_NA = "hp",   ggplot_1_2_ppVar_NA = "mpg",  geom_point_2_ppNum_NA = 2),
+  list(ggplot_1_1_ppVar_NA = "disp", ggplot_1_2_ppVar_NA = "qsec", geom_point_2_ppNum_NA = 4)
 )
 
 plots <- lapply(grid, function(row) {

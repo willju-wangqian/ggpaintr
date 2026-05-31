@@ -4,7 +4,7 @@
 # the named vignette chunk (factory <=> vignette equivalence, reviewable by diff).
 pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)
 library(shiny)
-# >>> verbatim: vignettes/ggpaintr-gallery.Rmd chunk `custom-placeholders-setup`
+# >>> verbatim: archive/retired_vignettes/ggpaintr-gallery.Rmd chunk `custom-placeholders-setup`
 #     (the `range` registration this chunk depends on) + chunk `plotly-paintr` >>>
 ptr_define_placeholder_value(
   keyword = "range",
@@ -16,15 +16,15 @@ ptr_define_placeholder_value(
     if (is.null(value) || length(value) != 2L) return(NULL)
     rlang::expr(c(!!value[1], !!value[2]))
   },
-  copy_defaults = list(label = "Range for {param}")
+  ui_text_defaults = list(label = "Range for {param}")
 )
 
 library(plotly)
 
 formula <- "ggplot(data = mpg,
-                   aes(x = var, y = var, color = var,
+                   aes(x = ppVar, y = ppVar, color = ppVar,
                        text = paste(manufacturer, model, sep = ' '))) +
-              geom_point(size = num, alpha = num) +
+              geom_point(size = ppNum, alpha = ppNum) +
               coord_cartesian(xlim = range, ylim = range)"
 
 ui <- fluidPage(
