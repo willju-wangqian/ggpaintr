@@ -78,4 +78,22 @@ if [ -x dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh ]; then
   sh dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh || exit 1
 fi
 
+# --- LLM-assist corpus gate ---
+# When the inst/llm/ corpus or its generator is staged, assert it stays in
+# sync with the live API: no ghost ptr_*() names, no removed/renamed args, no
+# pre-pp* tokens (lint), and the @ptr-gen managed blocks current (verify).
+# Only fires when relevant files change, so it costs nothing on other commits.
+if printf '%s\n' "$staged" | grep -Eq '^(inst/llm/|dev/build-llm\.R)'; then
+  if command -v Rscript >/dev/null 2>&1; then
+    Rscript dev/build-llm.R lint   >/dev/null 2>&1 || {
+      printf '%s\n' "✗ LLM-corpus hook: drift in inst/llm/ — run  Rscript dev/build-llm.R lint" >&2
+      exit 1
+    }
+    Rscript dev/build-llm.R verify >/dev/null 2>&1 || {
+      printf '%s\n' "✗ LLM-corpus hook: @ptr-gen blocks stale — run  Rscript dev/build-llm.R generate" >&2
+      exit 1
+    }
+  fi
+fi
+
 exit 0

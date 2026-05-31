@@ -1,6 +1,6 @@
 # Level 1 — package-global settings with `ptr_options()`
 
-Use when: the user wants to flip a session-wide ggpaintr default — quiet/verbose pipeline output, or invert the layer-checkbox initial state — without threading an argument through every `ptr_app()` call.
+Use when: the user wants to flip a session-wide ggpaintr default — quiet/verbose pipeline output — without threading an argument through every `ptr_app()` call.
 
 `ptr_options()` is a getter/setter, modeled after base `options()`. No Shiny code is involved; the call sets `getOption()` keys that ggpaintr reads at runtime.
 
@@ -16,10 +16,9 @@ ptr_options(...)
 
 ## Available settings
 
-| Name                                | Default | Underlying option                              | Meaning |
-|-------------------------------------|---------|------------------------------------------------|---------|
-| `verbose`                           | `FALSE` | `ggpaintr.verbose`                             | When `TRUE`, ggpaintr emits informational notices like "Layer foo() removed (no arguments provided)." Intended for debugging the formula pipeline. |
-| `checkbox_default_all_other_layer`  | `TRUE`  | `ggpaintr.checkbox_default_all_other_layer`    | Fallback initial state for layer checkboxes not named in `checkbox_defaults =`. Flip to `FALSE` so every layer starts unchecked unless explicitly opted in. |
+| Name      | Default | Underlying option   | Meaning |
+|-----------|---------|---------------------|---------|
+| `verbose` | `FALSE` | `ggpaintr.verbose`  | When `TRUE`, ggpaintr emits informational notices like "Layer foo() removed (no arguments provided)." Intended for debugging the formula pipeline. |
 
 ## Read current settings
 
@@ -29,33 +28,26 @@ library(ggpaintr)
 ptr_options()
 #> $verbose
 #> [1] FALSE
-#>
-#> $checkbox_default_all_other_layer
-#> [1] TRUE
 ```
 
 ## Set settings, with round-trip
 
 ```r
-old <- ptr_options(verbose = TRUE,
-                   checkbox_default_all_other_layer = FALSE)
+old <- ptr_options(verbose = TRUE)
 on.exit(do.call(ptr_options, old), add = TRUE)
-# ... ptr_app() / ptr_app_bslib() calls inside this scope inherit the new defaults ...
+# ... ptr_app() / ptr_app_bslib() calls inside this scope inherit the new default ...
 ```
 
 ## Equivalent base-options usage
 
-`ptr_options()` is the public face; the underlying `getOption()` keys are stable and may be set directly (e.g., from `.Rprofile`):
+`ptr_options()` is the public face; the underlying `getOption()` key is stable and may be set directly (e.g., from `.Rprofile`):
 
 ```r
-options(
-  ggpaintr.verbose                          = TRUE,
-  ggpaintr.checkbox_default_all_other_layer = FALSE
-)
+options(ggpaintr.verbose = TRUE)
 ```
 
 Prefer `ptr_options()` in scripts and tests so validation runs and unknown names error early.
 
-## When to move up a level
+## Per-widget defaults are not a global setting
 
-- Need to scope a setting to a single app, not a whole session → pass `checkbox_defaults =` directly to `ptr_app()`. `ptr_options()` is for session-wide defaults; per-call arguments override it.
+To change a *specific* widget's initial value — a default column pick, a layer checkbox's initial checked state, a starting numeric — use the `spec =` boot-override on `ptr_app()` / `ptr_server()` (a named list of input id → value; ADR 0012), not a global option. Discover the input ids with `ptr_id_table(formula)`. `ptr_options()` is for session-wide behaviour only.
