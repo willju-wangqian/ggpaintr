@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,7 +41,7 @@
     <div class="section level2">
       <h2 id="l-all-in-one">L1 — All-in-one<a class="anchor" aria-label="anchor" href="#l-all-in-one"></a></h2>
 
-      <div class="section-desc"><p>Turn a ggplot-style formula into a ready-to-run Shiny app. One formula → <code><a href="../reference/ptr_app.html">ptr_app()</a></code>; several linked plots → <code><a href="../reference/ptr_app_grid.html">ptr_app_grid()</a></code>.</p></div>
+      <div class="section-desc"><p>Turn a ggplot-style formula into a ready-to-run Shiny app with one call to <code><a href="../reference/ptr_app.html">ptr_app()</a></code>.</p></div>
 
       <dl></dl></div><div class="section level2">
 
@@ -54,13 +54,22 @@
 
         </dt>
         <dd>Build a Shiny App from a <code>ggpaintr</code> Formula</dd>
+      </dl></div><div class="section level2">
+      <h2 id="rstudio-addin">RStudio addin<a class="anchor" aria-label="anchor" href="#rstudio-addin"></a></h2>
 
-        <dt>
+      <div class="section-desc"><p>Wrap a highlighted selection in a placeholder from the RStudio command palette.</p></div>
 
-          <code><a href="ptr_app_grid.html">ptr_app_grid()</a></code>
+      <dl></dl></div><div class="section level2">
+
+
+
+
+      <dl><dt>
+
+          <code><a href="ptr_wrap_placeholder_addin.html">ptr_wrap_placeholder_addin()</a></code>
 
         </dt>
-        <dd>Grid App: Multiple <code>ggpaintr</code> Plots With Shared Controls</dd>
+        <dd>RStudio addin: wrap a selection in a ggpaintr placeholder</dd>
       </dl></div><div class="section level2">
       <h2 id="formula-placeholders">Formula placeholders<a class="anchor" aria-label="anchor" href="#formula-placeholders"></a></h2>
 
@@ -121,22 +130,6 @@
 
         </dt>
         <dd>Inspect, validate, and pre-merge ggpaintr UI copy</dd>
-      </dl></div><div class="section level2">
-      <h2 id="wrapper-examples">Wrapper examples<a class="anchor" aria-label="anchor" href="#wrapper-examples"></a></h2>
-
-      <div class="section-desc"><p>Worked examples of writing custom wrappers on top of the public ggpaintr primitives. See <code><a href="../articles/ggpaintr-tutorial.html">vignette("ggpaintr-tutorial")</a></code>.</p></div>
-
-      <dl></dl></div><div class="section level2">
-
-
-
-
-      <dl><dt>
-
-          <code><a href="ptr_app_bslib.html">ptr_app_bslib()</a></code>
-
-        </dt>
-        <dd>Bslib-Themed App: A Demonstration Wrapper</dd>
       </dl></div><div class="section level2">
       <h2 id="l-embed-with-the-default-layout">L2 — Embed with the default layout<a class="anchor" aria-label="anchor" href="#l-embed-with-the-default-layout"></a></h2>
 
@@ -351,10 +344,17 @@
 
         <dt>
 
-          <code><a href="ptr_arg_validators.html">ptr_arg_symbol_or_string()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_string()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_numeric()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_numeric_vector()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_expression()</a></code>
+          <code><a href="ptr_arg_validators.html">ptr_arg_symbol_or_string()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_string()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_symbol()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_numeric()</a></code> <code><a href="ptr_arg_validators.html">ptr_arg_expression()</a></code>
 
         </dt>
         <dd>Argument validators for placeholder definitions (<code>ptr_arg_*</code>)</dd>
+
+        <dt>
+
+          <code><a href="embellish_helpers.html">embellish_identity()</a></code> <code><a href="embellish_helpers.html">embellish_symbol_to_string()</a></code>
+
+        </dt>
+        <dd>Built-in helpers for a placeholder's plain-R evaluation slot</dd>
 
         <dt>
 

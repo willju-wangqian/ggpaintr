@@ -13,7 +13,7 @@ argument and returns a canonical value, or aborts with a clear message."><meta p
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,13 +55,13 @@ argument and returns a canonical value, or aborts with a clear message.</p>
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ptr_arg_symbol_or_string</span><span class="op">(</span><span class="op">)</span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">ptr_arg_symbol_or_string</span><span class="op">(</span>vector <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">ptr_arg_string</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu">ptr_arg_string</span><span class="op">(</span>vector <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">ptr_arg_numeric</span><span class="op">(</span><span class="op">)</span></span>
+<span><span class="fu">ptr_arg_symbol</span><span class="op">(</span>vector <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu">ptr_arg_numeric_vector</span><span class="op">(</span>length <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
+<span><span class="fu">ptr_arg_numeric</span><span class="op">(</span>vector <span class="op">=</span> <span class="cn">FALSE</span>, length <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span>
 <span></span>
 <span><span class="fu">ptr_arg_expression</span><span class="op">(</span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -70,9 +70,16 @@ argument and returns a canonical value, or aborts with a clear message.</p>
     <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
 
-<dl><dt id="arg-length">length<a class="anchor" aria-label="anchor" href="#arg-length"></a></dt>
+<dl><dt id="arg-vector">vector<a class="anchor" aria-label="anchor" href="#arg-vector"></a></dt>
+<dd><p>Logical scalar (default <code>FALSE</code>). When <code>TRUE</code>, the validator
+parses a <code>c(...)</code> literal element-by-element and returns the whole vector
+instead of a single scalar.</p></dd>
+
+
+<dt id="arg-length">length<a class="anchor" aria-label="anchor" href="#arg-length"></a></dt>
 <dd><p>Optional integer length required of the resulting numeric
-vector. <code>NULL</code> (the default) imposes no length check.</p></dd>
+vector; honored only when <code>vector = TRUE</code>. <code>NULL</code> (the default) imposes no
+length check.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -83,27 +90,38 @@ canonical default value, or aborts.</p>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>The validators operate on AST only: they do not call <code><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval()</a></code>, <code><a href="https://rdrr.io/r/base/parse.html" class="external-link">parse()</a></code>,
-or any deparse-and-reparse cycle on their input. The two numeric helpers
-(<code>ptr_arg_numeric()</code> and <code>ptr_arg_numeric_vector()</code>) walk the AST
+or any deparse-and-reparse cycle on their input. The numeric helper
+<code>ptr_arg_numeric()</code> (scalar by default, vector via <code>vector = TRUE</code>) walks
+the AST
 against the constant-fold allowlist registry (see
 <code><a href="ptr_constant_fold_registry.html">ptr_register_constant_fold()</a></code>) and then evaluate in a sealed environment
 whose only bindings are the registered names.</p>
 <p>Symbol policy is per-helper:</p><ul><li><p><code>ptr_arg_symbol_or_string()</code> accepts a bareword symbol (returned as
 its character name, preserving non-syntactic / backticked names) or any
 single string literal (including the empty string).</p></li>
+<li><p><code>ptr_arg_symbol()</code> accepts only a bareword symbol (returned as its
+character name); rejects string literals, numbers, and compound calls.</p></li>
 <li><p><code>ptr_arg_string()</code> accepts only a single string literal (including
 the empty string); rejects symbols and numbers.</p></li>
 <li><p><code>ptr_arg_numeric()</code> accepts any AST whose every node is a syntactic
-literal or a registered constant-fold name; the result must be a
-length-one non-NA numeric.</p></li>
-<li><p><code>ptr_arg_numeric_vector(length = NULL)</code> is the vector analogue, with
-an optional <code>length</code> check.</p></li>
+literal or a registered constant-fold name; in the default scalar mode
+the result must be a length-one non-NA numeric.
+For the vector form use <code>ptr_arg_numeric(vector = TRUE, length = NULL)</code>.</p></li>
 <li><p><code>ptr_arg_expression()</code> is a verbatim store: it returns its input
 unchanged so it can later be evaluated in the data context. As a
 convenience it emits a one-shot warning if the user wraps the
 expression in <code><a href="https://rdrr.io/r/base/substitute.html" class="external-link">quote()</a></code>, <code><a href="https://rdrr.io/r/base/bquote.html" class="external-link">bquote()</a></code>, <code>rlang::ppExpr()</code>, or <code><a href="https://rlang.r-lib.org/reference/defusing-advanced.html" class="external-link">rlang::quo()</a></code>
 (the wrapper is stored verbatim).</p></li>
-</ul></div>
+</ul><p>Each of <code>ptr_arg_symbol_or_string()</code>, <code>ptr_arg_symbol()</code>,
+<code>ptr_arg_string()</code>, and <code>ptr_arg_numeric()</code> takes a <code>vector</code> flag. With
+<code>vector = FALSE</code> (the default) the validator parses a single scalar element
+and returns a length-one value. With <code>vector = TRUE</code> it parses a <code>c(...)</code>
+literal element-by-element (each element subject to the helper's scalar
+element rule) and returns the whole vector; a lone element is treated as a
+length-one vector. For <code>ptr_arg_numeric(vector = TRUE)</code> the optional
+<code>length</code> check (honored only in vector mode) asserts the parsed vector's
+length.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -119,7 +137,7 @@ expression in <code><a href="https://rdrr.io/r/base/substitute.html" class="exte
 <span class="r-in"><span><span class="fu">is_num</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substitute.html" class="external-link">quote</a></span><span class="op">(</span><span class="fl">2</span> <span class="op">*</span> <span class="va">pi</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 6.283185</span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="va">is_vec</span> <span class="op">&lt;-</span> <span class="fu">ptr_arg_numeric_vector</span><span class="op">(</span>length <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">is_vec</span> <span class="op">&lt;-</span> <span class="fu">ptr_arg_numeric</span><span class="op">(</span>vector <span class="op">=</span> <span class="cn">TRUE</span>, length <span class="op">=</span> <span class="fl">2L</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu">is_vec</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/substitute.html" class="external-link">quote</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0 1</span>
 </code></pre></div>

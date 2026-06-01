@@ -28,7 +28,7 @@
 
     <a class="navbar-brand me-2" href="index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,7 +72,7 @@
 <div class="section level2">
 <h2 id="overview">Overview<a class="anchor" aria-label="anchor" href="#overview"></a>
 </h2>
-<p>ggpaintr turns a ggplot-like formula string into a running Shiny app. You write a single <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> call as text, drop placeholder keywords (<code>ppVar</code>, <code>ppText</code>, <code>ppNum</code>, <code>ppExpr</code>, <code>ppUpload</code>) anywhere a value would normally go, and ggpaintr does the rest: each keyword becomes an input widget, the same parsed object drives the UI, the plot, and a live code pane, and editing any widget re-renders the plot.</p>
+<p>ggpaintr turns a ggplot-like formula into a running Shiny app. You write a single <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> call — passed directly as an unquoted expression (the primary form), or as a string (the fallback) — and drop placeholder keywords (<code>ppVar</code>, <code>ppText</code>, <code>ppNum</code>, <code>ppExpr</code>, <code>ppUpload</code>) anywhere a value would normally go. ggpaintr does the rest: each keyword becomes an input widget, the same parsed object drives the UI, the plot, and a live code pane, and editing any widget re-renders the plot.</p>
 <p>No Shiny UI or server code required. If you can write a ggplot call, you can ship an interactive version of it.</p>
 </div>
 <div class="section level2">
@@ -89,12 +89,13 @@
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://willju-wangqian.github.io/ggpaintr/">ggpaintr</a></span><span class="op">)</span></span>
 <span></span>
-<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="st">"</span></span>
-<span><span class="st">ggplot(data = iris, aes(x = ppVar, y = ppVar)) +</span></span>
-<span><span class="st">  geom_point(aes(color = ppVar), size = ppNum) +</span></span>
-<span><span class="st">  labs(title = ppText) +</span></span>
-<span><span class="st">  facet_wrap(ppExpr)</span></span>
-<span><span class="st">"</span><span class="op">)</span></span></code></pre></div>
+<span><span class="co"># Primary form: pass the ggplot() call directly as an unquoted expression.</span></span>
+<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span>data <span class="op">=</span> <span class="va">iris</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">ppVar</span>, y <span class="op">=</span> <span class="va">ppVar</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>color <span class="op">=</span> <span class="va">ppVar</span><span class="op">)</span>, size <span class="op">=</span> <span class="va">ppNum</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>title <span class="op">=</span> <span class="va">ppText</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/facet_wrap.html" class="external-link">facet_wrap</a></span><span class="op">(</span><span class="va">ppExpr</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
 <p>That single call returns a running Shiny app. Each placeholder in the formula becomes one widget:</p>
 <ul>
 <li>the three <code>ppVar</code> tokens → column pickers populated from <code>iris</code>,</li>
@@ -105,7 +106,49 @@
 <li>
 <code>ppExpr</code> → a code box for the facet spec (e.g. <code>vars(Species)</code>).</li>
 </ul>
-<p><code><a href="https://willju-wangqian.github.io/ggpaintr/">library(ggpaintr)</a></code> also attaches <code>ggplot2</code>, so bare <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> / <code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code> / <code>geom_*()</code> calls work directly inside formula strings. For a grid layout, use <code><a href="reference/ptr_app_grid.html">ptr_app_grid()</a></code>. To swap in a custom page shell or theme, write a thin wrapper on top of the public primitives.</p>
+<p><code><a href="https://willju-wangqian.github.io/ggpaintr/">library(ggpaintr)</a></code> also attaches <code>ggplot2</code>, so bare <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code> / <code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code> / <code>geom_*()</code> calls work directly in the formula expression. To reuse a formula across calls, store it with <code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">rlang::expr()</a></code> and splice it in with <code>!!</code> — <code>f &lt;- rlang::expr(ggplot(...)); ptr_app(!!f)</code>. The string form (<code>ptr_app("ggplot(...)")</code>) remains a supported fallback, handy when a formula is built or fetched as text. To swap in a custom page shell or theme, write a thin wrapper on top of the public primitives.</p>
+<p>The <code><a href="reference/ptr_app.html">ptr_app()</a></code> call above needs a Shiny session to run, so it is not evaluated here. But each <code>pp*</code> token is a plain identity function, so the <strong>same formula without <code><a href="reference/ptr_app.html">ptr_app()</a></code> is ordinary, runnable <code>ggplot2</code></strong> — drop the placeholders into your plot, sketch it as a static chart first, then wrap it in <code><a href="reference/ptr_app.html">ptr_app()</a></code> when you want the widgets:</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">iris</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Sepal.Length</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Sepal.Width</span><span class="op">)</span>, color <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Species</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppNum</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/labs.html" class="external-link">labs</a></span><span class="op">(</span>x <span class="op">=</span> <span class="st">"Sepal.Length"</span>, y <span class="op">=</span> <span class="st">"Sepal.Width"</span>, color <span class="op">=</span> <span class="st">"Species"</span><span class="op">)</span></span></code></pre></div>
+<p><img src="reference/figures/README-readme-naked-ggplot-1.png" alt="Scatter plot of iris Sepal.Width against Sepal.Length, coloured by Species" width="70%"></p>
+<p>Here <code>ppVar(Sepal.Length)</code> evaluates to <code>Sepal.Length</code> and <code>ppNum(3)</code> to <code>3</code>, so the chart renders exactly as plain ggplot2 — the tokens only become widgets once the expression is handed to <code><a href="reference/ptr_app.html">ptr_app()</a></code>.</p>
+<p>Handing that exact expression to <code><a href="reference/ptr_app.html">ptr_app()</a></code> launches the interactive app, and the value inside each placeholder becomes that widget’s <strong>initial selection</strong> — so the app boots with <code>x = Sepal.Length</code>, <code>y = Sepal.Width</code>, <code>color = Species</code>, <code>size = 3</code> pre-selected and renders the very same figure straight away, ready to be re-pointed at other columns:</p>
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">iris</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Sepal.Length</span><span class="op">)</span>,</span>
+<span>                   y <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Sepal.Width</span><span class="op">)</span>, </span>
+<span>                   color <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Species</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppNum</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span></code></pre></div>
+<p>The expression need not be inline. Capture it once with <code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">rlang::expr()</a></code> and reuse it — <code><a href="reference/ptr_app.html">ptr_app()</a></code> resolves a formula stored in a variable by name (no <code>!!</code> needed), so you can build, inspect, or share the formula before launching the app:</p>
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="va">formula_iris</span> <span class="op">&lt;-</span> <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span></span>
+<span>  <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">iris</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Sepal.Length</span><span class="op">)</span>, </span>
+<span>                   y <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Sepal.Width</span><span class="op">)</span>, </span>
+<span>                   color <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="va">Species</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span></span>
+<span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fu"><a href="reference/pp_placeholders.html">ppNum</a></span><span class="op">(</span><span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="fu"><a href="reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula_iris</span><span class="op">)</span></span></code></pre></div>
+</div>
+<div class="section level2">
+<h2 id="rstudio-addin">RStudio addin<a class="anchor" aria-label="anchor" href="#rstudio-addin"></a>
+</h2>
+<p>ggpaintr ships an RStudio addin that turns a plain ggplot expression into a placeholder formula without typing the <code>pp*</code> tokens by hand. Highlight a piece of your code, run the addin, and pick a placeholder from a command palette — the selection is rewritten in place (<code>mpg</code> → <code>ppVar(mpg)</code>; nothing highlighted inserts <code><a href="reference/pp_placeholders.html">ppVar()</a></code> with the cursor between the parens). The list is ordered by what you highlighted — a bare name surfaces the column pickers (<code>ppVar</code>), a number <code>ppNum</code>, a string <code>ppText</code>, a call the layer/verb toggles (<code>ppLayerOff</code> / <code>ppVerbSwitch</code>) — and any placeholder you registered this session appears automatically. The palette’s <strong>Wrap in app</strong> button wraps the whole selection in <code>{ … } |&gt; ptr_app()</code> to scaffold a runnable app.</p>
+<div class="float">
+<img src="reference/figures/ggpaintr-addin.png" alt="The ggpaintr placeholder addin: a command palette over a ggplot expression"><div class="figcaption">The ggpaintr placeholder addin: a command palette over a ggplot expression</div>
+</div>
+<p>Run it from the <strong>Addins</strong> menu ▸ <em>ggpaintr placeholder</em>. To bind a keyboard shortcut (the addin must be <strong>installed</strong>, not just <code>load_all()</code>-ed, to appear in the dialog):</p>
+<ol style="list-style-type: decimal">
+<li>
+<em>Tools ▸ Addins ▸ Browse Addins…</em>, then the <em>Keyboard Shortcuts…</em> button. (Or <em>Tools ▸ Modify Keyboard Shortcuts…</em> and type “ggpaintr” in the search box.)</li>
+<li>Click the <em>Shortcut</em> cell on the <em>ggpaintr placeholder</em> row.</li>
+<li>Press your combination — e.g. <strong>Cmd+Shift+G</strong> (macOS) or <strong>Ctrl+Shift+G</strong> (Windows/Linux). Any free combination works.</li>
+<li>
+<em>Apply</em>.</li>
+</ol>
 </div>
 <div class="section level2">
 <h2 id="more-topics">More topics<a class="anchor" aria-label="anchor" href="#more-topics"></a>

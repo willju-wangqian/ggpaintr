@@ -55,10 +55,6 @@ cat(ptr_llm_topic("level1_ptr_app"))
 #> )
 #> ```
 #> 
-#> `ptr_app_bslib()` has the same arguments minus `css`, plus `theme`, and renders inside a bslib-themed shell.
-#> 
-#> `ptr_app_grid(plots, envir, ui_text, draw_all_label, expr_check, css, ncol, nrow, spec)` builds a grid of N plots that can share widgets at the page level — see "Multiple plots" below.
-#> 
 #> There is no `placeholders =` argument: custom placeholder keywords are registered against a **process-global** registry via `ptr_define_placeholder_value()` / `_consumer()` / `_source()` before the app launches (see `custom_placeholder`).
 #> 
 #> ## Minimal example
@@ -72,61 +68,6 @@ cat(ptr_llm_topic("level1_ptr_app"))
 #> ```
 #> 
 #> Every `ppVar`, `ppText` becomes a sidebar widget. Clicking **Update plot** re-renders the plot and refreshes the generated code on the side.
-#> 
-#> ## Multiple plots in one app — `ptr_app_grid()`
-#> 
-#> `ptr_app_grid()` takes a list of formulas in `plots =` and renders one tile per formula. Internally it builds the same shared coordinator the L2 trio exposes, but as an L1 entry point it hides that machinery behind `plots =`. Clicking **Draw all** triggers a redraw across every tile.
-#> 
-#> ```r
-#> ptr_app_grid(
-#>   plots = list(
-#>     "ggplot(iris, aes(x = ppVar, y = Sepal.Length, fill = Species)) +
-#>        geom_boxplot()",
-#>     "ggplot(iris, aes(x = ppVar, y = Sepal.Width, fill = Species)) +
-#>        geom_violin()"
-#>   )
-#> )
-#> ```
-#> 
-#> Annotate any placeholder with `ppX(shared = "<id>")` to lift it into a single top-level widget that drives every plot. The `<id>` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot. A built-in shared key needs no extra wiring — its widget is built for you:
-#> 
-#> ```r
-#> ptr_app_grid(
-#>   plots = list(
-#>     "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) +
-#>        geom_boxplot()",
-#>     "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width, fill = Species)) +
-#>        geom_violin()"
-#>   )
-#> )
-#> ```
-#> 
-#> There is **no `shared_ui` argument** (removed). To customise the *look* of a shared widget, register a custom placeholder whose `build_ui` supplies the control you want, then use that keyword in the formula. For example, to render the shared metric picker as a `selectInput`:
-#> 
-#> ```r
-#> ppMetric <- ptr_define_placeholder_consumer(
-#>   keyword        = "ppMetric",
-#>   build_ui       = function(node, cols = character(), label = NULL,
-#>                             selected = character(0), ...) {
-#>     selectInput(node$id, label = label %||% "Metric", choices = cols,
-#>                 selected = if (length(selected)) selected[[1L]] else NULL)
-#>   },
-#>   resolve_expr   = function(value, node, ...) {
-#>     if (length(value) == 0L || !nzchar(value)) return(NULL)
-#>     rlang::sym(value)
-#>   },
-#>   positional_arg = ptr_arg_symbol_or_string()
-#> )
-#> 
-#> ptr_app_grid(
-#>   plots = list(
-#>     "ggplot(iris, aes(x = ppMetric(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",
-#>     "ggplot(iris, aes(x = ppMetric(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"
-#>   )
-#> )
-#> ```
-#> 
-#> The customization comes from the placeholder's `build_ui`, not a page-level override. See `custom_placeholder` for the constructors.
 #> 
 #> ## Single-instance shared widgets — no coordinator
 #> 

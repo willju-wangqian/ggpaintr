@@ -15,7 +15,7 @@ focused example instead of the entire manual."><meta property="og:image" content
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -105,10 +105,6 @@ focused example instead of the entire manual.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> )</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ```</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> `ptr_app_bslib()` has the same arguments minus `css`, plus `theme`, and renders inside a bslib-themed shell.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> `ptr_app_grid(plots, envir, ui_text, draw_all_label, expr_check, css, ncol, nrow, spec)` builds a grid of N plots that can share widgets at the page level — see "Multiple plots" below.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> There is no `placeholders =` argument: custom placeholder keywords are registered against a **process-global** registry via `ptr_define_placeholder_value()` / `_consumer()` / `_source()` before the app launches (see `custom_placeholder`).</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ## Minimal example</span>
@@ -122,61 +118,6 @@ focused example instead of the entire manual.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ```</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> Every `ppVar`, `ppText` becomes a sidebar widget. Clicking **Update plot** re-renders the plot and refreshes the generated code on the side.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ## Multiple plots in one app — `ptr_app_grid()`</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> `ptr_app_grid()` takes a list of formulas in `plots =` and renders one tile per formula. Internally it builds the same shared coordinator the L2 trio exposes, but as an L1 entry point it hides that machinery behind `plots =`. Clicking **Draw all** triggers a redraw across every tile.</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ```r</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ptr_app_grid(</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   plots = list(</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     "ggplot(iris, aes(x = ppVar, y = Sepal.Length, fill = Species)) +</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        geom_boxplot()",</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     "ggplot(iris, aes(x = ppVar, y = Sepal.Width, fill = Species)) +</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        geom_violin()"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   )</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> )</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ```</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> Annotate any placeholder with `ppX(shared = "&lt;id&gt;")` to lift it into a single top-level widget that drives every plot. The `&lt;id&gt;` namespace is shared across every formula in `plots`, so editing the top widget propagates to every plot. A built-in shared key needs no extra wiring — its widget is built for you:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ```r</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ptr_app_grid(</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   plots = list(</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Length, fill = Species)) +</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        geom_boxplot()",</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     "ggplot(iris, aes(x = ppVar(shared = 'metric'), y = Sepal.Width, fill = Species)) +</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>        geom_violin()"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   )</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> )</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ```</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> There is **no `shared_ui` argument** (removed). To customise the *look* of a shared widget, register a custom placeholder whose `build_ui` supplies the control you want, then use that keyword in the formula. For example, to render the shared metric picker as a `selectInput`:</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ```r</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ppMetric &lt;- ptr_define_placeholder_consumer(</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   keyword        = "ppMetric",</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   build_ui       = function(node, cols = character(), label = NULL,</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                             selected = character(0), ...) {</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     selectInput(node$id, label = label %||% "Metric", choices = cols,</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>                 selected = if (length(selected)) selected[[1L]] else NULL)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   },</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   resolve_expr   = function(value, node, ...) {</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     if (length(value) == 0L || !nzchar(value)) return(NULL)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     rlang::sym(value)</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   },</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   positional_arg = ptr_arg_symbol_or_string()</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> )</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ptr_app_grid(</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   plots = list(</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     "ggplot(iris, aes(x = ppMetric(shared = 'metric'), y = Sepal.Length, fill = Species)) + geom_boxplot()",</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     "ggplot(iris, aes(x = ppMetric(shared = 'metric'), y = Sepal.Width,  fill = Species)) + geom_violin()"</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   )</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> )</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> ```</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> The customization comes from the placeholder's `build_ui`, not a page-level override. See `custom_placeholder` for the constructors.</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> ## Single-instance shared widgets — no coordinator</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>

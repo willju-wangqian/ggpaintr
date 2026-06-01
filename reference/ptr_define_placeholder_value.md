@@ -17,10 +17,10 @@ ptr_define_placeholder_value(
   keyword,
   build_ui,
   resolve_expr,
-  validate_input = NULL,
-  positional_arg = NULL,
-  named_args = list(),
-  runtime = NULL,
+  validate_session_input = NULL,
+  parse_positional_arg = NULL,
+  parse_named_args = list(),
+  embellish_eval = NULL,
   ui_text_defaults = list(label = "Enter a value for {param}")
 )
 ```
@@ -104,7 +104,7 @@ ptr_define_placeholder_value(
   [`rlang::abort()`](https://rlang.r-lib.org/reference/abort.html) for
   malformed input.
 
-- validate_input:
+- validate_session_input:
 
   Optional `function(value, ctx)` called before `resolve_expr`. Return
   `TRUE` / `NULL` to accept; return a single character string to reject
@@ -122,7 +122,7 @@ ptr_define_placeholder_value(
   positional or named arguments are passed, and `ctx` carries exactly
   the four fields above. The signature does not require `...`.
 
-- positional_arg:
+- parse_positional_arg:
 
   Optional validator closure for the (single) positional argument the
   keyword accepts inside a formula. `NULL` (default) means positional
@@ -134,7 +134,7 @@ ptr_define_placeholder_value(
   author. Authors who eval in a validator are opting into the risk of
   running user code at translate time.
 
-- named_args:
+- parse_named_args:
 
   Named list of validator closures for additional named arguments beyond
   the reserved `shared = ...`. Each entry's closure receives the
@@ -143,15 +143,19 @@ ptr_define_placeholder_value(
   Default is [`list()`](https://rdrr.io/r/base/list.html) (no named
   args). The name `"shared"` is reserved and may not appear here.
 
-- runtime:
+- embellish_eval:
 
   Optional `function(x, ...)` body used when the placeholder keyword is
-  *also* called as a plain-R function (outside a formula context). When
-  `NULL` (default), the identity function `function(x, ...) x` is
-  supplied — calling `pct(0.5)` returns `0.5` unchanged. Override to
-  give the keyword a non-identity plain-R meaning. The same runtime is
-  returned to the caller of this helper so authors can bind it under the
-  same name as the keyword:
+  *also* called as a plain-R function (outside a formula context) — i.e.
+  how a placeholder-embellished ggplot expression evaluates with no app.
+  When `NULL` (default), the identity from
+  [`embellish_identity()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)
+  (`function(x, ...) x`) is supplied — calling `pct(0.5)` returns `0.5`
+  unchanged. Override to give the keyword a non-identity plain-R meaning
+  (e.g.
+  [`embellish_symbol_to_string()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)).
+  The same callable is returned to the caller of this helper so authors
+  can bind it under the same name as the keyword:
   `ppPct <- ptr_define_placeholder_value(keyword = "ppPct", ...)`.
 
 - ui_text_defaults:
@@ -164,8 +168,8 @@ ptr_define_placeholder_value(
 ## Value
 
 The runtime callable. Default for a value placeholder is the identity
-`function(x, ...) x`; override with `runtime = ...`. The helper is also
-called for its registration side effect — use
+`function(x, ...) x`; override with `embellish_eval = ...`. The helper
+is also called for its registration side effect — use
 [`ptr_clear_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_clear_placeholder.md)
 to remove the entry.
 
@@ -208,13 +212,13 @@ ptr_define_placeholder_value(
     if (length(value) != 1L || !is.finite(value)) return(NULL)
     value / 100
   },
-  positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
+  parse_positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
   ui_text_defaults = list(label = "Percent for {param}")
 )
 #> function (x, ...) 
 #> x
-#> <bytecode: 0x56055beba288>
-#> <environment: 0x56055e490bf0>
+#> <bytecode: 0x55f8a781ab58>
+#> <environment: 0x55f8a1c1de90>
 ptr_clear_placeholder("pct")
 #> ✔ Cleared placeholder: "pct".
 ```

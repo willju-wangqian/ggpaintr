@@ -19,6 +19,7 @@ with
 ptr_ui_controls(
   formula,
   id = NULL,
+  envir = parent.frame(),
   ui_text = NULL,
   expr_check = TRUE,
   shared = NULL
@@ -29,13 +30,28 @@ ptr_ui_controls(
 
 - formula:
 
-  A single formula string with `ggpaintr` placeholders.
+  Either a single character scalar containing a ggplot expression with
+  `ggpaintr` placeholders, or an unquoted / `!!`-spliced ggplot
+  expression, captured with
+  [`rlang::enexpr()`](https://rlang.r-lib.org/reference/defusing-advanced.html)
+  exactly as
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md).
+  See
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  for the full contract.
 
 - id:
 
   Optional module id; the namespace prefix for inputs. Defaults to
   `NULL` (identity namespace). When set, must match the `id` passed to
   the other piece functions and the server wiring.
+
+- envir:
+
+  Environment used to resolve a `formula` passed as a bare symbol and
+  any local data objects. Defaults to the calling frame.
 
 - ui_text:
 
@@ -99,6 +115,47 @@ placeholder type; see
 ## Examples
 
 ``` r
+# Expression form (primary): an unquoted ggplot call.
+ptr_ui_controls(
+  ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(),
+  id = "p"
+)
+#> <div class="form-group shiny-input-container">
+#>   <label class="control-label" id="p-ptr_layer_select-label" for="p-ptr_layer_select">Layer</label>
+#>   <select data-state-input="true" id="p-ptr_layer_select" class="selectpicker form-control" autocomplete="off"><option value="ggplot" selected>ggplot</option>
+#> <option value="geom_point">geom_point</option></select>
+#> </div>
+#> <div class="tabbable">
+#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="3021">
+#>     <li class="active">
+#>       <a href="#tab-3021-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>     </li>
+#>     <li>
+#>       <a href="#tab-3021-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>     </li>
+#>   </ul>
+#>   <div class="tab-content" data-tabsetid="3021">
+#>     <div class="tab-pane active" data-value="ggplot" id="tab-3021-1">
+#>       <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
+#>         <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
+#>         <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
+#>       </div>
+#>     </div>
+#>     <div class="tab-pane" data-value="geom_point" id="tab-3021-2">
+#>       <div class="form-group shiny-input-container">
+#>         <div class="checkbox">
+#>           <label>
+#>             <input id="p-geom_point_checkbox" type="checkbox" class="shiny-input-checkbox" checked="checked"/>
+#>             <span>Include this layer in the plot</span>
+#>           </label>
+#>         </div>
+#>       </div>
+#>       <div id="p-ptr_layer_content_geom_point" class="ptr-layer-content"></div>
+#>     </div>
+#>   </div>
+#> </div>
+#> <button id="p-ptr_update_plot" type="button" class="btn btn-default action-button"><span class="action-label">Update plot</span></button>
+# String form (fallback): equivalent.
 ptr_ui_controls(
   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
   id = "p"
@@ -109,22 +166,22 @@ ptr_ui_controls(
 #> <option value="geom_point">geom_point</option></select>
 #> </div>
 #> <div class="tabbable">
-#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="9649">
+#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="2670">
 #>     <li class="active">
-#>       <a href="#tab-9649-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>       <a href="#tab-2670-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
 #>     </li>
 #>     <li>
-#>       <a href="#tab-9649-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>       <a href="#tab-2670-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
 #>     </li>
 #>   </ul>
-#>   <div class="tab-content" data-tabsetid="9649">
-#>     <div class="tab-pane active" data-value="ggplot" id="tab-9649-1">
+#>   <div class="tab-content" data-tabsetid="2670">
+#>     <div class="tab-pane active" data-value="ggplot" id="tab-2670-1">
 #>       <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
 #>         <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
 #>         <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
 #>       </div>
 #>     </div>
-#>     <div class="tab-pane" data-value="geom_point" id="tab-9649-2">
+#>     <div class="tab-pane" data-value="geom_point" id="tab-2670-2">
 #>       <div class="form-group shiny-input-container">
 #>         <div class="checkbox">
 #>           <label>

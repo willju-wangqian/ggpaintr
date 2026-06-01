@@ -17,7 +17,7 @@ ptr_code, ptr_code_mode, ptr_update_plot)."><meta property="og:image" content="h
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -137,7 +137,7 @@ override accordingly.</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">ptr_id_table</span><span class="op">(</span><span class="st">"ggplot(ppUpload, aes(x = ppVar)) + geom_point(color = ppText)"</span><span class="op">)</span></span></span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="fu">ptr_id_table</span><span class="op">(</span><span class="st">"ggplot(ppUpload, aes(x = ppVar, y = ppVar)) + geom_point(color = ppText)"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                               id         kind             role    scope</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1                ptr_update_plot input_widget  ptr_update_plot instance</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2                       ptr_plot  output_slot         ptr_plot instance</span>
@@ -151,10 +151,12 @@ override accordingly.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 10 ggplot_0_ppUpload_NA_shortcut input_widget source_companion instance</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11        ggplot_1_1_ppVar_NA_ui  output_slot      placeholder instance</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12           ggplot_1_1_ppVar_NA input_widget      placeholder instance</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 13           geom_point_checkbox input_widget   layer_checkbox instance</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 14  ptr_layer_content_geom_point  output_slot    layer_content instance</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15     geom_point_1_ppText_NA_ui  output_slot      placeholder instance</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 16        geom_point_1_ppText_NA input_widget      placeholder instance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13        ggplot_1_2_ppVar_NA_ui  output_slot      placeholder instance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14           ggplot_1_2_ppVar_NA input_widget      placeholder instance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15           geom_point_checkbox input_widget   layer_checkbox instance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 16  ptr_layer_content_geom_point  output_slot    layer_content instance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17     geom_point_1_ppText_NA_ui  output_slot      placeholder instance</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18        geom_point_1_ppText_NA input_widget      placeholder instance</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    include_in_ui      layer  keyword param parent_call shared</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1           TRUE       &lt;NA&gt;     &lt;NA&gt;  &lt;NA&gt;        &lt;NA&gt;   &lt;NA&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 2           TRUE       &lt;NA&gt;     &lt;NA&gt;  &lt;NA&gt;        &lt;NA&gt;   &lt;NA&gt;</span>
@@ -168,10 +170,12 @@ override accordingly.</p>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 10         FALSE     ggplot ppUpload  data      ggplot   &lt;NA&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 11          TRUE     ggplot    ppVar     x         aes   &lt;NA&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 12         FALSE     ggplot    ppVar     x         aes   &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 13          TRUE geom_point     &lt;NA&gt;  &lt;NA&gt;        &lt;NA&gt;   &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 14          TRUE geom_point     &lt;NA&gt;  &lt;NA&gt;        &lt;NA&gt;   &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15          TRUE geom_point   ppText color  geom_point   &lt;NA&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 16         FALSE geom_point   ppText color  geom_point   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13          TRUE     ggplot    ppVar     y         aes   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14         FALSE     ggplot    ppVar     y         aes   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15          TRUE geom_point     &lt;NA&gt;  &lt;NA&gt;        &lt;NA&gt;   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 16          TRUE geom_point     &lt;NA&gt;  &lt;NA&gt;        &lt;NA&gt;   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17          TRUE geom_point   ppText color  geom_point   &lt;NA&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18         FALSE geom_point   ppText color  geom_point   &lt;NA&gt;</span>
 <span class="r-in"><span><span class="fu">ptr_id_table</span><span class="op">(</span><span class="st">"ggplot(ppUpload, aes(x = ppVar))"</span>, id <span class="op">=</span> <span class="st">"myplot"</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>                                      id         kind             role    scope</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> 1                myplot-ptr_update_plot input_widget  ptr_update_plot instance</span>

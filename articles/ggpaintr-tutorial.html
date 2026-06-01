@@ -25,7 +25,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -230,7 +230,7 @@ for consumer and source.</p>
 <ul>
 <li>The registry is <strong>process-global</strong>. Calling a
 constructor <em>registers</em> the keyword as a side effect (and returns
-a plain-R function, see <code>runtime</code> below); there is no
+a plain-R function, see <code>embellish_eval</code> below); there is no
 <code>placeholders =</code> argument to thread anywhere. Register once
 near the top of your script, then use the keyword in any formula.</li>
 <li>The keyword you register is the keyword you write in the formula. By
@@ -264,7 +264,7 @@ is divided by 100 before it reaches the plot. It exercises
 <span>    <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span></span>
 <span>  <span class="op">}</span>,</span>
 <span></span>
-<span>  validate_input <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">ctx</span><span class="op">)</span> <span class="op">{</span></span>
+<span>  validate_session_input <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">ctx</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="va">v</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/warning.html" class="external-link">suppressWarnings</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">1L</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">v</span><span class="op">)</span> <span class="op">||</span> <span class="va">v</span> <span class="op">&lt;</span> <span class="fl">0</span> <span class="op">||</span> <span class="va">v</span> <span class="op">&gt;</span> <span class="fl">100</span><span class="op">)</span> <span class="op">{</span></span>
 <span>      <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/abort.html" class="external-link">abort</a></span><span class="op">(</span><span class="st">"Percent must be a single number between 0 and 100."</span><span class="op">)</span></span>
@@ -272,9 +272,9 @@ is divided by 100 before it reaches the plot. It exercises
 <span>    <span class="va">value</span></span>
 <span>  <span class="op">}</span>,</span>
 <span></span>
-<span>  positional_arg   <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_numeric</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  named_args       <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>step <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_numeric</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
-<span>  runtime          <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span>,</span>
+<span>  parse_positional_arg <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_numeric</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  parse_named_args     <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>step <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_numeric</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  embellish_eval       <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span>, <span class="va">...</span><span class="op">)</span> <span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">/</span> <span class="fl">100</span>,</span>
 <span>  ui_text_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Percent for {param}"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <p>Used in a formula — the positional <code>40</code> seeds the slider,
@@ -347,8 +347,8 @@ which drops the argument cleanly. Here we divide by 100 so the plot sees
 a 0–1 alpha.</p>
 </div>
 <div class="section level4">
-<h4 id="validate_input">
-<code>validate_input</code><a class="anchor" aria-label="anchor" href="#validate_input"></a>
+<h4 id="validate_session_input">
+<code>validate_session_input</code><a class="anchor" aria-label="anchor" href="#validate_session_input"></a>
 </h4>
 <p>Optional. <code>function(value, ctx)</code>, run before
 <code>resolve_expr</code>. Return the value to accept it, or
@@ -360,46 +360,72 @@ carries context; for value placeholders it is mostly empty — it earns
 its keep for consumers, Section 2.2.)</p>
 </div>
 <div class="section level4">
-<h4 id="positional_arg">
-<code>positional_arg</code><a class="anchor" aria-label="anchor" href="#positional_arg"></a>
+<h4 id="parse_positional_arg">
+<code>parse_positional_arg</code><a class="anchor" aria-label="anchor" href="#parse_positional_arg"></a>
 </h4>
 <p>Declares whether the placeholder accepts a single positional default
 in the formula, and validates it. Pass one of the argument validators —
 <code><a href="../reference/ptr_arg_validators.html">ptr_arg_string()</a></code>, <code><a href="../reference/ptr_arg_validators.html">ptr_arg_numeric()</a></code>,
-<code>ptr_arg_numeric_vector(length =)</code>,
-<code><a href="../reference/ptr_arg_validators.html">ptr_arg_symbol_or_string()</a></code>,
+<code><a href="../reference/ptr_arg_validators.html">ptr_arg_symbol()</a></code>, <code><a href="../reference/ptr_arg_validators.html">ptr_arg_symbol_or_string()</a></code>,
 <code><a href="../reference/ptr_arg_validators.html">ptr_arg_expression()</a></code>. Each is a factory returning a checker
 that inspects the default <strong>as unevaluated code</strong> (no
 <code><a href="https://rdrr.io/r/base/eval.html" class="external-link">eval()</a></code>), so <code>ppPercent(40)</code> is validated to be a
-numeric literal at translate time. Leaving
-<code>positional_arg = NULL</code> (the default)
-<strong>rejects</strong> any positional argument —
+numeric literal at translate time. The element factories also take
+<code>vector = TRUE</code> to accept a <code>c(...)</code> of elements
+instead of a scalar —
+<code>ptr_arg_numeric(vector = TRUE, length = 2)</code>,
+<code>ptr_arg_symbol(vector = TRUE)</code> (a multi-column default like
+<code>c(mpg, hp)</code>) — so a multi-column consumer can carry a
+positional default. Leaving <code>parse_positional_arg = NULL</code>
+(the default) <strong>rejects</strong> any positional argument —
 <code>ppPercent(40)</code> would error.</p>
 </div>
 <div class="section level4">
-<h4 id="named_args">
-<code>named_args</code><a class="anchor" aria-label="anchor" href="#named_args"></a>
+<h4 id="parse_named_args">
+<code>parse_named_args</code><a class="anchor" aria-label="anchor" href="#parse_named_args"></a>
 </h4>
 <p>A fully-named list mapping extra named-argument names to validators,
-in the same family as <code>positional_arg</code>. It lets the formula
-write <code>ppPercent(40, step = 5)</code>. The validated values arrive
-in <code>build_ui</code> as the <code>named_args</code> list. The name
-<code>shared</code> is reserved (it is ggpaintr’s cross-widget binding
-key — Section 3) and may not appear here.</p>
+in the same family as <code>parse_positional_arg</code>. It lets the
+formula write <code>ppPercent(40, step = 5)</code>. The validated values
+arrive in <code>build_ui</code> as the <code>named_args</code> list. The
+name <code>shared</code> is reserved (it is ggpaintr’s cross-widget
+binding key — Section 3) and may not appear here.</p>
 </div>
 <div class="section level4">
-<h4 id="runtime">
-<code>runtime</code><a class="anchor" aria-label="anchor" href="#runtime"></a>
+<h4 id="embellish_eval">
+<code>embellish_eval</code><a class="anchor" aria-label="anchor" href="#embellish_eval"></a>
 </h4>
 <p>The plain-R meaning of the keyword <em>outside</em>
-<code><a href="../reference/ptr_app.html">ptr_app()</a></code>. Each constructor returns this function, so you
-can bind it under the keyword name —</p>
+<code><a href="../reference/ptr_app.html">ptr_app()</a></code>. A placeholder-embellished formula must stay
+valid plain R that still renders the original plot with no app running;
+<code>embellish_eval</code> is the callable that supplies that meaning.
+Each constructor returns this function, so you can bind it under the
+keyword name —</p>
 <div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ppPercent</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_define_placeholder_value.html">ptr_define_placeholder_value</a></span><span class="op">(</span><span class="st">"ppPercent"</span>, <span class="va">...</span><span class="op">)</span></span>
 <span><span class="fu">ppPercent</span><span class="op">(</span><span class="fl">40</span><span class="op">)</span>   <span class="co"># =&gt; 0.4, as ordinary R</span></span></code></pre></div>
 <p>— which makes a formula that uses the keyword still evaluate as
-ordinary ggplot code. If you omit it, value/consumer keywords default to
-the identity <code>function(x, ...) x</code>.</p>
+ordinary ggplot code. The meaning is <strong>author-controlled, never
+derived</strong> — only you know what the keyword should mean as live
+R.</p>
+<p>If you omit <code>embellish_eval</code>, value and consumer keywords
+default to <code><a href="../reference/embellish_helpers.html">embellish_identity()</a></code> (the identity
+<code>function(x, ...) x</code>), so the placeholder call is a
+transparent no-op wrapper. Two built-in helpers cover the common
+cases:</p>
+<ul>
+<li>
+<code><a href="../reference/embellish_helpers.html">embellish_identity()</a></code> — the default; returns its
+argument unchanged.</li>
+<li>
+<code><a href="../reference/embellish_helpers.html">embellish_symbol_to_string()</a></code> — captures its argument
+<em>unevaluated</em> and returns the referenced column names as a
+character vector. This is the pattern a column-selecting consumer needs
+to run as plain R: a tidyselect verb evaluates an unknown wrapper call
+in non-masked scope, where bare column symbols throw
+<code>object 'mpg' not found</code>; returning the names as strings lets
+the naked formula still select by name.</li>
+</ul>
 </div>
 <div class="section level4">
 <h4 id="ui_text_defaults">
@@ -418,10 +444,10 @@ per-keyword or per-parameter through
 </h3>
 <p>A consumer is a value placeholder that additionally needs the
 <strong>upstream column names</strong>. Everything in 2.1 applies —
-<code>resolve_expr</code>, <code>validate_input</code>,
-<code>positional_arg</code>, <code>named_args</code>,
-<code>runtime</code>, <code>ui_text_defaults</code> all mean the same
-thing. Only two things change.</p>
+<code>resolve_expr</code>, <code>validate_session_input</code>,
+<code>parse_positional_arg</code>, <code>parse_named_args</code>,
+<code>embellish_eval</code>, <code>ui_text_defaults</code> all mean the
+same thing. Only two things change.</p>
 <p><strong><code>build_ui</code> gains two required arguments:
 <code>cols</code> and <code>data</code>.</strong> The injector fills
 <code>cols</code> with the column names of the data flowing into this
@@ -447,9 +473,9 @@ picker’s <code>choices</code> come from <code>cols</code>:</p>
 <span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/call2.html" class="external-link">call2</a></span><span class="op">(</span><span class="st">"c"</span>, <span class="op">!</span><span class="op">!</span><span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">as.list</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span>   <span class="co"># c(col1, col2, ...)</span></span>
 <span>  <span class="op">}</span>,</span>
 <span></span>
-<span>  positional_arg   <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_symbol_or_string</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  parse_positional_arg <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_symbol_or_string</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  ui_text_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Columns for {param}"</span><span class="op">)</span></span>
-<span>  <span class="co"># validate_input / named_args / runtime: same shape as 2.1, omitted here.</span></span>
+<span>  <span class="co"># validate_session_input / parse_named_args / embellish_eval: same shape as 2.1, omitted here.</span></span>
 <span><span class="op">)</span></span></code></pre></div>
 <div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span></span>
@@ -457,7 +483,7 @@ picker’s <code>choices</code> come from <code>cols</code>:</p>
 <span>    <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/select.html" class="external-link">select</a></span><span class="op">(</span><span class="va">colvars</span><span class="op">)</span> <span class="op">|&gt;</span></span>
 <span>    <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">ppVar</span>, y <span class="op">=</span> <span class="va">ppVar</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
-<p><strong><code>validate_input</code>’s <code>ctx</code> is now
+<p><strong><code>validate_session_input</code>’s <code>ctx</code> is now
 useful.</strong> For a consumer, <code>ctx$data</code> holds the
 upstream data frame, so a validator can do data-aware checks — reject a
 non-numeric column, range-check the chosen values, and so on. (Same
@@ -469,9 +495,9 @@ that <code>ctx$data</code> is populated.)</p>
 </h3>
 <p>A source <em>produces</em> the data the rest of the formula reads, so
 it sits at the head of a pipeline. The shared arguments
-(<code>positional_arg</code>, <code>named_args</code>,
-<code>runtime</code>, <code>ui_text_defaults</code>) work exactly as in
-2.1. Three things differ.</p>
+(<code>parse_positional_arg</code>, <code>parse_named_args</code>,
+<code>embellish_eval</code>, <code>ui_text_defaults</code>) work exactly
+as in 2.1. Three things differ.</p>
 <p><strong><code>resolve_data</code> replaces <code>resolve_expr</code>
 as the required producer.</strong>
 <code>function(value, node, ...)</code> must return a data frame.
@@ -479,10 +505,10 @@ as the required producer.</strong>
 <code>function(value, node, ...) rlang::sym(value)</code> (the symbol
 that names the produced frame in generated code) — override it only if
 you need different generated code.</p>
-<p><strong><code>runtime</code> defaults to an abort guard</strong>, not
-identity — a source has no sensible plain-R meaning until you give it
-one. Override <code>runtime</code> if you want the formula to be
-runnable as ordinary R.</p>
+<p><strong><code>embellish_eval</code> defaults to an abort
+guard</strong>, not identity — a source has no sensible plain-R meaning
+until you give it one. Override <code>embellish_eval</code> if you want
+the formula to be runnable as ordinary R.</p>
 <p><strong><code>shortcut = TRUE</code> adds a framework-owned companion
 text box.</strong> When set, ggpaintr renders a sibling
 <code>textInput</code> (at <code>node$shortcut_id</code>) into which the
@@ -550,15 +576,20 @@ should go, and <code>ptr_server(formula, id)</code> in the server with a
 <strong>matching <code>id</code></strong>. <code><a href="../reference/ptr_server.html">ptr_server()</a></code>
 namespaces itself — call it <strong>bare</strong>, never wrapped in your
 own <code>moduleServer()</code>:</p>
+<p><code><a href="../reference/ptr_ui.html">ptr_ui()</a></code> and <code><a href="../reference/ptr_server.html">ptr_server()</a></code> take the formula
+the same way <code><a href="../reference/ptr_app.html">ptr_app()</a></code> does: pass the <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code>
+call directly, or — to write it once and hand the <em>same</em> formula
+to both — store it with <code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">rlang::expr()</a></code> and splice it in with
+<code>!!</code>. (The string form still works as a fallback.)</p>
 <div class="sourceCode" id="cb12"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="st">"ggplot(mtcars, aes(x = ppVar('wt'), y = ppVar('mpg'))) + geom_point()"</span></span>
+<code class="sourceCode R"><span><span class="va">f</span> <span class="op">&lt;-</span> <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="../reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="st">"wt"</span><span class="op">)</span>, y <span class="op">=</span> <span class="fu"><a href="../reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span><span class="st">"mpg"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/htmltools/reference/builder.html" class="external-link">h3</a></span><span class="op">(</span><span class="st">"My dashboard"</span><span class="op">)</span>,</span>
-<span>  <span class="fu"><a href="../reference/ptr_ui.html">ptr_ui</a></span><span class="op">(</span><span class="va">f</span>, <span class="st">"plot1"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_ui.html">ptr_ui</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">f</span>, <span class="st">"plot1"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
-<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="va">f</span>, <span class="st">"plot1"</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">f</span>, <span class="st">"plot1"</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
 <p>The <code>id</code> (<code>"plot1"</code>) is the namespace shared by
@@ -598,7 +629,7 @@ it renders inline under that plot:</p>
 <code class="sourceCode R"><span><span class="co"># A custom value placeholder for the shared size control: a 1-6 slider.</span></span>
 <span><span class="fu"><a href="../reference/ptr_define_placeholder_value.html">ptr_define_placeholder_value</a></span><span class="op">(</span></span>
 <span>  keyword        <span class="op">=</span> <span class="st">"ppSize"</span>,</span>
-<span>  positional_arg <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_numeric</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  parse_positional_arg <span class="op">=</span> <span class="fu"><a href="../reference/ptr_arg_validators.html">ptr_arg_numeric</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  build_ui <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">node</span>, <span class="va">label</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">selected</span> <span class="op">=</span> <span class="cn">NULL</span>, <span class="va">...</span><span class="op">)</span> <span class="op">{</span></span>
 <span>    <span class="va">val</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/warning.html" class="external-link">suppressWarnings</a></span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/numeric.html" class="external-link">as.numeric</a></span><span class="op">(</span><span class="va">selected</span> <span class="op"><a href="https://rlang.r-lib.org/reference/op-null-default.html" class="external-link">%||%</a></span> <span class="va">node</span><span class="op">$</span><span class="va">default</span> <span class="op"><a href="https://rlang.r-lib.org/reference/op-null-default.html" class="external-link">%||%</a></span> <span class="fl">3</span><span class="op">)</span><span class="op">)</span></span>
 <span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">val</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">1L</span> <span class="op">||</span> <span class="fu"><a href="https://rdrr.io/r/base/NA.html" class="external-link">is.na</a></span><span class="op">(</span><span class="va">val</span><span class="op">)</span><span class="op">)</span> <span class="va">val</span> <span class="op">&lt;-</span> <span class="fl">3</span></span>
@@ -611,26 +642,26 @@ it renders inline under that plot:</p>
 <span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">plots</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span></span>
-<span>  <span class="st">"ggplot(iris, aes(x = ppVar(shared = 'ax1'), y = Sepal.Width,</span></span>
-<span><span class="st">                    color = Species)) + geom_point(size = ppSize(shared = 'sz'))"</span>,</span>
-<span>  <span class="st">"ggplot(iris, aes(x = ppVar(shared = 'ax2'), y = Petal.Width,</span></span>
-<span><span class="st">                    color = Species)) + geom_point(size = ppSize(shared = 'sz'))"</span></span>
+<span>  <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">iris</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="../reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span>shared <span class="op">=</span> <span class="st">"ax1"</span><span class="op">)</span>, y <span class="op">=</span> <span class="va">Sepal.Width</span>,</span>
+<span>                               color <span class="op">=</span> <span class="va">Species</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fu">ppSize</span><span class="op">(</span>shared <span class="op">=</span> <span class="st">"sz"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span>,</span>
+<span>  <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">expr</a></span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">iris</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="fu"><a href="../reference/pp_placeholders.html">ppVar</a></span><span class="op">(</span>shared <span class="op">=</span> <span class="st">"ax2"</span><span class="op">)</span>, y <span class="op">=</span> <span class="va">Petal.Width</span>,</span>
+<span>                               color <span class="op">=</span> <span class="va">Species</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span>size <span class="op">=</span> <span class="fu">ppSize</span><span class="op">(</span>shared <span class="op">=</span> <span class="st">"sz"</span><span class="op">)</span><span class="op">)</span><span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span></span>
-<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_shared.html">ptr_shared</a></span><span class="op">(</span>formulas <span class="op">=</span> <span class="va">plots</span><span class="op">)</span></span>
+<span><span class="va">obj</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_shared.html">ptr_shared</a></span><span class="op">(</span>formulas <span class="op">=</span> <span class="va">plots</span><span class="op">)</span>        <span class="co"># a list of formulas, passed as-is</span></span>
 <span><span class="va">obj</span><span class="op">$</span><span class="va">panel_keys</span>           <span class="co"># "sz"  -- used by both formulas, so panel-owned</span></span>
 <span></span>
 <span><span class="va">ui</span> <span class="op">&lt;-</span> <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidPage</a></span><span class="op">(</span></span>
 <span>  <span class="fu"><a href="../reference/ptr_shared_panel.html">ptr_shared_panel</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span>,                 <span class="co"># holds the shared size slider</span></span>
 <span>  <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/fluidPage.html" class="external-link">fluidRow</a></span><span class="op">(</span></span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fu"><a href="../reference/ptr_ui.html">ptr_ui</a></span><span class="op">(</span><span class="va">plots</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_1"</span>, shared <span class="op">=</span> <span class="va">obj</span><span class="op">)</span><span class="op">)</span>,  <span class="co"># ax1 inline</span></span>
-<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fu"><a href="../reference/ptr_ui.html">ptr_ui</a></span><span class="op">(</span><span class="va">plots</span><span class="op">[[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_2"</span>, shared <span class="op">=</span> <span class="va">obj</span><span class="op">)</span><span class="op">)</span>   <span class="co"># ax2 inline</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fu"><a href="../reference/ptr_ui.html">ptr_ui</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">plots</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_1"</span>, shared <span class="op">=</span> <span class="va">obj</span><span class="op">)</span><span class="op">)</span>,  <span class="co"># ax1 inline</span></span>
+<span>    <span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/column.html" class="external-link">column</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fu"><a href="../reference/ptr_ui.html">ptr_ui</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">plots</span><span class="op">[[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_2"</span>, shared <span class="op">=</span> <span class="va">obj</span><span class="op">)</span><span class="op">)</span>   <span class="co"># ax2 inline</span></span>
 <span>  <span class="op">)</span></span>
 <span><span class="op">)</span></span>
 <span><span class="va">server</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">input</span>, <span class="va">output</span>, <span class="va">session</span><span class="op">)</span> <span class="op">{</span></span>
 <span>  <span class="va">sh</span> <span class="op">&lt;-</span> <span class="fu"><a href="../reference/ptr_shared_server.html">ptr_shared_server</a></span><span class="op">(</span><span class="va">obj</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="va">plots</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_1"</span>, shared_state <span class="op">=</span> <span class="va">sh</span><span class="op">)</span></span>
-<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="va">plots</span><span class="op">[[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_2"</span>, shared_state <span class="op">=</span> <span class="va">sh</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">plots</span><span class="op">[[</span><span class="fl">1</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_1"</span>, shared_state <span class="op">=</span> <span class="va">sh</span><span class="op">)</span></span>
+<span>  <span class="fu"><a href="../reference/ptr_server.html">ptr_server</a></span><span class="op">(</span><span class="op">!</span><span class="op">!</span><span class="va">plots</span><span class="op">[[</span><span class="fl">2</span><span class="op">]</span><span class="op">]</span>, <span class="st">"plot_2"</span>, shared_state <span class="op">=</span> <span class="va">sh</span><span class="op">)</span></span>
 <span><span class="op">}</span></span>
 <span><span class="fu">shiny</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp</a></span><span class="op">(</span><span class="va">ui</span>, <span class="va">server</span><span class="op">)</span></span></code></pre></div>
 <p><code>obj$panel_keys</code> reports which keys ended up panel-owned —

@@ -15,7 +15,7 @@ vignette("ggpaintr-tutorial") § "Defining your own placeholders"
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,10 +62,10 @@ picker. The built-in example is <code>ppVar</code>. See
 <span>  <span class="va">keyword</span>,</span>
 <span>  <span class="va">build_ui</span>,</span>
 <span>  <span class="va">resolve_expr</span>,</span>
-<span>  validate_input <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  positional_arg <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  named_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  runtime <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  validate_session_input <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  parse_positional_arg <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  parse_named_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  embellish_eval <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ui_text_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Pick a column for {param}"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -112,7 +112,7 @@ spliced as an identifier rather than a string literal. See
 <code>NULL</code>-prunes-the-argument convention.</p></dd>
 
 
-<dt id="arg-validate-input">validate_input<a class="anchor" aria-label="anchor" href="#arg-validate-input"></a></dt>
+<dt id="arg-validate-session-input">validate_session_input<a class="anchor" aria-label="anchor" href="#arg-validate-session-input"></a></dt>
 <dd><p>Optional <code>function(value, ctx)</code> called before
 <code>resolve_expr</code>. Return <code>TRUE</code> / <code>NULL</code> to accept; return a single
 character string to reject (surfaced inline as the error message,
@@ -132,24 +132,25 @@ or named arguments are passed, and <code>ctx</code> carries exactly the four
 fields above. The signature does not require <code>...</code>.</p></dd>
 
 
-<dt id="arg-positional-arg-named-args">positional_arg, named_args<a class="anchor" aria-label="anchor" href="#arg-positional-arg-named-args"></a></dt>
+<dt id="arg-parse-positional-arg-parse-named-args">parse_positional_arg, parse_named_args<a class="anchor" aria-label="anchor" href="#arg-parse-positional-arg-parse-named-args"></a></dt>
 <dd><p>See <code><a href="ptr_define_placeholder_value.html">ptr_define_placeholder_value()</a></code>.
 Consumer placeholders use the same arg-schema slots; the <code>ppVar</code>
 built-in passes a column-name validator here when used as <code>ppVar(mpg)</code>.</p></dd>
 
 
-<dt id="arg-runtime">runtime<a class="anchor" aria-label="anchor" href="#arg-runtime"></a></dt>
+<dt id="arg-embellish-eval">embellish_eval<a class="anchor" aria-label="anchor" href="#arg-embellish-eval"></a></dt>
 <dd><p>Optional <code>function(x, ...)</code> body used when the
 placeholder is called as a plain-R function. <code>NULL</code> (default) supplies
-the identity <code>function(x, ...) x</code>, matching the legacy <code>ppVar</code>-style
-<code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code> NSE shape (the symbol-passthrough convention). Override to
-give the consumer a non-identity plain-R meaning.</p></dd>
+the identity from <code><a href="embellish_helpers.html">embellish_identity()</a></code> (<code>function(x, ...) x</code>),
+matching the legacy <code>ppVar</code>-style <code><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes()</a></code> NSE shape (the
+symbol-passthrough convention). Override to give the consumer a
+non-identity plain-R meaning (e.g. <code><a href="embellish_helpers.html">embellish_symbol_to_string()</a></code>).</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>The runtime callable (identity by default; override with
-<code>runtime = ...</code>). Also called for its registration side effect; use
+<code>embellish_eval = ...</code>). Also called for its registration side effect; use
 <code><a href="ptr_clear_placeholder.html">ptr_clear_placeholder()</a></code> to remove it.</p>
     </div>
     <div class="section level2">
@@ -178,15 +179,15 @@ give the consumer a non-identity plain-R meaning.</p></dd>
 <span class="r-in"><span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">!=</span> <span class="fl">1L</span> <span class="op">||</span> <span class="op">!</span><span class="fu"><a href="https://rdrr.io/r/base/nchar.html" class="external-link">nzchar</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span><span class="op">)</span> <span class="kw"><a href="https://rdrr.io/r/base/function.html" class="external-link">return</a></span><span class="op">(</span><span class="cn">NULL</span><span class="op">)</span></span></span>
 <span class="r-in"><span>    <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">sym</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="op">}</span>,</span></span>
-<span class="r-in"><span>  validate_input <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">ctx</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  validate_session_input <span class="op">=</span> <span class="kw">function</span><span class="op">(</span><span class="va">value</span>, <span class="va">ctx</span><span class="op">)</span> <span class="op">{</span></span></span>
 <span class="r-in"><span>    <span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/length.html" class="external-link">length</a></span><span class="op">(</span><span class="va">value</span><span class="op">)</span> <span class="op">==</span> <span class="fl">1L</span> <span class="op">&amp;&amp;</span> <span class="va">value</span> <span class="op"><a href="https://rdrr.io/r/base/match.html" class="external-link">%in%</a></span> <span class="va">ctx</span><span class="op">$</span><span class="va">upstream_cols</span><span class="op">)</span> <span class="cn">TRUE</span></span></span>
 <span class="r-in"><span>    <span class="kw">else</span> <span class="st">"Pick a column that exists in the upstream data."</span></span></span>
 <span class="r-in"><span>  <span class="op">}</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> function (x, ...) </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> x</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;bytecode: 0x56055beba288&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x56055e88a660&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;bytecode: 0x55f8a781ab58&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55f8aabfe990&gt;</span>
 <span class="r-in"><span><span class="fu"><a href="ptr_clear_placeholder.html">ptr_clear_placeholder</a></span><span class="op">(</span><span class="st">"numvar"</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Cleared placeholder: <span style="color: #0000BB;">"numvar"</span>.</span>
 </code></pre></div>

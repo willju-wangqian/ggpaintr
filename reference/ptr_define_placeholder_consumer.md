@@ -13,10 +13,10 @@ ptr_define_placeholder_consumer(
   keyword,
   build_ui,
   resolve_expr,
-  validate_input = NULL,
-  positional_arg = NULL,
-  named_args = list(),
-  runtime = NULL,
+  validate_session_input = NULL,
+  parse_positional_arg = NULL,
+  parse_named_args = list(),
+  embellish_eval = NULL,
   ui_text_defaults = list(label = "Pick a column for {param}")
 )
 ```
@@ -74,7 +74,7 @@ ptr_define_placeholder_consumer(
   for allowed return types and the `NULL`-prunes-the-argument
   convention.
 
-- validate_input:
+- validate_session_input:
 
   Optional `function(value, ctx)` called before `resolve_expr`. Return
   `TRUE` / `NULL` to accept; return a single character string to reject
@@ -93,7 +93,7 @@ ptr_define_placeholder_consumer(
   other positional or named arguments are passed, and `ctx` carries
   exactly the four fields above. The signature does not require `...`.
 
-- positional_arg, named_args:
+- parse_positional_arg, parse_named_args:
 
   See
   [`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md).
@@ -101,19 +101,22 @@ ptr_define_placeholder_consumer(
   built-in passes a column-name validator here when used as
   `ppVar(mpg)`.
 
-- runtime:
+- embellish_eval:
 
   Optional `function(x, ...)` body used when the placeholder is called
-  as a plain-R function. `NULL` (default) supplies the identity
-  `function(x, ...) x`, matching the legacy `ppVar`-style
+  as a plain-R function. `NULL` (default) supplies the identity from
+  [`embellish_identity()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)
+  (`function(x, ...) x`), matching the legacy `ppVar`-style
   [`aes()`](https://ggplot2.tidyverse.org/reference/aes.html) NSE shape
   (the symbol-passthrough convention). Override to give the consumer a
-  non-identity plain-R meaning.
+  non-identity plain-R meaning (e.g.
+  [`embellish_symbol_to_string()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)).
 
 ## Value
 
 The runtime callable (identity by default; override with
-`runtime = ...`). Also called for its registration side effect; use
+`embellish_eval = ...`). Also called for its registration side effect;
+use
 [`ptr_clear_placeholder()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_clear_placeholder.md)
 to remove it.
 
@@ -145,15 +148,15 @@ ptr_define_placeholder_consumer(
     if (length(value) != 1L || !nzchar(value)) return(NULL)
     rlang::sym(value)
   },
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     if (length(value) == 1L && value %in% ctx$upstream_cols) TRUE
     else "Pick a column that exists in the upstream data."
   }
 )
 #> function (x, ...) 
 #> x
-#> <bytecode: 0x56055beba288>
-#> <environment: 0x56055e88a660>
+#> <bytecode: 0x55f8a781ab58>
+#> <environment: 0x55f8aabfe990>
 ptr_clear_placeholder("numvar")
 #> ✔ Cleared placeholder: "numvar".
 ```

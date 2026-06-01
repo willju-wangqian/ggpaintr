@@ -98,7 +98,7 @@ accordingly.
 ## Examples
 
 ``` r
-ptr_id_table("ggplot(ppUpload, aes(x = ppVar)) + geom_point(color = ppText)")
+ptr_id_table("ggplot(ppUpload, aes(x = ppVar, y = ppVar)) + geom_point(color = ppText)")
 #>                               id         kind             role    scope
 #> 1                ptr_update_plot input_widget  ptr_update_plot instance
 #> 2                       ptr_plot  output_slot         ptr_plot instance
@@ -112,10 +112,12 @@ ptr_id_table("ggplot(ppUpload, aes(x = ppVar)) + geom_point(color = ppText)")
 #> 10 ggplot_0_ppUpload_NA_shortcut input_widget source_companion instance
 #> 11        ggplot_1_1_ppVar_NA_ui  output_slot      placeholder instance
 #> 12           ggplot_1_1_ppVar_NA input_widget      placeholder instance
-#> 13           geom_point_checkbox input_widget   layer_checkbox instance
-#> 14  ptr_layer_content_geom_point  output_slot    layer_content instance
-#> 15     geom_point_1_ppText_NA_ui  output_slot      placeholder instance
-#> 16        geom_point_1_ppText_NA input_widget      placeholder instance
+#> 13        ggplot_1_2_ppVar_NA_ui  output_slot      placeholder instance
+#> 14           ggplot_1_2_ppVar_NA input_widget      placeholder instance
+#> 15           geom_point_checkbox input_widget   layer_checkbox instance
+#> 16  ptr_layer_content_geom_point  output_slot    layer_content instance
+#> 17     geom_point_1_ppText_NA_ui  output_slot      placeholder instance
+#> 18        geom_point_1_ppText_NA input_widget      placeholder instance
 #>    include_in_ui      layer  keyword param parent_call shared
 #> 1           TRUE       <NA>     <NA>  <NA>        <NA>   <NA>
 #> 2           TRUE       <NA>     <NA>  <NA>        <NA>   <NA>
@@ -129,10 +131,12 @@ ptr_id_table("ggplot(ppUpload, aes(x = ppVar)) + geom_point(color = ppText)")
 #> 10         FALSE     ggplot ppUpload  data      ggplot   <NA>
 #> 11          TRUE     ggplot    ppVar     x         aes   <NA>
 #> 12         FALSE     ggplot    ppVar     x         aes   <NA>
-#> 13          TRUE geom_point     <NA>  <NA>        <NA>   <NA>
-#> 14          TRUE geom_point     <NA>  <NA>        <NA>   <NA>
-#> 15          TRUE geom_point   ppText color  geom_point   <NA>
-#> 16         FALSE geom_point   ppText color  geom_point   <NA>
+#> 13          TRUE     ggplot    ppVar     y         aes   <NA>
+#> 14         FALSE     ggplot    ppVar     y         aes   <NA>
+#> 15          TRUE geom_point     <NA>  <NA>        <NA>   <NA>
+#> 16          TRUE geom_point     <NA>  <NA>        <NA>   <NA>
+#> 17          TRUE geom_point   ppText color  geom_point   <NA>
+#> 18         FALSE geom_point   ppText color  geom_point   <NA>
 ptr_id_table("ggplot(ppUpload, aes(x = ppVar))", id = "myplot")
 #>                                      id         kind             role    scope
 #> 1                myplot-ptr_update_plot input_widget  ptr_update_plot instance

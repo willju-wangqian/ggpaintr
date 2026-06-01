@@ -14,6 +14,7 @@ and pair them with the same
 ptr_ui(
   formula,
   id = NULL,
+  envir = parent.frame(),
   ui_text = NULL,
   expr_check = TRUE,
   css = NULL,
@@ -25,12 +26,31 @@ ptr_ui(
 
 - formula:
 
-  A single formula string with `ggpaintr` placeholders.
+  Either a single character scalar containing a ggplot expression with
+  `ggpaintr` placeholders, or an unquoted ggplot expression supplied
+  directly (the primary form). Captured with
+  [`rlang::enexpr()`](https://rlang.r-lib.org/reference/defusing-advanced.html)
+  exactly as
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
+  so a formula stored in a variable via
+  [`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html) is
+  spliced in with `!!`:
+  `f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")`. See
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  for the full contract (symbol resolution, wrapper unwrap, native-pipe
+  caveat).
 
 - id:
 
   Optional module id; the namespace prefix for inputs and outputs.
   Defaults to `NULL` (identity namespace, single-instance use).
+
+- envir:
+
+  Environment used to resolve a `formula` passed as a bare symbol and
+  any local data objects. Defaults to the calling frame.
 
 - ui_text:
 
@@ -82,8 +102,11 @@ for the `css =` argument and themable CSS custom properties.
 ## Examples
 
 ``` r
-ui <- ptr_ui(
-  "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-  "plot1"
-)
+# Expression form (primary): an unquoted ggplot call.
+ui <- ptr_ui(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(), "plot1")
+# Stored in a variable, spliced with `!!` (paired with ptr_server(!!f, "plot1")).
+f <- rlang::expr(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
+ui2 <- ptr_ui(!!f, "plot1")
+# String form (fallback): equivalent.
+ui3 <- ptr_ui("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()", "plot1")
 ```

@@ -13,7 +13,7 @@ empty-call cleanup rule used by every public entry point."><meta property="og:im
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -216,13 +216,13 @@ keywords; <code><a href="ptr_ui_text.html">ptr_ui_text()</a></code> for copy ove
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
-<span class="r-in"><span>  <span class="co"># String mode (existing).</span></span></span>
-<span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="st">"ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"</span><span class="op">)</span></span></span>
-<span class="r-in"><span>  <span class="co"># Expression mode (new): pass the unquoted ggplot expression.</span></span></span>
+<span class="r-in"><span>  <span class="co"># Expression mode (primary): pass the unquoted ggplot expression.</span></span></span>
 <span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="va">ppVar</span>, y <span class="op">=</span> <span class="va">ppVar</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-in"><span>  <span class="co"># !! splicing into expression mode.</span></span></span>
+<span class="r-in"><span>  <span class="co"># `!!` splices a value into the expression.</span></span></span>
 <span class="r-in"><span>  <span class="va">col</span> <span class="op">&lt;-</span> <span class="fu">rlang</span><span class="fu">::</span><span class="fu"><a href="https://rlang.r-lib.org/reference/sym.html" class="external-link">sym</a></span><span class="op">(</span><span class="st">"mpg"</span><span class="op">)</span></span></span>
 <span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="fu"><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot</a></span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/aes.html" class="external-link">aes</a></span><span class="op">(</span>x <span class="op">=</span> <span class="op">!</span><span class="op">!</span><span class="va">col</span>, y <span class="op">=</span> <span class="va">ppVar</span><span class="op">)</span><span class="op">)</span> <span class="op">+</span> <span class="fu"><a href="https://ggplot2.tidyverse.org/reference/geom_point.html" class="external-link">geom_point</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="co"># String mode (fallback): the same formula as text.</span></span></span>
+<span class="r-in"><span>  <span class="fu">ptr_app</span><span class="op">(</span><span class="st">"ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span></span></span>
 </code></pre></div>
     </div>

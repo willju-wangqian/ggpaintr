@@ -1,11 +1,10 @@
 # Constant-fold allowlist registry
 
-The numeric default-argument validators
-([`ptr_arg_numeric()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
-and
-[`ptr_arg_numeric_vector()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md))
-walk the placeholder's default-argument AST against an allowlist of
-function and constant names. Authors can extend the allowlist with
+The numeric default-argument validator
+[`ptr_arg_numeric()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
+(scalar by default, vector via `vector = TRUE`) walks the placeholder's
+default-argument AST against an allowlist of function and constant
+names. Authors can extend the allowlist with
 `ptr_register_constant_fold()` when their placeholder definitions need
 additional pure operators.
 

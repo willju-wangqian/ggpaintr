@@ -89,10 +89,10 @@ specificity in your stylesheet (either with the same selector, or with
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (interactive()) {
   # accent.css:
   #   .ptr-app { --ptr-accent: #2563eb; --ptr-accent-strong: #1e40af; }
-  ptr_app("ggplot(mtcars, aes(ppVar, ppVar)) + geom_point()",
+  ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(),
           css = "accent.css")
-} # }
+}
 ```

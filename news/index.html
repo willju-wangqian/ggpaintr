@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,6 +39,34 @@
       <small>Source: <a href="https://github.com/willju-wangqian/ggpaintr/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.11.0" id="ggpaintr-0110">ggpaintr 0.11.0<a class="anchor" aria-label="anchor" href="#ggpaintr-0110"></a></h2>
+<div class="section level3">
+<h3 id="breaking-changes-adr-0-11-0">Breaking changes (ADR 0027)<a class="anchor" aria-label="anchor" href="#breaking-changes-adr-0-11-0"></a></h3>
+<ul><li>
+<strong>The four public placeholder-constructor arguments were renamed</strong> across <code><a href="../reference/ptr_define_placeholder_value.html">ptr_define_placeholder_value()</a></code> / <code><a href="../reference/ptr_define_placeholder_consumer.html">ptr_define_placeholder_consumer()</a></code> / <code><a href="../reference/ptr_define_placeholder_source.html">ptr_define_placeholder_source()</a></code>: <code>positional_arg</code> → <code>parse_positional_arg</code>, <code>named_args</code> → <code>parse_named_args</code>, <code>validate_input</code> → <code>validate_session_input</code>, and <code>runtime</code> → <code>embellish_eval</code>. The rename makes the slot family legible — two slots <em>parse</em> the formula’s default args into the widget seed (<code>parse_positional_arg</code>, <code>parse_named_args</code>), one <em>validates</em> the live session value (<code>validate_session_input</code>), and one defines the <em>plain-R evaluation</em> of the embellished expression (<code>embellish_eval</code>). This is a hard break with no deprecation shim: passing an old name now raises R’s “unused argument” error. The internal registry-record keys are unchanged (<code>entry$default_arg</code> / <code>named_args</code> / <code>validate_input</code> / <code>runtime</code>); only the public argument names changed.</li>
+<li>
+<strong><code>embellish_eval</code> defaults to the new <code><a href="../reference/embellish_helpers.html">embellish_identity()</a></code></strong> for value/consumer placeholders (the source role keeps its abort-guard default). Two built-in helpers ship for the plain-R evaluation slot: <code><a href="../reference/embellish_helpers.html">embellish_identity()</a></code> (the identity <code>function(x, ...) x</code>) and <code><a href="../reference/embellish_helpers.html">embellish_symbol_to_string()</a></code> (NSE-captures its argument and returns column names as a character vector, so a column-selecting consumer works inside a tidyselect verb when the placeholder-embellished formula is run as ordinary R with no app).</li>
+<li>
+<strong><code>ptr_arg_numeric_vector()</code> was removed.</strong> Use <code>ptr_arg_numeric(vector = TRUE)</code>. The argument-validator factories (<code>ptr_arg_numeric</code> / <code>ptr_arg_string</code> / <code>ptr_arg_symbol_or_string</code>) gained a <code>vector = FALSE</code> flag (with <code>length =</code> honored in vector mode for <code>ptr_arg_numeric</code>), and a new <code><a href="../reference/ptr_arg_validators.html">ptr_arg_symbol()</a></code> factory parses a bareword column name (vector-capable) for multi-column positional defaults.</li>
+<li>
+<strong><code><a href="../reference/ptr_app_bslib.html">ptr_app_bslib()</a></code> and <code><a href="../reference/ptr_app_grid.html">ptr_app_grid()</a></code> are no longer exported</strong> (changed to <code>@keywords internal</code>). They remain available internally and their help pages are still generated so existing cross-reference links resolve, but they are no longer presented as public API; the public turn-key entry point is <code><a href="../reference/ptr_app.html">ptr_app()</a></code>. Write a thin wrapper on the public primitives for a custom page shell or theme.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="new-features-0-11-0">New features<a class="anchor" aria-label="anchor" href="#new-features-0-11-0"></a></h3>
+<ul><li>
+<strong>RStudio command-palette addin.</strong> <code><a href="../reference/ptr_wrap_placeholder_addin.html">ptr_wrap_placeholder_addin()</a></code> wraps a highlighted selection in a placeholder from the RStudio command palette (classifies the selection, offers a placeholder picker, rewrites in place; dark/light-aware via <code><a href="https://rstudio.github.io/rstudioapi/reference/getThemeInfo.html" class="external-link">rstudioapi::getThemeInfo()</a></code>).</li>
+<li>
+<strong>Documentation now leads with the expression form.</strong> Roxygen <code>@examples</code> for the formula-capturing entry points (<code>ptr_app</code>, <code>ptr_ui_controls</code>, <code>ptr_ui_page</code>, <code>ptr_server</code>) lead with the unquoted ggplot expression (the canonical input), keeping the string form as the documented fallback; Shiny examples are gated with <code>if (interactive())</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-formula--ppexpr-codegen-0-11-0">Bug fixes (formula / ppExpr codegen)<a class="anchor" aria-label="anchor" href="#bug-fixes-formula--ppexpr-codegen-0-11-0"></a></h3>
+<ul><li>
+<strong>A <code>~</code> formula is treated as a first-class atomic in the canonical-pipeline lift</strong>, so the resugar pass no longer shreds a formula inside <code>ppExpr</code> (e.g. <code>lm(ppExpr(y ~ x), data = ppUpload(d))</code>); placeholders inside the formula are still detected and wired because <code>translate_call()</code> recurses into every argument independently.</li>
+<li>
+<strong>A two-sided formula renders with its infix <code>~</code></strong> (<code>gear ~ cyl</code>) instead of falling through to a prefix <code>~(gear, cyl)</code>, and an explicit parenthesis node <code>(x)</code> now renders as a balanced <code>(x)</code> instead of the unparseable <code>((x)</code>.</li>
+</ul></div>
+</div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.10.0" id="ggpaintr-0100">ggpaintr 0.10.0<a class="anchor" aria-label="anchor" href="#ggpaintr-0100"></a></h2>
 <div class="section level3">

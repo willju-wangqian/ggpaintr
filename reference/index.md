@@ -2,20 +2,22 @@
 
 ## L1 — All-in-one
 
-Turn a ggplot-style formula into a ready-to-run Shiny app. One formula →
-[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md);
-several linked plots →
-[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md).
+Turn a ggplot-style formula into a ready-to-run Shiny app with one call
+to
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).
 
 - [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
   :
 
   Build a Shiny App from a `ggpaintr` Formula
 
-- [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
-  :
+## RStudio addin
 
-  Grid App: Multiple `ggpaintr` Plots With Shared Controls
+Wrap a highlighted selection in a placeholder from the RStudio command
+palette.
+
+- [`ptr_wrap_placeholder_addin()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_wrap_placeholder_addin.md)
+  : RStudio addin: wrap a selection in a ggpaintr placeholder
 
 ## Formula placeholders
 
@@ -47,15 +49,6 @@ Process-wide defaults, column-name normalisation, and UI copy overrides.
 
 - [`ptr_ui_text()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_text.md)
   : Inspect, validate, and pre-merge ggpaintr UI copy
-
-## Wrapper examples
-
-Worked examples of writing custom wrappers on top of the public ggpaintr
-primitives. See
-[`vignette("ggpaintr-tutorial")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-tutorial.md).
-
-- [`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)
-  : Bslib-Themed App: A Demonstration Wrapper
 
 ## L2 — Embed with the default layout
 
@@ -191,12 +184,16 @@ editing package internals.
 
 - [`ptr_arg_symbol_or_string()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
   [`ptr_arg_string()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
+  [`ptr_arg_symbol()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
   [`ptr_arg_numeric()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
-  [`ptr_arg_numeric_vector()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
   [`ptr_arg_expression()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md)
   :
 
   Argument validators for placeholder definitions (`ptr_arg_*`)
+
+- [`embellish_identity()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)
+  [`embellish_symbol_to_string()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)
+  : Built-in helpers for a placeholder's plain-R evaluation slot
 
 - [`ptr_register_constant_fold()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_constant_fold_registry.md)
   [`ptr_clear_constant_fold()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_constant_fold_registry.md)

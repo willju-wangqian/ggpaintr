@@ -33,7 +33,7 @@ slot."><meta property="og:image" content="https://willju-wangqian.github.io/ggpa
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -127,7 +127,7 @@ not return; it aborts with a guard message.</p>
 <span class="r-in"><span><span class="co"># p1 and p2 produce the same plot.</span></span></span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Inside ptr_app() / ptr_server(), the same call binds to a column picker:</span></span></span>
-<span class="r-in"><span><span class="co"># ptr_app("ggplot(mtcars, aes(x = ppVar(mpg))) + geom_point()")</span></span></span>
+<span class="r-in"><span><span class="co"># ptr_app(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar)) + geom_point())</span></span></span>
 </code></pre></div>
     </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

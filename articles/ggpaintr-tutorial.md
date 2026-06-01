@@ -134,9 +134,9 @@ A few facts hold for all three:
 
 - The registry is **process-global**. Calling a constructor *registers*
   the keyword as a side effect (and returns a plain-R function, see
-  `runtime` below); there is no `placeholders =` argument to thread
-  anywhere. Register once near the top of your script, then use the
-  keyword in any formula.
+  `embellish_eval` below); there is no `placeholders =` argument to
+  thread anywhere. Register once near the top of your script, then use
+  the keyword in any formula.
 - The keyword you register is the keyword you write in the formula. By
   convention built-ins use the `pp` prefix, but yours need not.
 
@@ -167,7 +167,7 @@ ptr_define_placeholder_value(
     as.numeric(value) / 100
   },
 
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     v <- suppressWarnings(as.numeric(value))
     if (length(v) != 1L || is.na(v) || v < 0 || v > 100) {
       rlang::abort("Percent must be a single number between 0 and 100.")
@@ -175,9 +175,9 @@ ptr_define_placeholder_value(
     value
   },
 
-  positional_arg   = ptr_arg_numeric(),
-  named_args       = list(step = ptr_arg_numeric()),
-  runtime          = function(x, ...) as.numeric(x) / 100,
+  parse_positional_arg = ptr_arg_numeric(),
+  parse_named_args     = list(step = ptr_arg_numeric()),
+  embellish_eval       = function(x, ...) as.numeric(x) / 100,
   ui_text_defaults = list(label = "Percent for {param}")
 )
 ```
@@ -236,7 +236,7 @@ into the formula. `value` is the current input. Return `NULL` to
 contribute nothing (e.g. an empty field), which drops the argument
 cleanly. Here we divide by 100 so the plot sees a 0–1 alpha.
 
-#### `validate_input`
+#### `validate_session_input`
 
 Optional. `function(value, ctx)`, run before `resolve_expr`. Return the
 value to accept it, or
@@ -248,35 +248,42 @@ instead of aborting — it is caught on the live keystroke path but not on
 the draw path. (`ctx` carries context; for value placeholders it is
 mostly empty — it earns its keep for consumers, Section 2.2.)
 
-#### `positional_arg`
+#### `parse_positional_arg`
 
 Declares whether the placeholder accepts a single positional default in
 the formula, and validates it. Pass one of the argument validators —
 [`ptr_arg_string()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md),
 [`ptr_arg_numeric()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md),
-`ptr_arg_numeric_vector(length =)`,
+[`ptr_arg_symbol()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md),
 [`ptr_arg_symbol_or_string()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md),
 [`ptr_arg_expression()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_arg_validators.md).
 Each is a factory returning a checker that inspects the default **as
 unevaluated code** (no [`eval()`](https://rdrr.io/r/base/eval.html)), so
 `ppPercent(40)` is validated to be a numeric literal at translate time.
-Leaving `positional_arg = NULL` (the default) **rejects** any positional
-argument — `ppPercent(40)` would error.
+The element factories also take `vector = TRUE` to accept a `c(...)` of
+elements instead of a scalar —
+`ptr_arg_numeric(vector = TRUE, length = 2)`,
+`ptr_arg_symbol(vector = TRUE)` (a multi-column default like
+`c(mpg, hp)`) — so a multi-column consumer can carry a positional
+default. Leaving `parse_positional_arg = NULL` (the default) **rejects**
+any positional argument — `ppPercent(40)` would error.
 
-#### `named_args`
+#### `parse_named_args`
 
 A fully-named list mapping extra named-argument names to validators, in
-the same family as `positional_arg`. It lets the formula write
+the same family as `parse_positional_arg`. It lets the formula write
 `ppPercent(40, step = 5)`. The validated values arrive in `build_ui` as
 the `named_args` list. The name `shared` is reserved (it is ggpaintr’s
 cross-widget binding key — Section 3) and may not appear here.
 
-#### `runtime`
+#### `embellish_eval`
 
 The plain-R meaning of the keyword *outside*
 [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md).
-Each constructor returns this function, so you can bind it under the
-keyword name —
+A placeholder-embellished formula must stay valid plain R that still
+renders the original plot with no app running; `embellish_eval` is the
+callable that supplies that meaning. Each constructor returns this
+function, so you can bind it under the keyword name —
 
 ``` r
 
@@ -285,8 +292,23 @@ ppPercent(40)   # => 0.4, as ordinary R
 ```
 
 — which makes a formula that uses the keyword still evaluate as ordinary
-ggplot code. If you omit it, value/consumer keywords default to the
-identity `function(x, ...) x`.
+ggplot code. The meaning is **author-controlled, never derived** — only
+you know what the keyword should mean as live R.
+
+If you omit `embellish_eval`, value and consumer keywords default to
+[`embellish_identity()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)
+(the identity `function(x, ...) x`), so the placeholder call is a
+transparent no-op wrapper. Two built-in helpers cover the common cases:
+
+- [`embellish_identity()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)
+  — the default; returns its argument unchanged.
+- [`embellish_symbol_to_string()`](https://willju-wangqian.github.io/ggpaintr/reference/embellish_helpers.md)
+  — captures its argument *unevaluated* and returns the referenced
+  column names as a character vector. This is the pattern a
+  column-selecting consumer needs to run as plain R: a tidyselect verb
+  evaluates an unknown wrapper call in non-masked scope, where bare
+  column symbols throw `object 'mpg' not found`; returning the names as
+  strings lets the naked formula still select by name.
 
 #### `ui_text_defaults`
 
@@ -299,8 +321,9 @@ per-parameter through `ptr_app(ui_text = ...)`.
 
 A consumer is a value placeholder that additionally needs the **upstream
 column names**. Everything in 2.1 applies — `resolve_expr`,
-`validate_input`, `positional_arg`, `named_args`, `runtime`,
-`ui_text_defaults` all mean the same thing. Only two things change.
+`validate_session_input`, `parse_positional_arg`, `parse_named_args`,
+`embellish_eval`, `ui_text_defaults` all mean the same thing. Only two
+things change.
 
 **`build_ui` gains two required arguments: `cols` and `data`.** The
 injector fills `cols` with the column names of the data flowing into
@@ -328,9 +351,9 @@ ptr_define_placeholder_consumer(
     rlang::call2("c", !!!as.list(value))   # c(col1, col2, ...)
   },
 
-  positional_arg   = ptr_arg_symbol_or_string(),
+  parse_positional_arg = ptr_arg_symbol_or_string(),
   ui_text_defaults = list(label = "Columns for {param}")
-  # validate_input / named_args / runtime: same shape as 2.1, omitted here.
+  # validate_session_input / parse_named_args / embellish_eval: same shape as 2.1, omitted here.
 )
 ```
 
@@ -343,18 +366,18 @@ ptr_app(
 )
 ```
 
-**`validate_input`’s `ctx` is now useful.** For a consumer, `ctx$data`
-holds the upstream data frame, so a validator can do data-aware checks —
-reject a non-numeric column, range-check the chosen values, and so on.
-(Same `function(value, ctx)` signature as 2.1; the difference is that
-`ctx$data` is populated.)
+**`validate_session_input`’s `ctx` is now useful.** For a consumer,
+`ctx$data` holds the upstream data frame, so a validator can do
+data-aware checks — reject a non-numeric column, range-check the chosen
+values, and so on. (Same `function(value, ctx)` signature as 2.1; the
+difference is that `ctx$data` is populated.)
 
 ### 2.3 A source placeholder — the delta
 
 A source *produces* the data the rest of the formula reads, so it sits
-at the head of a pipeline. The shared arguments (`positional_arg`,
-`named_args`, `runtime`, `ui_text_defaults`) work exactly as in 2.1.
-Three things differ.
+at the head of a pipeline. The shared arguments (`parse_positional_arg`,
+`parse_named_args`, `embellish_eval`, `ui_text_defaults`) work exactly
+as in 2.1. Three things differ.
 
 **`resolve_data` replaces `resolve_expr` as the required producer.**
 `function(value, node, ...)` must return a data frame. `resolve_expr`
@@ -363,9 +386,9 @@ becomes *optional* and defaults to
 the produced frame in generated code) — override it only if you need
 different generated code.
 
-**`runtime` defaults to an abort guard**, not identity — a source has no
-sensible plain-R meaning until you give it one. Override `runtime` if
-you want the formula to be runnable as ordinary R.
+**`embellish_eval` defaults to an abort guard**, not identity — a source
+has no sensible plain-R meaning until you give it one. Override
+`embellish_eval` if you want the formula to be runnable as ordinary R.
 
 **`shortcut = TRUE` adds a framework-owned companion text box.** When
 set, ggpaintr renders a sibling `textInput` (at `node$shortcut_id`) into
@@ -441,16 +464,28 @@ and `ptr_server(formula, id)` in the server with a **matching `id`**.
 namespaces itself — call it **bare**, never wrapped in your own
 `moduleServer()`:
 
+[`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md)
+and
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+take the formula the same way
+[`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+does: pass the
+[`ggplot()`](https://ggplot2.tidyverse.org/reference/ggplot.html) call
+directly, or — to write it once and hand the *same* formula to both —
+store it with
+[`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html) and
+splice it in with `!!`. (The string form still works as a fallback.)
+
 ``` r
 
-f <- "ggplot(mtcars, aes(x = ppVar('wt'), y = ppVar('mpg'))) + geom_point()"
+f <- rlang::expr(ggplot(mtcars, aes(x = ppVar("wt"), y = ppVar("mpg"))) + geom_point())
 
 ui <- shiny::fluidPage(
   shiny::h3("My dashboard"),
-  ptr_ui(f, "plot1")
+  ptr_ui(!!f, "plot1")
 )
 server <- function(input, output, session) {
-  ptr_server(f, "plot1")
+  ptr_server(!!f, "plot1")
 }
 shiny::shinyApp(ui, server)
 ```
@@ -492,7 +527,7 @@ its own formula only, so it renders inline under that plot:
 # A custom value placeholder for the shared size control: a 1-6 slider.
 ptr_define_placeholder_value(
   keyword        = "ppSize",
-  positional_arg = ptr_arg_numeric(),
+  parse_positional_arg = ptr_arg_numeric(),
   build_ui = function(node, label = NULL, selected = NULL, ...) {
     val <- suppressWarnings(as.numeric(selected %||% node$default %||% 3))
     if (length(val) != 1L || is.na(val)) val <- 3
@@ -505,26 +540,26 @@ ptr_define_placeholder_value(
 )
 
 plots <- list(
-  "ggplot(iris, aes(x = ppVar(shared = 'ax1'), y = Sepal.Width,
-                    color = Species)) + geom_point(size = ppSize(shared = 'sz'))",
-  "ggplot(iris, aes(x = ppVar(shared = 'ax2'), y = Petal.Width,
-                    color = Species)) + geom_point(size = ppSize(shared = 'sz'))"
+  rlang::expr(ggplot(iris, aes(x = ppVar(shared = "ax1"), y = Sepal.Width,
+                               color = Species)) + geom_point(size = ppSize(shared = "sz"))),
+  rlang::expr(ggplot(iris, aes(x = ppVar(shared = "ax2"), y = Petal.Width,
+                               color = Species)) + geom_point(size = ppSize(shared = "sz")))
 )
 
-obj <- ptr_shared(formulas = plots)
+obj <- ptr_shared(formulas = plots)        # a list of formulas, passed as-is
 obj$panel_keys           # "sz"  -- used by both formulas, so panel-owned
 
 ui <- shiny::fluidPage(
   ptr_shared_panel(obj),                 # holds the shared size slider
   shiny::fluidRow(
-    shiny::column(6, ptr_ui(plots[[1]], "plot_1", shared = obj)),  # ax1 inline
-    shiny::column(6, ptr_ui(plots[[2]], "plot_2", shared = obj))   # ax2 inline
+    shiny::column(6, ptr_ui(!!plots[[1]], "plot_1", shared = obj)),  # ax1 inline
+    shiny::column(6, ptr_ui(!!plots[[2]], "plot_2", shared = obj))   # ax2 inline
   )
 )
 server <- function(input, output, session) {
   sh <- ptr_shared_server(obj)
-  ptr_server(plots[[1]], "plot_1", shared_state = sh)
-  ptr_server(plots[[2]], "plot_2", shared_state = sh)
+  ptr_server(!!plots[[1]], "plot_1", shared_state = sh)
+  ptr_server(!!plots[[2]], "plot_2", shared_state = sh)
 }
 shiny::shinyApp(ui, server)
 ```

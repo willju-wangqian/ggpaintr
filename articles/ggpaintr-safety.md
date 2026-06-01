@@ -44,8 +44,6 @@ ptr_app(formula, expr_check = list(               # custom
 `expr_check` is accepted on every public entry point that builds the AST
 —
 [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md),
-[`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md),
-[`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md),
 [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md),
 [`ptr_ui_controls()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_controls.md),
 [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)

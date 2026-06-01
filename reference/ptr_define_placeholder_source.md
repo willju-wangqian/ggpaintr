@@ -13,9 +13,9 @@ ptr_define_placeholder_source(
   resolve_data,
   resolve_expr = NULL,
   shortcut = FALSE,
-  positional_arg = NULL,
-  named_args = list(),
-  runtime = NULL,
+  parse_positional_arg = NULL,
+  parse_named_args = list(),
+  embellish_eval = NULL,
   ui_text_defaults = list(label = "Provide a data source for {param}")
 )
 ```
@@ -95,13 +95,13 @@ ptr_define_placeholder_source(
   The reserved shared key `"shortcut"` is rejected at translate time
   (see ADR 0025 §1).
 
-- positional_arg, named_args:
+- parse_positional_arg, parse_named_args:
 
   See
   [`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md).
   Source placeholders use the same arg-schema slots.
 
-- runtime:
+- embellish_eval:
 
   Optional `function(...)` body used when the placeholder is called as a
   plain-R function (outside
@@ -191,8 +191,8 @@ ptr_define_placeholder_source(
 )
 #> function (...) 
 #> rlang::abort(paste0("`", kw, "()` is only meaningful inside `ptr_app()`."))
-#> <bytecode: 0x56055beba790>
-#> <environment: 0x56055c35e8a0>
+#> <bytecode: 0x55f8a77673c0>
+#> <environment: 0x55f8ab2171b8>
 ptr_clear_placeholder("dataset")
 #> ✔ Cleared placeholder: "dataset".
 ```

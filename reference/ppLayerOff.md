@@ -66,5 +66,5 @@ p2 <- ggplot(mtcars, aes(x = mpg, y = wt)) +
 
 # Inside ptr_app(), the wrapper becomes a node-level default and a
 # boot-state-off checkbox:
-# ptr_app("ggplot() + ppLayerOff(geom_point(aes(x = mpg, y = wt)), TRUE)")
+# ptr_app(ggplot() + ppLayerOff(geom_point(aes(x = mpg, y = wt)), TRUE))
 ```

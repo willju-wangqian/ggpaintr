@@ -193,12 +193,12 @@ for tutorial examples.
 
 ``` r
 if (interactive()) {
-  # String mode (existing).
-  ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
-  # Expression mode (new): pass the unquoted ggplot expression.
+  # Expression mode (primary): pass the unquoted ggplot expression.
   ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point())
-  # !! splicing into expression mode.
+  # `!!` splices a value into the expression.
   col <- rlang::sym("mpg")
   ptr_app(ggplot(mtcars, aes(x = !!col, y = ppVar)) + geom_point())
+  # String mode (fallback): the same formula as text.
+  ptr_app("ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
 }
 ```

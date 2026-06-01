@@ -11,7 +11,7 @@ tables, built-in datasets, URL fetches."><meta property="og:image" content="http
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.10.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,9 +58,9 @@ tables, built-in datasets, URL fetches.</p>
 <span>  <span class="va">resolve_data</span>,</span>
 <span>  resolve_expr <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  shortcut <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  positional_arg <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  named_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  runtime <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  parse_positional_arg <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  parse_named_args <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  embellish_eval <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  ui_text_defaults <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>label <span class="op">=</span> <span class="st">"Provide a data source for {param}"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -139,12 +139,12 @@ shared key <code>"shortcut"</code> is rejected at translate time (see ADR 0025
 §1).</p></dd>
 
 
-<dt id="arg-positional-arg-named-args">positional_arg, named_args<a class="anchor" aria-label="anchor" href="#arg-positional-arg-named-args"></a></dt>
+<dt id="arg-parse-positional-arg-parse-named-args">parse_positional_arg, parse_named_args<a class="anchor" aria-label="anchor" href="#arg-parse-positional-arg-parse-named-args"></a></dt>
 <dd><p>See <code><a href="ptr_define_placeholder_value.html">ptr_define_placeholder_value()</a></code>.
 Source placeholders use the same arg-schema slots.</p></dd>
 
 
-<dt id="arg-runtime">runtime<a class="anchor" aria-label="anchor" href="#arg-runtime"></a></dt>
+<dt id="arg-embellish-eval">embellish_eval<a class="anchor" aria-label="anchor" href="#arg-embellish-eval"></a></dt>
 <dd><p>Optional <code>function(...)</code> body used when the placeholder
 is called as a plain-R function (outside <code><a href="ptr_app.html">ptr_app()</a></code>). <code>NULL</code>
 (default) supplies a guard that aborts with a message naming the
@@ -223,8 +223,8 @@ carries the binding name, mirroring <code>ppUpload</code>.</p>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> function (...) </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> rlang::abort(paste0("`", kw, "()` is only meaningful inside `ptr_app()`."))</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;bytecode: 0x56055beba790&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x56055c35e8a0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;bytecode: 0x55f8a77673c0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55f8ab2171b8&gt;</span>
 <span class="r-in"><span><span class="fu"><a href="ptr_clear_placeholder.html">ptr_clear_placeholder</a></span><span class="op">(</span><span class="st">"dataset"</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Cleared placeholder: <span style="color: #0000BB;">"dataset"</span>.</span>
 </code></pre></div>
