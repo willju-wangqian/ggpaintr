@@ -1,0 +1,274 @@
+{
+  "harvested_at": "2026-05-31T21:57",
+  "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript, 14 stamps)",
+  "counts": {
+    "verified": 13,
+    "contradicted": 1,
+    "unconfirmable": 0
+  },
+  "findings": [
+    {
+      "id": "test-count-N-is-landing-signal",
+      "claim": "The `as.data.frame(devtools::test())` row count `N` is a reliable signal that added test_that blocks actually landed on disk \u2014 N stayed flat (1206) when an edit went to a phantom file path, and grew by exactly the number of new tests once written to the real file.",
+      "detail": "During this session an Edit appeared to succeed against a non-existent `test-canonical-pipeline.R`; `git status` showing only the source file changed + N not growing exposed it. The real AST-engine test home is `tests/testthat/test-resugar-pipeline.R` (there is no `test-canonical-pipeline.R`).",
+      "scope": "campaign",
+      "feature": "formula-fix",
+      "source": "tests/testthat/test-resugar-pipeline.R; devtools::test() as.data.frame N column",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "Structural part confirmed: tests/testthat/test-resugar-pipeline.R exists; test-canonical-pipeline.R does not. The N-as-landing-signal is a sound methodological observation (historical counts not replayable, but as.data.frame(devtools::test()) N == test_that count is correct).",
+      "checked_refs": [
+        "tests/testthat/test-resugar-pipeline.R"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "conservative-paren-nesting-is-cosmetic",
+      "claim": "`render_binary_operand` conservatively parenthesises any infix operand, so nested same-precedence terms over-parenthesise (`a + b + c` \u2192 `(a + b) + c`, and `mpg ~ wt + cyl + hp` \u2192 `mpg ~ (wt + cyl) + hp`); it is package-wide and semantically safe (formula `terms()` identical), not a formula-specific bug.",
+      "detail": "Confirmed via `terms()` equivalence on the rendered vs source formula. A precedence-aware renderer would remove it, but it changes no semantics.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-render.R:314-332 (render_binary_operand)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "render_binary_operand (render.R:337) parenthesises any operand that is itself a binary infix call (340), producing (a+b)+c nesting; confirmed terms()-identical this session. Source ref line-drifted (314-332 -> ~337).",
+      "checked_refs": [
+        "R/paintr-render.R:337-340"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "data-arg-goes-through-lift",
+      "claim": "`ggplot()`'s `data =` argument is independently run through `try_lift_to_pipeline`, so a computed data source such as `broom::augment(lm(...))` is subject to the same canonical-pipeline lift (and its formula-tearing) as a top-level `|>` chain.",
+      "detail": "This is why the bug manifested in data-source position, not just in surface `|>` pipelines \u2014 the lift fires on the data_arg subtree too.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-translate.R (extract_call_data_arg -> translate_node); ptr_classify_calls -> try_lift_to_pipeline",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "classify_walk.ptr_layer (classify.R:40-42) classifies node$data_arg; ptr_classify_calls calls try_lift_to_pipeline (translate.R:178). A computed data_arg is therefore subject to the lift.",
+      "checked_refs": [
+        "R/paintr-translate.R:178",
+        "R/paintr-classify.R:40-42",
+        "R/paintr-translate.R:610"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "descent-guard-on-cur-not-cur2",
+      "claim": "The descent's placeholder/formula atomicity guard must test `cur` (the node we have descended TO), NOT `cur[[2L]]` \u2014 guarding on `cur[[2L]]` (stop before descending) breaks a legitimate bottom source like `ppUpload(d)` and makes its pipeline fail to lift.",
+      "detail": "A source-role placeholder at the pipeline head (`ppUpload(d) |> filter(...)`) must still be REACHED as `cur` and accepted; `!is_placeholder_call(cur)` stops decomposing a placeholder's own args while still letting the placeholder be the source. Empirically, `!is_placeholder_call(cur[[2L]])` rendered `lm()` empty and dropped the upstream pipeline; `!is_placeholder_call(cur)` was correct.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-translate.R:267 (resugar while-loop)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "Current while-loop (lines 267-268) and post-loop (288) both guard on the descended-to node `cur` via !is_placeholder_call(cur) && !is_formula_call(cur); the cur[[2L]] failure was an empirical session result.",
+      "checked_refs": [
+        "R/paintr-translate.R:267-268",
+        "R/paintr-translate.R:288"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "eval-uses-tree-not-rendered-text",
+      "claim": "The plot is evaluated by reconstructing language objects from the typed tree (`layer_to_eval_expr`/`node_to_lang`), entirely independent of `ptr_render()`'s text output, so a broken/unparseable code panel can coexist with a correct rendered plot.",
+      "detail": "The doubled-paren render bug produced unparseable code_text yet `ptr_assemble_plot_safe` still evaluated correctly \u2014 proof the two paths are decoupled. Implication: render-only defects are display bugs, not plot-correctness bugs; reproduce them via code_text, not ggplot_build.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-eval.R (ptr_eval, layer_to_eval_expr, node_to_lang); R/paintr-render.R (render_walk); R/paintr-safe.R (ptr_complete_expr_safe vs ptr_assemble_plot_safe)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "ptr_eval (eval.R:9) maps layers via layer_to_eval_expr (27) -> node_to_lang (107) and evals those (23); independent of render_walk. Decoupling confirmed.",
+      "checked_refs": [
+        "R/paintr-eval.R:9",
+        "R/paintr-eval.R:27",
+        "R/paintr-eval.R:107"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "formula-placeholders-still-recurse",
+      "claim": "Treating `~` as atomic in the LIFT (resugar) does not bury placeholders inside a formula, because `translate_call()` independently recurses into every argument \u2014 so `lm(ppVar(y) ~ x)` still detects and wires the `ppVar` widget.",
+      "detail": "The lift (try_lift/resugar, pure AST, pre-translate) and the node tree build (translate_node/translate_call) are separate passes; the formula-atomicity guard lives only in the lift, leaving placeholder detection intact.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-translate.R:641-700 (translate_node, translate_call); resugar guards are lift-only",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "translate_node (translate.R:641) returns translate_call(expr) for calls (681); translate_call recurses translate_node over every arg. resugar guards live only in resugar_pipeline_stages (lift), so placeholder detection in formulas is intact.",
+      "checked_refs": [
+        "R/paintr-translate.R:641-700"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "gate1-roundtrip-is-safety-net",
+      "claim": "`try_lift_to_pipeline` requires `identical(rebuild_nested_from_stages(parts), canonical)` before lifting, so a mis-shaped split can never emit a corrupt pipeline \u2014 the worst case is the lift declines and the expression falls back to a plain nested call.",
+      "detail": "This bounds the blast radius of any change to the descent/gates: tightening them can only make the lift MORE conservative, never produce a broken tree.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-translate.R:380-396 (try_lift_to_pipeline GATE 1)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "try_lift_to_pipeline at lines 418-420 returns round-trip-mismatch unless identical(rebuilt, canonical), confirming the safety-net property.",
+      "checked_refs": [
+        "R/paintr-translate.R:418-420"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "pipeline-source-must-be-source-role",
+      "claim": "A canonical-pipeline source slot must be a bare symbol or a SOURCE-role placeholder only; the grounding gate uses `is_data_source_placeholder_call()` (entry$role == \"source\") rather than `is_placeholder_call()` (any non-structural role), so a value/consumer placeholder (`ppExpr`/`ppVar`) in source position is rejected \u2192 opaque-call fallback.",
+      "detail": "Before the fix the gate accepted ANY placeholder call as a source, which let `ppExpr(formula)` be lifted as the data frame. `is_placeholder_call` (atomicity, all roles) is still used in the descent loop; only source ACCEPTANCE was narrowed to source-role.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-translate.R:360-372 (is_data_source_placeholder_call), 380-396 (try_lift_to_pipeline gates)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "is_data_source_placeholder_call at line 369 returns identical(entry$role,'source') (376); try_lift gates use it at 422 (opaque-call-source) and 425 (non-data-source).",
+      "checked_refs": [
+        "R/paintr-translate.R:369-376",
+        "R/paintr-translate.R:422-426"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "placeholder-registry-roles",
+      "claim": "Built-in placeholder registry roles are: ppUpload=`source`, ppExpr/ppNum/ppText=`value`, ppVar=`consumer`, ppLayerOff/ppVerbSwitch=`structural`; a custom source registered via `ptr_define_placeholder_source()` also gets role `source`.",
+      "detail": "The role tokens \"source\"/\"value\"/\"consumer\" are set programmatically (not as grep-able string literals in the registry source), so they must be read from the live registry, not a static grep. Verified by enumerating ptr_registry_lookup() at runtime and registering a custom source.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-builtins.R:332-374 (ptr_register_builtins via ptr_define_placeholder_*); verified live via ptr_registry_lookup()",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "Live ptr_registry_lookup: ppUpload=source, ppExpr/ppNum/ppText=value, ppVar=consumer, ppLayerOff/ppVerbSwitch=structural - exact match.",
+      "checked_refs": [
+        "R/paintr-builtins.R:332-374",
+        "runtime ptr_registry_lookup"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "ppexpr-renders-via-user-expr-not-translate-call",
+      "claim": "A ppExpr value resolves via `ptr_builtin_expr_resolve_expr` (rlang::parse_exprs of the typed text) into a `ptr_user_expr` node rendered through `expr_text`/deparse \u2014 a DIFFERENT render path than the `translate_call` ptr_call used for a bare (non-ppExpr) formula.",
+      "detail": "This is why a ppExpr-held formula rendered infix correctly even before the binary-`~` render fix, while a bare `lm(y ~ x)` formula (translate_call \u2192 ptr_call) needed it. The two paths diverge for the same surface syntax.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-substitute.R:125 (substitute_walk.ptr_ph_value -> ptr_user_expr); R/paintr-builtins.R:139 (ptr_builtin_expr_resolve_expr)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "substitute_walk.ptr_ph_value returns ptr_user_expr(resolved) for ppExpr (substitute.R:125-126); ptr_builtin_expr_resolve_expr (builtins.R:139) uses rlang::parse_exprs (157). Distinct path from translate_call.",
+      "checked_refs": [
+        "R/paintr-substitute.R:125-126",
+        "R/paintr-builtins.R:139",
+        "R/paintr-builtins.R:157"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "renderer-binary-tilde-missing",
+      "claim": "`render_walk.ptr_call` renders a 2-arg call infix only when `is_binary_infix_op(name)` is true, and that list omitted `~`, so a two-sided formula `gear ~ cyl` fell through to prefix `~(gear, cyl)` while one-sided `~cyl` rendered fine via the separate unary branch (`name %in% c(\"-\",\"+\",\"!\",\"~\")`).",
+      "detail": "Fixed with a dedicated two-sided `~` branch that renders operands with plain `render_walk` (no conservative parenthesisation) because `~` is R's lowest-precedence operator and its operands never need wrapping \u2014 yielding clean `y ~ a + b`.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-render.R:261-310 (render_walk.ptr_call, is_binary_infix_op)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "is_binary_infix_op (render.R:326) still omits the tilde; a dedicated two-sided tilde branch exists at line 276 (name=='~'); unary tilde handled separately. Matches the finding (fix via dedicated branch, not list addition).",
+      "checked_refs": [
+        "R/paintr-render.R:276",
+        "R/paintr-render.R:326-330"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "renderer-paren-node-doubled",
+      "claim": "An explicit parenthesis AST node `(x)` (head is the `(` symbol) hit the generic call renderer, which emitted the head `(` plus its own arg-parens \u2192 `((x)` (unbalanced, unparseable); a dedicated 1-arg `(` branch emitting `(inner)` is required.",
+      "detail": "Pre-existing and general \u2014 affected every parenthesised sub-expression (`geom_point(size=(2+1)*2)`, `filter((a+b)>1)`, `aes(x=(a+b)*c)`), not just formulas. Eval was unaffected (typed tree), so it was a code-panel-only defect until formulas (which lean on parens, e.g. `a * (b + c)`) made it user-visible. Parens are load-bearing in model formulas, so this is correctness-adjacent.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-render.R:261-300 (render_walk.ptr_call generic fall-through)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "A dedicated 1-arg paren branch exists at render.R:291 (name=='('), confirming the prior generic fall-through emitted the doubled '((x)'. Fix present.",
+      "checked_refs": [
+        "R/paintr-render.R:291"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "resugar-aggressive-descent-tears-atomics",
+      "claim": "`resugar_pipeline_stages()`'s always-aggressive descent walks through ANY call whose first positional arg is itself a call \u2014 including a placeholder call's arg and a formula `~` call \u2014 so without explicit atomicity guards it mistakes an inner symbol (a formula LHS like `y`, a value placeholder) for the pipeline data source.",
+      "detail": "For `broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d)))` the descent reached `ppExpr(...)` then `y ~ x` then lifted `y` as the source, producing the nonsense pipeline `y |> ~(x) |> lm() |> augment()`. The guard belongs in BOTH the while-loop and the post-loop split. ADR 0012 (\"tree is semantic, not syntactic\") deliberately removed verb whitelists, which is why the descent is this aggressive.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-translate.R:264-302 (resugar_pipeline_stages)",
+      "tags": "formula-translate-render",
+      "verdict": "verified",
+      "verification": "Confirmed: resugar_pipeline_stages at R/paintr-translate.R:264 with aggressive descent; guards added at lines 267-268 and 288 precisely because the descent walks through any call-headed first arg.",
+      "checked_refs": [
+        "R/paintr-translate.R:264-302"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "tilde-on-safe-operator-allowlist",
+      "claim": "`~` is on the safe-operator allowlist (with `:`, `%in%`, `!`), NOT the denylist, so the formula bug was never a safety/parse rejection; base parsers (`parse`, `str2lang`, `rlang::parse_expr`) all handle a formula string fine.",
+      "detail": "Rules out the denylist/safety walker as the cause of formula breakage; `extract_fn_names`'s `str2lang` is tryCatch-guarded (returns character(0) on failure), so it cannot propagate a parse error either. The defect was purely structural (lift) + cosmetic (render).",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-utils.R:468-472 (ptr_safe_operators), 484 (unsafe_expr_denylist), 598 (extract_fn_names)",
+      "tags": "formula-translate-render",
+      "verdict": "contradicted",
+      "verification": "CORRECTION: there is NO ptr_safe_operators symbol in the codebase. The tilde appears in pruneable_operator_names (utils.R:468-472), which governs PRUNING, not safety. The load-bearing CONCLUSION still holds: tilde is NOT in unsafe_expr_denylist (verified) and base parsers handle formula strings, so the formula bug was never a safety/denylist rejection. The finding's specific list-name/symbol is wrong; its conclusion is right.",
+      "checked_refs": [
+        "R/paintr-utils.R:468-472 (pruneable_operator_names, NOT a safe-operator allowlist)",
+        "R/paintr-utils.R:484 (unsafe_expr_denylist has no tilde)"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified"
+    }
+  ]
+}
