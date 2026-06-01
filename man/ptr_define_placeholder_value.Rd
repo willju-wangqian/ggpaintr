@@ -20,12 +20,18 @@ ptr_define_placeholder_value(
 name (passes \code{make.names()}) and not an R reserved word. This is the
 token users type in the formula, e.g. \code{geom_point(alpha = pct)}.}
 
-\item{build_ui}{\verb{function(node, label = NULL, selected = NULL, ...)}
+\item{build_ui}{\verb{function(node, label = NULL, selected = NULL, named_args = list(), ...)}
 returning a Shiny tag. Pass \code{node$id} as the underlying widget's
 \code{inputId}. Read \code{node$keyword} and \code{node$param} if you need them. The
 framework also passes any \code{ui_text_defaults} field you declare by name
 (\code{help}, \code{placeholder}, \code{empty_text}) — or accept a \code{copy = NULL}
-list and read them off it. Always end the signature with \code{...}.
+list and read them off it. If you declare a \code{named_args} formal (or
+accept \code{...}), the framework injects the validated \code{parse_named_args}
+values as a named list — so \code{parse_named_args = list(step = ptr_arg_numeric())} makes \code{ppPct(step = 5)} arrive as
+\code{named_args$step} (the canonical post-validator value, not the raw
+call). Every injected argument is opt-in: the injector checks your
+formals, so name the ones you use and keep \code{...} to swallow the rest.
+Always end the signature with \code{...}.
 
 \strong{Widget-seeding contract — \code{selected}} (authoritative; the four
 \code{invoke_build_ui} call sites in \code{R/paintr-server.R} implement what
@@ -112,8 +118,11 @@ time.}
 \item{parse_named_args}{Named list of validator closures for additional named
 arguments beyond the reserved \code{shared = ...}. Each entry's closure
 receives the unevaluated AST and returns a canonical value or
-\code{rlang::abort()}. Default is \code{list()} (no named args). The name
-\code{"shared"} is reserved and may not appear here.}
+\code{rlang::abort()}. The canonical values are delivered to \code{build_ui} as
+its \code{named_args} list (and are also carried on \code{node$named_args}, so
+\code{resolve_expr} / \code{validate_session_input} can read them off \code{node}).
+Default is \code{list()} (no named args). The name \code{"shared"} is reserved
+and may not appear here.}
 
 \item{embellish_eval}{Optional \verb{function(x, ...)} body used when the
 placeholder keyword is \emph{also} called as a plain-R function (outside a

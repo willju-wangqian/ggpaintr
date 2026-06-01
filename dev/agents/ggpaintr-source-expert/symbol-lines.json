@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-06-01T00:45:44-0500",
-  "git_head": "c29aaf0",
+  "generated_at": "2026-06-01T02:05:21-0500",
+  "git_head": "4b7c39c",
   "n_files": 37,
   "n_symbols": 527,
   "symbols": {
@@ -1301,28 +1301,28 @@
     },
     "ptr_define_placeholder_value": {
       "file": "R/paintr-registry.R",
-      "start_line": 597,
-      "end_line": 612
+      "start_line": 608,
+      "end_line": 623
     },
     "ptr_define_placeholder_consumer": {
       "file": "R/paintr-registry.R",
-      "start_line": 720,
-      "end_line": 735
+      "start_line": 731,
+      "end_line": 746
     },
     "ptr_define_placeholder_source": {
       "file": "R/paintr-registry.R",
-      "start_line": 878,
-      "end_line": 893
+      "start_line": 889,
+      "end_line": 904
     },
     "ptr_register_structural_keyword": {
       "file": "R/paintr-registry.R",
-      "start_line": 913,
-      "end_line": 933
+      "start_line": 924,
+      "end_line": 944
     },
     "ptr_signal_partial": {
       "file": "R/paintr-registry.R",
-      "start_line": 969,
-      "end_line": 971
+      "start_line": 980,
+      "end_line": 982
     },
     "ptr_render": {
       "file": "R/paintr-render.R",
