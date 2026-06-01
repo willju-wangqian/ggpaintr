@@ -149,3 +149,57 @@ test_that("build_pipeline_from_lift threads op_hint into ptr_pipeline$op", {
   expect_equal(ggpaintr:::build_pipeline_from_lift(parts, op_hint = "|>")$op, "|>")
   expect_equal(ggpaintr:::build_pipeline_from_lift(parts)$op, "|>")
 })
+
+# ---- Regression — a value placeholder (e.g. `ppExpr(y ~ x)`) is captured
+# state, never a pipeline data source. Before the fix the aggressive descent
+# walked THROUGH `ppExpr(...)` into the formula and lifted its LHS `y` as the
+# "data source", turning
+#   broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d)))
+# into `y |> ~(x) |> lm() |> augment()` -- which boots empty and evals
+# "object 'y' not found", and strips the ppExpr formula default from its
+# textarea. Two guards enforce the contract: the descent loop stops at any
+# placeholder call, and the grounding gate accepts only a symbol or a
+# SOURCE-role placeholder as the pipeline source.
+
+test_that("is_data_source_placeholder_call accepts only source-role placeholders", {
+  expect_true(ggpaintr:::is_data_source_placeholder_call(quote(ppUpload(d))))
+  expect_false(ggpaintr:::is_data_source_placeholder_call(quote(ppExpr(y ~ x))))
+  expect_false(ggpaintr:::is_data_source_placeholder_call(quote(ppVar(mpg))))
+  expect_false(ggpaintr:::is_data_source_placeholder_call(quote(head(mtcars))))
+})
+
+test_that("resugar does not descend into a value placeholder's arguments", {
+  # The formula `y ~ x` must remain whole inside `ppExpr(...)`, never bisected
+  # into a `y` source + a `~(x)` stage.
+  parts <- ggpaintr:::resugar_pipeline_stages(quote(lm(ppExpr(y ~ x), data = d)))
+  expect_identical(parts$source, quote(ppExpr(y ~ x)))
+  expect_false(identical(parts$source, quote(y)))
+})
+
+test_that("try_lift rejects a value-placeholder data source", {
+  res <- ggpaintr:::try_lift_to_pipeline(
+    quote(broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d))))
+  )
+  expect_false(isTRUE(res$success))
+  expect_equal(res$reason, "opaque-call-source")
+})
+
+test_that("translate keeps a computed formula data source as an opaque call", {
+  root <- ggpaintr:::ptr_translate(
+    paste0("broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d))) |> ",
+           "ggplot(aes(.fitted, .resid)) + geom_point()")
+  )
+  data_arg <- root$layers[[1L]]$data_arg
+  expect_s3_class(data_arg, "ptr_call")
+  expect_false(inherits(data_arg, "ptr_pipeline"))
+})
+
+test_that("an ordinary source-placeholder pipeline still lifts", {
+  # Guard regression: a SOURCE-role placeholder at the pipeline head is the
+  # normal `ppUpload(d) |> filter(...)` shape and MUST still lift.
+  res <- ggpaintr:::try_lift_to_pipeline(
+    quote(dplyr::filter(ppUpload(d), cyl == 4))
+  )
+  expect_true(isTRUE(res$success))
+  expect_identical(res$parts$source, quote(ppUpload(d)))
+})
