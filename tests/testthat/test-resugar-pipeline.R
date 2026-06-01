@@ -264,3 +264,35 @@ test_that("a one-sided formula layer arg is unchanged", {
   expect_true(isTRUE(res$ok))
   expect_match(res$code_text, "facet_wrap(~cyl)", fixed = TRUE)
 })
+
+# --- Regression: explicit parentheses are load-bearing in model formulas
+# (`a * (b + c)` != `(a * b) + c`) and must render verbatim. The generic
+# call renderer used to emit a `(` node as `((x)` (a doubled, unbalanced
+# paren) -- valid R in the typed tree (so the plot still evaluated) but a
+# broken, unparseable code panel.
+
+test_that("explicit parentheses in a formula survive rendering verbatim", {
+  root <- ggpaintr:::ptr_translate(paste0(
+    "broom::augment(lm(mpg ~ wt * (cyl + hp), data = mtcars)) |> ",
+    "ggplot(aes(.fitted, .resid)) + geom_point()"
+  ))
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_silent(parse(text = res$code_text))            # code panel is valid R
+  expect_match(res$code_text, "mpg ~ wt * (cyl + hp)", fixed = TRUE)
+  expect_false(grepl("((cyl", res$code_text, fixed = TRUE))
+})
+
+test_that("a parenthesis node renders as `(x)`, not `((x)` (non-formula)", {
+  root <- ggpaintr:::ptr_translate(
+    "ggplot(mtcars, aes(wt, mpg)) + geom_point(size = (2 + 1) * 2)"
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_silent(parse(text = res$code_text))
+  expect_match(res$code_text, "(2 + 1) * 2", fixed = TRUE)
+})

@@ -1,6 +1,6 @@
 {
-  "generated_at": "2026-05-31T21:15:41-0500",
-  "git_head": "ee260c3",
+  "generated_at": "2026-05-31T21:44:41-0500",
+  "git_head": "bea3c31",
   "n_files": 35,
   "n_symbols": 508,
   "symbols": {
@@ -1282,167 +1282,167 @@
     "render_walk.ptr_call": {
       "file": "R/paintr-render.R",
       "start_line": 261,
-      "end_line": 313
+      "end_line": 323
     },
     "is_binary_infix_op": {
       "file": "R/paintr-render.R",
-      "start_line": 316,
-      "end_line": 322
+      "start_line": 326,
+      "end_line": 332
     },
     "render_binary_operand": {
       "file": "R/paintr-render.R",
-      "start_line": 327,
-      "end_line": 334
+      "start_line": 337,
+      "end_line": 344
     },
     "render_call_text": {
       "file": "R/paintr-render.R",
-      "start_line": 342,
-      "end_line": 358
+      "start_line": 352,
+      "end_line": 368
     },
     "render_arg_pieces": {
       "file": "R/paintr-render.R",
-      "start_line": 363,
-      "end_line": 373
-    },
-    "render_walk.ptr_literal": {
-      "file": "R/paintr-render.R",
-      "start_line": 376,
-      "end_line": 378
-    },
-    "render_walk.ptr_closure": {
-      "file": "R/paintr-render.R",
-      "start_line": 381,
+      "start_line": 373,
       "end_line": 383
     },
-    "render_walk.ptr_user_expr": {
+    "render_walk.ptr_literal": {
       "file": "R/paintr-render.R",
       "start_line": 386,
       "end_line": 388
     },
-    "render_walk.ptr_missing": {
+    "render_walk.ptr_closure": {
       "file": "R/paintr-render.R",
       "start_line": 391,
-      "end_line": 391
+      "end_line": 393
+    },
+    "render_walk.ptr_user_expr": {
+      "file": "R/paintr-render.R",
+      "start_line": 396,
+      "end_line": 398
+    },
+    "render_walk.ptr_missing": {
+      "file": "R/paintr-render.R",
+      "start_line": 401,
+      "end_line": 401
     },
     "render_walk.ptr_ph_value": {
       "file": "R/paintr-render.R",
-      "start_line": 394,
-      "end_line": 399
+      "start_line": 404,
+      "end_line": 409
     },
     "render_walk.ptr_ph_data_consumer": {
       "file": "R/paintr-render.R",
-      "start_line": 402,
-      "end_line": 407
+      "start_line": 412,
+      "end_line": 417
     },
     "render_walk.ptr_ph_data_source": {
       "file": "R/paintr-render.R",
-      "start_line": 410,
-      "end_line": 415
+      "start_line": 420,
+      "end_line": 425
     },
     "render_walk.default": {
       "file": "R/paintr-render.R",
-      "start_line": 418,
-      "end_line": 421
+      "start_line": 428,
+      "end_line": 431
     },
     "stamp_current_pick_walk": {
       "file": "R/paintr-render.R",
-      "start_line": 432,
-      "end_line": 433
+      "start_line": 442,
+      "end_line": 443
     },
     "stamp_current_pick_walk.default": {
       "file": "R/paintr-render.R",
-      "start_line": 436,
-      "end_line": 436
+      "start_line": 446,
+      "end_line": 446
     },
     "stamp_current_pick_walk.ptr_root": {
       "file": "R/paintr-render.R",
-      "start_line": 439,
-      "end_line": 444
+      "start_line": 449,
+      "end_line": 454
     },
     "stamp_current_pick_walk.ptr_layer": {
       "file": "R/paintr-render.R",
-      "start_line": 447,
-      "end_line": 455
+      "start_line": 457,
+      "end_line": 465
     },
     "stamp_current_pick_walk.ptr_call": {
       "file": "R/paintr-render.R",
-      "start_line": 458,
-      "end_line": 463
+      "start_line": 468,
+      "end_line": 473
     },
     "stamp_current_pick_walk.ptr_pipeline": {
       "file": "R/paintr-render.R",
-      "start_line": 466,
-      "end_line": 471
+      "start_line": 476,
+      "end_line": 481
     },
     "stamp_current_pick_walk.ptr_closure": {
       "file": "R/paintr-render.R",
-      "start_line": 474,
-      "end_line": 477
+      "start_line": 484,
+      "end_line": 487
     },
     ".snapshot_value_is_set": {
       "file": "R/paintr-render.R",
-      "start_line": 487,
-      "end_line": 494
+      "start_line": 497,
+      "end_line": 504
     },
     "stamp_current_pick_walk.ptr_ph_value": {
       "file": "R/paintr-render.R",
-      "start_line": 497,
-      "end_line": 503
+      "start_line": 507,
+      "end_line": 513
     },
     "stamp_current_pick_walk.ptr_ph_data_consumer": {
       "file": "R/paintr-render.R",
-      "start_line": 506,
-      "end_line": 512
+      "start_line": 516,
+      "end_line": 522
     },
     "stamp_current_pick_walk.ptr_ph_data_source": {
       "file": "R/paintr-render.R",
-      "start_line": 515,
-      "end_line": 532
+      "start_line": 525,
+      "end_line": 542
     },
     "render_placeholder_preserved": {
       "file": "R/paintr-render.R",
-      "start_line": 545,
-      "end_line": 559
+      "start_line": 555,
+      "end_line": 569
     },
     "format_placeholder_value": {
       "file": "R/paintr-render.R",
-      "start_line": 565,
-      "end_line": 586
+      "start_line": 575,
+      "end_line": 596
     },
     "format_bareword": {
       "file": "R/paintr-render.R",
-      "start_line": 588,
-      "end_line": 593
+      "start_line": 598,
+      "end_line": 603
     },
     "format_string": {
       "file": "R/paintr-render.R",
-      "start_line": 595,
-      "end_line": 599
+      "start_line": 605,
+      "end_line": 609
     },
     "format_numeric": {
       "file": "R/paintr-render.R",
-      "start_line": 601,
-      "end_line": 605
+      "start_line": 611,
+      "end_line": 615
     },
     "format_expr": {
       "file": "R/paintr-render.R",
-      "start_line": 607,
-      "end_line": 614
+      "start_line": 617,
+      "end_line": 624
     },
     "layer_is_piped": {
       "file": "R/paintr-render.R",
-      "start_line": 619,
-      "end_line": 625
+      "start_line": 629,
+      "end_line": 635
     },
     "layer_head_text": {
       "file": "R/paintr-render.R",
-      "start_line": 630,
-      "end_line": 640
+      "start_line": 640,
+      "end_line": 650
     },
     "call_head_text": {
       "file": "R/paintr-render.R",
-      "start_line": 642,
-      "end_line": 646
+      "start_line": 652,
+      "end_line": 656
     },
     "ptr_resolve_upstream": {
       "file": "R/paintr-resolve.R",
