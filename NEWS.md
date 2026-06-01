@@ -1,3 +1,22 @@
+# ggpaintr 0.11.0
+
+## Breaking changes (ADR 0027)
+
+- **The four public placeholder-constructor arguments were renamed** across `ptr_define_placeholder_value()` / `ptr_define_placeholder_consumer()` / `ptr_define_placeholder_source()`: `positional_arg` → `parse_positional_arg`, `named_args` → `parse_named_args`, `validate_input` → `validate_session_input`, and `runtime` → `embellish_eval`. The rename makes the slot family legible — two slots *parse* the formula's default args into the widget seed (`parse_positional_arg`, `parse_named_args`), one *validates* the live session value (`validate_session_input`), and one defines the *plain-R evaluation* of the embellished expression (`embellish_eval`). This is a hard break with no deprecation shim: passing an old name now raises R's "unused argument" error. The internal registry-record keys are unchanged (`entry$default_arg` / `named_args` / `validate_input` / `runtime`); only the public argument names changed.
+- **`embellish_eval` defaults to the new `embellish_identity()`** for value/consumer placeholders (the source role keeps its abort-guard default). Two built-in helpers ship for the plain-R evaluation slot: `embellish_identity()` (the identity `function(x, ...) x`) and `embellish_symbol_to_string()` (NSE-captures its argument and returns column names as a character vector, so a column-selecting consumer works inside a tidyselect verb when the placeholder-embellished formula is run as ordinary R with no app).
+- **`ptr_arg_numeric_vector()` was removed.** Use `ptr_arg_numeric(vector = TRUE)`. The argument-validator factories (`ptr_arg_numeric` / `ptr_arg_string` / `ptr_arg_symbol_or_string`) gained a `vector = FALSE` flag (with `length =` honored in vector mode for `ptr_arg_numeric`), and a new `ptr_arg_symbol()` factory parses a bareword column name (vector-capable) for multi-column positional defaults.
+- **`ptr_app_bslib()` and `ptr_app_grid()` are no longer exported** (changed to `@keywords internal`). They remain available internally and their help pages are still generated so existing cross-reference links resolve, but they are no longer presented as public API; the public turn-key entry point is `ptr_app()`. Write a thin wrapper on the public primitives for a custom page shell or theme.
+
+## New features
+
+- **RStudio command-palette addin.** `ptr_wrap_placeholder_addin()` wraps a highlighted selection in a placeholder from the RStudio command palette (classifies the selection, offers a placeholder picker, rewrites in place; dark/light-aware via `rstudioapi::getThemeInfo()`).
+- **Documentation now leads with the expression form.** Roxygen `@examples` for the formula-capturing entry points (`ptr_app`, `ptr_ui_controls`, `ptr_ui_page`, `ptr_server`) lead with the unquoted ggplot expression (the canonical input), keeping the string form as the documented fallback; Shiny examples are gated with `if (interactive())`.
+
+## Bug fixes (formula / ppExpr codegen)
+
+- **A `~` formula is treated as a first-class atomic in the canonical-pipeline lift**, so the resugar pass no longer shreds a formula inside `ppExpr` (e.g. `lm(ppExpr(y ~ x), data = ppUpload(d))`); placeholders inside the formula are still detected and wired because `translate_call()` recurses into every argument independently.
+- **A two-sided formula renders with its infix `~`** (`gear ~ cyl`) instead of falling through to a prefix `~(gear, cyl)`, and an explicit parenthesis node `(x)` now renders as a balanced `(x)` instead of the unparseable `((x)`.
+
 # ggpaintr 0.10.0
 
 ## New features

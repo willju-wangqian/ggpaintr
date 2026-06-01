@@ -6,10 +6,13 @@ home:
   description: Build formula-driven Shiny apps for ggplot2.
 reference:
   - title: L1 — All-in-one
-    desc: Turn a ggplot-style formula into a ready-to-run Shiny app. One formula → `ptr_app()`; several linked plots → `ptr_app_grid()`.
+    desc: Turn a ggplot-style formula into a ready-to-run Shiny app with one call to `ptr_app()`.
     contents:
       - ptr_app
-      - ptr_app_grid
+  - title: RStudio addin
+    desc: Wrap a highlighted selection in a placeholder from the RStudio command palette.
+    contents:
+      - ptr_wrap_placeholder_addin
   - title: Formula placeholders
     desc: The `pp*` tokens you write inside a formula — the value/consumer/source controls plus the structural toggles.
     contents:
@@ -22,10 +25,6 @@ reference:
       - ptr_options
       - ptr_normalize_column_names
       - ptr_ui_text
-  - title: Wrapper examples
-    desc: Worked examples of writing custom wrappers on top of the public ggpaintr primitives. See `vignette("ggpaintr-tutorial")`.
-    contents:
-      - ptr_app_bslib
   - title: L2 — Embed with the default layout
     desc: Plug ggpaintr into your own Shiny app with its self-contained default layout. The module pair is the L2 entry; the shared coordinator (`ptr_shared()` → `ptr_shared_panel()` + `ptr_shared_server()`) links a cross-formula key across plots. See `vignette("ggpaintr-tutorial")` § "Multiple plots, and writing your own Shiny app".
     contents:
@@ -66,6 +65,7 @@ reference:
       - ptr_clear_placeholder
       - build_ui_for
       - ptr_arg_validators
+      - embellish_helpers
       - ptr_constant_fold_registry
       - ptr_signal_partial
   - title: LLM tooling
