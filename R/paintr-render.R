@@ -268,6 +268,16 @@ render_walk.ptr_call <- function(node, indent = 0L, preserve_placeholders = FALS
       rhs <- render_binary_operand(node$args[[2]], indent, preserve_placeholders)
       return(paste0(lhs, " ", name, " ", rhs))
     }
+    # Two-sided formula `lhs ~ rhs`. `~` is R's lowest-precedence operator, so
+    # its operands never need the conservative parenthesisation applied to the
+    # other infix ops above -- render them verbatim for clean `y ~ a + b`
+    # output (otherwise the RHS `a + b` would become `(a + b)`). The one-sided
+    # form `~x` is handled by the unary branch below.
+    if (all_unnamed && length(node$args) == 2L && name == "~") {
+      lhs <- render_walk(node$args[[1]], indent, preserve_placeholders = preserve_placeholders)
+      rhs <- render_walk(node$args[[2]], indent, preserve_placeholders = preserve_placeholders)
+      return(paste0(lhs, " ~ ", rhs))
+    }
     if (all_unnamed && length(node$args) == 1L &&
         name %in% c("-", "+", "!", "~")) {
       return(paste0(name, render_binary_operand(node$args[[1]], indent, preserve_placeholders)))

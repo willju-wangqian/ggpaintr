@@ -265,7 +265,7 @@ resugar_pipeline_stages <- function(expr) {
   stages <- list()
   cur <- expr
   while (is.call(cur) && length(cur) >= 2L && is.call(cur[[2L]]) &&
-         !is_placeholder_call(cur)) {
+         !is_placeholder_call(cur) && !is_formula_call(cur)) {
     head <- cur[[1L]]
     rest_args <- as.list(cur[-c(1L, 2L)])
     nm_all <- names(cur) %||% rep_len("", length(cur))
@@ -285,7 +285,7 @@ resugar_pipeline_stages <- function(expr) {
   # node (via `default_arg`), not upstream data, so the call must stay
   # atomic regardless of role.
   if (is.call(cur) && length(cur) >= 2L && !is.call(cur[[2L]]) &&
-      !is_placeholder_call(cur)) {
+      !is_placeholder_call(cur) && !is_formula_call(cur)) {
     head <- cur[[1L]]
     rest_args <- as.list(cur[-c(1L, 2L)])
     nm_all <- names(cur) %||% rep_len("", length(cur))
@@ -374,6 +374,19 @@ is_data_source_placeholder_call <- function(expr) {
                     error = function(e) NULL)
   if (is.null(entry)) return(FALSE)
   identical(entry$role, "source")
+}
+
+# True for a formula (`~`) call -- one- or two-sided. A formula is never a
+# pipeline stage nor a data source; the lift must treat it as an atomic leaf
+# (like a placeholder call) so a model call such as `lm(y ~ x, data = d)` is
+# NOT shredded into `y |> ~(x) |> lm(data = d)` (which mistakes the formula's
+# LHS for the data frame). The renderer emits the surviving 2-arg `~` call
+# infix (see `is_binary_infix_op()` in R/paintr-render.R); placeholders inside
+# the formula (`lm(ppVar(y) ~ x)`) still become widgets because
+# `translate_call()` recurses into every arg regardless of this guard.
+is_formula_call <- function(expr) {
+  is.call(expr) && length(expr) >= 1L && is.symbol(expr[[1L]]) &&
+    identical(as.character(expr[[1L]]), "~")
 }
 
 # Step 4 -- round-trip + grounding gates. Returns either

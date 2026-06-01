@@ -203,3 +203,64 @@ test_that("an ordinary source-placeholder pipeline still lifts", {
   expect_true(isTRUE(res$success))
   expect_identical(res$parts$source, quote(ppUpload(d)))
 })
+
+# --- Regression: a bare `~` formula (no placeholder wrapper) is also atomic.
+# Before the fix, the aggressive descent tore `lm(y ~ x, data = d)` into
+# `y |> ~(x) |> lm(data = d)` (mistaking the formula LHS for the data frame),
+# and a two-sided formula in a layer arg rendered as `facet_grid(~(a, b))`
+# instead of infix. A formula is never a pipeline stage, never a data source,
+# and always renders infix.
+
+test_that("is_formula_call recognises one- and two-sided formulas", {
+  expect_true(ggpaintr:::is_formula_call(quote(y ~ x)))
+  expect_true(ggpaintr:::is_formula_call(quote(~x)))
+  expect_false(ggpaintr:::is_formula_call(quote(a + b)))
+  expect_false(ggpaintr:::is_formula_call(quote(f(x))))
+  expect_false(ggpaintr:::is_formula_call(quote(x)))
+})
+
+test_that("resugar does not tear a bare formula into pipeline stages", {
+  parts <- ggpaintr:::resugar_pipeline_stages(quote(lm(y ~ x, data = d)))
+  # The formula stays whole inside `lm(...)`; its LHS `y` is never the source.
+  expect_false(identical(parts$source, quote(y)))
+  res <- ggpaintr:::try_lift_to_pipeline(
+    quote(broom::augment(lm(y ~ x, data = mtcars)))
+  )
+  expect_false(isTRUE(res$success))
+})
+
+test_that("a bare formula in a computed data source renders intact and infix", {
+  root <- ggpaintr:::ptr_translate(
+    paste0("broom::augment(lm(mpg ~ wt, data = mtcars)) |> ",
+           "ggplot(aes(.fitted, .resid)) + geom_point()")
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_match(res$code_text, "lm(mpg ~ wt, data = mtcars)", fixed = TRUE)
+  expect_false(grepl("~(", res$code_text, fixed = TRUE))   # not the prefix form
+  expect_false(grepl("|> ~", res$code_text, fixed = TRUE)) # not torn into a pipe
+})
+
+test_that("a two-sided formula in a layer argument renders infix", {
+  root <- ggpaintr:::ptr_translate(
+    "ggplot(mtcars, aes(wt, mpg)) + geom_point() + facet_grid(gear ~ cyl)"
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_match(res$code_text, "facet_grid(gear ~ cyl)", fixed = TRUE)
+})
+
+test_that("a one-sided formula layer arg is unchanged", {
+  root <- ggpaintr:::ptr_translate(
+    "ggplot(mtcars, aes(wt, mpg)) + geom_point() + facet_wrap(~cyl)"
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_match(res$code_text, "facet_wrap(~cyl)", fixed = TRUE)
+})
