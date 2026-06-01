@@ -2,7 +2,7 @@
 #'
 #' A placeholder-embellished ggplot expression must stay valid plain R that
 #' renders the original plot with no app running. Each placeholder carries a
-#' callable (currently passed as the `runtime =` argument of the
+#' callable (the `embellish_eval =` argument of the
 #' `ptr_define_placeholder_*()` constructors) that supplies its plain-R
 #' meaning when the naked expression is evaluated outside `ptr_app()`. These
 #' two factories are the built-in callables for that slot:

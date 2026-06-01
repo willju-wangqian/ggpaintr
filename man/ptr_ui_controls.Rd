@@ -68,6 +68,12 @@ independently rather than the whole panel — register a custom placeholder
 type; see \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 }
 \examples{
+# Expression form (primary): an unquoted ggplot call.
+ptr_ui_controls(
+  ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(),
+  id = "p"
+)
+# String form (fallback): equivalent.
 ptr_ui_controls(
   "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
   id = "p"

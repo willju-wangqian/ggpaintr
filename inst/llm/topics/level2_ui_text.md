@@ -1,6 +1,6 @@
 # Level 2 — copy overrides with `ui_text`
 
-`ui_text` is the single argument for customising every user-visible string ggpaintr renders. Pass it to `ptr_app()`, `ptr_app_bslib()`, `ptr_app_grid()`, `ptr_ui()`, `ptr_server()`, `ptr_init_state()`, the L3 bare piece `ptr_ui_controls()`, or the coordinator `ptr_shared()` (which threads it into the shared panel and each module). The cascade keys are the **placeholder keywords** (`ppVar`, `ppText`, …).
+`ui_text` is the single argument for customising every user-visible string ggpaintr renders. Pass it to `ptr_app()`, `ptr_ui()`, `ptr_server()`, `ptr_init_state()`, the L3 bare piece `ptr_ui_controls()`, or the coordinator `ptr_shared()` (which threads it into the shared panel and each module). The cascade keys are the **placeholder keywords** (`ppVar`, `ppText`, …).
 
 ## The four leaf fields
 

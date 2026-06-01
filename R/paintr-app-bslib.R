@@ -51,7 +51,7 @@
 #'   "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
 #' )
 #' }
-#' @export
+#' @keywords internal
 ptr_app_bslib <- function(formula,
                           envir = parent.frame(),
                           ui_text = NULL,

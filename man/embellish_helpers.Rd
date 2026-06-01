@@ -19,7 +19,7 @@ vector of column names captured from the unevaluated \code{x}.
 \description{
 A placeholder-embellished ggplot expression must stay valid plain R that
 renders the original plot with no app running. Each placeholder carries a
-callable (currently passed as the \verb{runtime =} argument of the
+callable (the \verb{embellish_eval =} argument of the
 \verb{ptr_define_placeholder_*()} constructors) that supplies its plain-R
 meaning when the naked expression is evaluated outside \code{ptr_app()}. These
 two factories are the built-in callables for that slot:

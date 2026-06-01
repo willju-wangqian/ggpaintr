@@ -35,7 +35,7 @@ ptr_options()
 ```r
 old <- ptr_options(verbose = TRUE)
 on.exit(do.call(ptr_options, old), add = TRUE)
-# ... ptr_app() / ptr_app_bslib() calls inside this scope inherit the new default ...
+# ... ptr_app() calls inside this scope inherit the new default ...
 ```
 
 ## Equivalent base-options usage

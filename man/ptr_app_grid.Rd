@@ -81,3 +81,4 @@ if (interactive()) {
 \seealso{
 \code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and themable CSS custom properties.
 }
+\keyword{internal}
