@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vignette API-Drift Audit — ggpaintr 0.11.0</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<main>
+<h1>Vignette API-Drift Audit — ggpaintr 0.11.0</h1>
+<p class="subtitle">
+2026-05-31 22h · branch <code>main</code> · HEAD <code>f042380</code> · DESCRIPTION Version 0.11.0 · static API check, no execution
+</p>
+
+<p>Scope: the live vignette set — <code>vignettes/ggpaintr-tutorial.Rmd</code>, <code>vignettes/ggpaintr-safety.Rmd</code>, <code>vignettes/ggpaintr-llm.Rmd</code> — audited against the working-tree R source, <code>NAMESPACE</code>, <code>CONTEXT.md</code>, and the recent API delta (ADR 0027 placeholder-arg rename, arg-factory changes, <code>embellish_*</code> helpers, <code>ptr_app_bslib/grid</code> unexport, fix-expr codegen, addin). Every <code>ptr_*()</code> call, argument literal, and behavioral prose claim was resolved against a source symbol / <code>NAMESPACE</code> line / denylist body. Report-only — nothing was edited or executed.</p>
+
+<h2>Summary</h2>
+<table>
+<thead>
+<tr><th>Vignette</th><th>Statements + chunks audited</th><th class="pass">PASS</th><th class="bug">STALE-WRONG</th><th class="info">GAP / INFO</th></tr>
+</thead>
+<tbody>
+<tr><td><code>ggpaintr-tutorial.Rmd</code></td><td>~38 (3 define chunks, 6 app chunks, l2-shared chunk, 12 arg subsections)</td><td class="pass">35</td><td class="bug">1</td><td class="info">2</td></tr>
+<tr><td><code>ggpaintr-safety.Rmd</code></td><td>~24 (3 static call blocks, denylist table, walker table, upload table)</td><td class="pass">24</td><td class="bug">0</td><td class="info">0</td></tr>
+<tr><td><code>ggpaintr-llm.Rmd</code></td><td>~18 (5 chunks, topic table of 12, provider block, manual-reg block)</td><td class="pass">18</td><td class="bug">0</td><td class="info">1</td></tr>
+</tbody>
+</table>
+
+<h2>Findings</h2>
+
+<h3>ggpaintr-tutorial.Rmd</h3>
+
+<div class="bug-card">
+<h3>STALE-WRONG — tutorial:191 (and cross-ref tutorial:104) — the plain-R-meaning slot is documented under its old argument name <code>runtime</code></h3>
+<p><strong>What's there.</strong> Section 2.1 carries a subsection heading <code>### `runtime`</code> (line 191) describing "the plain-R meaning of the keyword <em>outside</em> <code>ptr_app()</code> … value/consumer keywords default to the identity <code>function(x, ...) x</code>". Line 104 forward-references it: <em>"returns a plain-R function, see <code>runtime</code> below"</em>. The accompanying chunk label is <code>{r runtime-bind}</code> (line 195).</p>
+<p><strong>What it should be.</strong> The public constructor argument was renamed by ADR 0027 from <code>runtime</code> to <code>embellish_eval</code>. The current signatures take <code>embellish_eval</code> (<code>R/paintr-registry.R:600</code> <code>ptr_define_placeholder_value(... embellish_eval = NULL ...)</code>; same on <code>_consumer</code> L719, <code>_source</code> L877, <code>ptr_define_core</code> L354). The old name <code>runtime</code> now raises an R "unused argument" error if written in a registration call.</p>
+<p><strong>Why this is the load-bearing finding.</strong> The vignette is internally contradictory: the same vignette's <em>code</em> chunks already use the new name — <code>embellish_eval = function(x, ...) as.numeric(x) / 100</code> (line 141) — and the prose at lines 208, 249, 253 already calls it <code>embellish_eval</code>. Only the 2.1 subsection heading (191), its cross-reference (104), and the chunk label (195) were missed in the rename. A reader who reads the 2.1 argument walkthrough learns the wrong argument name, then sees a chunk that uses a different one.</p>
+<p><strong>Suggested correction (text only, not applied).</strong> Rename the subsection heading <code>### `runtime`</code> → <code>### `embellish_eval`</code>; change line 104 "see <code>runtime</code> below" → "see <code>embellish_eval</code> below"; rename the chunk label <code>runtime-bind</code> → <code>embellish-bind</code>. Within the section body, keep the explanation but state the default precisely: for value/consumer keywords <code>embellish_eval</code> defaults to <code>embellish_identity()</code> (the identity <code>function(x, ...) x</code>) — confirmed at <code>ptr_define_core</code> <code>R/paintr-registry.R</code> (<code>runtime_default &lt;- … embellish_identity()</code>), and for a source it defaults to an abort guard (already stated correctly at line 253).</p>
+</div>
+
+<table>
+<thead><tr><th>Severity</th><th>Location</th><th>Finding</th></tr></thead>
+<tbody>
+<tr>
+<td class="info">GAP-MISSING</td>
+<td>tutorial §2.1, §2 intro</td>
+<td>No mention of the two new exported plain-R helpers <code>embellish_identity()</code> and <code>embellish_symbol_to_string()</code> (<code>NAMESPACE</code> L80–81; <code>R/paintr-embellish.R</code>). The vignette describes the default as "the identity <code>function(x, ...) x</code>" inline but never names <code>embellish_identity()</code> as the value the framework actually installs, nor the symbol→string convenience for symbol-valued keywords. <strong>Per ADR 0027 this prose was deliberately deferred — report as optional gap, not an error.</strong> Suggested: when fixing the heading above, add one line — "the default is <code>embellish_identity()</code>; for a symbol-valued keyword, <code>embellish_symbol_to_string()</code> gives a ready-made <code>embellish_eval</code>."</td>
+</tr>
+<tr>
+<td class="info">INFO</td>
+<td>tutorial:104</td>
+<td>OK / verified, noted for completeness: the claim "there is no <code>placeholders =</code> argument to thread anywhere" and "registry is process-global" both match source (no <code>placeholders=</code> param on any constructor; <code>ensure_registry_initialized()</code> + process-global <code>ptr_registry_register</code>). Consistent with memory <em>placeholder-registry-global</em>. No change.</td>
+</tr>
+</tbody>
+</table>
+
+<h3>ggpaintr-safety.Rmd</h3>
+<p class="pass">No drift. All code-shaped literals and behavioral claims verified against source:</p>
+<ul>
+<li><strong>Entry-point list (line 43)</strong> lists <code>ptr_app()</code>, <code>ptr_ui()</code>, <code>ptr_ui_controls()</code>, <code>ptr_server()</code>, <code>ptr_init_state()</code> — all exported (<code>NAMESPACE</code>), all carry <code>expr_check = TRUE</code> (verified: <code>ptr_init_state</code> <code>R/paintr-server.R:91</code>, <code>ptr_ui_controls</code> <code>R/paintr-app.R:981</code>). The previously-flagged <code>ptr_app_bslib()</code>/<code>ptr_app_grid()</code> are <strong>absent</strong> from this list — the unexport (now <code>@keywords internal</code>, not in <code>NAMESPACE</code>) is already reflected. <span class="pass">FIXED upstream.</span></li>
+<li><strong>Denylist = 151 entries (lines 49, 51, 66)</strong> — exact: counted 151 string literals in <code>unsafe_expr_denylist</code> <code>R/paintr-utils.R:484–543</code> (<code>lockBinding</code> at 544). File location cited correctly.</li>
+<li><strong>deny/allow semantics (lines 51–54, 99)</strong> — <em>not</em> security-inverted. <code>resolve_expr_check</code> (<code>R/paintr-utils.R:556</code>): a bare <code>deny_list</code> returns <code>list(mode="denylist", fns = expr_check$deny_list)</code> — replaces the curated 151 (weakens). <code>allow_list</code> → <code>allowlist</code> mode; with both, <code>setdiff(allow, deny_list)</code> ("allow_list minus deny_list"). Empty <code>list()</code> → denylist mode. The allowlist floor — curated names blocked as bare symbol/string regardless — matches <code>deny_hit()</code> (<code>R/paintr-utils.R:639</code> <code>name %in% unsafe_expr_denylist</code>).</li>
+<li><strong>Walker (lines 89–101)</strong> — <code>validate_expr_safety()</code> <code>R/paintr-utils.R:624</code>. Recursive descent matches the prose exactly: pairlist recursion, string literal length-1-or-longer each element, bare symbol by name, call recurses head+args, compound-head recurse-then-deparse, placeholder annotation skipped via <code>placeholder_names</code>, depth cap <code>max_depth = 100L</code>.</li>
+<li><strong>Upload table (lines 111–119)</strong> — readers and error string match <code>R/paintr-upload.R</code>: <code>read.csv</code>/<code>read.delim</code> (<code>UTF-8-BOM</code>), <code>readRDS</code>, <code>readxl::read_excel</code>, <code>jsonlite::fromJSON(flatten = TRUE)</code>; rejection string verbatim at L70. <code>ptr_normalize_column_names()</code> exported (<code>NAMESPACE</code> L111).</li>
+</ul>
+
+<h3>ggpaintr-llm.Rmd</h3>
+<p class="pass">No drift. Verified:</p>
+<ul>
+<li><strong>12 topics (lines 44, 91–112)</strong> — exact: <code>inst/llm/topics/</code> holds 12 <code>.md</code> files; every name in the table maps to a file. <code>ptr_llm_primer</code>/<code>_topics</code>/<code>_topic</code>/<code>_register</code> all exist (<code>R/paintr-llm.R:20/42/72/127</code>) and are exported (<code>NAMESPACE</code> L107–110).</li>
+<li>The manual-registration chunk (lines 173–190) uses <code>tool()</code>, <code>type_enum()</code>, <code>chat$register_tool()</code> — all ellmer API, out of ggpaintr scope; the ggpaintr functions it wraps (<code>ptr_llm_topic</code>, <code>ptr_llm_topics</code>) exist.</li>
+</ul>
+<table>
+<thead><tr><th>Severity</th><th>Location</th><th>Finding</th></tr></thead>
+<tbody>
+<tr>
+<td class="info">GAP-MISSING (optional)</td>
+<td>llm vignette, custom_placeholder topic</td>
+<td>The vignette never mentions the new RStudio addin <code>ptr_wrap_placeholder_addin()</code> (<code>NAMESPACE</code> L132; <code>R/paintr-addin.R</code>). Not required for the LLM vignette's scope; noted only as the optional addin-mention the delta invited. No change needed.</td>
+</tr>
+</tbody>
+</table>
+
+<h2>fix-expr codegen (delta item 6) — N/A to live vignettes</h2>
+<p>Grepped all three vignettes for a <code>ppExpr</code> facet-spec / <code>~</code>-formula / <code>vars()</code> example: none present (only <code>ppExpr(mpg &gt; 15)</code> in tutorial line 67, a scalar predicate). There is no vignette content that the formula-as-atomic / verbatim-parenthesis / no-formula-shred codegen fixes could contradict. Nothing to update.</p>
+
+<h2>Prioritized: what needs updating</h2>
+<ol>
+<li><strong>(STALE-WRONG, fix first)</strong> tutorial:191 / :104 / chunk-label :195 — rename the <code>runtime</code> subsection, cross-reference, and chunk label to <code>embellish_eval</code> to match ADR 0027 and the vignette's own code chunks.</li>
+<li><strong>(GAP, optional, ADR-deferred)</strong> tutorial §2.1 — name <code>embellish_identity()</code> / <code>embellish_symbol_to_string()</code> as the default and the symbol→string helper.</li>
+<li><strong>(GAP, optional)</strong> llm vignette — could mention <code>ptr_wrap_placeholder_addin()</code> in the custom-placeholder context.</li>
+</ol>
+<p>safety and llm vignettes are otherwise fully current for 0.11.0. The tutorial's only hard error is the residual <code>runtime</code> naming in one subsection.</p>
+
+<p class="meta">Report-only. Nothing was executed (no R, no browser). No files under <code>vignettes/</code>, <code>R/</code>, or any source were modified. Verifying symbols: <code>R/paintr-registry.R</code> (constructor signatures), <code>R/paintr-default-args.R</code> (arg factories), <code>R/paintr-embellish.R</code> (embellish helpers), <code>R/paintr-utils.R</code> (denylist + walker), <code>R/paintr-upload.R</code> (readers), <code>R/paintr-llm.R</code> + <code>inst/llm/topics/</code> (LLM surface), <code>NAMESPACE</code> (export truth).</p>
+</main>
+</body>
+</html>
