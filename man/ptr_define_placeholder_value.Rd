@@ -8,10 +8,10 @@ ptr_define_placeholder_value(
   keyword,
   build_ui,
   resolve_expr,
-  validate_input = NULL,
-  positional_arg = NULL,
-  named_args = list(),
-  runtime = NULL,
+  validate_session_input = NULL,
+  parse_positional_arg = NULL,
+  parse_named_args = list(),
+  embellish_eval = NULL,
   ui_text_defaults = list(label = "Enter a value for {param}")
 )
 }
@@ -84,7 +84,7 @@ integer), \code{name}/\code{symbol} (build with \code{rlang::sym()}),
 the argument} from the rendered call. Use \code{NULL} for empty / not-yet
 input; throw with \code{rlang::abort()} for malformed input.}
 
-\item{validate_input}{Optional \verb{function(value, ctx)} called before
+\item{validate_session_input}{Optional \verb{function(value, ctx)} called before
 \code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a single
 character string to reject (surfaced inline as the error message,
 layer pruned). \code{ctx} is a plain list with named fields: \code{node} (the
@@ -100,7 +100,7 @@ those fields are populated. ggpaintr invokes this function as
 arguments are passed, and \code{ctx} carries exactly the four fields
 above. The signature does not require \code{...}.}
 
-\item{positional_arg}{Optional validator closure for the (single) positional
+\item{parse_positional_arg}{Optional validator closure for the (single) positional
 argument the keyword accepts inside a formula. \code{NULL} (default) means
 positional arguments are rejected at translate time. A function
 receives the unevaluated AST and must return a canonical value or
@@ -109,19 +109,21 @@ and not call \code{eval()}; ggpaintr trusts the author. Authors who eval in
 a validator are opting into the risk of running user code at translate
 time.}
 
-\item{named_args}{Named list of validator closures for additional named
+\item{parse_named_args}{Named list of validator closures for additional named
 arguments beyond the reserved \code{shared = ...}. Each entry's closure
 receives the unevaluated AST and returns a canonical value or
 \code{rlang::abort()}. Default is \code{list()} (no named args). The name
 \code{"shared"} is reserved and may not appear here.}
 
-\item{runtime}{Optional \verb{function(x, ...)} body used when the
+\item{embellish_eval}{Optional \verb{function(x, ...)} body used when the
 placeholder keyword is \emph{also} called as a plain-R function (outside a
-formula context). When \code{NULL} (default), the identity function
-\code{function(x, ...) x} is supplied — calling \code{pct(0.5)} returns \code{0.5}
-unchanged. Override to give the keyword a non-identity plain-R
-meaning. The same runtime is returned to the caller of this helper
-so authors can bind it under the same name as the keyword:
+formula context) — i.e. how a placeholder-embellished ggplot
+expression evaluates with no app. When \code{NULL} (default), the identity
+from \code{\link[=embellish_identity]{embellish_identity()}} (\code{function(x, ...) x}) is supplied —
+calling \code{pct(0.5)} returns \code{0.5} unchanged. Override to give the
+keyword a non-identity plain-R meaning (e.g. \code{\link[=embellish_symbol_to_string]{embellish_symbol_to_string()}}).
+The same callable is returned to the caller of this helper so authors
+can bind it under the same name as the keyword:
 \code{ppPct <- ptr_define_placeholder_value(keyword = "ppPct", ...)}.}
 
 \item{ui_text_defaults}{Named list of single non-NA character defaults
@@ -131,7 +133,7 @@ interpolated to the surrounding formal-argument name at render time.}
 }
 \value{
 The runtime callable. Default for a value placeholder is the
-identity \code{function(x, ...) x}; override with \code{runtime = ...}. The
+identity \code{function(x, ...) x}; override with \code{embellish_eval = ...}. The
 helper is also called for its registration side effect — use
 \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove the entry.
 }
@@ -170,7 +172,7 @@ ptr_define_placeholder_value(
     if (length(value) != 1L || !is.finite(value)) return(NULL)
     value / 100
   },
-  positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
+  parse_positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
   ui_text_defaults = list(label = "Percent for {param}")
 )
 ptr_clear_placeholder("pct")

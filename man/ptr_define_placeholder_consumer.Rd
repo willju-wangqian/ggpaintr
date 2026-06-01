@@ -8,10 +8,10 @@ ptr_define_placeholder_consumer(
   keyword,
   build_ui,
   resolve_expr,
-  validate_input = NULL,
-  positional_arg = NULL,
-  named_args = list(),
-  runtime = NULL,
+  validate_session_input = NULL,
+  parse_positional_arg = NULL,
+  parse_named_args = list(),
+  embellish_eval = NULL,
   ui_text_defaults = list(label = "Pick a column for {param}")
 )
 }
@@ -52,7 +52,7 @@ spliced as an identifier rather than a string literal. See
 \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}} for allowed return types and the
 \code{NULL}-prunes-the-argument convention.}
 
-\item{validate_input}{Optional \verb{function(value, ctx)} called before
+\item{validate_session_input}{Optional \verb{function(value, ctx)} called before
 \code{resolve_expr}. Return \code{TRUE} / \code{NULL} to accept; return a single
 character string to reject (surfaced inline as the error message,
 layer pruned). Useful when a stale selection no longer matches any
@@ -70,19 +70,20 @@ this function as \code{validate_input(value, ctx)} — no other positional
 or named arguments are passed, and \code{ctx} carries exactly the four
 fields above. The signature does not require \code{...}.}
 
-\item{positional_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+\item{parse_positional_arg, parse_named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Consumer placeholders use the same arg-schema slots; the \code{ppVar}
 built-in passes a column-name validator here when used as \code{ppVar(mpg)}.}
 
-\item{runtime}{Optional \verb{function(x, ...)} body used when the
+\item{embellish_eval}{Optional \verb{function(x, ...)} body used when the
 placeholder is called as a plain-R function. \code{NULL} (default) supplies
-the identity \code{function(x, ...) x}, matching the legacy \code{ppVar}-style
-\code{aes()} NSE shape (the symbol-passthrough convention). Override to
-give the consumer a non-identity plain-R meaning.}
+the identity from \code{\link[=embellish_identity]{embellish_identity()}} (\code{function(x, ...) x}),
+matching the legacy \code{ppVar}-style \code{aes()} NSE shape (the
+symbol-passthrough convention). Override to give the consumer a
+non-identity plain-R meaning (e.g. \code{\link[=embellish_symbol_to_string]{embellish_symbol_to_string()}}).}
 }
 \value{
 The runtime callable (identity by default; override with
-\code{runtime = ...}). Also called for its registration side effect; use
+\code{embellish_eval = ...}). Also called for its registration side effect; use
 \code{\link[=ptr_clear_placeholder]{ptr_clear_placeholder()}} to remove it.
 }
 \description{
@@ -111,7 +112,7 @@ ptr_define_placeholder_consumer(
     if (length(value) != 1L || !nzchar(value)) return(NULL)
     rlang::sym(value)
   },
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     if (length(value) == 1L && value \%in\% ctx$upstream_cols) TRUE
     else "Pick a column that exists in the upstream data."
   }
