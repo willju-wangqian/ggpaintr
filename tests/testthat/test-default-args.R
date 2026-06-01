@@ -106,26 +106,26 @@ test_that("ptr_arg_numeric rejects multi-element vectors", {
   expect_error(v(quote(c(1, 2))), class = "rlang_error")
 })
 
-# ---- ptr_arg_numeric_vector --------------------------------------------
+# ---- ptr_arg_numeric(vector = TRUE) --------------------------------------------
 
-test_that("ptr_arg_numeric_vector accepts c(0, 1) and c(-1, 1) at length=2L", {
-  v <- ptr_arg_numeric_vector(length = 2L)
+test_that("ptr_arg_numeric(vector = TRUE) accepts c(0, 1) and c(-1, 1) at length=2L", {
+  v <- ptr_arg_numeric(vector = TRUE, length = 2L)
   expect_equal(v(quote(c(0, 1))), c(0, 1))
   expect_equal(v(quote(c(-1, 1))), c(-1, 1))
 })
 
-test_that("ptr_arg_numeric_vector accepts seq() via constant-fold", {
-  v <- ptr_arg_numeric_vector()
+test_that("ptr_arg_numeric(vector = TRUE) accepts seq() via constant-fold", {
+  v <- ptr_arg_numeric(vector = TRUE)
   expect_equal(v(quote(seq(0, 1, by = 0.1))), seq(0, 1, by = 0.1))
 })
 
-test_that("ptr_arg_numeric_vector enforces explicit length when given", {
-  v2 <- ptr_arg_numeric_vector(length = 2L)
+test_that("ptr_arg_numeric(vector = TRUE) enforces explicit length when given", {
+  v2 <- ptr_arg_numeric(vector = TRUE, length = 2L)
   expect_error(v2(quote(c(0))), regexp = "length 2", class = "rlang_error")
 })
 
-test_that("ptr_arg_numeric_vector rejects system() in any position", {
-  v <- ptr_arg_numeric_vector()
+test_that("ptr_arg_numeric(vector = TRUE) rejects system() in any position", {
+  v <- ptr_arg_numeric(vector = TRUE)
   expect_error(
     v(quote(c(0, system("rm")))),
     regexp = "system.*not in constant-fold allowlist",
@@ -133,9 +133,9 @@ test_that("ptr_arg_numeric_vector rejects system() in any position", {
   )
 })
 
-test_that("ptr_arg_numeric_vector validates the `length` argument", {
-  expect_error(ptr_arg_numeric_vector(length = "two"), class = "rlang_error")
-  expect_error(ptr_arg_numeric_vector(length = -1L), class = "rlang_error")
+test_that("ptr_arg_numeric(vector = TRUE) validates the `length` argument", {
+  expect_error(ptr_arg_numeric(vector = TRUE, length = "two"), class = "rlang_error")
+  expect_error(ptr_arg_numeric(vector = TRUE, length = -1L), class = "rlang_error")
 })
 
 # ---- ptr_arg_expression ------------------------------------------------
@@ -227,6 +227,6 @@ test_that("validators never call eval() on rejecting input (system not run)", {
   # walker aborts on the system() shape for every numeric validator.
   expect_error(ptr_arg_numeric()(quote(system("rm"))),
                regexp = "system.*not in constant-fold allowlist")
-  expect_error(ptr_arg_numeric_vector()(quote(system("rm"))),
+  expect_error(ptr_arg_numeric(vector = TRUE)(quote(system("rm"))),
                regexp = "system.*not in constant-fold allowlist")
 })

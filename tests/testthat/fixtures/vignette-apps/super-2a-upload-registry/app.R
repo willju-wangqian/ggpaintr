@@ -24,12 +24,12 @@ ppPower <- ptr_define_placeholder_value(
     # so the final-mode deparser emits the literal `0.42^2`, not 0.1764.
     rlang::call2("^", value, 2)
   },
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     if (is.numeric(value) && length(value) == 1L &&
           !is.na(value) && value >= 0 && value <= 1) TRUE
     else "must be in [0,1]"
   },
-  positional_arg = ptr_arg_numeric()
+  parse_positional_arg = ptr_arg_numeric()
 )
 
 ppMultiVar <- ptr_define_placeholder_consumer(
@@ -50,12 +50,12 @@ ppMultiVar <- ptr_define_placeholder_consumer(
     if (length(value) == 1L) return(rlang::sym(value))
     rlang::call2("interaction", !!!rlang::syms(value))
   },
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     if (length(value) >= 1L) TRUE else NULL
   },
   # default_arg accepts a positional bare symbol so the canonical formula can
   # carry a default (`ppMultiVar(cyl)`) and remain Path-B evaluable (ADR-0016).
-  positional_arg = ptr_arg_symbol_or_string()
+  parse_positional_arg = ptr_arg_symbol_or_string()
 )
 
 ptr_app(

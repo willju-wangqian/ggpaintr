@@ -6,8 +6,9 @@
 #' argument and returns a canonical value, or aborts with a clear message.
 #'
 #' The validators operate on AST only: they do not call `eval()`, `parse()`,
-#' or any deparse-and-reparse cycle on their input. The two numeric helpers
-#' (`ptr_arg_numeric()` and `ptr_arg_numeric_vector()`) walk the AST
+#' or any deparse-and-reparse cycle on their input. The numeric helper
+#' `ptr_arg_numeric()` (scalar by default, vector via `vector = TRUE`) walks
+#' the AST
 #' against the constant-fold allowlist registry (see
 #' [ptr_register_constant_fold()]) and then evaluate in a sealed environment
 #' whose only bindings are the registered names.
@@ -24,8 +25,7 @@
 #' * `ptr_arg_numeric()` accepts any AST whose every node is a syntactic
 #'   literal or a registered constant-fold name; in the default scalar mode
 #'   the result must be a length-one non-NA numeric.
-#' * `ptr_arg_numeric_vector(length = NULL)` is a retained alias for
-#'   `ptr_arg_numeric(vector = TRUE, length = length)`.
+#'   For the vector form use `ptr_arg_numeric(vector = TRUE, length = NULL)`.
 #' * `ptr_arg_expression()` is a verbatim store: it returns its input
 #'   unchanged so it can later be evaluated in the data context. As a
 #'   convenience it emits a one-shot warning if the user wraps the
@@ -60,7 +60,7 @@
 #' is_num(5)
 #' is_num(quote(2 * pi))
 #'
-#' is_vec <- ptr_arg_numeric_vector(length = 2L)
+#' is_vec <- ptr_arg_numeric(vector = TRUE, length = 2L)
 #' is_vec(quote(c(0, 1)))
 NULL
 
@@ -86,8 +86,9 @@ ptr_constant_fold_env_get <- function() {
 
 #' Constant-fold allowlist registry
 #'
-#' The numeric default-argument validators ([ptr_arg_numeric()] and
-#' [ptr_arg_numeric_vector()]) walk the placeholder's default-argument
+#' The numeric default-argument validator [ptr_arg_numeric()] (scalar by
+#' default, vector via `vector = TRUE`) walks the placeholder's
+#' default-argument
 #' AST against an allowlist of function and constant names. Authors can
 #' extend the allowlist with [ptr_register_constant_fold()] when their
 #' placeholder definitions need additional pure operators.
@@ -311,15 +312,6 @@ ptr_arg_numeric <- function(vector = FALSE, length = NULL) {
     }
     val
   }
-}
-
-#' @rdname ptr_arg_validators
-#' @export
-ptr_arg_numeric_vector <- function(length = NULL) {
-  # Retained alias (ADR 0027 PLAN-02): delegates to the collapsed
-  # `ptr_arg_numeric(vector = TRUE)`. PLAN-03 removes this alias atomically
-  # with the call-site sweep.
-  ptr_arg_numeric(vector = TRUE, length = length)
 }
 
 # Wrapper-call heads that trigger the A5.b convenience warning.

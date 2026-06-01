@@ -26,7 +26,7 @@
       shiny::numericInput(node$id, label %||% node$keyword, value = 0.5)
     },
     resolve_expr = function(value, node, ...) value,
-    validate_input = function(value, ctx) {
+    validate_session_input = function(value, ctx) {
       if (is.numeric(value) && length(value) == 1L &&
           !is.na(value) && value >= 0 && value <= 1) {
         TRUE
