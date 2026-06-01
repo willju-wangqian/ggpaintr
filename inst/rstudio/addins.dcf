@@ -1,0 +1,4 @@
+Name: ggpaintr placeholder
+Description: Highlight a token in a ggplot expression and pick a ggpaintr placeholder from a command-palette gadget (or use its "Wrap in app" button to wrap the selection in { ... } |> ptr_app()).
+Binding: ptr_wrap_placeholder_addin
+Interactive: true
