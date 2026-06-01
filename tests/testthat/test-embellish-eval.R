@@ -18,7 +18,7 @@ test_that("embellish_symbol_to_string() makes a tidyselect consumer work in plai
     build_ui = function(node, cols, data, ...)
       shiny::selectInput(node$id, "Columns", choices = cols, multiple = TRUE),
     resolve_expr = function(value, node, ...) rlang::call2("c", !!!rlang::syms(value)),
-    runtime = embellish_symbol_to_string()
+    embellish_eval = embellish_symbol_to_string()
   )
   # naked, no app: the consumer's runtime callable is what plain-R eval invokes.
   d <- mtcars |> dplyr::select(colvars(c(mpg, hp)))
@@ -33,7 +33,7 @@ test_that("the identity default breaks the naked tidyselect path [PLAN-01 BDD: r
     build_ui = function(node, cols, data, ...)
       shiny::selectInput(node$id, "Columns", choices = cols, multiple = TRUE),
     resolve_expr = function(value, node, ...) rlang::call2("c", !!!rlang::syms(value)),
-    runtime = embellish_identity()
+    embellish_eval = embellish_identity()
   )
   # Plan BDD Then: the raised error's message must contain BOTH "mpg" and
   # "not found" (Success Criterion #3). Assert each substring separately so

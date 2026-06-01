@@ -52,7 +52,7 @@ local_recorder <- function(keyword,
     keyword     = keyword,
     build_ui    = build_ui,
     resolve_expr = function(value, ...) value,
-    positional_arg = positional_arg
+    parse_positional_arg = positional_arg
   )
   withr::defer(suppressMessages(ptr_clear_placeholder(keyword)), envir = envir)
   sink

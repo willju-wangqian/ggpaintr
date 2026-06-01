@@ -41,6 +41,6 @@ test_that("ptr_arg_numeric() scalar default preserved [PLAN-02 IC; characterizat
   expect_identical(ptr_arg_numeric()(quote(5)), 5)
 })
 
-test_that("ptr_arg_numeric_vector() alias preserved this round [PLAN-02 IC; characterization]", {
-  expect_identical(ptr_arg_numeric_vector()(quote(c(1, 2))), c(1, 2))
+test_that("ptr_arg_numeric(vector = TRUE) replaces the removed ptr_arg_numeric_vector() alias [PLAN-03 migration]", {
+  expect_identical(ptr_arg_numeric(vector = TRUE)(quote(c(1, 2))), c(1, 2))
 })

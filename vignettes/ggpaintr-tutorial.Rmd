@@ -128,7 +128,7 @@ ptr_define_placeholder_value(
     as.numeric(value) / 100
   },
 
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     v <- suppressWarnings(as.numeric(value))
     if (length(v) != 1L || is.na(v) || v < 0 || v > 100) {
       rlang::abort("Percent must be a single number between 0 and 100.")
@@ -136,9 +136,9 @@ ptr_define_placeholder_value(
     value
   },
 
-  positional_arg   = ptr_arg_numeric(),
-  named_args       = list(step = ptr_arg_numeric()),
-  runtime          = function(x, ...) as.numeric(x) / 100,
+  parse_positional_arg = ptr_arg_numeric(),
+  parse_named_args     = list(step = ptr_arg_numeric()),
+  embellish_eval       = function(x, ...) as.numeric(x) / 100,
   ui_text_defaults = list(label = "Percent for {param}")
 )
 ```
@@ -176,17 +176,17 @@ This is why the signature is `function(node, label = NULL, selected = NULL, name
 
 `function(value, node, ...)` → the value (or expression) spliced back into the formula. `value` is the current input. Return `NULL` to contribute nothing (e.g. an empty field), which drops the argument cleanly. Here we divide by 100 so the plot sees a 0–1 alpha.
 
-### `validate_input`
+### `validate_session_input`
 
 Optional. `function(value, ctx)`, run before `resolve_expr`. Return the value to accept it, or `rlang::abort()` to surface an inline error. For mid-typing artifacts that should not flash an error, signal `ptr_signal_partial()` instead of aborting — it is caught on the live keystroke path but not on the draw path. (`ctx` carries context; for value placeholders it is mostly empty — it earns its keep for consumers, Section 2.2.)
 
-### `positional_arg`
+### `parse_positional_arg`
 
-Declares whether the placeholder accepts a single positional default in the formula, and validates it. Pass one of the argument validators — `ptr_arg_string()`, `ptr_arg_numeric()`, `ptr_arg_numeric_vector(length =)`, `ptr_arg_symbol_or_string()`, `ptr_arg_expression()`. Each is a factory returning a checker that inspects the default **as unevaluated code** (no `eval()`), so `ppPercent(40)` is validated to be a numeric literal at translate time. Leaving `positional_arg = NULL` (the default) **rejects** any positional argument — `ppPercent(40)` would error.
+Declares whether the placeholder accepts a single positional default in the formula, and validates it. Pass one of the argument validators — `ptr_arg_string()`, `ptr_arg_numeric()`, `ptr_arg_numeric(vector = TRUE, length =)`, `ptr_arg_symbol_or_string()`, `ptr_arg_expression()`. Each is a factory returning a checker that inspects the default **as unevaluated code** (no `eval()`), so `ppPercent(40)` is validated to be a numeric literal at translate time. Leaving `parse_positional_arg = NULL` (the default) **rejects** any positional argument — `ppPercent(40)` would error.
 
-### `named_args`
+### `parse_named_args`
 
-A fully-named list mapping extra named-argument names to validators, in the same family as `positional_arg`. It lets the formula write `ppPercent(40, step = 5)`. The validated values arrive in `build_ui` as the `named_args` list. The name `shared` is reserved (it is ggpaintr's cross-widget binding key — Section 3) and may not appear here.
+A fully-named list mapping extra named-argument names to validators, in the same family as `parse_positional_arg`. It lets the formula write `ppPercent(40, step = 5)`. The validated values arrive in `build_ui` as the `named_args` list. The name `shared` is reserved (it is ggpaintr's cross-widget binding key — Section 3) and may not appear here.
 
 ### `runtime`
 
@@ -205,7 +205,7 @@ A named list of copy defaults over `label`, `help`, `placeholder`, and `empty_te
 
 ## 2.2 A consumer placeholder — the delta
 
-A consumer is a value placeholder that additionally needs the **upstream column names**. Everything in 2.1 applies — `resolve_expr`, `validate_input`, `positional_arg`, `named_args`, `runtime`, `ui_text_defaults` all mean the same thing. Only two things change.
+A consumer is a value placeholder that additionally needs the **upstream column names**. Everything in 2.1 applies — `resolve_expr`, `validate_session_input`, `parse_positional_arg`, `parse_named_args`, `embellish_eval`, `ui_text_defaults` all mean the same thing. Only two things change.
 
 **`build_ui` gains two required arguments: `cols` and `data`.** The injector fills `cols` with the column names of the data flowing into this point of the pipeline, and `data` with that data frame, re-running `build_ui` whenever the upstream changes. Your picker's `choices` come from `cols`:
 
@@ -228,9 +228,9 @@ ptr_define_placeholder_consumer(
     rlang::call2("c", !!!as.list(value))   # c(col1, col2, ...)
   },
 
-  positional_arg   = ptr_arg_symbol_or_string(),
+  parse_positional_arg = ptr_arg_symbol_or_string(),
   ui_text_defaults = list(label = "Columns for {param}")
-  # validate_input / named_args / runtime: same shape as 2.1, omitted here.
+  # validate_session_input / parse_named_args / embellish_eval: same shape as 2.1, omitted here.
 )
 ```
 
@@ -242,15 +242,15 @@ ptr_app(
 )
 ```
 
-**`validate_input`'s `ctx` is now useful.** For a consumer, `ctx$data` holds the upstream data frame, so a validator can do data-aware checks — reject a non-numeric column, range-check the chosen values, and so on. (Same `function(value, ctx)` signature as 2.1; the difference is that `ctx$data` is populated.)
+**`validate_session_input`'s `ctx` is now useful.** For a consumer, `ctx$data` holds the upstream data frame, so a validator can do data-aware checks — reject a non-numeric column, range-check the chosen values, and so on. (Same `function(value, ctx)` signature as 2.1; the difference is that `ctx$data` is populated.)
 
 ## 2.3 A source placeholder — the delta
 
-A source *produces* the data the rest of the formula reads, so it sits at the head of a pipeline. The shared arguments (`positional_arg`, `named_args`, `runtime`, `ui_text_defaults`) work exactly as in 2.1. Three things differ.
+A source *produces* the data the rest of the formula reads, so it sits at the head of a pipeline. The shared arguments (`parse_positional_arg`, `parse_named_args`, `embellish_eval`, `ui_text_defaults`) work exactly as in 2.1. Three things differ.
 
 **`resolve_data` replaces `resolve_expr` as the required producer.** `function(value, node, ...)` must return a data frame. `resolve_expr` becomes *optional* and defaults to `function(value, node, ...) rlang::sym(value)` (the symbol that names the produced frame in generated code) — override it only if you need different generated code.
 
-**`runtime` defaults to an abort guard**, not identity — a source has no sensible plain-R meaning until you give it one. Override `runtime` if you want the formula to be runnable as ordinary R.
+**`embellish_eval` defaults to an abort guard**, not identity — a source has no sensible plain-R meaning until you give it one. Override `embellish_eval` if you want the formula to be runnable as ordinary R.
 
 **`shortcut = TRUE` adds a framework-owned companion text box.** When set, ggpaintr renders a sibling `textInput` (at `node$shortcut_id`) into which the user can type the *name* of an object to load from the app environment — the same "or type a dataset name" box you saw on `ppUpload`. Because the framework owns that box, **your `build_ui` must render only `node$id`** (or, for an env-name-only source, nothing at all) — rendering the shortcut yourself would bind the id twice.
 
@@ -331,7 +331,7 @@ The example below has two scatter plots over `iris`. The **size** slider is shar
 # A custom value placeholder for the shared size control: a 1-6 slider.
 ptr_define_placeholder_value(
   keyword        = "ppSize",
-  positional_arg = ptr_arg_numeric(),
+  parse_positional_arg = ptr_arg_numeric(),
   build_ui = function(node, label = NULL, selected = NULL, ...) {
     val <- suppressWarnings(as.numeric(selected %||% node$default %||% 3))
     if (length(val) != 1L || is.na(val)) val <- 3

@@ -25,7 +25,7 @@ ppCoef <- ptr_define_placeholder_value(
     rlang::expr(!!value)
   },
   ui_text_defaults = list(label = "Coef for {param}"),
-  positional_arg   = ptr_arg_numeric()
+  parse_positional_arg   = ptr_arg_numeric()
 )
 
 # ppFactor: CONSUMER role. Single-select picker -> bare symbol via rlang::sym.
@@ -46,7 +46,7 @@ ppFactor <- ptr_define_placeholder_consumer(
     rlang::sym(value)
   },
   ui_text_defaults = list(label = "Factor for {param}"),
-  positional_arg   = ptr_arg_symbol_or_string()
+  parse_positional_arg   = ptr_arg_symbol_or_string()
 )
 
 # ppSample: SOURCE role. selectInput from a hard whitelist of base-R datasets.
@@ -71,14 +71,14 @@ ppSample <- ptr_define_placeholder_source(
   # `ptr_app()` (ADR-0016 Path B). Defaults to an abort guard at the registry
   # level; we override so `ppSample("iris")` resolves to `datasets::iris`,
   # making the canonical formula Path-B evaluable.
-  runtime       = function(x, ...) {
+  embellish_eval       = function(x, ...) {
     if (missing(x) || is.null(x) || !nzchar(x)) {
       rlang::abort("`ppSample()` needs a dataset name (e.g., \"iris\").")
     }
     get(x, envir = asNamespace("datasets"))
   },
   ui_text_defaults = list(label = "Sample for {param}"),
-  positional_arg   = ptr_arg_string()
+  parse_positional_arg   = ptr_arg_string()
 )
 
 # --- Spliced template (G6 forwarded-symbol; resolved at capture time) -----
