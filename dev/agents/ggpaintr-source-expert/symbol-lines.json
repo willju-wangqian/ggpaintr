@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-31T18:38:46-0500",
-  "git_head": "e7cb909",
+  "generated_at": "2026-05-31T19:33:37-0500",
+  "git_head": "48c5951",
   "n_files": 36,
-  "n_symbols": 510,
+  "n_symbols": 512,
   "symbols": {
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
@@ -566,63 +566,73 @@
     },
     "ptr_constant_fold_env_get": {
       "file": "R/paintr-default-args.R",
-      "start_line": 67,
-      "end_line": 69
+      "start_line": 83,
+      "end_line": 85
     },
     "ptr_register_constant_fold": {
       "file": "R/paintr-default-args.R",
-      "start_line": 103,
-      "end_line": 109
+      "start_line": 119,
+      "end_line": 125
     },
     "ptr_clear_constant_fold": {
       "file": "R/paintr-default-args.R",
-      "start_line": 113,
-      "end_line": 127
+      "start_line": 129,
+      "end_line": 143
     },
     "ptr_constant_fold_keywords": {
       "file": "R/paintr-default-args.R",
-      "start_line": 131,
-      "end_line": 133
+      "start_line": 147,
+      "end_line": 149
     },
     "ptr_register_constant_fold_builtins": {
       "file": "R/paintr-default-args.R",
-      "start_line": 137,
-      "end_line": 145
+      "start_line": 153,
+      "end_line": 161
     },
     "validate_constant_ast": {
       "file": "R/paintr-default-args.R",
-      "start_line": 149,
-      "end_line": 190
+      "start_line": 165,
+      "end_line": 206
     },
     "ptr_constant_fold": {
       "file": "R/paintr-default-args.R",
-      "start_line": 192,
-      "end_line": 195
+      "start_line": 208,
+      "end_line": 211
+    },
+    "ptr_arg_vector_elements": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 219,
+      "end_line": 227
     },
     "ptr_arg_symbol_or_string": {
       "file": "R/paintr-default-args.R",
-      "start_line": 201,
-      "end_line": 213
+      "start_line": 231,
+      "end_line": 249
     },
     "ptr_arg_string": {
       "file": "R/paintr-default-args.R",
-      "start_line": 217,
-      "end_line": 224
+      "start_line": 253,
+      "end_line": 266
+    },
+    "ptr_arg_symbol": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 270,
+      "end_line": 283
     },
     "ptr_arg_numeric": {
       "file": "R/paintr-default-args.R",
-      "start_line": 228,
-      "end_line": 236
+      "start_line": 287,
+      "end_line": 314
     },
     "ptr_arg_numeric_vector": {
       "file": "R/paintr-default-args.R",
-      "start_line": 240,
-      "end_line": 261
+      "start_line": 318,
+      "end_line": 323
     },
     "ptr_arg_expression": {
       "file": "R/paintr-default-args.R",
-      "start_line": 268,
-      "end_line": 293
+      "start_line": 330,
+      "end_line": 355
     },
     "is_data_chain_call": {
       "file": "R/paintr-disable.R",

@@ -17,21 +17,37 @@
 #' * `ptr_arg_symbol_or_string()` accepts a bareword symbol (returned as
 #'   its character name, preserving non-syntactic / backticked names) or any
 #'   single string literal (including the empty string).
+#' * `ptr_arg_symbol()` accepts only a bareword symbol (returned as its
+#'   character name); rejects string literals, numbers, and compound calls.
 #' * `ptr_arg_string()` accepts only a single string literal (including
 #'   the empty string); rejects symbols and numbers.
 #' * `ptr_arg_numeric()` accepts any AST whose every node is a syntactic
-#'   literal or a registered constant-fold name; the result must be a
-#'   length-one non-NA numeric.
-#' * `ptr_arg_numeric_vector(length = NULL)` is the vector analogue, with
-#'   an optional `length` check.
+#'   literal or a registered constant-fold name; in the default scalar mode
+#'   the result must be a length-one non-NA numeric.
+#' * `ptr_arg_numeric_vector(length = NULL)` is a retained alias for
+#'   `ptr_arg_numeric(vector = TRUE, length = length)`.
 #' * `ptr_arg_expression()` is a verbatim store: it returns its input
 #'   unchanged so it can later be evaluated in the data context. As a
 #'   convenience it emits a one-shot warning if the user wraps the
 #'   expression in `quote()`, `bquote()`, `rlang::ppExpr()`, or `rlang::quo()`
 #'   (the wrapper is stored verbatim).
 #'
+#' Each of `ptr_arg_symbol_or_string()`, `ptr_arg_symbol()`,
+#' `ptr_arg_string()`, and `ptr_arg_numeric()` takes a `vector` flag. With
+#' `vector = FALSE` (the default) the validator parses a single scalar element
+#' and returns a length-one value. With `vector = TRUE` it parses a `c(...)`
+#' literal element-by-element (each element subject to the helper's scalar
+#' element rule) and returns the whole vector; a lone element is treated as a
+#' length-one vector. For `ptr_arg_numeric(vector = TRUE)` the optional
+#' `length` check (honored only in vector mode) asserts the parsed vector's
+#' length.
+#'
+#' @param vector Logical scalar (default `FALSE`). When `TRUE`, the validator
+#'   parses a `c(...)` literal element-by-element and returns the whole vector
+#'   instead of a single scalar.
 #' @param length Optional integer length required of the resulting numeric
-#'   vector. `NULL` (the default) imposes no length check.
+#'   vector; honored only when `vector = TRUE`. `NULL` (the default) imposes no
+#'   length check.
 #' @return A closure that takes an unevaluated expression and returns the
 #'   canonical default value, or aborts.
 #' @name ptr_arg_validators
@@ -196,58 +212,95 @@ ptr_constant_fold <- function(expr) {
 
 # ---- Validator factories ---------------------------------------------------
 
+# Split a default-argument AST into its element ASTs for vector-mode parsing.
+# A `c(...)` call yields its argument ASTs; any other expression is treated as a
+# single element. Used by the symbol/string vector-capable validators, which
+# parse each element with a per-element rule rather than constant-folding.
+ptr_arg_vector_elements <- function(arg_expr) {
+  if (rlang::is_call(arg_expr, "c")) {
+    n <- length(arg_expr)
+    if (n < 2L) return(list())
+    lapply(seq.int(2L, n), function(i) arg_expr[[i]])
+  } else {
+    list(arg_expr)
+  }
+}
+
 #' @rdname ptr_arg_validators
 #' @export
-ptr_arg_symbol_or_string <- function() {
-  function(arg_expr) {
-    if (rlang::is_symbol(arg_expr)) {
-      return(rlang::as_string(arg_expr))
+ptr_arg_symbol_or_string <- function(vector = FALSE) {
+  element <- function(el) {
+    if (rlang::is_symbol(el)) {
+      return(rlang::as_string(el))
     }
-    if (rlang::is_string(arg_expr)) {
-      return(arg_expr)
+    if (rlang::is_string(el)) {
+      return(el)
     }
     rlang::abort(
       "Default must be a bareword column name or a single string literal."
     )
   }
+  function(arg_expr) {
+    if (!isTRUE(vector)) {
+      return(element(arg_expr))
+    }
+    vapply(ptr_arg_vector_elements(arg_expr), element, character(1L))
+  }
 }
 
 #' @rdname ptr_arg_validators
 #' @export
-ptr_arg_string <- function() {
-  function(arg_expr) {
-    if (rlang::is_string(arg_expr)) {
-      return(arg_expr)
+ptr_arg_string <- function(vector = FALSE) {
+  element <- function(el) {
+    if (rlang::is_string(el)) {
+      return(el)
     }
     rlang::abort("Default must be a single string literal.")
   }
-}
-
-#' @rdname ptr_arg_validators
-#' @export
-ptr_arg_numeric <- function() {
   function(arg_expr) {
-    val <- ptr_constant_fold(arg_expr)
-    if (!is.numeric(val) || length(val) != 1L || is.na(val)) {
-      rlang::abort("Default must be a single numeric literal.")
+    if (!isTRUE(vector)) {
+      return(element(arg_expr))
     }
-    val
+    vapply(ptr_arg_vector_elements(arg_expr), element, character(1L))
   }
 }
 
 #' @rdname ptr_arg_validators
 #' @export
-ptr_arg_numeric_vector <- function(length = NULL) {
-  if (!is.null(length)) {
+ptr_arg_symbol <- function(vector = FALSE) {
+  element <- function(el) {
+    if (rlang::is_symbol(el)) {
+      return(rlang::as_string(el))
+    }
+    rlang::abort("Default must be a bareword column name.")
+  }
+  function(arg_expr) {
+    if (!isTRUE(vector)) {
+      return(element(arg_expr))
+    }
+    vapply(ptr_arg_vector_elements(arg_expr), element, character(1L))
+  }
+}
+
+#' @rdname ptr_arg_validators
+#' @export
+ptr_arg_numeric <- function(vector = FALSE, length = NULL) {
+  expected_length <- NULL
+  if (isTRUE(vector) && !is.null(length)) {
     if (!is.numeric(length) || base::length(length) != 1L ||
         is.na(length) || length < 0L) {
       rlang::abort("`length` must be a non-negative scalar integer or NULL.")
     }
-    length <- as.integer(length)
+    expected_length <- as.integer(length)
   }
-  expected_length <- length
   function(arg_expr) {
     val <- ptr_constant_fold(arg_expr)
+    if (!isTRUE(vector)) {
+      if (!is.numeric(val) || base::length(val) != 1L || is.na(val)) {
+        rlang::abort("Default must be a single numeric literal.")
+      }
+      return(val)
+    }
     if (!is.numeric(val) || anyNA(val)) {
       rlang::abort("Default must be a numeric vector of non-NA values.")
     }
@@ -258,6 +311,15 @@ ptr_arg_numeric_vector <- function(length = NULL) {
     }
     val
   }
+}
+
+#' @rdname ptr_arg_validators
+#' @export
+ptr_arg_numeric_vector <- function(length = NULL) {
+  # Retained alias (ADR 0027 PLAN-02): delegates to the collapsed
+  # `ptr_arg_numeric(vector = TRUE)`. PLAN-03 removes this alias atomically
+  # with the call-site sweep.
+  ptr_arg_numeric(vector = TRUE, length = length)
 }
 
 # Wrapper-call heads that trigger the A5.b convenience warning.
