@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit-adr — ADR 0027 — PASS — 2026-05-31 17:39</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<h1>audit-adr — ADR 0027 placeholder-arg-vocabulary-and-embellish-eval</h1>
+<p class="meta">Target: dev/adr/0027-placeholder-arg-vocabulary-and-embellish-eval.html · Verdict: PASS · Audited: 2026-05-31 17:39 · Auditor: general-purpose/opus/high</p>
+
+<h2>Verdict</h2>
+<p><strong>PASS.</strong> Every baseline claim the ADR makes about the as-is code verifies against source. The positional-arg cap and its abort message, the identity default for the runtime/embellish slot, the four current constructor argument names, the five exported <code>ptr_arg_*</code> factories (and the absence of a standalone <code>ptr_arg_symbol</code>), the parse-into-seed behavior of the factory return, the substitute-then-eval order in <code>ptr_resolve_upstream</code>, and the multi-column consumer walker all confirmed at the cited lines. All proposed symbols (<code>parse_positional_arg</code>, <code>parse_named_args</code>, <code>validate_session_input</code>, <code>embellish_eval</code>, <code>embellish_identity</code>, <code>embellish_symbol_to_string</code>, <code>ptr_arg_symbol</code>, the <code>vector=</code> flags) are correctly absent from source — aspirational, not drift. Worked-examples sections are structurally complete (two positive, two negative, each with a one-line summary and an r-fenced block). No findings.</p>
+
+<h2>Findings</h2>
+<p>None.</p>
+
+<h2>Verified claims</h2>
+<table>
+<thead><tr><th>Cat</th><th>Claim</th><th>Evidence</th></tr></thead>
+<tbody>
+<tr><td>1/3</td><td><code>extract_placeholder_args</code> caps positional args at one; abort "accepts at most one positional argument (the default); got N"</td><td>R/paintr-translate.R:925-930</td></tr>
+<tr><td>1</td><td>factory return used as the widget seed: <code>default &lt;- entry$default_arg(positional[[1L]])</code></td><td>R/paintr-translate.R:931</td></tr>
+<tr><td>1/3</td><td>non-source runtime/embellish default is identity <code>function(x, ...) x</code> (source role gets an abort closure)</td><td>R/paintr-registry.R:393-404 (identity at :401)</td></tr>
+<tr><td>1</td><td><code>_value</code> constructor formals include <code>validate_input, positional_arg, named_args, runtime</code></td><td>R/paintr-registry.R:592-606</td></tr>
+<tr><td>1</td><td><code>_consumer</code> constructor: same four formals</td><td>R/paintr-registry.R:713-719</td></tr>
+<tr><td>1</td><td><code>_source</code> constructor: <code>positional_arg, named_args, runtime</code> (no <code>validate_input</code> — by design)</td><td>R/paintr-registry.R:870-879</td></tr>
+<tr><td>1</td><td>exported factories: <code>ptr_arg_symbol_or_string, ptr_arg_string, ptr_arg_numeric, ptr_arg_numeric_vector, ptr_arg_expression</code>; no standalone <code>ptr_arg_symbol</code></td><td>R/paintr-default-args.R:201-289 + NAMESPACE:90-94</td></tr>
+<tr><td>1</td><td><code>ptr_arg_numeric</code> is currently nullary (no <code>vector=</code>/<code>length=</code> formal)</td><td>R/paintr-default-args.R:228</td></tr>
+<tr><td>2/3</td><td><code>ptr_resolve_upstream</code> substitutes placeholders before <code>eval()</code> (inline splice, no wrapper leak on app path)</td><td>R/paintr-resolve.R:24-47 (substitute :24-29, eval :46-47)</td></tr>
+<tr><td>2</td><td><code>substitute_walk.ptr_ph_data_consumer</code> handles multi-column consumers emitting <code>c(...)</code></td><td>R/paintr-substitute.R:132-176 (comment :141-144, resolve at :172)</td></tr>
+<tr><td>2</td><td><code>resolve_expr</code> is a real existing formal (defaults to <code>rlang::sym</code>)</td><td>R/paintr-registry.R:353,370-371</td></tr>
+</tbody>
+</table>
+
+<h3>Evidence type per behavioral claim</h3>
+<ul>
+<li>positional cap + abort message — <strong>source-read</strong> — R/paintr-translate.R:925-930</li>
+<li>identity default for runtime/embellish slot — <strong>source-read</strong> — R/paintr-registry.R:401</li>
+<li>app path does not hit defect 2 (substitute-then-eval, inline splice) — <strong>source-read</strong> — R/paintr-resolve.R:24-47; the empirical "518-row pcp frame" is ADR-attributed to a probe, not re-run (not required — verifiable by order-of-operations)</li>
+<li>consumer walker emits <code>c(...)</code> — <strong>source-read</strong> — R/paintr-substitute.R:141-144,172</li>
+<li>naked <code>colvars(mpg,hp)</code> fails two ways — <strong>source-read mechanism + ADR-attributed probe</strong>; the quoted tidyselect/R messages ("must be numeric or character, not a &lt;tbl_df&gt;", "object 'species' not found") are runtime messages the ADR explicitly attributes to tidyselect/empirical probes, not ggpaintr source literals — no drift</li>
+</ul>
+
+<h2>Aspirational symbols recorded</h2>
+<p>All confirmed absent from R/ + NAMESPACE — correctly forward-looking, not flagged as drift.</p>
+<ul>
+<li><code>parse_positional_arg</code> — D2 rename of <code>positional_arg</code></li>
+<li><code>parse_named_args</code> — D2 rename of <code>named_args</code></li>
+<li><code>validate_session_input</code> — D2 rename of <code>validate_input</code></li>
+<li><code>embellish_eval</code> — D2/D4 rename of the <code>runtime</code> slot</li>
+<li><code>embellish_identity()</code> — D4 proposed built-in helper</li>
+<li><code>embellish_symbol_to_string()</code> — D4 proposed built-in helper</li>
+<li><code>ptr_arg_symbol(vector=)</code> — D3 proposed new factory</li>
+<li><code>ptr_arg_numeric(vector=)</code> / <code>ptr_arg_string(vector=)</code> / <code>ptr_arg_symbol_or_string(vector=)</code> — D3 proposed <code>vector=</code> flag</li>
+</ul>
+
+<h2>Worked examples</h2>
+<p>Verdict: <strong>complete</strong>. Two positive (what becomes possible), two negative (rejected by design); each preceded by a one-line summary and containing a <code>language-r</code> code block.</p>
+<ul>
+<li><em>positive 1</em> — a column consumer that survives both the <code>ptr_app</code> and naked-expression paths via <code>embellish_symbol_to_string()</code>.</li>
+<li><em>positive 2</em> — a numeric placeholder whose plain-R meaning is deliberately a string (D1 rationale).</li>
+<li><em>negative 1</em> — bare multi-positional <code>colvars(mpg, hp)</code> stays rejected (one-positional cap, D6).</li>
+<li><em>negative 2</em> — relying on the default <code>embellish_identity()</code> for a tidyselect consumer (the anti-pattern this ADR prevents).</li>
+</ul>
+
+<details>
+<summary>Audit manifest (machine-readable)</summary>
+<pre>
+manifest:
+  adr_path: dev/adr/0027-placeholder-arg-vocabulary-and-embellish-eval.html
+  adr_hash: 5c572c9c8305
+  audited_files:
+    - path: R/paintr-translate.R
+      sha256: eea048c8f1ba
+    - path: R/paintr-registry.R
+      sha256: 7f846f44abf3
+    - path: R/paintr-default-args.R
+      sha256: 3a098707ddb1
+    - path: R/paintr-resolve.R
+      sha256: a829da63c858
+    - path: R/paintr-substitute.R
+      sha256: 1b422298102e
+    - path: NAMESPACE
+      sha256: b287501baf32
+  audited_at: 2026-05-31 17:39
+  auditor:
+    agent: general-purpose
+    model: opus
+    effort: high
+</pre>
+</details>
+
+</body>
+</html>

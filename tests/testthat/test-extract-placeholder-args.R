@@ -24,8 +24,8 @@ register_numeric_default_value <- function(kw) {
     keyword = kw,
     build_ui = function(node, ...) shiny::numericInput(node$id, kw, value = 0),
     resolve_expr = function(value, node, ...) value,
-    positional_arg = ptr_arg_numeric(),
-    named_args = list(step = ptr_arg_numeric())
+    parse_positional_arg = ptr_arg_numeric(),
+    parse_named_args = list(step = ptr_arg_numeric())
   )
 }
 
@@ -153,7 +153,7 @@ test_that("placeholder argument ASTs are never eval()'d at parse time", {
     keyword = kw,
     build_ui = function(node, ...) shiny::textInput(node$id, kw),
     resolve_expr = function(value, node, ...) value,
-    positional_arg = ptr_arg_expression()
+    parse_positional_arg = ptr_arg_expression()
   )
   withr::defer(ptr_clear_placeholder(kw))
 

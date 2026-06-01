@@ -188,12 +188,12 @@ test_that("closed loop: custom value placeholder (ppPower) round-trips via spec_
       shiny::numericInput(node$id, label, value = v, min = 0, max = 1, step = 0.01)
     },
     resolve_expr = function(value, ...) rlang::call2("^", value, 2),
-    validate_input = function(value, ctx) {
+    validate_session_input = function(value, ctx) {
       if (is.numeric(value) && length(value) == 1L &&
           !is.na(value) && value >= 0 && value <= 1) TRUE
       else "must be in [0,1]"
     },
-    positional_arg = ptr_arg_numeric()
+    parse_positional_arg = ptr_arg_numeric()
   )
 
   e <- list2env(list(mtcars = mtcars), parent = globalenv())

@@ -10,9 +10,9 @@ ptr_define_placeholder_source(
   resolve_data,
   resolve_expr = NULL,
   shortcut = FALSE,
-  positional_arg = NULL,
-  named_args = list(),
-  runtime = NULL,
+  parse_positional_arg = NULL,
+  parse_named_args = list(),
+  embellish_eval = NULL,
   ui_text_defaults = list(label = "Provide a data source for {param}")
 )
 }
@@ -78,10 +78,10 @@ non-empty, clearing a stale display (ADR 0025 item #7). The reserved
 shared key \code{"shortcut"} is rejected at translate time (see ADR 0025
 §1).}
 
-\item{positional_arg, named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
+\item{parse_positional_arg, parse_named_args}{See \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}}.
 Source placeholders use the same arg-schema slots.}
 
-\item{runtime}{Optional \verb{function(...)} body used when the placeholder
+\item{embellish_eval}{Optional \verb{function(...)} body used when the placeholder
 is called as a plain-R function (outside \code{ptr_app()}). \code{NULL}
 (default) supplies a guard that aborts with a message naming the
 keyword and noting the call is only meaningful inside \code{ptr_app()} —

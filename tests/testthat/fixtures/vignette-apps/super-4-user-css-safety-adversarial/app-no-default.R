@@ -17,8 +17,8 @@ ppColor <- ptr_define_placeholder_value(
     )
   },
   resolve_expr = function(value, ...) value,
-  positional_arg = ptr_arg_string(),
-  validate_input = function(value, ctx) {
+  parse_positional_arg = ptr_arg_string(),
+  validate_session_input = function(value, ctx) {
     if (is.character(value) && length(value) == 1L &&
         grepl("^#[0-9A-Fa-f]{6}$", value)) {
       TRUE

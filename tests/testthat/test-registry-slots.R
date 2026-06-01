@@ -77,7 +77,7 @@ test_that("user-supplied runtime overrides the default", {
     keyword = kw,
     build_ui = .rs_build_ui,
     resolve_expr = .rs_resolve_expr,
-    runtime = function(x, ...) x * 2
+    embellish_eval = function(x, ...) x * 2
   )
   expect_equal(fn(3), 6)
   entry <- ptr_registry_lookup(kw)
@@ -93,8 +93,8 @@ test_that("default_arg / named_args are stored on the entry", {
     keyword = kw,
     build_ui = .rs_build_ui,
     resolve_expr = .rs_resolve_expr,
-    positional_arg = da,
-    named_args = list(step = na_step)
+    parse_positional_arg = da,
+    parse_named_args = list(step = na_step)
   )
   entry <- ptr_registry_lookup(kw)
   expect_identical(entry$default_arg, da)
@@ -109,7 +109,7 @@ test_that("named_args rejects entry named 'shared'", {
       keyword = kw,
       build_ui = .rs_build_ui,
       resolve_expr = .rs_resolve_expr,
-      named_args = list(shared = function(node) node)
+      parse_named_args = list(shared = function(node) node)
     ),
     regexp = "shared.*reserved",
     class = "rlang_error"
@@ -124,9 +124,9 @@ test_that("positional_arg must be NULL or a function", {
       keyword = kw,
       build_ui = .rs_build_ui,
       resolve_expr = .rs_resolve_expr,
-      positional_arg = "not a function"
+      parse_positional_arg = "not a function"
     ),
-    regexp = "positional_arg",
+    regexp = "parse_positional_arg",
     class = "rlang_error"
   )
 })
@@ -139,7 +139,7 @@ test_that("named_args must be a list of functions with non-empty names", {
       keyword = kw,
       build_ui = .rs_build_ui,
       resolve_expr = .rs_resolve_expr,
-      named_args = list(function(node) node)  # unnamed
+      parse_named_args = list(function(node) node)  # unnamed
     ),
     class = "rlang_error"
   )
@@ -148,7 +148,7 @@ test_that("named_args must be a list of functions with non-empty names", {
       keyword = kw,
       build_ui = .rs_build_ui,
       resolve_expr = .rs_resolve_expr,
-      named_args = list(step = "not a function")
+      parse_named_args = list(step = "not a function")
     ),
     class = "rlang_error"
   )
@@ -157,7 +157,7 @@ test_that("named_args must be a list of functions with non-empty names", {
       keyword = kw,
       build_ui = .rs_build_ui,
       resolve_expr = .rs_resolve_expr,
-      named_args = "not a list"
+      parse_named_args = "not a list"
     ),
     class = "rlang_error"
   )
@@ -171,7 +171,7 @@ test_that("runtime must be NULL or a function", {
       keyword = kw,
       build_ui = .rs_build_ui,
       resolve_expr = .rs_resolve_expr,
-      runtime = "not a function"
+      embellish_eval = "not a function"
     ),
     class = "rlang_error"
   )

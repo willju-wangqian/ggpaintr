@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — embellish_eval built-in helpers (from ADR 0027)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: embellish-helpers
+  source_adr: dev/adr/0027-placeholder-arg-vocabulary-and-embellish-eval.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — embellish_eval built-in helpers</h1>
+<p class="meta">Source: ADR 0027 (D4, D1) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0027 D4 introduces two built-in helpers for the plain-R evaluation slot: <code>embellish_identity()</code> (the identity <code>function(x, ...) x</code>, the slot's default) and <code>embellish_symbol_to_string()</code> (NSE-captures the call argument and returns column names as a character vector, so a column-selecting consumer works inside a tidyselect verb when the expression is run as plain R with no app). This plan ships those two functions <em>additively</em> — usable immediately via the current <code>runtime =</code> constructor argument. The slot <em>rename</em> (<code>runtime</code> → <code>embellish_eval</code>) and making <code>embellish_identity()</code> the wired default are PLAN-03's job.</p>
+
+<h2>Governing principle</h2>
+<p>A placeholder-embellished ggplot expression must remain valid plain R that renders the original plot with no app, and each placeholder's plain-R meaning is <strong>author-controlled, never derived</strong> — only the author knows the intended live-R semantics. <code>embellish_symbol_to_string()</code> exists because a function wrapper around a tidyselect selection cannot be transparent: tidyselect evaluates the unknown wrapper call in non-masked scope, so bare column symbols throw "object not found." The helper sidesteps this by returning column <em>names as strings</em>, which tidyselect accepts. Do NOT "simplify" it to forward bare symbols or to eagerly evaluate its argument — that reintroduces the exact failure this helper removes.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>embellish_identity()</code> returns a function equivalent to <code>function(x, ...) x</code>; <code>embellish_identity()(5L)</code> returns <code>5L</code>. Verified by <code>devtools::test(filter="embellish-eval")</code>.</li>
+  <li><code>embellish_symbol_to_string()</code> returns a function that, used as a consumer's <code>runtime</code>, makes the naked (no-app) expression <code>mtcars |&gt; dplyr::select(colvars(c(mpg, hp)))</code> return a data frame whose names are exactly <code>c("mpg", "hp")</code> — no "object 'mpg' not found", no tidyselect type error. Verified by the same test file.</li>
+  <li>With the identity runtime (the current default), the same naked <code>dplyr::select(colvars_bad(c(mpg, hp)))</code> raises an error whose message contains <code>"mpg"</code> and "not found" — pinning the anti-pattern ADR 0027 negative example #2 demonstrates.</li>
+  <li>Both helpers are exported (appear in NAMESPACE after <code>devtools::document()</code>) with roxygen.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-embellish.R</code> (new), <code>tests/testthat/test-embellish-eval.R</code> (new).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-registry.R</code>, <code>R/paintr-builtins.R</code> (PLAN-03), <code>R/paintr-default-args.R</code> (PLAN-02), NAMESPACE/man (integration regen).</li>
+  <li>Use the existing <code>runtime =</code> and <code>positional_arg = ptr_arg_symbol_or_string()</code> arguments — the renamed names do not exist yet. The naked path does not consult the positional seed, so no <code>vector=</code> support is required here.</li>
+  <li>No scope creep: do not rename anything, do not wire the default, do not touch built-ins.</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code>.</li>
+  <li>Conventions: project CLAUDE.md + <code>.claude/rules/coding.md</code> — <code>rlang</code> for NSE, snake_case internals, roxygen <code>@export</code>, two-space indent.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: built-in embellish_eval helpers for the plain-R placeholder path
+
+Scenario: embellish_identity is the identity function
+  Given the helper embellish_identity()
+  When it is called as f &lt;- embellish_identity(); f(5L)
+  Then the return value is identical to 5L
+
+Scenario: ADR worked example (becomes possible #1) — embellish_symbol_to_string makes a tidyselect consumer work in plain R
+  Given a consumer placeholder "colvars" registered with runtime = embellish_symbol_to_string() and positional_arg = ptr_arg_symbol_or_string()
+  When the naked expression `mtcars |> dplyr::select(colvars(c(mpg, hp)))` is evaluated as plain R (no ptr_app)
+  Then the result is a data frame whose column names are exactly c("mpg", "hp")
+  And no error containing "object 'mpg' not found" is raised
+
+Scenario: ADR worked example (rejected by design #2) — the identity default breaks the naked tidyselect path
+  Given a consumer placeholder "colvars_bad" registered with runtime = embellish_identity() (the current default)
+  When the naked expression `mtcars |> dplyr::select(colvars_bad(c(mpg, hp)))` is evaluated as plain R
+  Then an error is raised whose message contains "mpg" and "not found"
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                          | kind     | summary (one line)                                                              | Scenario in this plan                                                       |
+|-----------------------------------------------------|----------|---------------------------------------------------------------------------------|----------------------------------------------------------------------------|
+| Worked examples — what becomes possible #1          | positive | a column consumer that works as a naked static expression via the NSE helper    | ADR worked example (becomes possible #1) — embellish_symbol_to_string ...   |
+| Worked examples — what is rejected by design #2     | negative | relying on the identity default for a tidyselect consumer breaks the naked path | ADR worked example (rejected by design #2) — the identity default breaks ...|
+</pre>
+
+<h2>Interface Contract</h2>
+
+<h3><code>embellish_identity()</code></h3>
+<ul>
+  <li><strong>Signature:</strong> <code>embellish_identity()</code> — no parameters; returns a function of signature <code>function(x, ...)</code>.</li>
+  <li><strong>Input domain:</strong> the factory takes nothing. The returned function accepts any single value <code>x</code> plus ignored <code>...</code>.</li>
+  <li><strong>Output spec:</strong> the returned function returns its first argument <code>x</code> unchanged (identity). <code>embellish_identity()</code> is referentially the slot's default behavior, equivalent to <code>function(x, ...) x</code>.</li>
+  <li><strong>Error modes:</strong> none (does not validate or coerce).</li>
+  <li><strong>Side effects:</strong> none (pure).</li>
+  <li><strong>Worked example:</strong> <code>f &lt;- embellish_identity(); f(5L)</code> → <code>5L</code>; <code>f(c("a","b"))</code> → <code>c("a","b")</code>.</li>
+</ul>
+
+<h3><code>embellish_symbol_to_string()</code></h3>
+<ul>
+  <li><strong>Signature:</strong> <code>embellish_symbol_to_string()</code> — no parameters; returns a function of signature <code>function(x, ...)</code> that captures <code>x</code> <em>unevaluated</em> (NSE via <code>rlang::enexpr(x)</code>).</li>
+  <li><strong>Input domain (inside the circle):</strong> the returned function is called with one argument expression that is (a) a call to <code>c(...)</code> whose elements are bare symbols and/or string literals, (b) a single bare symbol, or (c) a single string literal. Outside the circle: any other expression (e.g. <code>starts_with("a")</code>, an arithmetic call) falls through to an <code>eval(expr, parent.frame())</code> fallback — explicitly best-effort, not contract-guaranteed.</li>
+  <li><strong>Output spec:</strong> for inputs (a)–(c) it returns a <em>character vector</em> of the column names — bare symbols converted via <code>rlang::as_string</code>, string literals passed through. Order preserved. <code>c(mpg, hp)</code> → <code>c("mpg", "hp")</code>; <code>mpg</code> → <code>"mpg"</code>; <code>c("mpg","hp")</code> → <code>c("mpg","hp")</code>.</li>
+  <li><strong>Error modes:</strong> the NSE capture never forces the symbols, so it does not itself raise "object not found"; a malformed element inside <code>c(...)</code> that is neither symbol nor string reaches the <code>eval</code> fallback, whose error is the caller's (out of contract).</li>
+  <li><strong>Side effects:</strong> none (pure; reads only the captured expression).</li>
+  <li><strong>Worked example (the contract that matters):</strong> with a consumer registered <code>runtime = embellish_symbol_to_string()</code>, evaluating <code>mtcars |&gt; dplyr::select(colvars(c(mpg, hp)))</code> as plain R returns a data frame with names <code>c("mpg","hp")</code> — because the returned function yields the character vector tidyselect selects by name, instead of forcing <code>c(mpg, hp)</code> in non-masked scope.</li>
+</ul>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see CLAUDE.md §"Authoritative gate" — <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0. The implementer/auditor in <code>/exec-plan</code> run it; the proxy-trap list lives in CLAUDE.md.</p>
+<p><strong>Plan-specific gate risks:</strong> these tests register custom placeholders, so they require <code>devtools::test()</code> (the registry env splits under raw <code>test_dir</code>/<code>test_file</code> — a custom-placeholder test run that way can show the keyword invisible to translate; not the gate).</p>
+<p>This plan adds ≥ 3 new tests at <code>tests/testthat/test-embellish-eval.R</code>. The gate must show PASS rise by ≥ 3 with FAIL/ERROR 0 and SKIP unchanged.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-embellish.R</code>, <code>tests/testthat/test-embellish-eval.R</code>. NAMESPACE/man are generated — regenerated by the integration step, not this plan; surface drift in the post-impl audit, do not hand-edit.</p>
+<p>Branch convention: branch <code>0027-embellish-helpers</code> in a worktree under <code>.claude/worktrees/0027-placeholder-arg-vocabulary/embellish-helpers/</code>. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch at the commit where this worktree was created (record SHA in the worktree's first commit). Pre-existing failures: none expected on the green main baseline; new failures = anything not green at branch point.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside owned files (e.g. the rename, the default wiring) are surfaced in the audit, never absorbed — they belong to PLAN-03.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: none. Provides for: PLAN-03 (which wires <code>embellish_identity()</code> as the <code>embellish_eval</code> default and documents <code>embellish_symbol_to_string()</code> as the recommended consumer pattern).</p>
+
+<!-- implementable: PASS date=2026-05-31 gate="Rscript -e 'devtools::test(reporter=\"progress\", stop_on_failure=FALSE)'" hash=9385ac9bade5 -->
+</body>
+</html>

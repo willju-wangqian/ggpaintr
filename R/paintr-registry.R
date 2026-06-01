@@ -218,7 +218,7 @@ validate_keyword_no_shadow <- function(keyword) {
 validate_positional_arg <- function(positional_arg, keyword) {
   if (is.null(positional_arg) || is.function(positional_arg)) return(invisible(TRUE))
   rlang::abort(paste0(
-    "`positional_arg` for placeholder '", keyword,
+    "`parse_positional_arg` for placeholder '", keyword,
     "' must be NULL or a function (a validator closure)."
   ))
 }
@@ -226,27 +226,27 @@ validate_positional_arg <- function(positional_arg, keyword) {
 validate_named_args <- function(named_args, keyword) {
   if (!is.list(named_args)) {
     rlang::abort(paste0(
-      "`named_args` for placeholder '", keyword, "' must be a list."
+      "`parse_named_args` for placeholder '", keyword, "' must be a list."
     ))
   }
   if (length(named_args) == 0L) return(invisible(TRUE))
   nms <- names(named_args)
   if (is.null(nms) || any(!nzchar(nms)) || anyNA(nms)) {
     rlang::abort(paste0(
-      "`named_args` for placeholder '", keyword,
+      "`parse_named_args` for placeholder '", keyword,
       "' must be a fully-named list (every element needs a non-empty name)."
     ))
   }
   if (anyDuplicated(nms)) {
     rlang::abort(paste0(
-      "`named_args` for placeholder '", keyword,
+      "`parse_named_args` for placeholder '", keyword,
       "' has duplicated names: ",
       paste(unique(nms[duplicated(nms)]), collapse = ", "), "."
     ))
   }
   if ("shared" %in% nms) {
     rlang::abort(paste0(
-      "`named_args` for placeholder '", keyword,
+      "`parse_named_args` for placeholder '", keyword,
       "' may not contain an entry named \"shared\" (shared is reserved by ",
       "ggpaintr for cross-layer binding)."
     ))
@@ -255,7 +255,7 @@ validate_named_args <- function(named_args, keyword) {
   if (!all(ok)) {
     bad <- nms[!ok]
     rlang::abort(paste0(
-      "`named_args` for placeholder '", keyword,
+      "`parse_named_args` for placeholder '", keyword,
       "' must contain only validator functions; non-function entries: ",
       paste(bad, collapse = ", "), "."
     ))
@@ -342,18 +342,21 @@ validate_copy_defaults <- function(ui_text_defaults) {
 # role-specific bits branch on `role`: build_ui arity (consumer also takes
 # cols/data), the resolve hook (source uses resolve_data + an optional
 # resolve_expr defaulting to rlang::sym; value/consumer use resolve_expr and
-# accept validate_input), the `shortcut` flag (source only), the runtime
-# default (identity for value/consumer; an abort-guard for source), and
-# data_aware. The public wrappers are thin: they fix `role` and pass through.
+# accept validate_session_input), the `shortcut` flag (source only), the
+# embellish_eval default (identity for value/consumer; an abort-guard for
+# source), and data_aware. The public wrappers are thin: they fix `role` and
+# pass through.
 #
-# NOTE: the registry-record KEYS stay `default_arg` / `copy_defaults` (internal
-# storage read across translate/server/copy); only the public ARGUMENT names
-# are `positional_arg` / `ui_text_defaults`.
+# NOTE: the registry-record KEYS stay `default_arg` / `named_args` /
+# `validate_input` / `runtime` / `copy_defaults` (internal storage read across
+# translate/server/copy); only the public ARGUMENT names are
+# `parse_positional_arg` / `parse_named_args` / `validate_session_input` /
+# `embellish_eval` / `ui_text_defaults`.
 ptr_define_core <- function(role, keyword, build_ui,
                             resolve_expr = NULL, resolve_data = NULL,
-                            validate_input = NULL, shortcut = FALSE,
-                            positional_arg = NULL, named_args = list(),
-                            runtime = NULL, ui_text_defaults = list()) {
+                            validate_session_input = NULL, shortcut = FALSE,
+                            parse_positional_arg = NULL, parse_named_args = list(),
+                            embellish_eval = NULL, ui_text_defaults = list()) {
   ensure_registry_initialized()
   validate_keyword(keyword)
   validate_keyword_no_shadow(keyword)
@@ -380,13 +383,13 @@ ptr_define_core <- function(role, keyword, build_ui,
     }
   } else {
     validate_hook(resolve_expr, "resolve_expr", c("value", "node"))
-    if (!is.null(validate_input)) {
-      validate_hook(validate_input, "validate_input", c("value", "ctx"))
+    if (!is.null(validate_session_input)) {
+      validate_hook(validate_session_input, "validate_session_input", c("value", "ctx"))
     }
   }
 
-  validate_positional_arg(positional_arg, keyword)
-  validate_named_args(named_args, keyword)
+  validate_positional_arg(parse_positional_arg, keyword)
+  validate_named_args(parse_named_args, keyword)
   validate_copy_defaults(ui_text_defaults)
   ptr_check_keyword_lhs_drift(keyword)
 
@@ -398,17 +401,17 @@ ptr_define_core <- function(role, keyword, build_ui,
       )
     })
   } else {
-    function(x, ...) x
+    embellish_identity()
   }
-  runtime_fn <- runtime %||% runtime_default
-  validate_hook(runtime_fn, "runtime", character())
+  runtime_fn <- embellish_eval %||% runtime_default
+  validate_hook(runtime_fn, "embellish_eval", character())
 
   entry <- list(
     keyword = keyword, role = role,
     data_aware = role %in% c("consumer", "source"),
     build_ui = build_ui, resolve_expr = resolve_expr,
-    validate_input = validate_input,
-    default_arg = positional_arg, named_args = named_args,
+    validate_input = validate_session_input,
+    default_arg = parse_positional_arg, named_args = parse_named_args,
     runtime = runtime_fn,
     copy_defaults = ui_text_defaults
   )
@@ -517,7 +520,7 @@ ptr_registry_register <- function(entry) {
 #'   `placeholder`, `empty_text`. Strings may contain `{param}`, which is
 #'   interpolated to the surrounding formal-argument name at render time.
 #'
-#' @param positional_arg Optional validator closure for the (single) positional
+#' @param parse_positional_arg Optional validator closure for the (single) positional
 #'   argument the keyword accepts inside a formula. `NULL` (default) means
 #'   positional arguments are rejected at translate time. A function
 #'   receives the unevaluated AST and must return a canonical value or
@@ -526,13 +529,13 @@ ptr_registry_register <- function(entry) {
 #'   a validator are opting into the risk of running user code at translate
 #'   time.
 #'
-#' @param named_args Named list of validator closures for additional named
+#' @param parse_named_args Named list of validator closures for additional named
 #'   arguments beyond the reserved `shared = ...`. Each entry's closure
 #'   receives the unevaluated AST and returns a canonical value or
 #'   `rlang::abort()`. Default is `list()` (no named args). The name
 #'   `"shared"` is reserved and may not appear here.
 #'
-#' @param validate_input Optional `function(value, ctx)` called before
+#' @param validate_session_input Optional `function(value, ctx)` called before
 #'   `resolve_expr`. Return `TRUE` / `NULL` to accept; return a single
 #'   character string to reject (surfaced inline as the error message,
 #'   layer pruned). `ctx` is a plain list with named fields: `node` (the
@@ -548,17 +551,19 @@ ptr_registry_register <- function(entry) {
 #'   arguments are passed, and `ctx` carries exactly the four fields
 #'   above. The signature does not require `...`.
 #'
-#' @param runtime Optional `function(x, ...)` body used when the
+#' @param embellish_eval Optional `function(x, ...)` body used when the
 #'   placeholder keyword is *also* called as a plain-R function (outside a
-#'   formula context). When `NULL` (default), the identity function
-#'   `function(x, ...) x` is supplied — calling `pct(0.5)` returns `0.5`
-#'   unchanged. Override to give the keyword a non-identity plain-R
-#'   meaning. The same runtime is returned to the caller of this helper
-#'   so authors can bind it under the same name as the keyword:
+#'   formula context) — i.e. how a placeholder-embellished ggplot
+#'   expression evaluates with no app. When `NULL` (default), the identity
+#'   from [embellish_identity()] (`function(x, ...) x`) is supplied —
+#'   calling `pct(0.5)` returns `0.5` unchanged. Override to give the
+#'   keyword a non-identity plain-R meaning (e.g. [embellish_symbol_to_string()]).
+#'   The same callable is returned to the caller of this helper so authors
+#'   can bind it under the same name as the keyword:
 #'   `ppPct <- ptr_define_placeholder_value(keyword = "ppPct", ...)`.
 #'
 #' @return The runtime callable. Default for a value placeholder is the
-#'   identity `function(x, ...) x`; override with `runtime = ...`. The
+#'   identity `function(x, ...) x`; override with `embellish_eval = ...`. The
 #'   helper is also called for its registration side effect — use
 #'   [ptr_clear_placeholder()] to remove the entry.
 #'
@@ -584,23 +589,24 @@ ptr_registry_register <- function(entry) {
 #'     if (length(value) != 1L || !is.finite(value)) return(NULL)
 #'     value / 100
 #'   },
-#'   positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
+#'   parse_positional_arg = ptr_arg_numeric(),  # accept ppPct(50)-style defaults
 #'   ui_text_defaults = list(label = "Percent for {param}")
 #' )
 #' ptr_clear_placeholder("pct")
 #' @export
 ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
-                                         validate_input = NULL,
-                                         positional_arg = NULL,
-                                         named_args = list(),
-                                         runtime = NULL,
+                                         validate_session_input = NULL,
+                                         parse_positional_arg = NULL,
+                                         parse_named_args = list(),
+                                         embellish_eval = NULL,
                                          ui_text_defaults = list(
                                            label = "Enter a value for {param}"
                                          )) {
   ptr_define_core(
     "value", keyword, build_ui, resolve_expr = resolve_expr,
-    validate_input = validate_input, positional_arg = positional_arg,
-    named_args = named_args, runtime = runtime,
+    validate_session_input = validate_session_input,
+    parse_positional_arg = parse_positional_arg,
+    parse_named_args = parse_named_args, embellish_eval = embellish_eval,
     ui_text_defaults = ui_text_defaults
   )
 }
@@ -649,7 +655,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   [ptr_define_placeholder_value()] for allowed return types and the
 #'   `NULL`-prunes-the-argument convention.
 #'
-#' @param validate_input Optional `function(value, ctx)` called before
+#' @param validate_session_input Optional `function(value, ctx)` called before
 #'   `resolve_expr`. Return `TRUE` / `NULL` to accept; return a single
 #'   character string to reject (surfaced inline as the error message,
 #'   layer pruned). Useful when a stale selection no longer matches any
@@ -667,18 +673,19 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'   or named arguments are passed, and `ctx` carries exactly the four
 #'   fields above. The signature does not require `...`.
 #'
-#' @param positional_arg,named_args See [ptr_define_placeholder_value()].
+#' @param parse_positional_arg,parse_named_args See [ptr_define_placeholder_value()].
 #'   Consumer placeholders use the same arg-schema slots; the `ppVar`
 #'   built-in passes a column-name validator here when used as `ppVar(mpg)`.
 #'
-#' @param runtime Optional `function(x, ...)` body used when the
+#' @param embellish_eval Optional `function(x, ...)` body used when the
 #'   placeholder is called as a plain-R function. `NULL` (default) supplies
-#'   the identity `function(x, ...) x`, matching the legacy `ppVar`-style
-#'   `aes()` NSE shape (the symbol-passthrough convention). Override to
-#'   give the consumer a non-identity plain-R meaning.
+#'   the identity from [embellish_identity()] (`function(x, ...) x`),
+#'   matching the legacy `ppVar`-style `aes()` NSE shape (the
+#'   symbol-passthrough convention). Override to give the consumer a
+#'   non-identity plain-R meaning (e.g. [embellish_symbol_to_string()]).
 #'
 #' @return The runtime callable (identity by default; override with
-#'   `runtime = ...`). Also called for its registration side effect; use
+#'   `embellish_eval = ...`). Also called for its registration side effect; use
 #'   [ptr_clear_placeholder()] to remove it.
 #'
 #' @seealso `vignette("ggpaintr-tutorial")` § "Defining your own placeholders";
@@ -703,7 +710,7 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #'     if (length(value) != 1L || !nzchar(value)) return(NULL)
 #'     rlang::sym(value)
 #'   },
-#'   validate_input = function(value, ctx) {
+#'   validate_session_input = function(value, ctx) {
 #'     if (length(value) == 1L && value %in% ctx$upstream_cols) TRUE
 #'     else "Pick a column that exists in the upstream data."
 #'   }
@@ -711,17 +718,18 @@ ptr_define_placeholder_value <- function(keyword, build_ui, resolve_expr,
 #' ptr_clear_placeholder("numvar")
 #' @export
 ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
-                                            validate_input = NULL,
-                                            positional_arg = NULL,
-                                            named_args = list(),
-                                            runtime = NULL,
+                                            validate_session_input = NULL,
+                                            parse_positional_arg = NULL,
+                                            parse_named_args = list(),
+                                            embellish_eval = NULL,
                                             ui_text_defaults = list(
                                               label = "Pick a column for {param}"
                                             )) {
   ptr_define_core(
     "consumer", keyword, build_ui, resolve_expr = resolve_expr,
-    validate_input = validate_input, positional_arg = positional_arg,
-    named_args = named_args, runtime = runtime,
+    validate_session_input = validate_session_input,
+    parse_positional_arg = parse_positional_arg,
+    parse_named_args = parse_named_args, embellish_eval = embellish_eval,
     ui_text_defaults = ui_text_defaults
   )
 }
@@ -792,10 +800,10 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 #'   shared key `"shortcut"` is rejected at translate time (see ADR 0025
 #'   §1).
 #'
-#' @param positional_arg,named_args See [ptr_define_placeholder_value()].
+#' @param parse_positional_arg,parse_named_args See [ptr_define_placeholder_value()].
 #'   Source placeholders use the same arg-schema slots.
 #'
-#' @param runtime Optional `function(...)` body used when the placeholder
+#' @param embellish_eval Optional `function(...)` body used when the placeholder
 #'   is called as a plain-R function (outside `ptr_app()`). `NULL`
 #'   (default) supplies a guard that aborts with a message naming the
 #'   keyword and noting the call is only meaningful inside `ptr_app()` —
@@ -870,17 +878,17 @@ ptr_define_placeholder_consumer <- function(keyword, build_ui, resolve_expr,
 ptr_define_placeholder_source <- function(keyword, build_ui, resolve_data,
                                            resolve_expr = NULL,
                                            shortcut = FALSE,
-                                           positional_arg = NULL,
-                                           named_args = list(),
-                                           runtime = NULL,
+                                           parse_positional_arg = NULL,
+                                           parse_named_args = list(),
+                                           embellish_eval = NULL,
                                            ui_text_defaults = list(
                                              label = "Provide a data source for {param}"
                                            )) {
   ptr_define_core(
     "source", keyword, build_ui, resolve_data = resolve_data,
     resolve_expr = resolve_expr, shortcut = shortcut,
-    positional_arg = positional_arg, named_args = named_args,
-    runtime = runtime, ui_text_defaults = ui_text_defaults
+    parse_positional_arg = parse_positional_arg, parse_named_args = parse_named_args,
+    embellish_eval = embellish_eval, ui_text_defaults = ui_text_defaults
   )
 }
 

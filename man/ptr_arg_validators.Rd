@@ -4,24 +4,29 @@
 \alias{ptr_arg_validators}
 \alias{ptr_arg_symbol_or_string}
 \alias{ptr_arg_string}
+\alias{ptr_arg_symbol}
 \alias{ptr_arg_numeric}
-\alias{ptr_arg_numeric_vector}
 \alias{ptr_arg_expression}
 \title{Argument validators for placeholder definitions (\verb{ptr_arg_*})}
 \usage{
-ptr_arg_symbol_or_string()
+ptr_arg_symbol_or_string(vector = FALSE)
 
-ptr_arg_string()
+ptr_arg_string(vector = FALSE)
 
-ptr_arg_numeric()
+ptr_arg_symbol(vector = FALSE)
 
-ptr_arg_numeric_vector(length = NULL)
+ptr_arg_numeric(vector = FALSE, length = NULL)
 
 ptr_arg_expression()
 }
 \arguments{
+\item{vector}{Logical scalar (default \code{FALSE}). When \code{TRUE}, the validator
+parses a \code{c(...)} literal element-by-element and returns the whole vector
+instead of a single scalar.}
+
 \item{length}{Optional integer length required of the resulting numeric
-vector. \code{NULL} (the default) imposes no length check.}
+vector; honored only when \code{vector = TRUE}. \code{NULL} (the default) imposes no
+length check.}
 }
 \value{
 A closure that takes an unevaluated expression and returns the
@@ -35,8 +40,9 @@ argument and returns a canonical value, or aborts with a clear message.
 }
 \details{
 The validators operate on AST only: they do not call \code{eval()}, \code{parse()},
-or any deparse-and-reparse cycle on their input. The two numeric helpers
-(\code{ptr_arg_numeric()} and \code{ptr_arg_numeric_vector()}) walk the AST
+or any deparse-and-reparse cycle on their input. The numeric helper
+\code{ptr_arg_numeric()} (scalar by default, vector via \code{vector = TRUE}) walks
+the AST
 against the constant-fold allowlist registry (see
 \code{\link[=ptr_register_constant_fold]{ptr_register_constant_fold()}}) and then evaluate in a sealed environment
 whose only bindings are the registered names.
@@ -46,19 +52,30 @@ Symbol policy is per-helper:
 \item \code{ptr_arg_symbol_or_string()} accepts a bareword symbol (returned as
 its character name, preserving non-syntactic / backticked names) or any
 single string literal (including the empty string).
+\item \code{ptr_arg_symbol()} accepts only a bareword symbol (returned as its
+character name); rejects string literals, numbers, and compound calls.
 \item \code{ptr_arg_string()} accepts only a single string literal (including
 the empty string); rejects symbols and numbers.
 \item \code{ptr_arg_numeric()} accepts any AST whose every node is a syntactic
-literal or a registered constant-fold name; the result must be a
-length-one non-NA numeric.
-\item \code{ptr_arg_numeric_vector(length = NULL)} is the vector analogue, with
-an optional \code{length} check.
+literal or a registered constant-fold name; in the default scalar mode
+the result must be a length-one non-NA numeric.
+For the vector form use \code{ptr_arg_numeric(vector = TRUE, length = NULL)}.
 \item \code{ptr_arg_expression()} is a verbatim store: it returns its input
 unchanged so it can later be evaluated in the data context. As a
 convenience it emits a one-shot warning if the user wraps the
 expression in \code{quote()}, \code{bquote()}, \code{rlang::ppExpr()}, or \code{rlang::quo()}
 (the wrapper is stored verbatim).
 }
+
+Each of \code{ptr_arg_symbol_or_string()}, \code{ptr_arg_symbol()},
+\code{ptr_arg_string()}, and \code{ptr_arg_numeric()} takes a \code{vector} flag. With
+\code{vector = FALSE} (the default) the validator parses a single scalar element
+and returns a length-one value. With \code{vector = TRUE} it parses a \code{c(...)}
+literal element-by-element (each element subject to the helper's scalar
+element rule) and returns the whole vector; a lone element is treated as a
+length-one vector. For \code{ptr_arg_numeric(vector = TRUE)} the optional
+\code{length} check (honored only in vector mode) asserts the parsed vector's
+length.
 }
 \examples{
 is_symbol_ok <- ptr_arg_symbol_or_string()
@@ -69,6 +86,6 @@ is_num <- ptr_arg_numeric()
 is_num(5)
 is_num(quote(2 * pi))
 
-is_vec <- ptr_arg_numeric_vector(length = 2L)
+is_vec <- ptr_arg_numeric(vector = TRUE, length = 2L)
 is_vec(quote(c(0, 1)))
 }

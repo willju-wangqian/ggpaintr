@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-03 — atomic argument rename + default wiring + call-site sweep (from ADR 0027)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 03
+  slug: atomic-rename-and-sweep
+  source_adr: dev/adr/0027-placeholder-arg-vocabulary-and-embellish-eval.html
+  depends_on: [01, 02]
+  parallel_group: G2
+  status: draft
+-->
+
+<h1>PLAN-03 — atomic argument rename + default wiring + call-site sweep</h1>
+<p class="meta">Source: ADR 0027 (D2, D5, D4 default-wiring, D6 regression) · Depends on: 01, 02 · Parallel group: G2 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0027 D2 renames the four public constructor arguments — <code>positional_arg</code> → <code>parse_positional_arg</code>, <code>named_args</code> → <code>parse_named_args</code>, <code>validate_input</code> → <code>validate_session_input</code>, <code>runtime</code> → <code>embellish_eval</code> — across <code>ptr_define_placeholder_value/_consumer/_source</code> and the internal <code>ptr_define_core</code>. Internal registry-record keys (<code>default_arg</code>, <code>copy_defaults</code>, the stored <code>named_args</code>/<code>validate_input</code>/<code>runtime</code> slots) stay; only the <em>public argument names</em> change. D5 mandates this be <strong>atomic</strong>: the signature change, the default wiring (<code>embellish_eval</code> defaults to <code>embellish_identity()</code> from PLAN-01), the removal of the <code>ptr_arg_numeric_vector</code> alias (PLAN-02 retained it), the DESCRIPTION version bump, and every in-repo call-site update land in one merge so the gate is green after it. D6 keeps the one-positional cap unchanged and pins the two rejection regressions.</p>
+
+<h2>Governing principle</h2>
+<p>The placeholder's parenthesized arguments are interpreted by one coherent family of slots, and the rename makes that family legible: two slots <em>parse</em> the formula's default args into the widget seed (<code>parse_positional_arg</code>, <code>parse_named_args</code>), one <em>validates</em> the live session value (<code>validate_session_input</code>), one defines the <em>plain-R evaluation</em> of the embellished expression (<code>embellish_eval</code>). The rename is a hard break taken deliberately (ADR D5): argument names cannot be soft-deprecated, so it must be atomic — a half-applied rename leaves the package unloadable or the suite red. Do NOT leave any old name reachable "for compatibility"; the ADR rejects that. Apply the rename to every caller in the same change, including the built-in registrations, or the package will not load.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>The three constructors accept <code>parse_positional_arg</code>, <code>parse_named_args</code>, <code>validate_session_input</code> (value/consumer only), <code>embellish_eval</code>; passing the old names (<code>positional_arg=</code> etc.) raises an "unused argument" error. Verified by <code>devtools::test(filter="rewrite-registry|registry-slots|extract-placeholder-args")</code>.</li>
+  <li><code>embellish_eval</code> defaults to <code>embellish_identity()</code> for value/consumer roles (a registered placeholder with no <code>embellish_eval</code> has the identity runtime in its registry entry).</li>
+  <li><code>ptr_arg_numeric_vector</code> no longer exists (removed from source + NAMESPACE); every former caller uses <code>ptr_arg_numeric(vector = TRUE)</code>.</li>
+  <li>Built-in placeholders still register (package loads; <code>ppText</code>/<code>ppNum</code>/<code>ppExpr</code>/<code>ppVar</code> resolve) after their <code>R/paintr-builtins.R</code> call sites move to the new names.</li>
+  <li>ADR 0027 worked example "becomes possible #2": a value placeholder registered with a custom <code>embellish_eval = function(x, ...) as.character(x)</code> evaluates its call to a string in plain R. ADR 0027 worked example "rejected by design #1": <code>colvars(mpg, hp)</code> (two positional args) still aborts at translate with "accepts at most one positional argument".</li>
+  <li>DESCRIPTION <code>Version</code> bumped from <code>0.10.0</code>. Whole-suite gate green: FAIL 0 / ERROR 0 / SKIP 0.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-registry.R</code> (constructor signatures + <code>ptr_define_core</code> param rename + <code>embellish_eval</code> default = <code>embellish_identity()</code> + roxygen/@examples), <code>R/paintr-builtins.R</code> (the 6 registration call sites at lines ~336–372), <code>R/paintr-default-args.R</code> (remove the <code>ptr_arg_numeric_vector</code> alias only), <code>DESCRIPTION</code> (version), and the call-site sweep across: <code>vignettes/ggpaintr-tutorial.Rmd</code>, <code>tests/testthat/test-default-and-shared-seeding.R</code>, <code>test-extract-placeholder-args.R</code>, <code>test-invoke-build-ui-selected-contract.R</code>, <code>test-placeholder-node-slots.R</code>, <code>test-registry-slots.R</code>, <code>test-regression-bugs-2026-05-12.R</code>, <code>test-rewrite-registry.R</code>, <code>test-rewrite-translate.R</code>, <code>test-spec-roundtrip-closed-loop.R</code>, <code>test-spec-seed-boot-only.R</code>, <code>test-substitute-auto-name-fallback.R</code>, <code>test-validate-input-ctx.R</code>, <code>test-validate-input-retain.R</code>, <code>test-default-args.R</code>, and every <code>tests/testthat/fixtures/vignette-apps/*/app.R</code> / <code>app-no-default.R</code> / <code>reference.R</code> that uses an old name (the <code>adr9-named-args-custom</code>, <code>y1-custom-value-multipicker</code>, <code>super-1</code>..<code>super-4</code>, <code>l2-shared*</code>, <code>grid-shared*</code>, <code>app-grid-shared-added</code> fixtures).</li>
+  <li>Files this plan must NOT touch by RENAME: <code>R/paintr-nodes.R</code>, <code>R/paintr-translate.R</code>, <code>R/paintr-substitute.R</code>, <code>R/paintr-server.R</code> — their <code>named_args</code>/<code>runtime</code> tokens are <strong>internal keys/fields</strong> the ADR keeps, NOT the public constructor arguments. Do not rename them.</li>
+  <li>Do NOT change <code>extract_placeholder_args</code>' one-positional cap (D6).</li>
+  <li>Internal registry-record keys (<code>entry$default_arg</code>, <code>entry$named_args</code>, <code>entry$validate_input</code>, <code>entry$runtime</code>, <code>copy_defaults</code>) are unchanged — only the constructor parameter names and how they map into the record.</li>
+  <li>SCOPE NARROWING FORBIDDEN — see <code>/exec-plan</code> prompts. In particular: do not skip the built-in call sites to "keep the diff small"; an un-swept built-in breaks package load.</li>
+  <li>Conventions: project CLAUDE.md + <code>.claude/rules/coding.md</code>; regenerate NAMESPACE/man only via <code>devtools::document()</code> at integration, never by hand.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<pre>
+Feature: atomic placeholder-argument rename + default wiring
+
+Scenario: constructors accept the new argument names
+  Given ptr_define_placeholder_value(keyword="t", build_ui=..., resolve_expr=..., parse_positional_arg = ptr_arg_numeric())
+  When the registration runs
+  Then it succeeds and the registry entry's default_arg slot is the numeric parser
+
+Scenario: old argument names are rejected
+  Given a call to ptr_define_placeholder_value(..., positional_arg = ptr_arg_numeric())
+  When it is evaluated
+  Then R raises an "unused argument (positional_arg = ...)" error
+
+Scenario: embellish_eval defaults to embellish_identity
+  Given a value placeholder registered with no embellish_eval argument
+  When its registry entry is inspected
+  Then entry$runtime applied to 5L returns 5L (the identity wired from embellish_identity())
+
+Scenario: ptr_arg_numeric_vector is gone
+  Given the package namespace after this plan
+  When ptr_arg_numeric_vector is looked up
+  Then it is not found, and former callers use ptr_arg_numeric(vector = TRUE)
+
+Scenario: built-in placeholders still register and resolve
+  Given the package is loaded
+  When the formula "ggplot(mtcars, aes(ppVar(mpg), ppNum)) + geom_point()" is translated
+  Then ppVar and ppNum are recognised placeholders (no "unknown keyword" / load error)
+
+Scenario: ADR worked example (becomes possible #2) — custom embellish_eval yields a string in plain R
+  Given a value placeholder "ppCode" registered with embellish_eval = function(x, ...) as.character(x)
+  When ppCode(1) is evaluated as plain R via the returned runtime callable
+  Then the result is the string "1"
+
+Scenario: ADR worked example (rejected by design #1) — bare multi-positional still aborts
+  Given the formula `mtcars |> dplyr::select(colvars(mpg, hp)) |> ggplot(aes(ppVar(mpg), ppVar(hp))) + geom_point()`
+  When ptr_translate() processes it (colvars registered as a consumer)
+  Then it aborts with a message containing "accepts at most one positional argument"
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                          | kind     | summary (one line)                                                    | Scenario in this plan                                                          |
+|-----------------------------------------------------|----------|-----------------------------------------------------------------------|--------------------------------------------------------------------------------|
+| Worked examples — what becomes possible #2          | positive | a value placeholder whose plain-R meaning is deliberately a string    | ADR worked example (becomes possible #2) — custom embellish_eval yields ...    |
+| Worked examples — what is rejected by design #1     | negative | bare multi-positional selection stays rejected (one-positional cap)   | ADR worked example (rejected by design #1) — bare multi-positional still aborts |
+</pre>
+
+<h2>Interface Contract</h2>
+<p>The changed entry points are the three public constructors. Only the four argument <em>names</em> change; positional order of the leading required args (<code>keyword</code>, <code>build_ui</code>, <code>resolve_expr</code>/<code>resolve_data</code>) and all internal registry-record keys (<code>default_arg</code>, <code>named_args</code>, <code>validate_input</code>, <code>runtime</code>, <code>copy_defaults</code>) are unchanged.</p>
+
+<h3><code>ptr_define_placeholder_value(...)</code> and <code>ptr_define_placeholder_consumer(...)</code></h3>
+<ul>
+  <li><strong>Signature (renamed args):</strong> <code>..., validate_session_input = NULL, parse_positional_arg = NULL, parse_named_args = list(), embellish_eval = NULL, ui_text_defaults = ...</code>. (<code>_consumer</code>'s <code>build_ui</code> additionally takes <code>cols</code>/<code>data</code> — unchanged.) Returns the runtime callable (invisibly registers the entry).</li>
+  <li><strong>Input domain:</strong> inside — the four renamed args supplied by their new names. Outside — any of the old names (<code>positional_arg=</code>, <code>named_args=</code>, <code>validate_input=</code>, <code>runtime=</code>).</li>
+  <li><strong>Output spec:</strong> the registry entry is stored under <code>keyword</code> with <code>entry$default_arg</code> = the value passed to <code>parse_positional_arg</code>, <code>entry$named_args</code> = <code>parse_named_args</code>, <code>entry$validate_input</code> = <code>validate_session_input</code>, <code>entry$runtime</code> = <code>embellish_eval</code> (or, when <code>embellish_eval = NULL</code>, the identity wired from <code>embellish_identity()</code>).</li>
+  <li><strong>Error modes:</strong> passing an old argument name raises R's "unused argument (<name> = …)" error (the params no longer exist). Other validation (keyword shadow, hook arity) is unchanged.</li>
+  <li><strong>Side effects:</strong> registers/overwrites the keyword in <code>.ptr_registry</code> (same as before the rename).</li>
+  <li><strong>Worked example:</strong> <code>ptr_define_placeholder_value(keyword="t", build_ui=function(node,...) NULL, resolve_expr=function(value,node,...) value, parse_positional_arg = ptr_arg_numeric())</code> registers; <code>ptr_registry_lookup("t")$default_arg(quote(5))</code> → <code>5</code>. Calling the same with <code>positional_arg = ptr_arg_numeric()</code> → "unused argument" error. A registration with no <code>embellish_eval</code> → <code>entry$runtime(5L)</code> returns <code>5L</code>.</li>
+</ul>
+
+<h3><code>ptr_define_placeholder_source(...)</code></h3>
+<ul>
+  <li><strong>Signature (renamed args):</strong> <code>..., resolve_data, resolve_expr = NULL, parse_positional_arg = NULL, parse_named_args = list(), embellish_eval = NULL, shortcut = FALSE, ui_text_defaults = ...</code>. Source has <em>no</em> <code>validate_session_input</code> (it had no <code>validate_input</code> — unchanged). The source-role <code>embellish_eval</code> default remains the abort closure ("only meaningful inside ptr_app()"), NOT identity.</li>
+  <li><strong>Input domain / Error modes / Side effects:</strong> as for value/consumer; old names → "unused argument".</li>
+  <li><strong>Worked example:</strong> a source registered with <code>parse_positional_arg = ptr_arg_string()</code> registers and its <code>entry$default_arg(quote("x"))</code> → <code>"x"</code>.</li>
+</ul>
+
+<h3>DESCRIPTION</h3>
+<ul>
+  <li><strong>Change:</strong> <code>Version: 0.10.0</code> → a higher version (minor bump, e.g. <code>0.11.0</code>) reflecting the breaking rename. Observable: <code>read.dcf("DESCRIPTION")[, "Version"]</code> is no longer <code>"0.10.0"</code>.</li>
+</ul>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: CLAUDE.md §"Authoritative gate" — <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0 / SKIP 0. This is a shared-runtime + codegen-adjacent change touching the registry constructors and built-ins; per <code>.claude/rules/testing.md</code> the blast radius is wide — run the FULL suite (including e2e), not a filtered subset, before declaring done.</p>
+<p><strong>Plan-specific gate risks:</strong></p>
+<ul>
+  <li>The fixture <code>app.R</code>/<code>reference.R</code> files are exercised only by the full shinytest2 e2e suite (<code>test-e2e-vignette-examples-shinytest2.R</code>); a missed fixture call-site renames cleanly compiles but the browser boot errors. The e2e file must RUN (NOT_CRAN via <code>devtools::test()</code>), not SKIP — a clean all-skip would hide an un-swept fixture.</li>
+  <li>Registry-env split: custom-placeholder tests must run under <code>devtools::test()</code>, not raw <code>test_dir</code> (per CLAUDE.md proxy trap).</li>
+</ul>
+<p>This plan changes existing tests (renames within them) and adds ≥ 2 regression tests (worked examples #2 positive, #1 negative). Net PASS count must not drop; FAIL/ERROR 0; SKIP unchanged (0 under the gate).</p>
+
+<h2>Scope guard / ownership</h2>
+<p>Owns the files listed in Constraints. NAMESPACE/man are generated — the alias removal + any export change is reflected by <code>devtools::document()</code> at the integration step; do not hand-edit NAMESPACE.</p>
+<p>Branch convention: branch <code>0027-atomic-rename-and-sweep</code> in a worktree under <code>.claude/worktrees/0027-placeholder-arg-vocabulary/atomic-rename-and-sweep/</code>, branched off HEAD after PLAN-01 and PLAN-02 are merged. Merge via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and post-merge auditor) re-runs the full Definition-of-Done command — including the e2e suite — and verifies FAIL 0 / ERROR 0 / SKIP 0 before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch after PLAN-01 + PLAN-02 merged (record SHA in the worktree's first commit). New failures = anything not green at that point; the rename must not introduce any.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>The vignette's missing plain-R-use-case narrative (ADR 0027 "Out" / follow-up) is NOT in scope — this plan only updates existing call sites mechanically and fixes the <code>colvars</code> example's argument form where it already appears; it does not author new vignette prose. Bare-multi positional support (D6) is explicitly out. Surface any such finding, do not absorb.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: PLAN-01 (provides <code>embellish_identity()</code>/<code>embellish_symbol_to_string()</code> — needed to wire the <code>embellish_eval</code> default), PLAN-02 (provides <code>ptr_arg_numeric(vector=)</code> + <code>ptr_arg_symbol</code> — needed before removing the <code>ptr_arg_numeric_vector</code> alias and migrating callers). Provides for: none (terminal plan).</p>
+
+<!-- implementable: PASS date=2026-05-31 gate="Rscript -e 'devtools::test(reporter=\"progress\", stop_on_failure=FALSE)'" hash=7faa0c77b94f -->
+</body>
+</html>

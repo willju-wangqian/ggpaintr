@@ -28,7 +28,7 @@ test_that("ptr_define_placeholder_value() accepts validate_input(value, ctx) and
     keyword = kw,
     build_ui = .vic_build_ui_value,
     resolve_expr = .vic_resolve_expr,
-    validate_input = validator
+    validate_session_input = validator
   )
   expect_true(is.function(fn))
   entry <- ggpaintr:::ptr_registry_lookup(kw)
@@ -44,9 +44,9 @@ test_that("ptr_define_placeholder_value() rejects legacy (value, upstream_cols) 
       keyword = kw,
       build_ui = .vic_build_ui_value,
       resolve_expr = .vic_resolve_expr,
-      validate_input = function(value, upstream_cols) TRUE
+      validate_session_input = function(value, upstream_cols) TRUE
     ),
-    regexp = "validate_input.*ctx"
+    regexp = "validate_session_input.*ctx"
   )
 })
 
@@ -62,7 +62,7 @@ test_that("ptr_define_placeholder_consumer() accepts validate_input(value, ctx) 
     keyword = kw,
     build_ui = .vic_build_ui_consumer,
     resolve_expr = .vic_resolve_expr_sym,
-    validate_input = validator
+    validate_session_input = validator
   )
   expect_true(is.function(fn))
   entry <- ggpaintr:::ptr_registry_lookup(kw)
@@ -77,9 +77,9 @@ test_that("ptr_define_placeholder_consumer() rejects legacy (value, upstream_col
       keyword = kw,
       build_ui = .vic_build_ui_consumer,
       resolve_expr = .vic_resolve_expr_sym,
-      validate_input = function(value, upstream_cols) TRUE
+      validate_session_input = function(value, upstream_cols) TRUE
     ),
-    regexp = "validate_input.*ctx"
+    regexp = "validate_session_input.*ctx"
   )
 })
 
@@ -96,7 +96,7 @@ test_that("value-role substitute walker invokes validate_input with NULL ctx$ups
     keyword = kw,
     build_ui = .vic_build_ui_value,
     resolve_expr = .vic_resolve_expr,
-    validate_input = function(value, ctx) {
+    validate_session_input = function(value, ctx) {
       seen$node_keyword <- ctx$node$keyword
       seen$keyword <- ctx$keyword
       seen$upstream_cols <- ctx$upstream_cols
@@ -130,7 +130,7 @@ test_that("value-role validate_input accepts TRUE / NULL and proceeds to resolve
     keyword = kw,
     build_ui = .vic_build_ui_value,
     resolve_expr = function(value, node, ...) value,
-    validate_input = function(value, ctx) {
+    validate_session_input = function(value, ctx) {
       # The stopifnot ensures ctx contains exactly the documented fields.
       stopifnot(is.null(ctx$upstream_cols), is.null(ctx$data))
       stopifnot(identical(ctx$keyword, node$keyword))
@@ -155,7 +155,7 @@ test_that("consumer-role validate_input reads ctx$data to reject a non-numeric c
     keyword = kw,
     build_ui = .vic_build_ui_consumer,
     resolve_expr = .vic_resolve_expr_sym,
-    validate_input = function(value, ctx) {
+    validate_session_input = function(value, ctx) {
       if (!is.numeric(ctx$data[[value]])) {
         return(paste0("column `", value, "` is not numeric"))
       }
@@ -204,7 +204,7 @@ test_that("consumer-role ctx$upstream_cols matches the cols vector passed to bui
       shiny::selectInput(node$id, "x", choices = cols)
     },
     resolve_expr = .vic_resolve_expr_sym,
-    validate_input = function(value, ctx) {
+    validate_session_input = function(value, ctx) {
       stash$validator_upstream_cols <- ctx$upstream_cols
       TRUE
     }

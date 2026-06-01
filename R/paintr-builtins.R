@@ -333,7 +333,7 @@ ptr_register_builtins <- function() {
     keyword = "ppText",
     build_ui = ptr_builtin_text_build_ui,
     resolve_expr = ptr_builtin_text_resolve_expr,
-    positional_arg = ptr_arg_string(),
+    parse_positional_arg = ptr_arg_string(),
     ui_text_defaults = list(
       label = "Enter a value for {param}",
       placeholder = "Plain text - quotes are added automatically"
@@ -343,22 +343,22 @@ ptr_register_builtins <- function() {
     keyword = "ppNum",
     build_ui = ptr_builtin_num_build_ui,
     resolve_expr = ptr_builtin_num_resolve_expr,
-    positional_arg = ptr_arg_numeric(),
+    parse_positional_arg = ptr_arg_numeric(),
     ui_text_defaults = list(label = "Enter a number for {param}")
   )
   expr_fn <- ptr_define_placeholder_value(
     keyword = "ppExpr",
     build_ui = ptr_builtin_expr_build_ui,
     resolve_expr = ptr_builtin_expr_resolve_expr,
-    positional_arg = ptr_arg_expression(),
+    parse_positional_arg = ptr_arg_expression(),
     ui_text_defaults = list(label = "Enter an expression for {param}")
   )
   var_fn <- ptr_define_placeholder_consumer(
     keyword = "ppVar",
     build_ui = ptr_builtin_var_build_ui,
     resolve_expr = ptr_builtin_var_resolve_expr,
-    validate_input = ptr_builtin_var_validate_input,
-    positional_arg = ptr_arg_symbol_or_string(),
+    validate_session_input = ptr_builtin_var_validate_input,
+    parse_positional_arg = ptr_arg_symbol_or_string(),
     ui_text_defaults = list(
       label = "Pick a column for {param}",
       empty_text = "Choose one column"
@@ -369,7 +369,7 @@ ptr_register_builtins <- function() {
     build_ui = ptr_builtin_upload_build_ui,
     resolve_data = ptr_builtin_upload_resolve_data,
     shortcut = TRUE,
-    positional_arg = ptr_arg_symbol_or_string(),
+    parse_positional_arg = ptr_arg_symbol_or_string(),
     ui_text_defaults = list(label = "Upload data for {param}")
   )
   # ADR 0020 structural keywords. These never become `ptr_ph_*` nodes;

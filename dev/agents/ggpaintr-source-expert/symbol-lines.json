@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-31T01:48:08-0500",
-  "git_head": "918c2ec",
-  "n_files": 35,
-  "n_symbols": 506,
+  "generated_at": "2026-05-31T20:12:11-0500",
+  "git_head": "e8e1a20",
+  "n_files": 36,
+  "n_symbols": 511,
   "symbols": {
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
@@ -566,63 +566,68 @@
     },
     "ptr_constant_fold_env_get": {
       "file": "R/paintr-default-args.R",
-      "start_line": 67,
-      "end_line": 69
+      "start_line": 83,
+      "end_line": 85
     },
     "ptr_register_constant_fold": {
       "file": "R/paintr-default-args.R",
-      "start_line": 103,
-      "end_line": 109
+      "start_line": 120,
+      "end_line": 126
     },
     "ptr_clear_constant_fold": {
       "file": "R/paintr-default-args.R",
-      "start_line": 113,
-      "end_line": 127
+      "start_line": 130,
+      "end_line": 144
     },
     "ptr_constant_fold_keywords": {
       "file": "R/paintr-default-args.R",
-      "start_line": 131,
-      "end_line": 133
+      "start_line": 148,
+      "end_line": 150
     },
     "ptr_register_constant_fold_builtins": {
       "file": "R/paintr-default-args.R",
-      "start_line": 137,
-      "end_line": 145
+      "start_line": 154,
+      "end_line": 162
     },
     "validate_constant_ast": {
       "file": "R/paintr-default-args.R",
-      "start_line": 149,
-      "end_line": 190
+      "start_line": 166,
+      "end_line": 207
     },
     "ptr_constant_fold": {
       "file": "R/paintr-default-args.R",
-      "start_line": 192,
-      "end_line": 195
+      "start_line": 209,
+      "end_line": 212
+    },
+    "ptr_arg_vector_elements": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 220,
+      "end_line": 228
     },
     "ptr_arg_symbol_or_string": {
       "file": "R/paintr-default-args.R",
-      "start_line": 201,
-      "end_line": 213
+      "start_line": 232,
+      "end_line": 250
     },
     "ptr_arg_string": {
       "file": "R/paintr-default-args.R",
-      "start_line": 217,
-      "end_line": 224
+      "start_line": 254,
+      "end_line": 267
+    },
+    "ptr_arg_symbol": {
+      "file": "R/paintr-default-args.R",
+      "start_line": 271,
+      "end_line": 284
     },
     "ptr_arg_numeric": {
       "file": "R/paintr-default-args.R",
-      "start_line": 228,
-      "end_line": 236
-    },
-    "ptr_arg_numeric_vector": {
-      "file": "R/paintr-default-args.R",
-      "start_line": 240,
-      "end_line": 261
+      "start_line": 288,
+      "end_line": 315
     },
     "ptr_arg_expression": {
       "file": "R/paintr-default-args.R",
-      "start_line": 268,
-      "end_line": 293
+      "start_line": 322,
+      "end_line": 347
     },
     "is_data_chain_call": {
       "file": "R/paintr-disable.R",
@@ -683,6 +688,26 @@
       "file": "R/paintr-disable.R",
       "start_line": 152,
       "end_line": 157
+    },
+    "embellish_identity": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 40,
+      "end_line": 42
+    },
+    "embellish_symbol_to_string": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 46,
+      "end_line": 51
+    },
+    "embellish_expr_to_names": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 58,
+      "end_line": 69
+    },
+    "embellish_atom_to_name": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 73,
+      "end_line": 82
     },
     "ptr_eval": {
       "file": "R/paintr-eval.R",
@@ -1196,38 +1221,38 @@
     },
     "ptr_define_core": {
       "file": "R/paintr-registry.R",
-      "start_line": 352,
-      "end_line": 421
+      "start_line": 355,
+      "end_line": 424
     },
     "ptr_registry_register": {
       "file": "R/paintr-registry.R",
-      "start_line": 423,
-      "end_line": 429
+      "start_line": 426,
+      "end_line": 432
     },
     "ptr_define_placeholder_value": {
       "file": "R/paintr-registry.R",
-      "start_line": 592,
-      "end_line": 606
+      "start_line": 597,
+      "end_line": 612
     },
     "ptr_define_placeholder_consumer": {
       "file": "R/paintr-registry.R",
-      "start_line": 713,
-      "end_line": 727
+      "start_line": 720,
+      "end_line": 735
     },
     "ptr_define_placeholder_source": {
       "file": "R/paintr-registry.R",
-      "start_line": 870,
-      "end_line": 885
+      "start_line": 878,
+      "end_line": 893
     },
     "ptr_register_structural_keyword": {
       "file": "R/paintr-registry.R",
-      "start_line": 905,
-      "end_line": 925
+      "start_line": 913,
+      "end_line": 933
     },
     "ptr_signal_partial": {
       "file": "R/paintr-registry.R",
-      "start_line": 961,
-      "end_line": 963
+      "start_line": 969,
+      "end_line": 971
     },
     "ptr_render": {
       "file": "R/paintr-render.R",

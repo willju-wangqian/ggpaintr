@@ -24,8 +24,9 @@ return \code{invisible(NULL)}. \code{\link[=ptr_constant_fold_keywords]{ptr_cons
 character vector of currently registered names.
 }
 \description{
-The numeric default-argument validators (\code{\link[=ptr_arg_numeric]{ptr_arg_numeric()}} and
-\code{\link[=ptr_arg_numeric_vector]{ptr_arg_numeric_vector()}}) walk the placeholder's default-argument
+The numeric default-argument validator \code{\link[=ptr_arg_numeric]{ptr_arg_numeric()}} (scalar by
+default, vector via \code{vector = TRUE}) walks the placeholder's
+default-argument
 AST against an allowlist of function and constant names. Authors can
 extend the allowlist with \code{\link[=ptr_register_constant_fold]{ptr_register_constant_fold()}} when their
 placeholder definitions need additional pure operators.

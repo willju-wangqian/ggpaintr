@@ -301,7 +301,7 @@ test_that("BUG-7: validate_input may return NULL for a valid input (idiomatic R)
       if (length(value) == 0L) return(NULL)
       rlang::sym(value)
     },
-    validate_input = function(value, ctx) {
+    validate_session_input = function(value, ctx) {
       validate_calls <<- validate_calls + 1L
       bad <- setdiff(value, ctx$upstream_cols)
       if (length(bad)) sprintf("unknown: %s", paste(bad, collapse = ", "))

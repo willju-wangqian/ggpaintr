@@ -14,7 +14,7 @@ library(shiny)
 
 ptr_define_placeholder_value(
   keyword    = "hinted_text",
-  named_args = list(hint = ptr_arg_string()),
+  parse_named_args = list(hint = ptr_arg_string()),
   build_ui   = function(node, label = NULL, named_args = list(), ...) {
     shiny::textInput(
       node$id,
