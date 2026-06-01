@@ -4,11 +4,11 @@
   "counts": {
     "verified": 6
   },
-  "ref_convention": "checked_refs cite SYMBOLS (R/file.R::name, resolved via symbol-lines.json) or TEXT ANCHORS (path::\"text\") — never bare line numbers. Run dev/scripts/refresh-finding-citations.R --apply to (re)generate resolved_refs; line numbers live only there and are recomputed, so they never go stale in the record.",
+  "ref_convention": "checked_refs cite SYMBOLS (R/file.R::name, resolved via symbol-lines.json) or TEXT ANCHORS (path::\"text\") \u2014 never bare line numbers. Run dev/scripts/refresh-finding-citations.R --apply to (re)generate resolved_refs; line numbers live only there and are recomputed, so they never go stale in the record.",
   "findings": [
     {
       "id": "formula-capture-only-four-boundary-fns",
-      "claim": "Only ptr_app, ptr_ui, ptr_ui_controls, and ptr_server accept an unquoted ggplot expression — they each call ptr_capture_formula(rlang::enexpr(formula), envir); ptr_init_state (and thus ptr_extract*/ptr_gg_extra), ptr_id_table, ptr_app_bslib, and ptr_app_grid are string-only.",
+      "claim": "Only ptr_app, ptr_ui, ptr_ui_controls, and ptr_server accept an unquoted ggplot expression \u2014 they each call ptr_capture_formula(rlang::enexpr(formula), envir); ptr_init_state (and thus ptr_extract*/ptr_gg_extra), ptr_id_table, ptr_app_bslib, and ptr_app_grid are string-only.",
       "detail": "ptr_init_state does tree <- ptr_translate(formula, expr_check=expr_check) with no enexpr capture; ptr_id_table asserts is.character(formula). So roxygen examples may lead with the expression form ONLY for the four boundary fns; the rest must stay string examples.",
       "scope": "durable",
       "feature": "",
@@ -35,7 +35,10 @@
         "R/paintr-server.R:91-377 (ptr_init_state)",
         "R/paintr-input-spec.R:239-261 (ptr_id_table)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487",
+      "labels": [
+        "formula-capture"
+      ]
     },
     {
       "id": "ptr-capture-formula-symbol-resolution",
@@ -56,7 +59,10 @@
       "resolved_refs": [
         "R/paintr-app.R:196-296 (ptr_capture_formula)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487",
+      "labels": [
+        "formula-capture"
+      ]
     },
     {
       "id": "llm-corpus-export-gate",
@@ -66,7 +72,7 @@
       "feature": "",
       "source": "tests/testthat/test-llm.R (corpus-integrity test_that); dev/githooks/pre-commit (runs dev/build-llm.R lint + verify on inst/llm/ or dev/build-llm.R changes)",
       "verdict": "verified",
-      "verification": "tests/testthat/test-llm.R::\"every ptr_*() call in the corpus names an exported function\" (lines 107-118): computes `exports <- getNamespaceExports(\"ggpaintr\")`, scans every llm_corpus_files() file for ptr_*() calls, and `expect_identical(setdiff(calls, c(exports, ID_ALLOWLIST)), character(0))` — so unexporting a corpus-documented function fails the suite. llm_corpus_files() def at line 19. Pre-commit hook dev/githooks/pre-commit lines 86-93: when `inst/llm/` or `dev/build-llm.R` is staged it runs `Rscript dev/build-llm.R lint` (exit-1 on drift) and `verify`, blocking the commit. The session's DEAD_ARGS edit to build-llm.R did not touch this gate. Claim holds.",
+      "verification": "tests/testthat/test-llm.R::\"every ptr_*() call in the corpus names an exported function\" (lines 107-118): computes `exports <- getNamespaceExports(\"ggpaintr\")`, scans every llm_corpus_files() file for ptr_*() calls, and `expect_identical(setdiff(calls, c(exports, ID_ALLOWLIST)), character(0))` \u2014 so unexporting a corpus-documented function fails the suite. llm_corpus_files() def at line 19. Pre-commit hook dev/githooks/pre-commit lines 86-93: when `inst/llm/` or `dev/build-llm.R` is staged it runs `Rscript dev/build-llm.R lint` (exit-1 on drift) and `verify`, blocking the commit. The session's DEAD_ARGS edit to build-llm.R did not touch this gate. Claim holds.",
       "checked_refs": [
         "tests/testthat/test-llm.R::\"every ptr_*() call in the corpus names an exported function\"",
         "tests/testthat/test-llm.R::\"llm_corpus_files\"",
@@ -81,11 +87,15 @@
         "tests/testthat/test-llm.R:19,110,127,144 (anchor)",
         "dev/githooks/pre-commit"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487",
+      "labels": [
+        "llm-assist",
+        "harness-tooling"
+      ]
     },
     {
       "id": "build-llm-managed-blocks-and-hardcoded-desc",
-      "claim": "dev/build-llm.R only regenerates two @ptr-gen managed-block types — \"token-table\" and \"topic-index\" (both in primer.md) — from hardcoded TOKEN_ROWS/TOPIC_DESC lists; the function-signature bullets in primer.md are plain hand-authored prose (there is NO \"level-table\" managed block).",
+      "claim": "dev/build-llm.R only regenerates two @ptr-gen managed-block types \u2014 \"token-table\" and \"topic-index\" (both in primer.md) \u2014 from hardcoded TOKEN_ROWS/TOPIC_DESC lists; the function-signature bullets in primer.md are plain hand-authored prose (there is NO \"level-table\" managed block).",
       "detail": "Commands: lint (HARD-fails on any non-export ptr_*() call, exit 1), generate (rewrite managed blocks in place), verify (sync gate, exit 1 on drift). Because TOPIC_DESC is hardcoded, removing a function reference requires editing BOTH the .md prose AND the TOPIC_DESC string in build-llm.R, else generate reintroduces the stale ref. lint is the authoritative corpus gate, not just verify.",
       "scope": "durable",
       "feature": "",
@@ -110,7 +120,11 @@
         "dev/build-llm.R:139 (anchor)",
         "dev/build-llm.R:338 (anchor)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487",
+      "labels": [
+        "llm-assist",
+        "harness-tooling"
+      ]
     },
     {
       "id": "app-variants-unexported-still-documented",
@@ -139,7 +153,10 @@
         "man/ptr_app_bslib.Rd",
         "man/ptr_app_grid.Rd"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487",
+      "labels": [
+        "package-api-surface"
+      ]
     },
     {
       "id": "roxygen-bare-ggplot-runs-in-examples",
@@ -160,7 +177,10 @@
       "resolved_refs": [
         "R/paintr-app.R:873-918 (ptr_ui)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487",
+      "labels": [
+        "vignette-docs"
+      ]
     }
   ]
 }

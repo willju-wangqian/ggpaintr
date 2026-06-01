@@ -7,8 +7,8 @@
   "findings": [
     {
       "id": "addin-classify-searchpath-dataframe",
-      "claim": "The addin's type classifier uses `exists/get(nm, inherits = TRUE)` so a bare highlighted name resolves through the search path — `mpg` resolves to ggplot2's `mpg` dataset (a data.frame) and is classified \"dataframe\" (promoting ppUpload), a deliberately-accepted false-positive since every placeholder still appears in the list.",
-      "detail": "The picker order is then `ptr_addin_order(pickable, kind)`: tier-1 promotion by kind, tier-2 by role (consumer<value<source<structural), tier-3 built-ins before customs, tier-4 alphabetical — so a custom placeholder interleaves with its role group instead of sinking to the bottom.",
+      "claim": "The addin's type classifier uses `exists/get(nm, inherits = TRUE)` so a bare highlighted name resolves through the search path \u2014 `mpg` resolves to ggplot2's `mpg` dataset (a data.frame) and is classified \"dataframe\" (promoting ppUpload), a deliberately-accepted false-positive since every placeholder still appears in the list.",
+      "detail": "The picker order is then `ptr_addin_order(pickable, kind)`: tier-1 promotion by kind, tier-2 by role (consumer<value<source<structural), tier-3 built-ins before customs, tier-4 alphabetical \u2014 so a custom placeholder interleaves with its role group instead of sinking to the bottom.",
       "scope": "durable",
       "feature": "",
       "tags": "rstudio-addin",
@@ -21,7 +21,10 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "rstudio-addin"
+      ]
     },
     {
       "id": "getthemeinfo-dark-flag",
@@ -40,12 +43,15 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "rstudio-addin"
+      ]
     },
     {
       "id": "minititlebar-right-slot-single-tag",
-      "claim": "miniUI's `miniTitleBar` calls `tagAppendAttributes(right, class = \"pull-right\")` on its `right` (and `left`) slot, so that slot must be a SINGLE tag — passing a `shiny::tagList(...)` mis-applies the attribute and leaks the literal text \"pull-right\" into the rendered bar while breaking button float.",
-      "detail": "Fix for multiple title-bar buttons is to wrap them in one `shiny::div(...)`. Discovered by reading `print(miniUI:::miniTitleBar)`: body is `tags$div(class=\"gadget-title\", tags$h1(title), tagAppendAttributes(left,...), tagAppendAttributes(right,...))`. Also: the gadget `<h1>` title duplicates and visually collides with the dialogViewer window title — set the gadget title to \"\" when using `dialogViewer()`.",
+      "claim": "miniUI's `miniTitleBar` calls `tagAppendAttributes(right, class = \"pull-right\")` on its `right` (and `left`) slot, so that slot must be a SINGLE tag \u2014 passing a `shiny::tagList(...)` mis-applies the attribute and leaks the literal text \"pull-right\" into the rendered bar while breaking button float.",
+      "detail": "Fix for multiple title-bar buttons is to wrap them in one `shiny::div(...)`. Discovered by reading `print(miniUI:::miniTitleBar)`: body is `tags$div(class=\"gadget-title\", tags$h1(title), tagAppendAttributes(left,...), tagAppendAttributes(right,...))`. Also: the gadget `<h1>` title duplicates and visually collides with the dialogViewer window title \u2014 set the gadget title to \"\" when using `dialogViewer()`.",
       "scope": "durable",
       "feature": "",
       "tags": "rstudio-addin",
@@ -59,7 +65,10 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "rstudio-addin"
+      ]
     },
     {
       "id": "pp-tokens-exported-identity",
@@ -78,12 +87,16 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "package-api-surface",
+        "placeholder-keywords"
+      ]
     },
     {
       "id": "ptr-app-resolves-bare-stored-symbol",
       "claim": "`ptr_capture_formula` resolves a bare symbol bound to a stored formula: when the enexpr-captured arg is a symbol it is `rlang::eval_bare(sym, envir)`-resolved and accepted if the value is a string/call/symbol, so `formula_iris <- rlang::expr(ggplot(...)); ptr_app(formula_iris)` works WITHOUT `!!`.",
-      "detail": "Verified by probe: `ptr_capture_formula(rlang::expr(formula_iris), environment())` returned the deparsed ggplot string. The `!!` form is only required for non-symbol captures (e.g. subscripted `plots[[1]]`). CLAUDE.md's \"splice stored exprs with !!\" is one valid path but not the only one — bare stored symbols resolve too (documented \"f <- '...'; ptr_app(f)\" contract extends to call-valued symbols).",
+      "detail": "Verified by probe: `ptr_capture_formula(rlang::expr(formula_iris), environment())` returned the deparsed ggplot string. The `!!` form is only required for non-symbol captures (e.g. subscripted `plots[[1]]`). CLAUDE.md's \"splice stored exprs with !!\" is one valid path but not the only one \u2014 bare stored symbols resolve too (documented \"f <- '...'; ptr_app(f)\" contract extends to call-valued symbols).",
       "scope": "durable",
       "feature": "",
       "tags": "rstudio-addin,formula-capture",
@@ -96,11 +109,14 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "formula-capture"
+      ]
     },
     {
       "id": "rcmd-check-nonascii-strings-only",
-      "claim": "R CMD check's \"non-ASCII characters\" WARNING fires on non-ASCII in R *code* (string literals, symbols) but NOT in comments/roxygen; fix with `\\uXXXX` escapes or ASCII equivalents (curly quotes, `…`, `↑↓` in gadget strings triggered it).",
+      "claim": "R CMD check's \"non-ASCII characters\" WARNING fires on non-ASCII in R *code* (string literals, symbols) but NOT in comments/roxygen; fix with `\\uXXXX` escapes or ASCII equivalents (curly quotes, `\u2026`, `\u2191\u2193` in gadget strings triggered it).",
       "detail": "`tools::showNonASCIIfile(\"R/x.R\")` lists every non-ASCII line (over-reports comments). Only the string-literal lines matter for the warning; making the whole file ASCII via a `perl -CSD -i -pe 's/\\x{2026}/.../g; ...'` pass guarantees it clears and is verifiable by re-running showNonASCIIfile (empty output).",
       "scope": "durable",
       "feature": "",
@@ -115,7 +131,10 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "r-language-gotchas"
+      ]
     },
     {
       "id": "readme-github-document-image-must-exist",
@@ -134,29 +153,35 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs"
+      ]
     },
     {
       "id": "rstudio-addin-no-default-shortcut",
-      "claim": "An RStudio addin package CANNOT ship a default keyboard shortcut — bindings live only in the user's `~/.config/rstudio/keybindings/addins.json` (macOS/Linux ≥1.3) or `~/AppData/Roaming/RStudio/keybindings/addins.json` (Windows), keyed by command-id `package::function`; and an addin appears in the shortcut dialog only after the package is INSTALLED, not merely `devtools::load_all()`-ed.",
-      "detail": "`addins.dcf` has no shortcut field. Bind via Tools > Addins > Browse Addins... > Keyboard Shortcuts..., or Tools > Modify Keyboard Shortcuts. The exact macOS Command-key token in that JSON could not be authoritatively confirmed from docs (Cmd vs Command vs Meta) — read it back from a binding set in the GUI if a writer is ever built.",
+      "claim": "An RStudio addin package CANNOT ship a default keyboard shortcut \u2014 bindings live only in the user's `~/.config/rstudio/keybindings/addins.json` (macOS/Linux \u22651.3) or `~/AppData/Roaming/RStudio/keybindings/addins.json` (Windows), keyed by command-id `package::function`; and an addin appears in the shortcut dialog only after the package is INSTALLED, not merely `devtools::load_all()`-ed.",
+      "detail": "`addins.dcf` has no shortcut field. Bind via Tools > Addins > Browse Addins... > Keyboard Shortcuts..., or Tools > Modify Keyboard Shortcuts. The exact macOS Command-key token in that JSON could not be authoritatively confirmed from docs (Cmd vs Command vs Meta) \u2014 read it back from a binding set in the GUI if a writer is ever built.",
       "scope": "durable",
       "feature": "",
       "tags": "rstudio-addin",
       "source": "Posit docs; shrtcts/rstudio.prefs pkg docs; inst/rstudio/addins.dcf",
       "verdict": "verified",
-      "verification": "inst/rstudio/addins.dcf has no Shortcut field (grep=0). Path/keying/install-only-in-dialog from Posit + shrtcts/rstudio.prefs docs this session. SUB-DETAIL UNCONFIRMED: exact macOS Command-key token in addins.json (Cmd vs Command vs Meta) — read back from a GUI-set binding if ever writing that file.",
+      "verification": "inst/rstudio/addins.dcf has no Shortcut field (grep=0). Path/keying/install-only-in-dialog from Posit + shrtcts/rstudio.prefs docs this session. SUB-DETAIL UNCONFIRMED: exact macOS Command-key token in addins.json (Cmd vs Command vs Meta) \u2014 read back from a GUI-set binding if ever writing that file.",
       "checked_refs": [
         "inst/rstudio/addins.dcf"
       ],
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "rstudio-addin"
+      ]
     },
     {
       "id": "selectize-custom-render-pattern",
-      "claim": "Rich per-row rendering in a `selectizeInput` uses `choices = NULL` plus `options = list(options = <unnamed list of dicts>, valueField, labelField, searchField, render = I(\"{ option: fn, item: fn }\"))` — and the render marker is base `I()`, not `shiny::I` (which does not exist).",
+      "claim": "Rich per-row rendering in a `selectizeInput` uses `choices = NULL` plus `options = list(options = <unnamed list of dicts>, valueField, labelField, searchField, render = I(\"{ option: fn, item: fn }\"))` \u2014 and the render marker is base `I()`, not `shiny::I` (which does not exist).",
       "detail": "Each dict supplies the fields the JS render reads (e.g. kw/role/desc); the JS `escape()` is selectize-provided. `htmltools::renderTags(ui)$head` (NOT `$html`) is where a `tags$head(tags$style(...))` block lands when verifying CSS embedding headlessly.",
       "scope": "durable",
       "feature": "",
@@ -170,7 +195,10 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "rstudio-addin"
+      ]
     },
     {
       "id": "shiny-gadget-listening-message-suppress",
@@ -189,7 +217,10 @@
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "labels": [
+        "rstudio-addin"
+      ]
     }
   ]
 }
