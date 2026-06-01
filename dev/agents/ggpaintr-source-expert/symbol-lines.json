@@ -1,9 +1,79 @@
 {
-  "generated_at": "2026-05-31T21:39:19-0500",
-  "git_head": "feff4d9",
-  "n_files": 36,
-  "n_symbols": 511,
+  "generated_at": "2026-05-31T21:44:16-0500",
+  "git_head": "9e1e752",
+  "n_files": 37,
+  "n_symbols": 525,
   "symbols": {
+    "ptr_addin_build_replacement": {
+      "file": "R/paintr-addin.R",
+      "start_line": 32,
+      "end_line": 42
+    },
+    "ptr_addin_describe": {
+      "file": "R/paintr-addin.R",
+      "start_line": 46,
+      "end_line": 64
+    },
+    "ptr_addin_classify": {
+      "file": "R/paintr-addin.R",
+      "start_line": 75,
+      "end_line": 100
+    },
+    "ptr_addin_order": {
+      "file": "R/paintr-addin.R",
+      "start_line": 107,
+      "end_line": 136
+    },
+    "ptr_addin_pickable": {
+      "file": "R/paintr-addin.R",
+      "start_line": 142,
+      "end_line": 157
+    },
+    "ptr_addin_items": {
+      "file": "R/paintr-addin.R",
+      "start_line": 162,
+      "end_line": 166
+    },
+    "ptr_addin_dark_mode": {
+      "file": "R/paintr-addin.R",
+      "start_line": 171,
+      "end_line": 178
+    },
+    "ptr_addin_palette_css": {
+      "file": "R/paintr-addin.R",
+      "start_line": 183,
+      "end_line": 221
+    },
+    "ptr_addin_render_js": {
+      "file": "R/paintr-addin.R",
+      "start_line": 225,
+      "end_line": 236
+    },
+    "ptr_addin_run_palette": {
+      "file": "R/paintr-addin.R",
+      "start_line": 240,
+      "end_line": 312
+    },
+    "ptr_wrap_placeholder_addin": {
+      "file": "R/paintr-addin.R",
+      "start_line": 358,
+      "end_line": 367
+    },
+    "ptr_addin_build_app_wrap": {
+      "file": "R/paintr-addin.R",
+      "start_line": 380,
+      "end_line": 391
+    },
+    "ptr_addin_require_rstudio": {
+      "file": "R/paintr-addin.R",
+      "start_line": 400,
+      "end_line": 405
+    },
+    "ptr_addin_apply_result": {
+      "file": "R/paintr-addin.R",
+      "start_line": 409,
+      "end_line": 425
+    },
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
       "start_line": 55,

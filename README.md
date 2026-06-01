@@ -59,6 +59,85 @@ handy when a formula is built or fetched as text. To swap in a custom
 page shell or theme, write a thin wrapper on top of the public
 primitives.
 
+The `ptr_app()` call above needs a Shiny session to run, so it is not
+evaluated here. But each `pp*` token is a plain identity function, so
+the **same formula without `ptr_app()` is ordinary, runnable `ggplot2`**
+— drop the placeholders into your plot, sketch it as a static chart
+first, then wrap it in `ptr_app()` when you want the widgets:
+
+``` r
+ggplot(iris, aes(x = ppVar(Sepal.Length), y = ppVar(Sepal.Width), color = ppVar(Species))) +
+  geom_point(size = ppNum(3)) +
+  labs(x = "Sepal.Length", y = "Sepal.Width", color = "Species")
+```
+
+<img src="man/figures/README-readme-naked-ggplot-1.png" alt="Scatter plot of iris Sepal.Width against Sepal.Length, coloured by Species" width="70%" />
+
+Here `ppVar(Sepal.Length)` evaluates to `Sepal.Length` and `ppNum(3)` to
+`3`, so the chart renders exactly as plain ggplot2 — the tokens only
+become widgets once the expression is handed to `ptr_app()`.
+
+Handing that exact expression to `ptr_app()` launches the interactive
+app, and the value inside each placeholder becomes that widget’s
+**initial selection** — so the app boots with `x = Sepal.Length`,
+`y = Sepal.Width`, `color = Species`, `size = 3` pre-selected and
+renders the very same figure straight away, ready to be re-pointed at
+other columns:
+
+``` r
+ptr_app(
+  ggplot(iris, aes(x = ppVar(Sepal.Length),
+                   y = ppVar(Sepal.Width), 
+                   color = ppVar(Species))) +
+    geom_point(size = ppNum(3))
+)
+```
+
+The expression need not be inline. Capture it once with `rlang::expr()`
+and reuse it — `ptr_app()` resolves a formula stored in a variable by
+name (no `!!` needed), so you can build, inspect, or share the formula
+before launching the app:
+
+``` r
+formula_iris <- rlang::expr(
+  ggplot(iris, aes(x = ppVar(Sepal.Length), 
+                   y = ppVar(Sepal.Width), 
+                   color = ppVar(Species))) +
+    geom_point(size = ppNum(3))
+)
+
+ptr_app(formula_iris)
+```
+
+## RStudio addin
+
+ggpaintr ships an RStudio addin that turns a plain ggplot expression
+into a placeholder formula without typing the `pp*` tokens by hand.
+Highlight a piece of your code, run the addin, and pick a placeholder
+from a command palette — the selection is rewritten in place (`mpg` →
+`ppVar(mpg)`; nothing highlighted inserts `ppVar()` with the cursor
+between the parens). The list is ordered by what you highlighted — a
+bare name surfaces the column pickers (`ppVar`), a number `ppNum`, a
+string `ppText`, a call the layer/verb toggles (`ppLayerOff` /
+`ppVerbSwitch`) — and any placeholder you registered this session
+appears automatically. The palette’s **Wrap in app** button wraps the
+whole selection in `{ … } |> ptr_app()` to scaffold a runnable app.
+
+![The ggpaintr placeholder addin: a command palette over a ggplot
+expression](man/figures/ggpaintr-addin.png)
+
+Run it from the **Addins** menu ▸ *ggpaintr placeholder*. To bind a
+keyboard shortcut (the addin must be **installed**, not just
+`load_all()`-ed, to appear in the dialog):
+
+1.  *Tools ▸ Addins ▸ Browse Addins…*, then the *Keyboard Shortcuts…*
+    button. (Or *Tools ▸ Modify Keyboard Shortcuts…* and type “ggpaintr”
+    in the search box.)
+2.  Click the *Shortcut* cell on the *ggpaintr placeholder* row.
+3.  Press your combination — e.g. **Cmd+Shift+G** (macOS) or
+    **Ctrl+Shift+G** (Windows/Linux). Any free combination works.
+4.  *Apply*.
+
 ## More topics
 
 -   **`vignette("ggpaintr-tutorial")` — *Tutorial*.** A guided walk from
