@@ -1,0 +1,101 @@
+{
+  "harvested_at": "2026-06-01T01:31",
+  "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-06-01-0130-session-release-tooling.md)",
+  "counts": {
+    "verified": 5,
+    "contradicted": 0,
+    "unconfirmable": 0
+  },
+  "findings": [
+    {
+      "id": "set-sentinel-polls-for-boot-tail-render",
+      "scope": "durable",
+      "feature": "",
+      "claim": "set_sentinel polls app$get_html for the target node up to bind_timeout_ms (then wait_for_input_binding) instead of a single-shot DOM read, so the first post-boot sentinel survives the boot-tail race where a source/value/consumer renderUI mounts on a flush AFTER boot_super_app()'s wait_for_idle() returns.",
+      "detail": "Under 4-way parallel chromote load the single-shot read hit an empty DOM and aborted 'not rendered' (parallel-only FAIL on test-super-pressure.R, green serially); the poll closes it. bind_timeout_ms=0 keeps single-shot semantics, and the actionable 'gated consumer picker' stop still fires after the poll times out so a genuinely column-scope-gated picker fails loudly.",
+      "source": "tests/testthat/helper-super-pressure.R::set_sentinel",
+      "verification": "Read helper-super-pressure.R::set_sentinel at HEAD: a `deadline = Sys.time() + bind_timeout_ms/1000` poll loop (`repeat { get_html; break if non-empty; stop after deadline }`) precedes wait_for_input_binding; comment documents the boot-tail race. Committed feff4d9 this session.",
+      "checked_refs": [
+        "tests/testthat/helper-super-pressure.R::set_sentinel"
+      ],
+      "verdict": "verified",
+      "verified_at_commit": "6767443d9fbf78641e3f753b8f055cbce36c93c7",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-01-0130-session-release-tooling.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "stale-namespace-export-is-load-all-warning",
+      "scope": "durable",
+      "feature": "",
+      "claim": "Removing an exported function from R/ source while NAMESPACE still lists it yields only a pkgload::load_all WARNING ('objects listed as exports, but not present in namespace'), NOT a fatal error, so devtools::test() still runs and the FAIL/ERROR/SKIP gate stays green — making NAMESPACE/man regen safely an integration step after an atomic rename/removal rather than a per-change blocker.",
+      "detail": "Verified by a throwaway-package probe this session. This is why ADR-0027 PLAN-03 could delete ptr_arg_numeric_vector from source without touching NAMESPACE and still gate green; devtools::document() at integration cleared the phantom export.",
+      "source": "NAMESPACE; R/paintr-default-args.R; pkgload::load_all",
+      "verification": "Reproduced this session: a temp package exporting a non-existent symbol loaded via pkgload::load_all with a WARNING (not error). ptr_arg_numeric_vector was removed in PLAN-03 with NAMESPACE untouched until integration document(); the worktree gate stayed FAIL 0.",
+      "checked_refs": [
+        "NAMESPACE",
+        "R/paintr-default-args.R"
+      ],
+      "verdict": "verified",
+      "verified_at_commit": "6767443d9fbf78641e3f753b8f055cbce36c93c7",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-01-0130-session-release-tooling.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "rcmd-check-tests-deps-is-static-scan",
+      "scope": "durable",
+      "feature": "",
+      "claim": "R CMD check's 'unstated dependencies in tests' WARNING is a STATIC scan for pkg:: / pkg::: literals in test source — it fires even when the reference is never evaluated (e.g. a broom::augment(...) / broom:::glance token inside a quote()/string formula the translate/render pipeline only manipulates as text+AST), so a codegen test must either declare the package or use a base-R namespace (stats::/utils::, never flagged).",
+      "detail": "This repo's resugar/render tests pass namespaced calls as formula TOKENS, never calling them; broom was swapped to stats::predict / stats::coef and dropped from Suggests this session because it was never run.",
+      "source": "tests/testthat/test-resugar-pipeline.R; tests/testthat/test-rewrite-render.R; DESCRIPTION",
+      "verification": "R CMD check this session WARNINGed on broom (unstated test dep) while broom only appeared as quote()/string tokens never evaluated; swapping to stats:: + dropping broom from DESCRIPTION cleared it to Status OK 0/0/0. broom now absent from DESCRIPTION.",
+      "checked_refs": [
+        "tests/testthat/test-resugar-pipeline.R::\"stats::predict\"",
+        "tests/testthat/test-rewrite-render.R::\"stats::coef\"",
+        "DESCRIPTION"
+      ],
+      "verdict": "verified",
+      "verified_at_commit": "6767443d9fbf78641e3f753b8f055cbce36c93c7",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-01-0130-session-release-tooling.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "pkgdown-requires-exported-topics-indexed",
+      "scope": "durable",
+      "feature": "",
+      "claim": "build_pkgdown_clean() fails via pkgdown's check_missing_topics whenever an EXPORTED function is absent from _pkgdown.yml's reference index; functions changed to @keywords internal may be DROPPED from the index entirely (only exported topics are required to be listed) while their man/*.Rd is still generated so existing cross-reference links keep resolving.",
+      "detail": "This session added embellish_helpers + ptr_wrap_placeholder_addin to the index (the build-blocker) and removed the now-internal ptr_app_bslib / ptr_app_grid from the public reference.",
+      "source": "_pkgdown.yml; dev/build-pkgdown.R",
+      "verification": "build_pkgdown_clean() aborted 'In _pkgdown.yml, 2 topics missing from index: embellish_helpers and ptr_wrap_placeholder_addin'; adding both + removing the now-internal ptr_app_bslib/ptr_app_grid made the build clean (reference metadata ok). _pkgdown.yml lists both new topics and neither app variant.",
+      "checked_refs": [
+        "_pkgdown.yml::\"ptr_wrap_placeholder_addin\"",
+        "_pkgdown.yml::\"embellish_helpers\"",
+        "dev/build-pkgdown.R"
+      ],
+      "verdict": "verified",
+      "verified_at_commit": "6767443d9fbf78641e3f753b8f055cbce36c93c7",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-01-0130-session-release-tooling.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "exec-audit-structuredoutput-failure-recovery",
+      "scope": "campaign",
+      "feature": "harness-tooling",
+      "claim": "The exec-audit.js workflow can abort an entire parallel group with 'agent({schema}): subagent completed without calling StructuredOutput', discarding the per-plan verdicts — but each implementer's single commit in its worktree survives, so the /exec-plan main loop recovers by independently re-auditing each worktree (run the authoritative gate + diff-scope check) and merging, rather than re-running the flaky ~44-minute workflow from scratch.",
+      "detail": "Happened on the G1 group this session; both implementers had committed correct work, so direct audit+merge was both safe and cheaper than a re-run.",
+      "source": "~/.claude/skills/exec-plan/exec-audit.js",
+      "verification": "exec-audit.js spawns implementers with {schema: IMPL_SCHEMA} (requires a `committed` boolean + one commit) before the auditor; a missing StructuredOutput aborts the Workflow. Observed this session on G1; worktree commits 635cfc0/dc26a40 were intact and were audited+merged directly.",
+      "checked_refs": [
+        "~/.claude/skills/exec-plan/exec-audit.js"
+      ],
+      "verdict": "verified",
+      "verified_at_commit": "6767443d9fbf78641e3f753b8f055cbce36c93c7",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-01-0130-session-release-tooling.md",
+      "origin_status": "derived-unverified"
+    }
+  ]
+}
