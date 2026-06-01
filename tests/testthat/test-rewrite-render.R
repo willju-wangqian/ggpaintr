@@ -287,12 +287,12 @@ test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
   # lift round-trip into the rendered pipeline form.
   expect_equal(
     ptr_render(ptr_translate(
-      "mtcars |> purrr::map(broom::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
+      "mtcars |> purrr::map(stats::coef) |> ggplot(aes(mpg, hp)) + geom_point()"
     )),
     paste0(
       "ggplot(\n",
       "  data = mtcars |>\n",
-      "           purrr::map(broom::glance),\n",
+      "           purrr::map(stats::coef),\n",
       "  aes(mpg, hp)\n",
       ") +\n",
       "  geom_point()"
@@ -300,12 +300,12 @@ test_that("P10.20 namespaced reference as an argument renders as pkg::name", {
   )
   expect_equal(
     ptr_render(ptr_translate(
-      "mtcars |> purrr::map(broom:::glance) |> ggplot(aes(mpg, hp)) + geom_point()"
+      "mtcars |> purrr::map(stats:::coef) |> ggplot(aes(mpg, hp)) + geom_point()"
     )),
     paste0(
       "ggplot(\n",
       "  data = mtcars |>\n",
-      "           purrr::map(broom:::glance),\n",
+      "           purrr::map(stats:::coef),\n",
       "  aes(mpg, hp)\n",
       ") +\n",
       "  geom_point()"

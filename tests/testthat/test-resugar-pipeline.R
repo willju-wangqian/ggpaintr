@@ -154,8 +154,8 @@ test_that("build_pipeline_from_lift threads op_hint into ptr_pipeline$op", {
 # state, never a pipeline data source. Before the fix the aggressive descent
 # walked THROUGH `ppExpr(...)` into the formula and lifted its LHS `y` as the
 # "data source", turning
-#   broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d)))
-# into `y |> ~(x) |> lm() |> augment()` -- which boots empty and evals
+#   stats::predict(lm(ppExpr(y ~ x), data = ppUpload(d)))
+# into `y |> ~(x) |> lm() |> predict()` -- which boots empty and evals
 # "object 'y' not found", and strips the ppExpr formula default from its
 # textarea. Two guards enforce the contract: the descent loop stops at any
 # placeholder call, and the grounding gate accepts only a symbol or a
@@ -178,7 +178,7 @@ test_that("resugar does not descend into a value placeholder's arguments", {
 
 test_that("try_lift rejects a value-placeholder data source", {
   res <- ggpaintr:::try_lift_to_pipeline(
-    quote(broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d))))
+    quote(stats::predict(lm(ppExpr(y ~ x), data = ppUpload(d))))
   )
   expect_false(isTRUE(res$success))
   expect_equal(res$reason, "opaque-call-source")
@@ -186,7 +186,7 @@ test_that("try_lift rejects a value-placeholder data source", {
 
 test_that("translate keeps a computed formula data source as an opaque call", {
   root <- ggpaintr:::ptr_translate(
-    paste0("broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d))) |> ",
+    paste0("stats::predict(lm(ppExpr(y ~ x), data = ppUpload(d))) |> ",
            "ggplot(aes(.fitted, .resid)) + geom_point()")
   )
   data_arg <- root$layers[[1L]]$data_arg
@@ -224,14 +224,14 @@ test_that("resugar does not tear a bare formula into pipeline stages", {
   # The formula stays whole inside `lm(...)`; its LHS `y` is never the source.
   expect_false(identical(parts$source, quote(y)))
   res <- ggpaintr:::try_lift_to_pipeline(
-    quote(broom::augment(lm(y ~ x, data = mtcars)))
+    quote(stats::predict(lm(y ~ x, data = mtcars)))
   )
   expect_false(isTRUE(res$success))
 })
 
 test_that("a bare formula in a computed data source renders intact and infix", {
   root <- ggpaintr:::ptr_translate(
-    paste0("broom::augment(lm(mpg ~ wt, data = mtcars)) |> ",
+    paste0("stats::predict(lm(mpg ~ wt, data = mtcars)) |> ",
            "ggplot(aes(.fitted, .resid)) + geom_point()")
   )
   res <- ggpaintr:::ptr_complete_expr_safe(
@@ -273,7 +273,7 @@ test_that("a one-sided formula layer arg is unchanged", {
 
 test_that("explicit parentheses in a formula survive rendering verbatim", {
   root <- ggpaintr:::ptr_translate(paste0(
-    "broom::augment(lm(mpg ~ wt * (cyl + hp), data = mtcars)) |> ",
+    "stats::predict(lm(mpg ~ wt * (cyl + hp), data = mtcars)) |> ",
     "ggplot(aes(.fitted, .resid)) + geom_point()"
   ))
   res <- ggpaintr:::ptr_complete_expr_safe(

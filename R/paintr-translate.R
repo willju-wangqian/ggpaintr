@@ -361,8 +361,8 @@ is_placeholder_call <- function(expr) {
 # A pipeline's source slot must name data: a bare symbol or a source-role
 # placeholder. A value/consumer placeholder (`ppExpr(...)`, `ppVar(...)`) is
 # NOT data and must never be accepted as a pipeline source -- otherwise a
-# computed data argument such as `broom::augment(lm(ppExpr(y ~ x), data =
-# ppUpload(d)))` is mis-lifted into `ppExpr(...) |> lm() |> augment()`, with
+# computed data argument such as `stats::predict(lm(ppExpr(y ~ x), data =
+# ppUpload(d)))` is mis-lifted into `ppExpr(...) |> lm() |> predict()`, with
 # the value placeholder standing in for the frame (it then prunes to an
 # empty `lm()`). `is_placeholder_call()` keeps the all-roles atomicity guard
 # for the descent loop; this stricter check governs source ACCEPTANCE only.
