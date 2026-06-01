@@ -77,6 +77,38 @@ Here `ppVar(Sepal.Length)` evaluates to `Sepal.Length` and `ppNum(3)` to
 `3`, so the chart renders exactly as plain ggplot2 — the tokens only
 become widgets once the expression is handed to `ptr_app()`.
 
+Handing that exact expression to `ptr_app()` launches the interactive
+app, and the value inside each placeholder becomes that widget’s
+**initial selection** — so the app boots with `x = Sepal.Length`,
+`y = Sepal.Width`, `color = Species`, `size = 3` pre-selected and
+renders the very same figure straight away, ready to be re-pointed at
+other columns:
+
+``` r
+ptr_app(
+  ggplot(iris, aes(x = ppVar(Sepal.Length),
+                   y = ppVar(Sepal.Width), 
+                   color = ppVar(Species))) +
+    geom_point(size = ppNum(3))
+)
+```
+
+The expression need not be inline. Capture it once with `rlang::expr()`
+and reuse it — `ptr_app()` resolves a formula stored in a variable by
+name (no `!!` needed), so you can build, inspect, or share the formula
+before launching the app:
+
+``` r
+formula_iris <- rlang::expr(
+  ggplot(iris, aes(x = ppVar(Sepal.Length), 
+                   y = ppVar(Sepal.Width), 
+                   color = ppVar(Species))) +
+    geom_point(size = ppNum(3))
+)
+
+ptr_app(formula_iris)
+```
+
 ## RStudio addin
 
 ggpaintr ships an RStudio addin that turns a plain ggplot expression
