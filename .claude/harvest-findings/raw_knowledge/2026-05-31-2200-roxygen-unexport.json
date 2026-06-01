@@ -2,9 +2,7 @@
   "harvested_at": "2026-05-31T22:00",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-05-31-2157-roxygen-unexport-llm-corpus.md)",
   "counts": {
-    "verified": 6,
-    "contradicted": 0,
-    "unconfirmable": 0
+    "verified": 6
   },
   "ref_convention": "checked_refs cite SYMBOLS (R/file.R::name, resolved via symbol-lines.json) or TEXT ANCHORS (path::\"text\") — never bare line numbers. Run dev/scripts/refresh-finding-citations.R --apply to (re)generate resolved_refs; line numbers live only there and are recomputed, so they never go stale in the record.",
   "findings": [
@@ -37,7 +35,7 @@
         "R/paintr-server.R:91-377 (ptr_init_state)",
         "R/paintr-input-spec.R:239-261 (ptr_id_table)"
       ],
-      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "ptr-capture-formula-symbol-resolution",
@@ -58,7 +56,7 @@
       "resolved_refs": [
         "R/paintr-app.R:196-296 (ptr_capture_formula)"
       ],
-      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "llm-corpus-export-gate",
@@ -68,22 +66,22 @@
       "feature": "",
       "source": "tests/testthat/test-llm.R (corpus-integrity test_that); dev/githooks/pre-commit (runs dev/build-llm.R lint + verify on inst/llm/ or dev/build-llm.R changes)",
       "verdict": "verified",
-      "verification": "test_that(\"every ptr_*() call in the corpus names an exported function\") reads llm_corpus_files() via ptr_calls_in() and diffs against getNamespaceExports. pre-commit runs both `Rscript dev/build-llm.R lint` and `verify` when inst/llm/ or dev/build-llm.R is staged, failing the commit on either.",
+      "verification": "tests/testthat/test-llm.R::\"every ptr_*() call in the corpus names an exported function\" (lines 107-118): computes `exports <- getNamespaceExports(\"ggpaintr\")`, scans every llm_corpus_files() file for ptr_*() calls, and `expect_identical(setdiff(calls, c(exports, ID_ALLOWLIST)), character(0))` — so unexporting a corpus-documented function fails the suite. llm_corpus_files() def at line 19. Pre-commit hook dev/githooks/pre-commit lines 86-93: when `inst/llm/` or `dev/build-llm.R` is staged it runs `Rscript dev/build-llm.R lint` (exit-1 on drift) and `verify`, blocking the commit. The session's DEAD_ARGS edit to build-llm.R did not touch this gate. Claim holds.",
       "checked_refs": [
         "tests/testthat/test-llm.R::\"every ptr_*() call in the corpus names an exported function\"",
-        "tests/testthat/test-llm.R::\"llm_corpus_files <- function\"",
-        "dev/githooks/pre-commit::\"Rscript dev/build-llm.R lint\""
+        "tests/testthat/test-llm.R::\"llm_corpus_files\"",
+        "dev/githooks/pre-commit"
       ],
-      "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
       "origin_status": "derived-unverified",
       "resolved_refs": [
         "tests/testthat/test-llm.R:107 (anchor)",
-        "tests/testthat/test-llm.R:19 (anchor)",
-        "dev/githooks/pre-commit:88,89 (anchor)"
+        "tests/testthat/test-llm.R:19,110,127,144 (anchor)",
+        "dev/githooks/pre-commit"
       ],
-      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "build-llm-managed-blocks-and-hardcoded-desc",
@@ -93,26 +91,26 @@
       "feature": "",
       "source": "dev/build-llm.R (render_block switch handles only token-table/topic-index; TOKEN_ROWS + TOPIC_DESC hardcoded; lint/generate/verify dispatch)",
       "verdict": "verified",
-      "verification": "render_block switch handles only \"token-table\" and \"topic-index\"; no \"level-table\" string in the file. TOKEN_ROWS and TOPIC_DESC are hardcoded literals. Fixing TOPIC_DESC was required this session (else `generate` re-added ptr_app_grid() to primer's topic-index).",
+      "verification": "dev/build-llm.R: render_block switch handles exactly token-table + topic-index (no level-table); TOKEN_ROWS + TOPIC_DESC are hardcoded named vectors; lint/verify are the corpus self-gates. Mechanism intact at HEAD; refs re-stamped as anchors (dev script not in the R-only symbol manifest).",
       "checked_refs": [
         "dev/build-llm.R::\"render_block <- function\"",
-        "dev/build-llm.R::\"TOPIC_DESC <- c(\"",
         "dev/build-llm.R::\"TOKEN_ROWS <- list(\"",
-        "dev/build-llm.R::\"lint <- function\"",
-        "dev/build-llm.R::\"verify <- function\""
+        "dev/build-llm.R::\"TOPIC_DESC <- c(\"",
+        "dev/build-llm.R::\"lint <- function()\"",
+        "dev/build-llm.R::\"verify <- function()\""
       ],
-      "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
       "origin_status": "derived-unverified",
       "resolved_refs": [
-        "dev/build-llm.R:286 (anchor)",
-        "dev/build-llm.R:258 (anchor)",
-        "dev/build-llm.R:234 (anchor)",
-        "dev/build-llm.R:132 (anchor)",
-        "dev/build-llm.R:331 (anchor)"
+        "dev/build-llm.R:293 (anchor)",
+        "dev/build-llm.R:241 (anchor)",
+        "dev/build-llm.R:265 (anchor)",
+        "dev/build-llm.R:139 (anchor)",
+        "dev/build-llm.R:338 (anchor)"
       ],
-      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "app-variants-unexported-still-documented",
@@ -141,7 +139,7 @@
         "man/ptr_app_bslib.Rd",
         "man/ptr_app_grid.Rd"
       ],
-      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "roxygen-bare-ggplot-runs-in-examples",
@@ -162,7 +160,7 @@
       "resolved_refs": [
         "R/paintr-app.R:873-918 (ptr_ui)"
       ],
-      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     }
   ]
 }

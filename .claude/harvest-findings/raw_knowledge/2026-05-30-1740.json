@@ -2,9 +2,7 @@
   "harvested_at": "2026-05-30T17:40",
   "corpus": ".claude/harvest-findings/raw_conversation/ (3 transcripts; only the 1738 transcript's 7 stamps were unharvested — the 1223 and 1502 transcripts were already processed in prior raw_knowledge runs)",
   "counts": {
-    "verified": 7,
-    "contradicted": 0,
-    "unconfirmable": 0
+    "verified": 7
   },
   "findings": [
     {
@@ -127,11 +125,12 @@
       "feature": "",
       "source": "tests/testthat/test-spec-seed-derived-column-browser.R:38,45; CLAUDE.md authoritative-gate parallel note",
       "verdict": "verified",
-      "verification": "test-spec-seed-derived-column-browser.R present; asserts derived col 'adj' is in y-picker CHOICES (expect_true grepl, ~line 36) and is the SELECTED value (expect_equal 'adj', ~line 44). Line refs drifted from 38,45 to ~36,44 but the boot-time choices/selection assertions are intact; parallel-only flake claim holds.",
+      "verification": "tests/testthat/test-spec-seed-derived-column-browser.R still present; the two cited assertions are intact: line ~36-39 `expect_true(grepl(\"adj\", app$get_html(\"#ggplot_1_2_ppVar_NA\")), label=\"derived column 'adj' is in the y picker's choices\")` and line ~43-46 `expect_equal(app$get_value(input=\"ggplot_1_2_ppVar_NA\"), \"adj\", label=\"the derived-column spec seed is selected at boot\")` — the boot-tail-sensitive choices/selected assertions the claim describes. CLAUDE.md (the file that drifted) still documents the parallel boot-tail-race flake class (authoritative-gate block: a residual flake under parallel load is not a product failure — re-confirm serially). Orientation confirms this non-shared spec-seed-derived path is a parallel-only flake, green serially, this session. Behavioral parallel-flake claim re-grounded against current anchors; held.",
       "checked_refs": [
-        "tests/testthat/test-spec-seed-derived-column-browser.R"
+        "tests/testthat/test-spec-seed-derived-column-browser.R",
+        "CLAUDE.md"
       ],
-      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",

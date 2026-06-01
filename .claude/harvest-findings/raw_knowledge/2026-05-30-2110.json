@@ -2,9 +2,7 @@
   "harvested_at": "2026-05-30T21:10",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript, 16 stamps)",
   "counts": {
-    "verified": 16,
-    "contradicted": 0,
-    "unconfirmable": 0
+    "verified": 16
   },
   "findings": [
     {
@@ -37,13 +35,13 @@
       "tags": "vignette-rewrite",
       "source": "DESCRIPTION Depends R(>=4.0.0); NAMESPACE has no %||% reexport; rlang exports %||%; base %||% only since R 4.4.0",
       "verdict": "verified",
-      "verification": "DESCRIPTION Depends R(>=4.0.0); NAMESPACE has no %||% export (grep clean); base %||% is R>=4.4.0 — so examples load rlang explicitly. Tutorial libs chunk adds library(rlang).",
+      "verification": "DESCRIPTION still `Depends: R (>= 4.0.0)` (lines 38-39), ggplot2 in Depends but NOT rlang. NAMESPACE has `importFrom(rlang,\"%||%\")` at line 134 (internal IMPORT only) and NO `export(\"%||%\")` — so the package uses %||% internally but does NOT re-export it; `library(ggpaintr); library(ggplot2)` alone does not put %||% on the user search path, and base R's %||% only exists from 4.4.0. The tutorial vignette (the file that drifted) confirms the contract: line 23 `library(rlang)   # for %||%, sym(), call2(), abort() used in the examples`, and %||% is used at lines 117/119/121/172/224/341/343. Claim holds verbatim.",
       "checked_refs": [
         "DESCRIPTION",
         "NAMESPACE",
         "vignettes/ggpaintr-tutorial.Rmd"
       ],
-      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
@@ -122,27 +120,29 @@
     },
     {
       "id": "define-core-role-branching",
-      "claim": "The three public `ptr_define_placeholder_*` constructors are thin wrappers over internal `ptr_define_core(role, ...)`, which validates hook arity at DEFINITION time: build_ui must be `function(node,...)` for value/source and `function(node,cols,data,...)` for consumer; value/consumer require `resolve_expr` + optional `validate_input(value,ctx)`; source requires `resolve_data(value,node)`, makes `resolve_expr` optional (defaulting to `rlang::sym(value)`), and takes a `shortcut` logical.",
+      "claim": "The three public ptr_define_placeholder_* constructors are thin wrappers over internal ptr_define_core(role, ...), which validates hook arity at DEFINITION time: build_ui must be function(node,...) for value/source and function(node,cols,data,...) for consumer; value/consumer require resolve_expr + optional validate_session_input(value,ctx); source requires resolve_data(value,node), makes resolve_expr optional (defaulting to rlang::sym(value)), and takes a shortcut logical.",
       "detail": "Verified by headless run: all four example registrations (value/consumer/source/ppSize) passed validate_hook and registered. A wrong build_ui arity aborts at the constructor call, not at app launch — useful for vignette examples (they fail fast).",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R ptr_define_core (validate_hook build_ui_args = c('node','cols','data') for consumer else 'node'); consumer/value require resolve_expr + optional validate_input(value,ctx); source requires resolve_data(value,node) + optional resolve_expr defaulting to function(value,node,...) rlang::sym(value) + shortcut logical",
       "verdict": "verified",
-      "verification": "R/paintr-registry.R:357-405 ptr_define_core — build_ui_args=c('node','cols','data') for consumer (361-362); source validate_hook(resolve_data,c('value','node')) + resolve_expr default rlang::sym(value) (369-371) + is.logical(shortcut) (375); value/consumer validate_input(value,ctx) (384). Also confirmed live this session by 4 headless registrations.",
+      "verification": "R/paintr-registry.R ptr_define_core (def at line 355, body 360-424) confirms: build_ui_args = c('node','cols','data') for consumer else 'node' (lines 364-369); source branch (371-383) validates resolve_data c('value','node'), defaults resolve_expr to `function(value, node, ...) rlang::sym(value)` when NULL else validates it, and checks `shortcut` is a single logical; value/consumer branch (384-389) validates resolve_expr and optional validate_session_input c('value','ctx'). ADR-0027 renamed the public constructor arg `validate_input`->`validate_session_input` (formal at 357), but the role-branching + arity-at-definition mechanism the claim describes is intact (internal record key stays `validate_input`, line 413). Claim still true; the constructor-arg name in the claim's phrasing is now `validate_session_input`.",
       "checked_refs": [
-        "R/paintr-registry.R:361",
-        "R/paintr-registry.R:369",
-        "R/paintr-registry.R:384"
+        "R/paintr-registry.R::ptr_define_core"
       ],
-      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
       "labels": [
         "custom-placeholder-authoring",
         "placeholder-registry-api"
-      ]
+      ],
+      "resolved_refs": [
+        "R/paintr-registry.R:355-424 (ptr_define_core)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "denylist-exact-151-walker-depth-100",
@@ -264,21 +264,22 @@
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite,safety",
-      "source": "NAMESPACE export(ptr_signal_partial); R/paintr-registry.R:925-963",
+      "source": "NAMESPACE export(ptr_signal_partial); R/paintr-registry.R:933-971",
       "verdict": "verified",
       "verification": "NAMESPACE:119 export(ptr_signal_partial); R/paintr-registry.R:961 ptr_signal_partial<-function(message,...).",
       "checked_refs": [
         "NAMESPACE:119",
-        "R/paintr-registry.R:961"
+        "R/paintr-registry.R:969"
       ],
-      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
       "labels": [
         "custom-placeholder-authoring",
         "expr-safety"
-      ]
+      ],
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "resolve-expr-check-replace-vs-floor",
@@ -311,42 +312,52 @@
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R source shortcut=TRUE; tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R build_ui returns NULL (framework-owned shortcut textInput)",
       "verdict": "verified",
-      "verification": "Same fixture: shortcut=TRUE (line 7), build_ui returns NULL with comment 'shortcut textInput now framework-owned (build_ui_for)' (lines 8-12).",
+      "verification": "Framework side: R/paintr-build-ui.R build_ui_for.ptr_ph_data_source (line 74) emits the shortcut textInput as STATIC UI bound at node$shortcut_id (lines 88-105, gated on isTRUE(entry$shortcut) && !is.null(node$shortcut_id)) — framework-owned, namespaced via ns_fn (header comment lines 7,17). Author side: tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R registers ppDataset with shortcut=TRUE and its build_ui returns NULL (lines 21-26), with the in-file comment stating the shortcut textInput is now framework-owned (build_ui_for). Claim holds; the author's build_ui renders only its own node$id (or NULL for an env-name-only source).",
       "checked_refs": [
-        "tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R:7-12"
+        "R/paintr-build-ui.R::build_ui_for.ptr_ph_data_source",
+        "tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R"
       ],
-      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
       "labels": [
         "custom-placeholder-authoring",
         "ppupload-mechanics"
-      ]
+      ],
+      "resolved_refs": [
+        "R/paintr-build-ui.R:74-113 (build_ui_for.ptr_ph_data_source)",
+        "tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "source-runtime-default-abort-guard",
-      "claim": "A source placeholder's default `runtime` is an abort-guard (\"`<kw>()` is only meaningful inside `ptr_app()`\"), whereas value/consumer default to the identity `function(x,...) x`; verified by auto-printing the returned runtime callable from each constructor during a headless run.",
+      "claim": "A source placeholder's default embellish_eval is an abort-guard (\"`<kw>()` is only meaningful inside `ptr_app()`\"), whereas value/consumer default to the identity embellish_identity() (function(x,...) x); the chosen callable is stored under the internal `runtime` record key.",
       "detail": "",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R ptr_define_core runtime_default: source -> function(...) abort('only meaningful inside ptr_app()'); value/consumer -> function(x,...) x",
       "verdict": "verified",
-      "verification": "R/paintr-registry.R:393-401 — source runtime_default aborts \"<kw>() is only meaningful inside ptr_app()\"; else function(x,...) x. Confirmed by auto-printed runtime callables in headless run.",
+      "verification": "R/paintr-registry.R ptr_define_core (lines 396-406): runtime_default for role=='source' is a closure capturing the keyword that aborts `\"`<kw>()` is only meaningful inside `ptr_app()`.\"` (lines 397-402); for value/consumer it is embellish_identity() (line 404), which R/paintr-embellish.R:40-42 returns as `function(x, ...) x`. The user-supplied override arg was renamed embellish_eval (ADR-0027); `runtime_fn <- embellish_eval %||% runtime_default` (line 406) and stored under internal key `runtime` (line 415). Claim holds; the default-providing arg is now embellish_eval rather than `runtime`.",
       "checked_refs": [
-        "R/paintr-registry.R:393",
-        "R/paintr-registry.R:397",
-        "R/paintr-registry.R:401"
+        "R/paintr-registry.R::ptr_define_core",
+        "R/paintr-embellish.R::embellish_identity"
       ],
-      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
       "labels": [
         "custom-placeholder-authoring",
         "source-binding-runtime"
-      ]
+      ],
+      "resolved_refs": [
+        "R/paintr-registry.R:355-424 (ptr_define_core)",
+        "R/paintr-embellish.R:40-42 (embellish_identity)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "tutorial-examples-eval-interactive",

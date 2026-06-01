@@ -2,9 +2,8 @@
   "harvested_at": "2026-05-30T00:48",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript, 12 stamps)",
   "counts": {
-    "verified": 11,
-    "contradicted": 0,
-    "unconfirmable": 1
+    "verified": 10,
+    "unconfirmable": 2
   },
   "findings": [
     {
@@ -233,9 +232,9 @@
       "feature": "ppupload-7-host-shared",
       "source": "devtools::test() serial; project CLAUDE.md authoritative-gate block",
       "verdict": "unconfirmable",
-      "verification": "Structural part holds: CLAUDE.md:78 still states '0/0/0 is the gate, not the count'. The specific PASS 3403→3420 figures are a one-time session observation (refs='observed this session') with no re-derivable source — left unconfirmable as before.",
+      "verification": "Already verdict=unconfirmable and remains so. This is a point-in-time campaign observation on a now-merged branch (ppUpload-bug): exact PASS counts 3403 -> 3420 and WARN 4 cannot be re-derived from current source without re-running the full suite at that historical state, and the count is explicitly transient (the finding itself says counts drift). The durable kernel (0/0/0 is the gate, not the count; WARN/by-design NOTEs are pre-existing) matches the current CLAUDE.md authoritative-gate block, but the specific numbers are stale and unverifiable today (current full suite is ~3635, not 3403/3420). No reproducible source ref to anchor it.",
       "checked_refs": [
-        "(observed this session)"
+        "CLAUDE.md::\"authoritative full-suite gate\""
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -243,7 +242,11 @@
         "test-gate-discipline"
       ],
       "status": "fresh",
-      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "CLAUDE.md:80 (anchor)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "tool-output-batched-delivery-not-corruption",

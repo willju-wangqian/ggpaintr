@@ -2,9 +2,7 @@
   "harvested_at": "2026-05-30T15:05",
   "corpus": ".claude/harvest-findings/raw_conversation/ (2 transcripts; 22 stamps, 6 net-new)",
   "counts": {
-    "verified": 6,
-    "contradicted": 0,
-    "unconfirmable": 0
+    "verified": 6
   },
   "findings": [
     {
@@ -15,9 +13,10 @@
       "feature": "ptr-shared-expression-input",
       "source": "tests/testthat/test-shared-spec-seed-derived-column-browser.R:41,46; CLAUDE.md authoritative-gate block",
       "verdict": "verified",
-      "verification": "test-shared-spec-seed-derived-column-browser.R still present; the renderUI shared picker (#shared_grp) is asserted around lines 41-49 (offers source col mpg, deliberately omits ppExpr-derived 'adj'). Behavioral claim (parallel boot-tail race with blank actual, green serial) re-verified by symbol/behavior; original line refs 41,46 drifted slightly but assertion block intact.",
+      "verification": "Read tests/testthat/test-shared-spec-seed-derived-column-browser.R @HEAD: it uses string formulas only (0 expr()/quote()/rlang::expr matches), so a normalize/capture change cannot affect it — confirming the finding's 'no expr()' detail. The renderUI shared-picker assertions live around l40-49 (get_html('#shared_grp') then grepl on actual HTML), consistent with the cited boot-tail-race symptom (blank `actual`). set_sentinel hardening for boot-tail contention is present in tests/testthat/helper-super-pressure.R (l127-147, explicit 'contention that leaves the very first set_sentinel reading an empty DOM' guard). Per orientation this flake class is CONFIRMED current this session (green serially). The specific FAIL 2 + PASS 3463 counts are a point-in-time run observation, not re-runnable here, but the structural claim and the parallel-load-flake characterization hold. Cited lines 41/46 drifted slightly (assertions now ~42/48) but same content.",
       "checked_refs": [
-        "tests/testthat/test-shared-spec-seed-derived-column-browser.R"
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
+        "tests/testthat/helper-super-pressure.R::\"set_sentinel\""
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
@@ -25,21 +24,25 @@
         "test-gate-discipline"
       ],
       "status": "fresh",
-      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
+        "tests/testthat/helper-super-pressure.R:98,122,127,131,147,185,687,729,732 (anchor)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "built-ggplot-object-undeparseable",
-      "claim": "Assigning `f <- ggplot(aes(x = ppVar(mpg))) + geom_point()` SUCCEEDS and yields a built S7 ggplot object (ppVar is a real identity callable and aes() quotes its args, so nothing errors), but deparsing that object gives `<object>` — its source text is unrecoverable, so a built ggplot object can never be translated and must be rejected; only a quoted expression (rlang::expr()/quote(), a language object) deparses back to clean source.",
+      "claim": "A built (eager) ggplot object deparses to `<object>` and cannot be translated, so it must be rejected; the discriminator is.call(x) || rlang::is_symbol(x) cleanly accepts language objects (rlang::expr()/quote()) and rejects built ggplot objects — implemented in R/paintr-shared-ui.R normalize_shared_formulas (l141, with the rationale comment l123-130) and mirrored in ptr_capture_formula's accept() local (R/paintr-app.R l223-224: rlang::is_string(x) || is.call(x) || rlang::is_symbol(x)).",
       "detail": "This is why the ptr_shared formulas contract requires `expr()`/`quote()`-quoted language objects, not eager ggplot objects. The discriminator `is.call(x) || rlang::is_symbol(x)` cleanly separates acceptable language objects (TRUE) from built ggplot objects (both FALSE, is.language also FALSE).",
       "scope": "durable",
       "feature": "",
       "source": "R/paintr-builtins.R:357-391; probe: ggplot(aes(x=ppVar(mpg)))+geom_point()",
       "verdict": "verified",
-      "verification": "Cited builtins.R:357-391 region now holds the placeholder registry definitions (ppExpr/ppVar/ppUpload at lines ~350-374), not the discriminator; the actual `is.call(x) || rlang::is_symbol(x)` discriminator lives in `ptr_capture_formula`'s local accept() (R/paintr-app.R:223-225) and is mirrored in normalize_shared_formulas (R/paintr-shared-ui.R:141 `is.call(f) || rlang::is_symbol(f)`). The shared-ui doc-comment (paintr-shared-ui.R:120-124) explicitly states the contract: accept string/symbol/call, deparse the latter two, and 'No bare ggplot objects: those don't deparse to source. See the `is.call(x) || rlang::is_symbol(x)` discriminator below.' This grounds the claim's core behavioral fact (built ggplot deparses to <object>, only language objects deparse to clean source; the discriminator separates them). Claim holds.",
+      "verification": "Read R/paintr-shared-ui.R @HEAD: normalize_shared_formulas (l130) gates on `is.call(x) || rlang::is_symbol(x)` (l141), preceded by the comment block l123-130 stating a built ggplot object 'deparses to <object> and cannot be translated' and that the fn only deparses language objects via expr_text width. R/paintr-app.R ptr_capture_formula accept() (l223-224) = rlang::is_string(x) || is.call(x) || rlang::is_symbol(x). The finding's primary source `R/paintr-builtins.R:357-391` is now STALE — that region @HEAD is ptr_builtin_expr_build_ui (seed-textarea), unrelated to the discriminator; the load-bearing code is in shared-ui.R/app.R as in the finding's own checked_refs. Core claim (built ggplot undeparseable -> reject; is.call||is_symbol discriminator) holds; new_claim re-points source to the live locations.",
       "checked_refs": [
-        "R/paintr-app.R ptr_capture_formula (accept() local, lines ~223-225)",
-        "R/paintr-shared-ui.R normalize_shared_formulas:141",
-        "R/paintr-shared-ui.R:120-124"
+        "R/paintr-shared-ui.R::normalize_shared_formulas",
+        "R/paintr-app.R::ptr_capture_formula"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
       "origin_status": "derived-unverified",
@@ -47,7 +50,12 @@
         "formula-capture"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "R/paintr-shared-ui.R:130-151 (normalize_shared_formulas)",
+        "R/paintr-app.R:196-296 (ptr_capture_formula)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "capture-formula-deparses-to-string",
@@ -80,7 +88,7 @@
       "verdict": "verified",
       "verification": "Confirmed three facts: (1) single-formula entries use ptr_capture_formula (app.R:141/162/1094). (2) ptr_shared accepts expressions via normalize_shared_formulas, called at R/paintr-shared-coordinator.R:263 (exact line in claim) and defined at R/paintr-shared-ui.R:128. (3) ptr_app_grid remains string-only: R/paintr-app.R:1327 `all(vapply(plots, rlang::is_string, logical(1)))` with an explicit abort ('ptr_app_grid() requires every plot to be a string; expression mode is not supported here'). Line drifted from 1322 to ~1324-1327 but symbol/guard intact. Claim holds.",
       "checked_refs": [
-        "R/paintr-app.R:1324-1335 (grid string-only guard)",
+        "R/paintr-app.R:1360-1371 (grid string-only guard)",
         "R/paintr-shared-coordinator.R:263",
         "R/paintr-shared-ui.R normalize_shared_formulas:128"
       ],
@@ -91,7 +99,8 @@
         "app-entry-points"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "native-pipe-desugared-before-expr-capture",

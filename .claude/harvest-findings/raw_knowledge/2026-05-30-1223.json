@@ -2,9 +2,7 @@
   "harvested_at": "2026-05-30T12:23",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-05-30-1223-deepening-sweep-v2.md, 16 stamps)",
   "counts": {
-    "verified": 15,
-    "contradicted": 1,
-    "unconfirmable": 0
+    "verified": 16
   },
   "findings": [
     {
@@ -24,7 +22,7 @@
         "R/paintr-partition-view.R partition_renders_section",
         "R/paintr-app.R:169",
         "R/paintr-app.R:339",
-        "R/paintr-app.R:1166",
+        "R/paintr-app.R:1202",
         "R/paintr-shared-ui.R:416",
         "R/paintr-shared-coordinator.R:28"
       ],
@@ -34,7 +32,8 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "ggpaintr-name-normalizers-distinct",
@@ -128,17 +127,20 @@
     },
     {
       "id": "parallel-gate-flakes-seeding-cluster",
-      "claim": "The parallel full-suite gate (TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4) reproducibly fails ~6 assertions in the consumer-seeding / derived-column browser cluster that PASS when those same files are re-run serially — boot-tail races, not product failures; the per-commit landing gate should be run serially (devtools::test(), ~PASS 3439, 0/0/0).",
+      "claim": "The parallel full-suite gate (TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4) reproducibly flakes assertions in the consumer-seeding / derived-column browser cluster (set_sentinel boot-tail race) that PASS when those same files are re-run serially — boot-tail races, not product failures; the per-commit landing gate must be run serially (devtools::test(), FAIL 0 / ERROR 0 / SKIP 0; current serial PASS ≈ 3635 and growing — 0/0/0 is the gate, never the count). Cluster files: test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R.",
       "detail": "Corroborates the shinytest2-boot-tail-race understanding. Baseline this session: parallel PASS 3433 with 6 such failures; serial re-run of those 4 files FAIL 0 / PASS 15.",
       "scope": "durable",
       "feature": "",
       "tags": "deepening-sweep-v2,harness",
       "source": "TESTTHAT_PARALLEL=TRUE devtools::test() vs serial; test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R",
       "verdict": "verified",
-      "verification": "All four cited test files still exist (test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R). CLAUDE.md:84 confirms the policy: 'A residual flake under parallel load is not a product failure — re-confirm serially', and run is serial by default. Claim holds.",
+      "verification": "Behavioral claim re-checked vs CURRENT source + orientation: all 4 named cluster files exist (tests/testthat/test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R). Parallel boot-tail flakes in the consumer-seeding/derived-column cluster (set_sentinel boot-tail race) are CONFIRMED current behavior; helper-super-pressure.R was hardened this session. The serial-landing-gate guidance still holds. Only the embedded PASS counts drifted: finding cited ~3439/parallel 3433; CLAUDE.md authoritative-gate now says last ≈3388 (2026-05-29) and current full suite is ~3635 (serial earlier ~3545). 0/0/0 remains the gate, not the count.",
       "checked_refs": [
         "tests/testthat/test-spec-seed-derived-column-browser.R",
-        "CLAUDE.md authoritative-gate"
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
+        "tests/testthat/test-consumer-deselect-stays-empty.R",
+        "tests/testthat/test-default-derived-column-stage-off-browser.R",
+        "CLAUDE.md::\"authoritative full-suite gate\""
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
       "origin_status": "derived-unverified",
@@ -147,7 +149,15 @@
         "shinytest2-gotchas"
       ],
       "status": "fresh",
-      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "tests/testthat/test-spec-seed-derived-column-browser.R",
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
+        "tests/testthat/test-consumer-deselect-stays-empty.R",
+        "tests/testthat/test-default-derived-column-stage-off-browser.R",
+        "CLAUDE.md:80 (anchor)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "placeholder-output-id-single-source",
@@ -199,17 +209,21 @@
     },
     {
       "id": "ptr-arg-factory-rename",
-      "claim": "The five exported argument-validator factories were hard-renamed ptr_default_string/_numeric/_numeric_vector/_symbol_or_string/_expression -> ptr_arg_string/_numeric/_numeric_vector/_symbol_or_string/_expression (no deprecated aliases), and the roxygen doc group @name/@rdname ptr_default_args -> ptr_arg_validators.",
+      "claim": "The exported argument-validator factories are ptr_arg_string / ptr_arg_numeric / ptr_arg_symbol / ptr_arg_symbol_or_string / ptr_arg_expression (no ptr_default_* aliases). The old ptr_arg_numeric_vector was removed — vector validation is now ptr_arg_numeric(vector = TRUE, length = NULL) — and ptr_arg_symbol() was added. Each returns a validator closure function(arg_expr) -> canonical | abort for a keyword's formula-time argument (a validator, not a coercer/default value). The roxygen doc group is @name/@rdname ptr_arg_validators (man/ptr_arg_validators.Rd; no ptr_default_args.Rd).",
       "detail": "They return a validator closure function(arg_expr)->canonical|abort for a keyword's formula-time argument, NOT a coercer/default value — hence \"arg\" not \"default\". Used at the call site as `positional_arg = ptr_arg_numeric()`. man/ptr_default_args.Rd removed, ptr_arg_validators.Rd added by devtools::document().",
       "scope": "durable",
       "feature": "",
       "tags": "deepening-sweep-v2",
       "source": "R/paintr-default-args.R (ptr_arg_* factories, @name ptr_arg_validators); NAMESPACE",
       "verdict": "verified",
-      "verification": "Confirmed five ptr_arg_* factories (default-args.R:201-268), NAMESPACE exports ptr_arg_* (90-94) and NO ptr_default_*; no old definitions remain (hard rename); roxygen @name/@rdname ptr_arg_validators.",
+      "verification": "Re-checked R/paintr-default-args.R symbol overview + NAMESPACE + man/. CURRENT exported factory set is exactly ptr_arg_string / ptr_arg_numeric / ptr_arg_symbol / ptr_arg_symbol_or_string / ptr_arg_expression (NAMESPACE:90-94). ptr_arg_numeric_vector NO LONGER EXISTS — it was folded into ptr_arg_numeric(vector = FALSE, length = NULL) (body at lines 287-314: validates a single numeric literal when !vector, a non-NA numeric vector of optional fixed length when vector=TRUE), and a NEW factory ptr_arg_symbol() was added. The roxygen doc group is @name/@rdname ptr_arg_validators (lines 53, 230, 252, 269, 286, 320) and man/ptr_arg_validators.Rd is the only Rd (no ptr_default_args.Rd, no ptr_arg_numeric_vector.Rd). So the rename-away-from ptr_default_* and the @rdname holds, but the finding's enumerated factory list (which names ptr_arg_numeric_vector) is drifted to the current set.",
       "checked_refs": [
-        "R/paintr-default-args.R:201-268",
-        "NAMESPACE:90-94"
+        "R/paintr-default-args.R::ptr_arg_numeric",
+        "R/paintr-default-args.R::ptr_arg_symbol",
+        "R/paintr-default-args.R::ptr_arg_string",
+        "R/paintr-default-args.R::ptr_arg_symbol_or_string",
+        "R/paintr-default-args.R::ptr_arg_expression",
+        "NAMESPACE::\"ptr_arg_\""
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
       "origin_status": "derived-unverified",
@@ -217,7 +231,16 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "R/paintr-default-args.R:288-315 (ptr_arg_numeric)",
+        "R/paintr-default-args.R:271-284 (ptr_arg_symbol)",
+        "R/paintr-default-args.R:254-267 (ptr_arg_string)",
+        "R/paintr-default-args.R:232-250 (ptr_arg_symbol_or_string)",
+        "R/paintr-default-args.R:322-347 (ptr_arg_expression)",
+        "NAMESPACE:90,91,92,93,94 (anchor)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "ptr-define-core-shared-prologue",
@@ -228,12 +251,12 @@
       "tags": "deepening-sweep-v2",
       "source": "R/paintr-registry.R (ptr_define_core + the 3 public wrappers)",
       "verdict": "verified",
-      "verification": "Read R/paintr-registry.R:352-421. ptr_define_core(role, keyword, build_ui, ...) owns the shared validate-then-register prologue (ensure_registry_initialized, validate_keyword, validate_keyword_no_shadow, validate_hook, validate_positional_arg, validate_named_args, validate_copy_defaults). Role-specific branches confirmed exactly as claimed: build_ui_args=c('node','cols','data') for consumer else 'node' (L361-365); source validates resolve_data + defaults resolve_expr to function(value,node,...) rlang::sym(value) + validates `shortcut` logical (L368-380); value/consumer validate resolve_expr and accept validate_input (L382-385); runtime_default is identity (function(x,...) x) for value/consumer and an abort-guard '... is only meaningful inside ptr_app()' for source (L393-402). The three public wrappers (ptr_define_placeholder_value L592, _consumer L713, _source L870) are thin and fix `role`. Landed in commit 3b34c22.",
+      "verification": "Read ptr_define_core (R/paintr-registry.R:354-423, include_body) and the three public wrappers (ptr_define_placeholder_value @597, _consumer @720, _source @878 — each is a thin wrapper that forwards to ptr_define_core(role, ...)). The shared prologue holds exactly: ensure_registry_initialized + validate_keyword + validate_keyword_no_shadow; build_ui_args = c(\"node\",\"cols\",\"data\") when role==\"consumer\" else \"node\"; for role==\"source\" it validates resolve_data, defaults resolve_expr to function(value,node,...) rlang::sym(value), and validates the shortcut logical; otherwise (value/consumer) it validates resolve_expr and validate_session_input (c(\"value\",\"ctx\")); runtime default = abort-guard (\"`<kw>()` is only meaningful inside `ptr_app()`.\") for source else embellish_identity(); data_aware = role %in% c(\"consumer\",\"source\"). Public constructor args are the ADR-0027 names (parse_positional_arg, parse_named_args, validate_session_input, embellish_eval, ui_text_defaults). The claim/detail match current source verbatim.",
       "checked_refs": [
-        "R/paintr-registry.R ptr_define_core",
-        "R/paintr-registry.R:352-421",
-        "R/paintr-registry.R:592",
-        "R/paintr-registry.R:870"
+        "R/paintr-registry.R::ptr_define_core",
+        "R/paintr-registry.R::ptr_define_placeholder_value",
+        "R/paintr-registry.R::ptr_define_placeholder_consumer",
+        "R/paintr-registry.R::ptr_define_placeholder_source"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
       "origin_status": "derived-unverified",
@@ -241,22 +264,29 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "R/paintr-registry.R:355-424 (ptr_define_core)",
+        "R/paintr-registry.R:597-612 (ptr_define_placeholder_value)",
+        "R/paintr-registry.R:720-735 (ptr_define_placeholder_consumer)",
+        "R/paintr-registry.R:878-893 (ptr_define_placeholder_source)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "registry-entry-keys-vs-public-args",
-      "claim": "After the rename, the placeholder public ARGUMENT names are `positional_arg` / `ui_text_defaults` but the registry-RECORD storage keys stay `entry$default_arg` / `entry$copy_defaults` — the public arg name and the internal key deliberately differ so downstream readers (translate/server/copy) were untouched.",
+      "claim": "After ADR 0027 the placeholder public ARGUMENT names are parse_positional_arg / ui_text_defaults (also parse_named_args, validate_session_input, embellish_eval) but the registry-RECORD storage keys deliberately stay entry$default_arg / entry$copy_defaults (and entry$named_args, entry$validate_input, entry$runtime) — the public arg name and the internal key differ on purpose so downstream readers (translate/server/copy) were untouched. validate_default_arg was renamed validate_positional_arg (its message names `parse_positional_arg`); validate_copy_defaults kept its function name but its messages now name `ui_text_defaults`. Any code/test reading entry$default_arg / entry$copy_defaults still works.",
       "detail": "default_arg->positional_arg (validates the keyword's single positional formula argument, e.g. the 50 in ppPct(50)); copy_defaults->ui_text_defaults (ties to the public ui_text vocabulary). validate_default_arg was renamed to validate_positional_arg and its message; validate_copy_defaults kept its function name but its messages now say \"ui_text_defaults\". Any code or test reading entry$default_arg/entry$copy_defaults still works.",
       "scope": "durable",
       "feature": "",
       "tags": "deepening-sweep-v2",
       "source": "R/paintr-registry.R (ptr_define_core entry list); R/paintr-translate.R; R/paintr-server.R",
       "verdict": "verified",
-      "verification": "Read R/paintr-registry.R. ptr_define_core signature (L352-356) uses public arg names positional_arg / ui_text_defaults; the registry entry list (L406-414) stores entry$default_arg = positional_arg and entry$copy_defaults = ui_text_defaults — public name and internal storage key deliberately differ, exactly as claimed. The NOTE comment at L349-351 states this verbatim ('the registry-record KEYS stay default_arg / copy_defaults ... only the public ARGUMENT names are positional_arg / ui_text_defaults'). Validators present: validate_positional_arg (L388), validate_copy_defaults (L390, function name kept). Landed in commit 3b34c22.",
+      "verification": "Read ptr_define_core entry list (R/paintr-registry.R:354-423) and the value wrapper signature (597-611). The deliberate public-arg vs record-key divergence HOLDS and is now even stronger after ADR 0027: the entry list stores validate_input = validate_session_input, default_arg = parse_positional_arg, named_args = parse_named_args, runtime = runtime_fn (from embellish_eval), copy_defaults = ui_text_defaults. So internal record keys (default_arg, named_args, validate_input, runtime, copy_defaults) are KEPT while the public constructor args were renamed. BUT the finding names the public arg as `positional_arg`; the CURRENT public arg is `parse_positional_arg` (the ADR-0027 final name) — see the wrapper signature (line 599) and validate_positional_arg's abort message (218-223) which says \"`parse_positional_arg`\". Also: validate_default_arg was renamed to validate_positional_arg (param named positional_arg); validate_copy_defaults kept its function name and its messages now name ui_text_defaults (309-311). Drifted only on the public-arg label — rewrite positional_arg -> parse_positional_arg.",
       "checked_refs": [
-        "R/paintr-registry.R ptr_define_core",
-        "R/paintr-registry.R:349-356",
-        "R/paintr-registry.R:406-414"
+        "R/paintr-registry.R::ptr_define_core",
+        "R/paintr-registry.R::validate_positional_arg",
+        "R/paintr-registry.R::validate_copy_defaults"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
       "origin_status": "derived-unverified",
@@ -264,7 +294,13 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "R/paintr-registry.R:355-424 (ptr_define_core)",
+        "R/paintr-registry.R:218-224 (validate_positional_arg)",
+        "R/paintr-registry.R:311-337 (validate_copy_defaults)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "resolve-upload-source-already-shared",
@@ -350,9 +386,9 @@
       "tags": "deepening-sweep-v2,harness",
       "source": "dev/githooks/pre-commit (rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json on R/ change)",
       "verdict": "verified",
-      "verification": "dev/githooks/pre-commit lines 72-80 rebuild dev/agents/ggpaintr-source-expert/symbol-lines.json when R/*.R is staged (delegates to dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh) and the sidecar re-stages the refreshed JSON into the same commit. Auto-regen + auto-stage behavior holds; the progress message lives in the sidecar script, not pre-commit itself.",
+      "verification": "Read dev/githooks/pre-commit (lines 72-79: orchestrator hook delegates to the sidecar `sh dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh || exit 1`) and the sidecar itself. The sidecar: stages-detects R/*.R via `git diff --cached --name-only --diff-filter=AM | grep -E '^R/.*\\.R$'`; on a hit prints exactly `[pre-commit] R/ changed — rebuilding symbol-lines.json...`; runs Rscript dev/agents/ggpaintr-source-expert/build-symbol-manifest.R (abort on failure); then `git add dev/agents/ggpaintr-source-expert/symbol-lines.json` to land the refreshed JSON in the same commit. core.hooksPath = dev/githooks confirmed. symbol-lines.json present (63KB). Mechanism holds verbatim.",
       "checked_refs": [
-        "dev/githooks/pre-commit:72-80",
+        "dev/githooks/pre-commit",
         "dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
@@ -361,7 +397,7 @@
         "harness-tooling"
       ],
       "status": "fresh",
-      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "verify-before-extract-dedup-overstated",

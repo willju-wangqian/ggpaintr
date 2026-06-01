@@ -81,7 +81,7 @@
       "scope": "durable",
       "feature": "",
       "tags": "shared-coordinator-partition",
-      "source": "R/paintr-server.R:3376 (ptr_bind_local_shared_consumers: keys <- setdiff(names(resolutions), host_owned_keys)); R/paintr-app.R:339, R/paintr-app.R:1164; R/paintr-shared-ui.R:416",
+      "source": "R/paintr-server.R:3376 (ptr_bind_local_shared_consumers: keys <- setdiff(names(resolutions), host_owned_keys)); R/paintr-app.R:339, R/paintr-app.R:1200; R/paintr-shared-ui.R:416",
       "verdict": "verified",
       "verification": "Read R/paintr-server.R:3386-3398: ptr_bind_local_shared_consumers(..., host_owned_keys=character(), ...) computes keys <- setdiff(names(resolutions), host_owned_keys) (L3397), confirming host_owned_keys is the COMPLEMENT set the binder must NOT bind. Doc comment (L3375-3385) states 'EXCLUDING any keys the host already owns'. The three complement derivations match: single-instance app.R:339 = new_partition_view('single') = character(0); embed instance app.R:1166 = new_partition_view('instance', panel_keys=names(dots$shared)) = panel_keys; panel host shared-ui.R:416 = panel_host = setdiff(consumer_keys, panel_keys) (per partition-view.R partition_host_owned_keys). Cited line drifted from 3376/3390 to 3386/3397 but symbol and behaviour hold.",
       "checked_refs": [
@@ -89,16 +89,17 @@
         "R/paintr-server.R:3386-3398",
         "R/paintr-partition-view.R partition_host_owned_keys",
         "R/paintr-app.R:339",
-        "R/paintr-app.R:1166",
+        "R/paintr-app.R:1202",
         "R/paintr-shared-ui.R:416"
       ],
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
-      ]
+      ],
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "partition-view-null-names-empty-list-coercion",
@@ -107,21 +108,22 @@
       "scope": "durable",
       "feature": "",
       "tags": "shared-coordinator-partition",
-      "source": "R/paintr-partition-view.R (new_partition_view: panel_keys <- panel_keys %||% character()); R/paintr-app.R:1164 (names(dots$shared %||% list())); tests/testthat/test-module-server-shared.R (M-SHR.1)",
+      "source": "R/paintr-partition-view.R (new_partition_view: panel_keys <- panel_keys %||% character()); R/paintr-app.R:1200 (names(dots$shared %||% list())); tests/testthat/test-module-server-shared.R (M-SHR.1)",
       "verdict": "verified",
       "verification": "Verified both code and test anchor against current source. R/paintr-partition-view.R new_partition_view normalises NULL BEFORE asserting — `panel_keys <- panel_keys %||% character()` and `consumer_keys <- consumer_keys %||% character()` precede assertthat::assert_that(is.character(panel_keys), is.character(consumer_keys)); inline comment matches verbatim ('NULL is R's empty-names sentinel (names() of an unnamed/empty list) ... normalise it to character(0) before validating, so the is.character check still rejects genuinely-wrong types (e.g. integer)'). The embed-instance call at R/paintr-app.R:1167 passes panel_keys=names(dots$shared %||% list()) (NULL when empty). The cited test M-SHR.1 EXISTS at tests/testthat/test-module-server-shared.R:14 ('M-SHR.1 bare ptr_server() self-binds formula-local shared keys'), driving the empty-shared embed path via shiny::testServer with no shared_state. Claim holds with teeth.",
       "checked_refs": [
         "R/paintr-partition-view.R new_partition_view",
-        "R/paintr-app.R:1167",
+        "R/paintr-app.R:1203",
         "tests/testthat/test-module-server-shared.R:14"
       ],
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
-      ]
+      ],
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "partition-view-unifies-three-ownership-channels",
@@ -139,16 +141,17 @@
         "R/paintr-partition-view.R partition_renders_section",
         "R/paintr-app.R:169",
         "R/paintr-app.R:339",
-        "R/paintr-app.R:1166",
+        "R/paintr-app.R:1202",
         "R/paintr-shared-ui.R:416"
       ],
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
-      ]
+      ],
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "render-shared-section-true-only-single-instance",
@@ -165,15 +168,16 @@
         "R/paintr-partition-view.R partition_renders_section",
         "R/paintr-app.R:403",
         "R/paintr-app.R:760",
-        "R/paintr-app.R:964"
+        "R/paintr-app.R:1000"
       ],
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
-      ]
+      ],
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "shared-server-partition-is-faithful-green-consumption-guard",

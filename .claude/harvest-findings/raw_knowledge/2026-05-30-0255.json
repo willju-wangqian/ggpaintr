@@ -2,9 +2,7 @@
   "harvested_at": "2026-05-30T02:55",
   "corpus": ".claude/harvest-findings/raw_conversation/ (2 transcripts, 12 stamps)",
   "counts": {
-    "verified": 12,
-    "contradicted": 0,
-    "unconfirmable": 0
+    "verified": 12
   },
   "findings": [
     {
@@ -60,16 +58,22 @@
       "tags": "derived-column-seed-boot",
       "source": "R/paintr-server.R:2482-2524 (consumer_seed_decision); tests/testthat/test-spec-seed-boot-only.R Seam 1d; commit 4e6ee04",
       "verdict": "verified",
-      "verification": "Read consumer_seed_decision (R/paintr-server.R:2508-2565). seed_landed = !is.null(seed) && (length(seed)==0L || all(as.character(seed) %in% cols)) (2557-2558); mark_rendered = length(cols)>0L && (seed_landed || default_landed || valid_current) (2562-2563) -- no longer the blanket !is.null(selected). default_landed (2526-2528) is its symmetric peer. valid_current (2531-2532) is factored out and used in user_pick (2544) gated on is.null(seed) so seed precedence over current is preserved. Matches claim exactly; commit 4e6ee04 exists in git log.",
+      "verification": "Read consumer_seed_decision (R/paintr-server.R:2507-2564, include_body) — fully matches. The has_rendered latch flip (mark_rendered) gates on `seed_landed || default_landed || valid_current` (NOT the old blanket !is.null(selected)). seed_landed = !is.null(seed) && (length(seed)==0L || all(as.character(seed) %in% cols)) — symmetric to default_landed, with an empty seed landing trivially. valid_current is factored out and used in mark_rendered so a never-landing/typo seed cannot trap the picker; user_pick = !has_rendered && is.null(seed) && valid_current preserves boot-only seed precedence (seed wins selected at first render). tests/testthat/test-spec-seed-boot-only.R has the Seam 1d (DERIVED-column seed) and Seam 1c (non-landing default) blocks calling ggpaintr:::consumer_seed_decision. Claim + detail hold verbatim; body is at 2507-2564 (finding cited 2508-2565 — off by one line, immaterial).",
       "checked_refs": [
-        "R/paintr-server.R:2508-2565 (consumer_seed_decision)"
+        "R/paintr-server.R::consumer_seed_decision",
+        "tests/testthat/test-spec-seed-boot-only.R::\"Seam 1d\""
       ],
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "R/paintr-server.R:2508-2565 (consumer_seed_decision)",
+        "tests/testthat/test-spec-seed-boot-only.R:178 (anchor)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "derived-column-seed-stage-toggle-race",
@@ -250,11 +254,11 @@
       "scope": "durable",
       "feature": "",
       "tags": "",
-      "source": "R/paintr-translate.R:1066 (ptr_validate_shared_roles); R/paintr-server.R:2213+ (ptr_setup_value_uis shared-value loop); R/paintr-shared.R:131-211 (truncation ignores $shared)",
+      "source": "R/paintr-translate.R:1099 (ptr_validate_shared_roles); R/paintr-server.R:2213+ (ptr_setup_value_uis shared-value loop); R/paintr-shared.R:131-211 (truncation ignores $shared)",
       "verdict": "verified",
       "verification": "ptr_validate_shared_roles (R/paintr-translate.R:1066-1086) only aborts when a single key spans >1 role (consumer/source/value); a value-role (producer) key alone is legal. Shared value widgets bind once per key in ptr_setup_value_uis via collect_shared_placeholders loop (R/paintr-server.R ~2300+, `if (!is.null(v$shared)) next` then per-key shared_entries loop) at canonical id shared_<key> (canonical_shared_id, R/paintr-shared.R:35). truncate_upstream_at_placeholder (R/paintr-shared.R:180-211) never inspects $shared, so a shared producer stage is still truncated and a downstream ppVar(shared=) doesn't see its derived column. All sub-claims hold. Cited line 1066 exact; server 2213+ region is the shared-value loop (drifted but present).",
       "checked_refs": [
-        "R/paintr-translate.R:1066-1086 (ptr_validate_shared_roles)",
+        "R/paintr-translate.R:1099-1119 (ptr_validate_shared_roles)",
         "R/paintr-server.R:2167-2330 (ptr_setup_value_uis shared-value loop)",
         "R/paintr-shared.R:180-211 (truncation ignores $shared)",
         "R/paintr-shared.R:35 (canonical_shared_id shared_<key>)"
@@ -265,7 +269,8 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     }
   ]
 }
