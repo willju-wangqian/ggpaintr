@@ -1,0 +1,213 @@
+{
+  "harvested_at": "2026-05-31T22:00",
+  "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript)",
+  "counts": {
+    "verified": 11
+  },
+  "findings": [
+    {
+      "id": "addin-classify-searchpath-dataframe",
+      "claim": "The addin's type classifier uses `exists/get(nm, inherits = TRUE)` so a bare highlighted name resolves through the search path — `mpg` resolves to ggplot2's `mpg` dataset (a data.frame) and is classified \"dataframe\" (promoting ppUpload), a deliberately-accepted false-positive since every placeholder still appears in the list.",
+      "detail": "The picker order is then `ptr_addin_order(pickable, kind)`: tier-1 promotion by kind, tier-2 by role (consumer<value<source<structural), tier-3 built-ins before customs, tier-4 alphabetical — so a custom placeholder interleaves with its role group instead of sinking to the bottom.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "rstudio-addin",
+      "source": "R/paintr-addin.R (ptr_addin_classify)",
+      "verdict": "verified",
+      "verification": "R/paintr-addin.R:90-91 ptr_addin_classify uses exists/get(inherits=TRUE); ptr_addin_order tiers (promotion->role->builtin->alpha) confirmed by tests (a custom value/consumer interleaves by role).",
+      "checked_refs": [
+        "R/paintr-addin.R:66-136"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "getthemeinfo-dark-flag",
+      "claim": "`rstudioapi::getThemeInfo()` returns a list with `$dark` (logical, TRUE when the editor theme is dark), usable to auto-theme a Shiny gadget to match the IDE; it returns NULL/errors outside RStudio so wrap in `tryCatch` with a fallback.",
+      "detail": "ggpaintr's `ptr_addin_dark_mode()` resolves: `getOption(\"ggpaintr.addin_theme\")` override (\"dark\"/\"light\"/\"auto\") -> `getThemeInfo()$dark` -> dark fallback.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "rstudio-addin",
+      "source": "rstudioapi::getThemeInfo Rd; R/paintr-addin.R (ptr_addin_dark_mode)",
+      "verdict": "verified",
+      "verification": "rstudioapi getThemeInfo.Rd documents $dark (logical); R/paintr-addin.R:169-176 ptr_addin_dark_mode reads option override then getThemeInfo()$dark with tryCatch fallback.",
+      "checked_refs": [
+        "R/paintr-addin.R:169-176",
+        "rstudioapi::getThemeInfo Rd"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "minititlebar-right-slot-single-tag",
+      "claim": "miniUI's `miniTitleBar` calls `tagAppendAttributes(right, class = \"pull-right\")` on its `right` (and `left`) slot, so that slot must be a SINGLE tag — passing a `shiny::tagList(...)` mis-applies the attribute and leaks the literal text \"pull-right\" into the rendered bar while breaking button float.",
+      "detail": "Fix for multiple title-bar buttons is to wrap them in one `shiny::div(...)`. Discovered by reading `print(miniUI:::miniTitleBar)`: body is `tags$div(class=\"gadget-title\", tags$h1(title), tagAppendAttributes(left,...), tagAppendAttributes(right,...))`. Also: the gadget `<h1>` title duplicates and visually collides with the dialogViewer window title — set the gadget title to \"\" when using `dialogViewer()`.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "rstudio-addin",
+      "source": "R/paintr-addin.R; miniUI::miniTitleBar (installed pkg source)",
+      "verdict": "verified",
+      "verification": "miniUI:::miniTitleBar body contains tagAppendAttributes(right, 'pull-right') (grep TRUE); R/paintr-addin.R:260 uses `right = shiny::div(...)`. Behaviour (tagList leaks text) observed in the user's screenshot and fixed.",
+      "checked_refs": [
+        "R/paintr-addin.R:260",
+        "miniUI:::miniTitleBar"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "pp-tokens-exported-identity",
+      "claim": "The five built-in placeholder keywords `ppVar`/`ppNum`/`ppText`/`ppExpr`/`ppUpload` (plus structural `ppLayerOff`/`ppVerbSwitch`) are exported from the package namespace, and the first four are identity functions, so a \"naked\" ggplot expression using them (e.g. `ggplot(iris, aes(x = ppVar(Sepal.Length))) + geom_point(size = ppNum(3))`) evaluates as ordinary ggplot2 outside `ptr_app()`.",
+      "detail": "Verified by `ggplot_build()` on such an expression -> 150-row layer. `ppUpload(x)` is identity with an arg but no-arg `ppUpload()` aborts outside `ptr_app()`. This is what makes a README chunk runnable with `eval=TRUE` without launching Shiny.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "rstudio-addin,placeholders",
+      "source": "R/paintr-builtins.R:259-300; NAMESPACE",
+      "verdict": "verified",
+      "verification": "NAMESPACE exports all 5 pp* (grep=5); ggplot_build on a naked ppVar/ppNum expression yielded a 150-row layer this session.",
+      "checked_refs": [
+        "NAMESPACE",
+        "R/paintr-builtins.R:259-300"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "ptr-app-resolves-bare-stored-symbol",
+      "claim": "`ptr_capture_formula` resolves a bare symbol bound to a stored formula: when the enexpr-captured arg is a symbol it is `rlang::eval_bare(sym, envir)`-resolved and accepted if the value is a string/call/symbol, so `formula_iris <- rlang::expr(ggplot(...)); ptr_app(formula_iris)` works WITHOUT `!!`.",
+      "detail": "Verified by probe: `ptr_capture_formula(rlang::expr(formula_iris), environment())` returned the deparsed ggplot string. The `!!` form is only required for non-symbol captures (e.g. subscripted `plots[[1]]`). CLAUDE.md's \"splice stored exprs with !!\" is one valid path but not the only one — bare stored symbols resolve too (documented \"f <- '...'; ptr_app(f)\" contract extends to call-valued symbols).",
+      "scope": "durable",
+      "feature": "",
+      "tags": "rstudio-addin,formula-capture",
+      "source": "R/paintr-app.R:196-250 (ptr_capture_formula)",
+      "verdict": "verified",
+      "verification": "R/paintr-app.R:210 is_symbol branch + :221 eval_bare resolve; probe ptr_capture_formula(expr(formula_iris),env) returned the deparsed ggplot string.",
+      "checked_refs": [
+        "R/paintr-app.R:210-250"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "rcmd-check-nonascii-strings-only",
+      "claim": "R CMD check's \"non-ASCII characters\" WARNING fires on non-ASCII in R *code* (string literals, symbols) but NOT in comments/roxygen; fix with `\\uXXXX` escapes or ASCII equivalents (curly quotes, `…`, `↑↓` in gadget strings triggered it).",
+      "detail": "`tools::showNonASCIIfile(\"R/x.R\")` lists every non-ASCII line (over-reports comments). Only the string-literal lines matter for the warning; making the whole file ASCII via a `perl -CSD -i -pe 's/\\x{2026}/.../g; ...'` pass guarantees it clears and is verifiable by re-running showNonASCIIfile (empty output).",
+      "scope": "durable",
+      "feature": "",
+      "tags": "r-cmd-check",
+      "source": "R CMD check on ggpaintr 0.10.0; tools::showNonASCIIfile",
+      "verdict": "verified",
+      "verification": "Empirical: R CMD check raised the non-ASCII WARNING citing R/paintr-addin.R while curly-quote/ellipsis/arrow chars were in string literals; after ASCII-izing, tools::showNonASCIIfile returns empty and check is clean.",
+      "checked_refs": [
+        "R/paintr-addin.R",
+        "devtools::check output"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "rcmd-check-preexisting-failures-resolved",
+      "claim": "As of the `addins` branch HEAD, `devtools::check(--as-cran)` is clean (0 errors / 0 warnings / 0 notes) and the test suite passes under check — the previously-recorded \"15 pre-existing check failures (registry-split + pp-toggles)\" no longer reproduce, so memory `rcmd-check-preexisting-failures` is stale.",
+      "detail": "",
+      "scope": "durable",
+      "feature": "",
+      "tags": "r-cmd-check",
+      "source": "devtools::check(--as-cran) on ggpaintr 0.10.0 @ HEAD",
+      "verdict": "verified",
+      "verification": "devtools::check(--as-cran) ran this session at 0 errors/0 warnings/0 notes with tests OK under check; supersedes memory rcmd-check-preexisting-failures (15 failures no longer reproduce).",
+      "checked_refs": [
+        "devtools::check output @ HEAD"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "readme-github-document-image-must-exist",
+      "claim": "Rendering a `github_document` README that references an image path which does not yet exist fails with \"pandoc ... error 99\" (missing resource); the referenced PNG must exist before knitting. A `ptr_app()` example chunk must be a display-only ```r block (not ```{r}) because evaluating it launches a Shiny session and hangs the knit.",
+      "detail": "For generated plot figures, set `knitr::opts_chunk$set(fig.path = \"man/figures/README-\")` so they land in the conventional dir referenced by README.md and shipped to pkgdown.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "readme,docs",
+      "source": "README.Rmd render; rmarkdown github_document",
+      "verdict": "verified",
+      "verification": "Empirical: render errored 'pandoc ... error 99' until man/figures/ggpaintr-addin.png existed; ptr_app() chunks left as ```r (executing them launches Shiny). README.Rmd:13 sets fig.path=man/figures/README-.",
+      "checked_refs": [
+        "README.Rmd:13",
+        "README render output"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "rstudio-addin-no-default-shortcut",
+      "claim": "An RStudio addin package CANNOT ship a default keyboard shortcut — bindings live only in the user's `~/.config/rstudio/keybindings/addins.json` (macOS/Linux ≥1.3) or `~/AppData/Roaming/RStudio/keybindings/addins.json` (Windows), keyed by command-id `package::function`; and an addin appears in the shortcut dialog only after the package is INSTALLED, not merely `devtools::load_all()`-ed.",
+      "detail": "`addins.dcf` has no shortcut field. Bind via Tools > Addins > Browse Addins... > Keyboard Shortcuts..., or Tools > Modify Keyboard Shortcuts. The exact macOS Command-key token in that JSON could not be authoritatively confirmed from docs (Cmd vs Command vs Meta) — read it back from a binding set in the GUI if a writer is ever built.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "rstudio-addin",
+      "source": "Posit docs; shrtcts/rstudio.prefs pkg docs; inst/rstudio/addins.dcf",
+      "verdict": "verified",
+      "verification": "inst/rstudio/addins.dcf has no Shortcut field (grep=0). Path/keying/install-only-in-dialog from Posit + shrtcts/rstudio.prefs docs this session. SUB-DETAIL UNCONFIRMED: exact macOS Command-key token in addins.json (Cmd vs Command vs Meta) — read back from a GUI-set binding if ever writing that file.",
+      "checked_refs": [
+        "inst/rstudio/addins.dcf"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "selectize-custom-render-pattern",
+      "claim": "Rich per-row rendering in a `selectizeInput` uses `choices = NULL` plus `options = list(options = <unnamed list of dicts>, valueField, labelField, searchField, render = I(\"{ option: fn, item: fn }\"))` — and the render marker is base `I()`, not `shiny::I` (which does not exist).",
+      "detail": "Each dict supplies the fields the JS render reads (e.g. kw/role/desc); the JS `escape()` is selectize-provided. `htmltools::renderTags(ui)$head` (NOT `$html`) is where a `tags$head(tags$style(...))` block lands when verifying CSS embedding headlessly.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "shiny,rstudio-addin",
+      "source": "R/paintr-addin.R (ptr_addin_run_palette, ptr_addin_render_js)",
+      "verdict": "verified",
+      "verification": "R/paintr-addin.R:226 ptr_addin_render_js uses base I(r\"(...)\"); run_palette passes choices=NULL + options(options=, valueField/labelField/searchField, render=). shiny::I errored ('not an exported object') this session, confirming base I().",
+      "checked_refs": [
+        "R/paintr-addin.R:226-273"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    },
+    {
+      "id": "shiny-gadget-listening-message-suppress",
+      "claim": "The \"Listening on http://127.0.0.1:<port>\" line printed when a Shiny gadget runs is emitted by `shiny:::startApp` via `message()`, so wrapping `shiny::runGadget(...)` in `suppressMessages()` silences it cleanly.",
+      "detail": "Confirmed by grepping the shiny namespace: only `startApp` contains the \"Listening on\" string, via `message(\"\\n\",\"Listening on http://\",...)`. A gadget is a real local Shiny app, hence the line.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "rstudio-addin,shiny",
+      "source": "shiny:::startApp (installed source); R/paintr-addin.R",
+      "verdict": "verified",
+      "verification": "Only shiny:::startApp contains 'Listening on', emitted via message(); R/paintr-addin.R:308 wraps runGadget in suppressMessages().",
+      "checked_refs": [
+        "R/paintr-addin.R:308",
+        "shiny:::startApp"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified"
+    }
+  ]
+}
