@@ -1,7 +1,12 @@
 {
   "harvested_at": "2026-05-31T22:00",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-05-31-2157-roxygen-unexport-llm-corpus.md)",
-  "counts": { "verified": 6, "contradicted": 0, "unconfirmable": 0 },
+  "counts": {
+    "verified": 6,
+    "contradicted": 0,
+    "unconfirmable": 0
+  },
+  "ref_convention": "checked_refs cite SYMBOLS (R/file.R::name, resolved via symbol-lines.json) or TEXT ANCHORS (path::\"text\") — never bare line numbers. Run dev/scripts/refresh-finding-citations.R --apply to (re)generate resolved_refs; line numbers live only there and are recomputed, so they never go stale in the record.",
   "findings": [
     {
       "id": "formula-capture-only-four-boundary-fns",
@@ -9,14 +14,30 @@
       "detail": "ptr_init_state does tree <- ptr_translate(formula, expr_check=expr_check) with no enexpr capture; ptr_id_table asserts is.character(formula). So roxygen examples may lead with the expression form ONLY for the four boundary fns; the rest must stay string examples.",
       "scope": "durable",
       "feature": "",
-      "source": "R/paintr-app.R:141,162,882,983,1124; R/paintr-server.R:132",
+      "source": "R/paintr-app.R (ptr_app / ptr_ui / ptr_ui_controls / ptr_server each capture via ptr_capture_formula(rlang::enexpr(formula), envir)); R/paintr-server.R (ptr_init_state: ptr_translate(formula), no capture); R/paintr-input-spec.R (ptr_id_table asserts is.character)",
       "verdict": "verified",
-      "verification": "Confirmed ptr_capture_formula(rlang::enexpr(formula), envir) at app.R:141,162 (both in ptr_app body, def@134), 882 (ptr_ui@873), 989 (ptr_ui_controls@981), 1130 (ptr_server@1128) — the four boundary fns. server.R:132 is `tree <- ptr_translate(formula, ...)` (string, no capture); ptr_id_table asserts is.character at input-spec.R:241. NOTE: line drift since stamping — ptr_ui_controls capture 983->989, ptr_server 1124->1130 (my edits added lines); claim unchanged.",
-      "checked_refs": ["R/paintr-app.R:141", "R/paintr-app.R:162", "R/paintr-app.R:882", "R/paintr-app.R:989", "R/paintr-app.R:1130", "R/paintr-server.R:132", "R/paintr-input-spec.R:241"],
+      "verification": "Confirmed the four boundary fns each call ptr_capture_formula(rlang::enexpr(formula), envir) (ptr_app does so twice: formula_str + formula). ptr_init_state body is `tree <- ptr_translate(formula, expr_check=expr_check)` with no capture; ptr_id_table opens with an is.character(formula) assertion. So expression input is exclusive to the four boundary fns.",
+      "checked_refs": [
+        "R/paintr-app.R::ptr_app",
+        "R/paintr-app.R::ptr_ui",
+        "R/paintr-app.R::ptr_ui_controls",
+        "R/paintr-app.R::ptr_server",
+        "R/paintr-server.R::ptr_init_state",
+        "R/paintr-input-spec.R::ptr_id_table"
+      ],
       "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "resolved_refs": [
+        "R/paintr-app.R:134-152 (ptr_app)",
+        "R/paintr-app.R:873-918 (ptr_ui)",
+        "R/paintr-app.R:981-1002 (ptr_ui_controls)",
+        "R/paintr-app.R:1128-1270 (ptr_server)",
+        "R/paintr-server.R:91-377 (ptr_init_state)",
+        "R/paintr-input-spec.R:239-261 (ptr_id_table)"
+      ],
+      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
     },
     {
       "id": "ptr-capture-formula-symbol-resolution",
@@ -24,14 +45,20 @@
       "detail": "It accepts only character/call/symbol values (guard against poisoning upstream frames), unwraps a top-level { ... } block (keeps last expr), and aborts if a named variable resolves to neither string nor expression. Canonical docs lead with `!!` but bare-symbol resolution is equivalent for a plain variable.",
       "scope": "durable",
       "feature": "",
-      "source": "R/paintr-app.R:196-250",
+      "source": "R/paintr-app.R (ptr_capture_formula)",
       "verdict": "verified",
-      "verification": "ptr_capture_formula def@196; is_symbol branch@210; tryCatch(eval_bare(formula_captured, envir))@221; fallback `for (fr in rev(sys.frames()))`@228; call/symbol fall-through @289. Symbol-to-value resolution path confirmed present as claimed.",
-      "checked_refs": ["R/paintr-app.R:196", "R/paintr-app.R:210", "R/paintr-app.R:221", "R/paintr-app.R:228", "R/paintr-app.R:289"],
+      "verification": "ptr_capture_formula has the is_symbol branch that tryCatch(eval_bare(formula_captured, envir)), then a fallback `for (fr in rev(sys.frames()))`, accepting only character/call/symbol; top-level brace unwrap present. Symbol-to-value resolution path confirmed as claimed.",
+      "checked_refs": [
+        "R/paintr-app.R::ptr_capture_formula"
+      ],
       "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "resolved_refs": [
+        "R/paintr-app.R:196-296 (ptr_capture_formula)"
+      ],
+      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
     },
     {
       "id": "llm-corpus-export-gate",
@@ -39,14 +66,24 @@
       "detail": "This is why unexporting ptr_app_bslib/ptr_app_grid rippled far beyond roxygen: the corpus taught them as public L1 entry points across 8 files (overview, primer, level1_ptr_app incl. a whole \"Multiple plots\" grid section, formula_syntax, level1_ptr_options, level2_ui_text, level3_layout). Pattern: an unexport is an API-surface change that must be propagated to the corpus + generator, not just NAMESPACE.",
       "scope": "durable",
       "feature": "",
-      "source": "tests/testthat/test-llm.R:117; dev/githooks/pre-commit",
+      "source": "tests/testthat/test-llm.R (corpus-integrity test_that); dev/githooks/pre-commit (runs dev/build-llm.R lint + verify on inst/llm/ or dev/build-llm.R changes)",
       "verdict": "verified",
-      "verification": "test_that(\"every ptr_*() call in the corpus names an exported function\") at test-llm.R:107 (assert ~117), reading llm_corpus_files()@19 via ptr_calls_in()@26 vs getNamespaceExports. pre-commit hook (lines 86-93) runs BOTH `Rscript dev/build-llm.R lint` (line 88) and `verify` (line 92) when inst/llm/ or dev/build-llm.R is staged, failing the commit on either. Minor: test_that is line 107 not 117; hook runs lint AND verify (stamp said just lint).",
-      "checked_refs": ["tests/testthat/test-llm.R:107", "tests/testthat/test-llm.R:19", "tests/testthat/test-llm.R:26", "dev/githooks/pre-commit:86-93"],
+      "verification": "test_that(\"every ptr_*() call in the corpus names an exported function\") reads llm_corpus_files() via ptr_calls_in() and diffs against getNamespaceExports. pre-commit runs both `Rscript dev/build-llm.R lint` and `verify` when inst/llm/ or dev/build-llm.R is staged, failing the commit on either.",
+      "checked_refs": [
+        "tests/testthat/test-llm.R::\"every ptr_*() call in the corpus names an exported function\"",
+        "tests/testthat/test-llm.R::\"llm_corpus_files <- function\"",
+        "dev/githooks/pre-commit::\"Rscript dev/build-llm.R lint\""
+      ],
       "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "resolved_refs": [
+        "tests/testthat/test-llm.R:107 (anchor)",
+        "tests/testthat/test-llm.R:19 (anchor)",
+        "dev/githooks/pre-commit:88,89 (anchor)"
+      ],
+      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
     },
     {
       "id": "build-llm-managed-blocks-and-hardcoded-desc",
@@ -54,14 +91,28 @@
       "detail": "Commands: lint (HARD-fails on any non-export ptr_*() call, exit 1), generate (rewrite managed blocks in place), verify (sync gate, exit 1 on drift). Because TOPIC_DESC is hardcoded, removing a function reference requires editing BOTH the .md prose AND the TOPIC_DESC string in build-llm.R, else generate reintroduces the stale ref. lint is the authoritative corpus gate, not just verify.",
       "scope": "durable",
       "feature": "",
-      "source": "dev/build-llm.R:229-295,258-271",
+      "source": "dev/build-llm.R (render_block switch handles only token-table/topic-index; TOKEN_ROWS + TOPIC_DESC hardcoded; lint/generate/verify dispatch)",
       "verdict": "verified",
-      "verification": "render_block switch (lines 291-292) handles only \"token-table\" and \"topic-index\"; no \"level-table\" string exists in the file. TOKEN_ROWS@234, TOPIC_DESC@258 are hardcoded literals. lint@132, verify@331 present. Confirmed fixing TOPIC_DESC was required this session (else `generate` re-added ptr_app_grid() to primer's topic-index).",
-      "checked_refs": ["dev/build-llm.R:234", "dev/build-llm.R:258", "dev/build-llm.R:291", "dev/build-llm.R:292", "dev/build-llm.R:132", "dev/build-llm.R:331"],
+      "verification": "render_block switch handles only \"token-table\" and \"topic-index\"; no \"level-table\" string in the file. TOKEN_ROWS and TOPIC_DESC are hardcoded literals. Fixing TOPIC_DESC was required this session (else `generate` re-added ptr_app_grid() to primer's topic-index).",
+      "checked_refs": [
+        "dev/build-llm.R::\"render_block <- function\"",
+        "dev/build-llm.R::\"TOPIC_DESC <- c(\"",
+        "dev/build-llm.R::\"TOKEN_ROWS <- list(\"",
+        "dev/build-llm.R::\"lint <- function\"",
+        "dev/build-llm.R::\"verify <- function\""
+      ],
       "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "resolved_refs": [
+        "dev/build-llm.R:286 (anchor)",
+        "dev/build-llm.R:258 (anchor)",
+        "dev/build-llm.R:234 (anchor)",
+        "dev/build-llm.R:132 (anchor)",
+        "dev/build-llm.R:331 (anchor)"
+      ],
+      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
     },
     {
       "id": "app-variants-unexported-still-documented",
@@ -69,29 +120,49 @@
       "detail": "Tests call them directly (e.g. ptr_app_grid_components, test-app-bslib.R) and still pass because devtools::test() loads internals. Full suite green at a675550: FAIL 0 / WARN 4 / SKIP 0 / PASS 3523. The two functions remain reachable via ggpaintr:::.",
       "scope": "decision",
       "feature": "",
-      "source": "R/paintr-app.R; R/paintr-app-bslib.R; NAMESPACE; commits d4d0656,a675550",
+      "source": "NAMESPACE (no export of either); R/paintr-app-bslib.R (ptr_app_bslib, @keywords internal); R/paintr-app.R (ptr_app_grid, @keywords internal); man/ptr_app_bslib.Rd + man/ptr_app_grid.Rd still generated; commits d4d0656, a675550",
       "verdict": "verified",
-      "verification": "NAMESPACE has no export of either (grep NONE); @keywords internal present at paintr-app-bslib.R:54 (and on ptr_app_grid in paintr-app.R); man/ptr_app_bslib.Rd and man/ptr_app_grid.Rd both still generated. Full-suite run on committed a675550 = FAIL 0/WARN 4/SKIP 0/PASS 3523 (721s, serial, browser on).",
-      "checked_refs": ["NAMESPACE", "R/paintr-app-bslib.R:54", "man/ptr_app_bslib.Rd", "man/ptr_app_grid.Rd"],
+      "verification": "NAMESPACE has no export of either; @keywords internal present on both; man/ptr_app_bslib.Rd and man/ptr_app_grid.Rd both still generated. Full-suite run on committed a675550 = FAIL 0/WARN 4/SKIP 0/PASS 3523 (721s, serial, browser on).",
+      "checked_refs": [
+        "NAMESPACE",
+        "R/paintr-app-bslib.R::ptr_app_bslib",
+        "R/paintr-app.R::ptr_app_grid",
+        "man/ptr_app_bslib.Rd",
+        "man/ptr_app_grid.Rd"
+      ],
       "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "resolved_refs": [
+        "NAMESPACE",
+        "R/paintr-app-bslib.R:55-121 (ptr_app_bslib)",
+        "R/paintr-app.R:1324-1345 (ptr_app_grid)",
+        "man/ptr_app_bslib.Rd",
+        "man/ptr_app_grid.Rd"
+      ],
+      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
     },
     {
       "id": "roxygen-bare-ggplot-runs-in-examples",
       "claim": "A bare ggplot(...) call in a non-interactive @examples block runs under R CMD check because package examples execute with ggpaintr (and its attached ggplot2) loaded, so expression-form examples need no library(ggplot2) and no interactive() wrapper to pass run_examples.",
-      "detail": "Confirmed by the pre-existing unwrapped ptr_ui example at R/paintr-app.R:866 and by run_examples passing after converting ptr_ui_controls to the expression form. Shiny-app-launching examples still need if (interactive()).",
+      "detail": "Confirmed by the pre-existing unwrapped ptr_ui example (its @examples uses bare ggplot, no interactive()) and by run_examples passing after converting ptr_ui_controls to the expression form. Shiny-app-launching examples still need if (interactive()).",
       "scope": "durable",
       "feature": "",
-      "source": "R/paintr-app.R:866; devtools::run_examples",
+      "source": "R/paintr-app.R (ptr_ui roxygen @examples uses unwrapped bare ggplot); devtools::run_examples()",
       "verdict": "verified",
-      "verification": "R/paintr-app.R:866 is the unwrapped `ui <- ptr_ui(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(), \"plot1\")` example (no interactive(), no library(ggplot2)). devtools::run_examples(run_dontrun=FALSE) printed RUN_EXAMPLES_OK this session after the expression-form conversions.",
-      "checked_refs": ["R/paintr-app.R:866"],
+      "verification": "ptr_ui's @examples block contains an unwrapped `ptr_ui(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(), \"plot1\")` (no interactive(), no library(ggplot2)). devtools::run_examples(run_dontrun=FALSE) printed RUN_EXAMPLES_OK this session after the expression-form conversions.",
+      "checked_refs": [
+        "R/paintr-app.R::ptr_ui"
+      ],
       "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
-      "origin_status": "derived-unverified"
+      "origin_status": "derived-unverified",
+      "resolved_refs": [
+        "R/paintr-app.R:873-918 (ptr_ui)"
+      ],
+      "refs_resolved_at_head": "62edc98665b9106113bca2d8bee2de20581acd52"
     }
   ]
 }
