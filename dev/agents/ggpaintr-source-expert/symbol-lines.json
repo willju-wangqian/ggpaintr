@@ -1,8 +1,8 @@
 {
-  "generated_at": "2026-05-31T01:48:08-0500",
-  "git_head": "918c2ec",
-  "n_files": 35,
-  "n_symbols": 506,
+  "generated_at": "2026-05-31T18:38:46-0500",
+  "git_head": "e7cb909",
+  "n_files": 36,
+  "n_symbols": 510,
   "symbols": {
     "ptr_app_bslib": {
       "file": "R/paintr-app-bslib.R",
@@ -683,6 +683,26 @@
       "file": "R/paintr-disable.R",
       "start_line": 152,
       "end_line": 157
+    },
+    "embellish_identity": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 40,
+      "end_line": 42
+    },
+    "embellish_symbol_to_string": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 46,
+      "end_line": 51
+    },
+    "embellish_expr_to_names": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 58,
+      "end_line": 69
+    },
+    "embellish_atom_to_name": {
+      "file": "R/paintr-embellish.R",
+      "start_line": 73,
+      "end_line": 82
     },
     "ptr_eval": {
       "file": "R/paintr-eval.R",
