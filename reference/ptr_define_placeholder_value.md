@@ -36,12 +36,19 @@ ptr_define_placeholder_value(
 
 - build_ui:
 
-  `function(node, label = NULL, selected = NULL, ...)` returning a Shiny
-  tag. Pass `node$id` as the underlying widget's `inputId`. Read
-  `node$keyword` and `node$param` if you need them. The framework also
-  passes any `ui_text_defaults` field you declare by name (`help`,
-  `placeholder`, `empty_text`) — or accept a `copy = NULL` list and read
-  them off it. Always end the signature with `...`.
+  `function(node, label = NULL, selected = NULL, named_args = list(), ...)`
+  returning a Shiny tag. Pass `node$id` as the underlying widget's
+  `inputId`. Read `node$keyword` and `node$param` if you need them. The
+  framework also passes any `ui_text_defaults` field you declare by name
+  (`help`, `placeholder`, `empty_text`) — or accept a `copy = NULL` list
+  and read them off it. If you declare a `named_args` formal (or accept
+  `...`), the framework injects the validated `parse_named_args` values
+  as a named list — so
+  `parse_named_args = list(step = ptr_arg_numeric())` makes
+  `ppPct(step = 5)` arrive as `named_args$step` (the canonical
+  post-validator value, not the raw call). Every injected argument is
+  opt-in: the injector checks your formals, so name the ones you use and
+  keep `...` to swallow the rest. Always end the signature with `...`.
 
   **Widget-seeding contract — `selected`** (authoritative; the four
   `invoke_build_ui` call sites in `R/paintr-server.R` implement what is
@@ -139,9 +146,12 @@ ptr_define_placeholder_value(
   Named list of validator closures for additional named arguments beyond
   the reserved `shared = ...`. Each entry's closure receives the
   unevaluated AST and returns a canonical value or
-  [`rlang::abort()`](https://rlang.r-lib.org/reference/abort.html).
-  Default is [`list()`](https://rdrr.io/r/base/list.html) (no named
-  args). The name `"shared"` is reserved and may not appear here.
+  [`rlang::abort()`](https://rlang.r-lib.org/reference/abort.html). The
+  canonical values are delivered to `build_ui` as its `named_args` list
+  (and are also carried on `node$named_args`, so `resolve_expr` /
+  `validate_session_input` can read them off `node`). Default is
+  [`list()`](https://rdrr.io/r/base/list.html) (no named args). The name
+  `"shared"` is reserved and may not appear here.
 
 - embellish_eval:
 
@@ -217,8 +227,8 @@ ptr_define_placeholder_value(
 )
 #> function (x, ...) 
 #> x
-#> <bytecode: 0x55f8a781ab58>
-#> <environment: 0x55f8a1c1de90>
+#> <bytecode: 0x5596ec08eae0>
+#> <environment: 0x5596eadce378>
 ptr_clear_placeholder("pct")
 #> ✔ Cleared placeholder: "pct".
 ```

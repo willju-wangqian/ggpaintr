@@ -87,12 +87,18 @@ token users type in the formula, e.g. <code>geom_point(alpha = pct)</code>.</p><
 
 
 <dt id="arg-build-ui">build_ui<a class="anchor" aria-label="anchor" href="#arg-build-ui"></a></dt>
-<dd><p><code>function(node, label = NULL, selected = NULL, ...)</code>
+<dd><p><code>function(node, label = NULL, selected = NULL, named_args = list(), ...)</code>
 returning a Shiny tag. Pass <code>node$id</code> as the underlying widget's
 <code>inputId</code>. Read <code>node$keyword</code> and <code>node$param</code> if you need them. The
 framework also passes any <code>ui_text_defaults</code> field you declare by name
 (<code>help</code>, <code>placeholder</code>, <code>empty_text</code>) — or accept a <code>copy = NULL</code>
-list and read them off it. Always end the signature with <code>...</code>.</p>
+list and read them off it. If you declare a <code>named_args</code> formal (or
+accept <code>...</code>), the framework injects the validated <code>parse_named_args</code>
+values as a named list — so <code>parse_named_args = list(step = ptr_arg_numeric())</code> makes <code>ppPct(step = 5)</code> arrive as
+<code>named_args$step</code> (the canonical post-validator value, not the raw
+call). Every injected argument is opt-in: the injector checks your
+formals, so name the ones you use and keep <code>...</code> to swallow the rest.
+Always end the signature with <code>...</code>.</p>
 <p><strong>Widget-seeding contract — <code>selected</code></strong> (authoritative; the four
 <code>invoke_build_ui</code> call sites in <code>R/paintr-server.R</code> implement what
 is described here, with short pointers back to this docblock).</p>
@@ -179,8 +185,11 @@ time.</p></dd>
 <dd><p>Named list of validator closures for additional named
 arguments beyond the reserved <code>shared = ...</code>. Each entry's closure
 receives the unevaluated AST and returns a canonical value or
-<code><a href="https://rlang.r-lib.org/reference/abort.html" class="external-link">rlang::abort()</a></code>. Default is <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> (no named args). The name
-<code>"shared"</code> is reserved and may not appear here.</p></dd>
+<code><a href="https://rlang.r-lib.org/reference/abort.html" class="external-link">rlang::abort()</a></code>. The canonical values are delivered to <code>build_ui</code> as
+its <code>named_args</code> list (and are also carried on <code>node$named_args</code>, so
+<code>resolve_expr</code> / <code>validate_session_input</code> can read them off <code>node</code>).
+Default is <code><a href="https://rdrr.io/r/base/list.html" class="external-link">list()</a></code> (no named args). The name <code>"shared"</code> is reserved
+and may not appear here.</p></dd>
 
 
 <dt id="arg-embellish-eval">embellish_eval<a class="anchor" aria-label="anchor" href="#arg-embellish-eval"></a></dt>
@@ -250,8 +259,8 @@ the rest of the formula reads from (file upload, dataset chooser).</p>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> function (x, ...) </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> x</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;bytecode: 0x55f8a781ab58&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x55f8a1c1de90&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;bytecode: 0x5596ec08eae0&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> &lt;environment: 0x5596eadce378&gt;</span>
 <span class="r-in"><span><span class="fu"><a href="ptr_clear_placeholder.html">ptr_clear_placeholder</a></span><span class="op">(</span><span class="st">"pct"</span><span class="op">)</span></span></span>
 <span class="r-msg co"><span class="r-pr">#&gt;</span> <span style="color: #00BB00;">✔</span> Cleared placeholder: <span style="color: #0000BB;">"pct"</span>.</span>
 </code></pre></div>

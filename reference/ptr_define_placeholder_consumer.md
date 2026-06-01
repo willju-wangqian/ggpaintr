@@ -155,8 +155,8 @@ ptr_define_placeholder_consumer(
 )
 #> function (x, ...) 
 #> x
-#> <bytecode: 0x55f8a781ab58>
-#> <environment: 0x55f8aabfe990>
+#> <bytecode: 0x5596ec08eae0>
+#> <environment: 0x5596ebe44e40>
 ptr_clear_placeholder("numvar")
 #> ✔ Cleared placeholder: "numvar".
 ```
