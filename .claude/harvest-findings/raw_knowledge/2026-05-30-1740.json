@@ -125,12 +125,12 @@
       "feature": "",
       "source": "tests/testthat/test-spec-seed-derived-column-browser.R:38,45; CLAUDE.md authoritative-gate parallel note",
       "verdict": "verified",
-      "verification": "tests/testthat/test-spec-seed-derived-column-browser.R still present; the two cited assertions are intact: line ~36-39 `expect_true(grepl(\"adj\", app$get_html(\"#ggplot_1_2_ppVar_NA\")), label=\"derived column 'adj' is in the y picker's choices\")` and line ~43-46 `expect_equal(app$get_value(input=\"ggplot_1_2_ppVar_NA\"), \"adj\", label=\"the derived-column spec seed is selected at boot\")` — the boot-tail-sensitive choices/selected assertions the claim describes. CLAUDE.md (the file that drifted) still documents the parallel boot-tail-race flake class (authoritative-gate block: a residual flake under parallel load is not a product failure — re-confirm serially). Orientation confirms this non-shared spec-seed-derived path is a parallel-only flake, green serially, this session. Behavioral parallel-flake claim re-grounded against current anchors; held.",
+      "verification": "Re-verified @ HEAD: trigger was the unrelated CLAUDE.md /stamp-pointer removal; the parallel-flake-green-serial claim is unchanged and reconfirmed this session. Claim holds.",
       "checked_refs": [
         "tests/testthat/test-spec-seed-derived-column-browser.R",
         "CLAUDE.md"
       ],
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "34b923bd2ea77a34681e26d18ffb919616b53598",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1738-adr26-host-env-rename-clear.md",
       "origin_status": "derived-unverified",

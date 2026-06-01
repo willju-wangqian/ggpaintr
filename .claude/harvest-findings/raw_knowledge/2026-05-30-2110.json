@@ -99,7 +99,7 @@
       "resolved_refs": [
         "R/paintr-registry.R:355-424 (ptr_define_core)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "denylist-exact-151-walker-depth-100",
@@ -286,7 +286,7 @@
         "R/paintr-build-ui.R:74-113 (build_ui_for.ptr_ph_data_source)",
         "tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "source-runtime-default-abort-guard",
@@ -314,7 +314,7 @@
         "R/paintr-registry.R:355-424 (ptr_define_core)",
         "R/paintr-embellish.R:40-42 (embellish_identity)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "tutorial-examples-eval-interactive",

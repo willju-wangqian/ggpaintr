@@ -79,7 +79,7 @@
       "resolved_refs": [
         "R/paintr-app.R:196-296 (ptr_capture_formula)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-app-grid-takes-list-of-formulas-routes-through-coordinator",
@@ -107,7 +107,7 @@
         "R/paintr-app.R:1347-1542 (ptr_app_grid_components)",
         "R/paintr-shared-coordinator.R:245-342 (ptr_shared)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-app-bslib-demonstration-wrapper-no-single-formula-shared",
@@ -134,7 +134,7 @@
         "R/paintr-app-bslib.R:55-121 (ptr_app_bslib)",
         "NAMESPACE:89 (anchor)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-app-ui-server-wiring",
@@ -189,7 +189,7 @@
         "R/paintr-translate.R:720-735 (detect_placeholder)",
         "R/paintr-translate.R:1075-1093 (build_placeholder_node)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "pp-widget-mapping-and-resolve",
@@ -247,7 +247,7 @@
         "R/paintr-default-args.R:232-250 (ptr_arg_symbol_or_string)",
         "R/paintr-default-args.R:322-347 (ptr_arg_expression)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "pp-shared-named-arg-coordinator",
@@ -353,7 +353,7 @@
         "R/paintr-translate.R:903-928 (unwrap_pp_verb_switch_stage)",
         "R/paintr-nodes.R:48-57 (ptr_call)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "custom-placeholder-three-role-constructors",
@@ -384,7 +384,7 @@
         "R/paintr-registry.R:720-735 (ptr_define_placeholder_consumer)",
         "R/paintr-registry.R:878-893 (ptr_define_placeholder_source)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "registry-process-global-options-anchored",
@@ -411,7 +411,7 @@
         "R/paintr-registry.R:355-424 (ptr_define_core)",
         "R/paintr-registry.R:32-40 (ensure_registry_initialized)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "custom-placeholder-hook-signatures",
@@ -438,7 +438,7 @@
         "R/paintr-registry.R:355-424 (ptr_define_core)",
         "R/paintr-registry.R:156-180 (validate_hook)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-arg-validators-ast-only",
@@ -449,7 +449,7 @@
       "tags": "ptr_arg,validators,custom-placeholder,ast-safety,ppNum,ppExpr",
       "source": "R/paintr-default-args.R:1-49, 137-293; R/paintr-builtins.R:342-355; R/paintr-registry.R:520-533",
       "verdict": "verified",
-      "verification": "Re-read R/paintr-default-args.R and R/paintr-builtins.R. The claim is DRIFTED on two counts: (1) ptr_arg_numeric_vector() has been REMOVED (grep across R/ + NAMESPACE returns nothing) and replaced by a `vector=` flag on ptr_arg_numeric/ptr_arg_string/ptr_arg_symbol_or_string plus a new ptr_arg_symbol() (defs at lines 232/254/271/288/322; new ptr_arg_symbol exported in NAMESPACE line 93); (2) the wiring arg was renamed positional_arg= -> parse_positional_arg= / named_args= -> parse_named_args= (builtins 336/346/353/361/372 use parse_positional_arg=). AST-only / no-eval-of-arbitrary-input semantics and ptr_arg_expression's verbatim-store-with-wrapper-warning still hold. Rewriting to the current set + wiring names.",
+      "verification": "Re-verified @ HEAD: trigger was the unrelated paintr-translate.R comment swap. The five ptr_arg_* factories + vector= flag + AST-only constant fold are unchanged in R/paintr-default-args.R. Claim holds.",
       "checked_refs": [
         "R/paintr-default-args.R::ptr_arg_numeric",
         "R/paintr-default-args.R::ptr_arg_symbol",
@@ -463,7 +463,7 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "34b923bd2ea77a34681e26d18ffb919616b53598",
       "resolved_refs": [
         "R/paintr-default-args.R:288-315 (ptr_arg_numeric)",
         "R/paintr-default-args.R:271-284 (ptr_arg_symbol)",
@@ -471,7 +471,7 @@
         "R/paintr-builtins.R:310-393 (ptr_register_builtins)",
         "R/paintr-translate.R:936-990 (extract_placeholder_args)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "source-shortcut-companion-and-ui-text-defaults",
@@ -505,7 +505,7 @@
         "R/paintr-copy.R:164-166 (ptr_ui_text_leaf_fields)",
         "R/paintr-server.R:1243,1492 (anchor)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "runtime-callable-returned-for-plain-r-binding",
@@ -532,7 +532,7 @@
         "R/paintr-registry.R:355-424 (ptr_define_core)",
         "R/paintr-embellish.R:40-42 (embellish_identity)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "l2-single-public-server-plus-ptr-init-state-exported",
@@ -587,7 +587,7 @@
         "R/paintr-app.R:1128-1270 (ptr_server)",
         "tests/testthat/fixtures/vignette-apps/module-app/app.R"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-server-wraps-moduleserver-itself",
@@ -718,7 +718,7 @@
       "resolved_refs": [
         "R/paintr-app.R:873-918 (ptr_ui)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-ui-page-vs-ptr-ui-controls",
@@ -746,7 +746,7 @@
         "R/paintr-app.R:1032-1038 (ptr_ui_page)",
         "R/paintr-app.R:981-1002 (ptr_ui_controls)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-ui-pieces-output-id-contract",
@@ -900,7 +900,7 @@
         "R/paintr-app.R:401-438 (ptr_controls_panel)",
         "R/paintr-app.R:368-399 (shared_section_tags)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-ui-text-is-copy-schema-accessor-not-a-piece",
@@ -1070,7 +1070,7 @@
         "R/paintr-default-args.R:209-212 (ptr_constant_fold)",
         "R/paintr-default-args.R:288-315 (ptr_arg_numeric)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "constant-fold-builtin-allowlist-and-public-api",
@@ -1216,7 +1216,7 @@
         "R/paintr-llm.R:127-194 (ptr_llm_register)",
         "R/paintr-llm.R:72-94 (ptr_llm_topic)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "llm-primer-encodes-prefix-and-decision-rule",
@@ -1454,7 +1454,7 @@
         "R/paintr-translate.R:369-377 (is_data_source_placeholder_call)",
         "R/paintr-translate.R:264-303 (resugar_pipeline_stages)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "classify-data-stamps-consumer-upstream",
@@ -1574,7 +1574,7 @@
         "R/paintr-input-spec.R:335-367 (emit_placeholder_rows)",
         "R/paintr-input-spec.R:23-65 (ptr_runtime_input_spec)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-init-state-container-not-app",
@@ -1838,7 +1838,7 @@
         "tests/testthat/fixtures/vignette-apps/grid-shared-partition/app.R",
         "tests/testthat/fixtures/vignette-apps/app-grid-shared-added/app.R"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-shared-server-threads-state-into-ptr-server",
@@ -1986,7 +1986,7 @@
         "R/paintr-shared-coordinator.R:350-434 (shared_panel_body_tag)",
         "tests/testthat/fixtures/vignette-apps/grid-shared-partition/app.R"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "shared-panel-pickers-bind-eagerly-vs-data-subtab-suspended",

@@ -73,7 +73,7 @@
         "R/paintr-server.R:2508-2565 (consumer_seed_decision)",
         "tests/testthat/test-spec-seed-boot-only.R:178 (anchor)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "derived-column-seed-stage-toggle-race",

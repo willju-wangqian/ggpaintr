@@ -134,7 +134,7 @@
       "tags": "deepening-sweep-v2,harness",
       "source": "TESTTHAT_PARALLEL=TRUE devtools::test() vs serial; test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R",
       "verdict": "verified",
-      "verification": "Behavioral claim re-checked vs CURRENT source + orientation: all 4 named cluster files exist (tests/testthat/test-spec-seed-derived-column-browser.R, test-shared-spec-seed-derived-column-browser.R, test-consumer-deselect-stays-empty.R, test-default-derived-column-stage-off-browser.R). Parallel boot-tail flakes in the consumer-seeding/derived-column cluster (set_sentinel boot-tail race) are CONFIRMED current behavior; helper-super-pressure.R was hardened this session. The serial-landing-gate guidance still holds. Only the embedded PASS counts drifted: finding cited ~3439/parallel 3433; CLAUDE.md authoritative-gate now says last ≈3388 (2026-05-29) and current full suite is ~3635 (serial earlier ~3545). 0/0/0 remains the gate, not the count.",
+      "verification": "Re-verified @ HEAD: trigger was an unrelated CLAUDE.md edit (dropped the /stamp pointer). The parallel boot-tail flake + the 4-file seeding-cluster map are unchanged; claim holds.",
       "checked_refs": [
         "tests/testthat/test-spec-seed-derived-column-browser.R",
         "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
@@ -149,7 +149,7 @@
         "shinytest2-gotchas"
       ],
       "status": "fresh",
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "34b923bd2ea77a34681e26d18ffb919616b53598",
       "resolved_refs": [
         "tests/testthat/test-spec-seed-derived-column-browser.R",
         "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
@@ -157,7 +157,7 @@
         "tests/testthat/test-default-derived-column-stage-off-browser.R",
         "CLAUDE.md:80 (anchor)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "placeholder-output-id-single-source",
@@ -240,7 +240,7 @@
         "R/paintr-default-args.R:322-347 (ptr_arg_expression)",
         "NAMESPACE:90,91,92,93,94 (anchor)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "ptr-define-core-shared-prologue",
@@ -271,7 +271,7 @@
         "R/paintr-registry.R:720-735 (ptr_define_placeholder_consumer)",
         "R/paintr-registry.R:878-893 (ptr_define_placeholder_source)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "registry-entry-keys-vs-public-args",
@@ -282,7 +282,7 @@
       "tags": "deepening-sweep-v2",
       "source": "R/paintr-registry.R (ptr_define_core entry list); R/paintr-translate.R; R/paintr-server.R",
       "verdict": "verified",
-      "verification": "Read ptr_define_core entry list (R/paintr-registry.R:354-423) and the value wrapper signature (597-611). The deliberate public-arg vs record-key divergence HOLDS and is now even stronger after ADR 0027: the entry list stores validate_input = validate_session_input, default_arg = parse_positional_arg, named_args = parse_named_args, runtime = runtime_fn (from embellish_eval), copy_defaults = ui_text_defaults. So internal record keys (default_arg, named_args, validate_input, runtime, copy_defaults) are KEPT while the public constructor args were renamed. BUT the finding names the public arg as `positional_arg`; the CURRENT public arg is `parse_positional_arg` (the ADR-0027 final name) — see the wrapper signature (line 599) and validate_positional_arg's abort message (218-223) which says \"`parse_positional_arg`\". Also: validate_default_arg was renamed to validate_positional_arg (param named positional_arg); validate_copy_defaults kept its function name and its messages now name ui_text_defaults (309-311). Drifted only on the public-arg label — rewrite positional_arg -> parse_positional_arg.",
+      "verification": "Re-verified @ HEAD: trigger was a 1-line broom->stats comment swap in R/paintr-translate.R, unrelated. Public args remain parse_positional_arg/parse_named_args/validate_session_input/embellish_eval; record keys keep default_arg/named_args/validate_input/runtime (registry.R:414). Claim holds.",
       "checked_refs": [
         "R/paintr-registry.R::ptr_define_core",
         "R/paintr-registry.R::validate_positional_arg",
@@ -294,13 +294,13 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "34b923bd2ea77a34681e26d18ffb919616b53598",
       "resolved_refs": [
         "R/paintr-registry.R:355-424 (ptr_define_core)",
         "R/paintr-registry.R:218-224 (validate_positional_arg)",
         "R/paintr-registry.R:311-337 (validate_copy_defaults)"
       ],
-      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
     },
     {
       "id": "resolve-upload-source-already-shared",
