@@ -8,7 +8,7 @@
 # The palette's choices come from `ptr_registry_keywords()` at the moment it
 # opens, so any placeholder a user registered this session
 # (`ptr_define_placeholder_value()` etc.) appears automatically. Structural
-# keywords (`ppLayerOff`, `ppVerbSwitch`) are included too — they wrap a call
+# keywords (`ppLayerOff`, `ppVerbSwitch`) are included too -- they wrap a call
 # (a layer or a dplyr verb), so they are useful when a call is highlighted.
 #
 # The list is *ordered by the kind of the highlighted text* so the likely
@@ -102,7 +102,7 @@ ptr_addin_classify <- function(selected, env = globalenv()) {
 # Reorder pickable placeholders so the kind-appropriate ones sit on top. Pure
 # function of (pickable, kind). Within a tier the secondary ordering is
 # *by role* (consumer, value, source, structural), then built-ins before any
-# custom keyword of that role, then alphabetical — so a custom placeholder joins
+# custom keyword of that role, then alphabetical -- so a custom placeholder joins
 # its role group rather than being dumped at the bottom of the list.
 ptr_addin_order <- function(pickable, kind) {
   if (length(pickable) == 0L) return(pickable)
@@ -120,7 +120,7 @@ ptr_addin_order <- function(pickable, kind) {
   )
   prio <- ifelse(promoted, 1L, 2L)
 
-  # Tier 2: by role. Consumers, then values, then sources, then structural —
+  # Tier 2: by role. Consumers, then values, then sources, then structural --
   # this reproduces the built-in canonical order and lets customs interleave.
   role_rank <- c(consumer = 1L, value = 2L, source = 3L, structural = 4L)
   rr <- unname(role_rank[roles])
@@ -156,7 +156,7 @@ ptr_addin_pickable <- function() {
   out
 }
 
-# Build the selectize `options` list — one object per placeholder, carrying the
+# Build the selectize `options` list -- one object per placeholder, carrying the
 # fields the custom renderer needs (keyword / role / description). Unnamed so it
 # serialises to a JSON array; order is whatever `pickable` already is.
 ptr_addin_items <- function(pickable) {
@@ -165,33 +165,59 @@ ptr_addin_items <- function(pickable) {
   }))
 }
 
-# Dark "command palette" stylesheet for the gadget — themes the miniUI chrome
-# and the selectize control to match a VS Code-style palette.
-ptr_addin_palette_css <- function() {
-  shiny::HTML(r"(
-    body, .gadget-tags, .gadget-title { background:#1e1e1e !important; }
-    .gadget-title { color:#fff !important; border-bottom:1px solid #3c3c3c !important; }
-    .gadget-title h1 { color:#fff !important; font-size:14px; font-weight:600; }
-    .gadget-title .btn { background:#3a3d41; color:#ddd; border:1px solid #4a4a4a; }
-    .gadget-title .btn-primary { background:#0e639c; border-color:#0e639c; color:#fff; }
-    .gadget-content { background:#1e1e1e !important; }
-    .control-label { color:#bbb !important; font-weight:600; margin-bottom:6px; }
-    .selectize-control.single .selectize-input,
-    .selectize-control.single .selectize-input.input-active {
-      background:#2b2b2c !important; border:1px solid #094771 !important;
-      box-shadow:none !important; color:#d4d4d4 !important; }
-    .selectize-input > input { color:#d4d4d4 !important; }
-    .selectize-input.focus { box-shadow:0 0 0 1px #0e639c !important; }
-    .selectize-dropdown { background:#2b2b2c !important; border:1px solid #094771 !important;
-      color:#d4d4d4 !important; }
-    .selectize-dropdown .option { color:#d4d4d4; padding:7px 10px; }
-    .selectize-dropdown .active { background:#04395e !important; color:#fff !important; }
-    .pp-kw { font-family:Menlo,Consolas,monospace; color:#dcdcaa; }
-    .pp-meta { color:#9a9a9a; margin-left:10px; font-size:12px; }
-    .pp-role { font-style:italic; color:#4ec9b0; }
-    .pp-role.pp-source { color:#e8a33d; }
-    .pp-role.pp-structural { color:#c586c0; }
-  )")
+# Decide whether the palette renders dark. Order: explicit option override
+# (`options(ggpaintr.addin_theme = "dark" | "light" | "auto")`), then RStudio's
+# active editor theme (`getThemeInfo()$dark`), then dark as the fallback.
+ptr_addin_dark_mode <- function() {
+  opt <- getOption("ggpaintr.addin_theme", "auto")
+  if (identical(opt, "dark")) return(TRUE)
+  if (identical(opt, "light")) return(FALSE)
+  info <- tryCatch(rstudioapi::getThemeInfo(), error = function(e) NULL)
+  if (is.list(info) && !is.null(info$dark)) return(isTRUE(info$dark))
+  TRUE
+}
+
+# "Command palette" stylesheet for the gadget. The dark variant fully themes the
+# miniUI chrome + selectize control (VS Code-style); the light variant keeps the
+# default light chrome and only tints the keyword/role spans for readability.
+ptr_addin_palette_css <- function(dark = TRUE) {
+  if (dark) {
+    shiny::HTML(r"(
+      body, .gadget-tags, .gadget-title { background:#1e1e1e !important; }
+      .gadget-title { color:#fff !important; border-bottom:1px solid #3c3c3c !important; }
+      .gadget-title h1 { color:#fff !important; font-size:14px; font-weight:600; }
+      .gadget-title .btn { background:#3a3d41; color:#ddd; border:1px solid #4a4a4a; }
+      .gadget-title .btn-primary { background:#0e639c; border-color:#0e639c; color:#fff; }
+      .gadget-content { background:#1e1e1e !important; }
+      .control-label { color:#bbb !important; font-weight:600; margin-bottom:6px; }
+      .selectize-control.single .selectize-input,
+      .selectize-control.single .selectize-input.input-active {
+        background:#2b2b2c !important; border:1px solid #094771 !important;
+        box-shadow:none !important; color:#d4d4d4 !important; }
+      .selectize-input > input { color:#d4d4d4 !important; }
+      .selectize-input.focus { box-shadow:0 0 0 1px #0e639c !important; }
+      .selectize-dropdown { background:#2b2b2c !important; border:1px solid #094771 !important;
+        color:#d4d4d4 !important; }
+      .selectize-dropdown .option { color:#d4d4d4; padding:7px 10px; }
+      .selectize-dropdown .active { background:#04395e !important; color:#fff !important; }
+      .pp-kw { font-family:Menlo,Consolas,monospace; color:#dcdcaa; }
+      .pp-meta { color:#9a9a9a; margin-left:10px; font-size:12px; }
+      .pp-role { font-style:italic; color:#4ec9b0; }
+      .pp-role.pp-source { color:#e8a33d; }
+      .pp-role.pp-structural { color:#c586c0; }
+    )")
+  } else {
+    shiny::HTML(r"(
+      .control-label { font-weight:600; margin-bottom:6px; }
+      .selectize-dropdown .option { padding:7px 10px; }
+      .selectize-dropdown .active { background:#dbeafe !important; color:#0b3d66 !important; }
+      .pp-kw { font-family:Menlo,Consolas,monospace; color:#795e26; }
+      .pp-meta { color:#6a6a6a; margin-left:10px; font-size:12px; }
+      .pp-role { font-style:italic; color:#0a7f6b; }
+      .pp-role.pp-source { color:#b8730f; }
+      .pp-role.pp-structural { color:#8250df; }
+    )")
+  }
 }
 
 # selectize render functions: a monospace keyword + coloured role/description in
@@ -216,17 +242,22 @@ ptr_addin_run_palette <- function(selected, env = globalenv()) {
   items <- ptr_addin_items(ptr_addin_order(ptr_addin_pickable(), kind))
   has_selection <- nzchar(trimws(selected %||% ""))
   prompt <- if (has_selection) {
-    sprintf("Wrap “%s” in…", trimws(selected))
+    sprintf("Wrap '%s' in...", trimws(selected))
   } else {
-    "Insert placeholder…"
+    "Insert placeholder..."
   }
 
   ui <- miniUI::miniPage(
-    shiny::tags$head(shiny::tags$style(ptr_addin_palette_css())),
+    shiny::tags$head(shiny::tags$style(ptr_addin_palette_css(ptr_addin_dark_mode()))),
     miniUI::gadgetTitleBar(
-      "ggpaintr placeholder",
-      right = shiny::tagList(
-        # left of Insert: wrap the whole selection in { ... } |> ptr_app()
+      # Empty title: the dialog window is already titled "ggpaintr placeholder",
+      # and a centered <h1> here only collides with the buttons.
+      "",
+      # The right slot must be a SINGLE tag -- miniUI does
+      # tagAppendAttributes(right, class = "pull-right") on it, and a tagList
+      # mis-applies that (leaking "pull-right" as text). Wrap the buttons in one
+      # div; "Wrap in app" sits left of Insert.
+      right = shiny::div(
         miniUI::miniTitleBarButton("app", "Wrap in app"),
         miniUI::miniTitleBarButton("done", "Insert", primary = TRUE)
       )
@@ -240,7 +271,7 @@ ptr_addin_run_palette <- function(selected, env = globalenv()) {
           valueField = "kw", labelField = "kw",
           searchField = c("kw", "role", "desc"),
           render = ptr_addin_render_js(),
-          placeholder = "type to filter, ↑↓ to move, Enter to pick",
+          placeholder = "type to filter, Up/Down to move, Enter to pick",
           openOnFocus = TRUE, maxItems = 1L, maxOptions = 50L
         )
       ),
@@ -292,9 +323,15 @@ ptr_addin_run_palette <- function(selected, env = globalenv()) {
 #'
 #' The gadget's *Wrap in app* button (left of *Insert*) takes a different
 #' action: instead of inserting a placeholder it wraps the whole selection in a
-#' braced block piped into [ptr_app()] —
-#' `{` / `  <selection>` / `} |> ` / `  ptr_app()` — turning a ggplot
+#' braced block piped into [ptr_app()] --
+#' `{` / `  <selection>` / `} |> ` / `  ptr_app()` -- turning a ggplot
 #' expression into a runnable ggpaintr app skeleton.
+#'
+#' @section Theme:
+#' By default the palette follows your RStudio editor theme (dark theme -> dark
+#' palette, light -> light), via [rstudioapi::getThemeInfo()]. Force one with
+#' `options(ggpaintr.addin_theme = "dark")`, `"light"`, or `"auto"` (the
+#' default).
 #'
 #' @section Keyboard shortcut:
 #' For a highlight-then-keystroke flow, bind the addin once (RStudio reads
@@ -302,8 +339,8 @@ ptr_addin_run_palette <- function(selected, env = globalenv()) {
 #' addin must be **installed** (not merely `load_all()`-ed) to appear in the
 #' shortcut dialog:
 #'
-#' 1. *Tools > Addins > Browse Addins…*, then the *Keyboard Shortcuts…*
-#'    button. (Or *Tools > Modify Keyboard Shortcuts…* and type "ggpaintr"
+#' 1. *Tools > Addins > Browse Addins...*, then the *Keyboard Shortcuts...*
+#'    button. (Or *Tools > Modify Keyboard Shortcuts...* and type "ggpaintr"
 #'    in the search box.)
 #' 2. Find the *ggpaintr placeholder* row and click its *Shortcut* cell.
 #' 3. Press the recommended combination: **Cmd+Shift+G** on macOS,

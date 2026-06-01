@@ -22,10 +22,18 @@ registry, so custom placeholders registered this session
 \details{
 The gadget's \emph{Wrap in app} button (left of \emph{Insert}) takes a different
 action: instead of inserting a placeholder it wraps the whole selection in a
-braced block piped into \code{\link[=ptr_app]{ptr_app()}} —
-\verb{\{} / \verb{  <selection>} / \verb{\} |> } / \code{  ptr_app()} — turning a ggplot
+braced block piped into \code{\link[=ptr_app]{ptr_app()}} --
+\verb{\{} / \verb{  <selection>} / \verb{\} |> } / \code{  ptr_app()} -- turning a ggplot
 expression into a runnable ggpaintr app skeleton.
 }
+\section{Theme}{
+
+By default the palette follows your RStudio editor theme (dark theme -> dark
+palette, light -> light), via \code{\link[rstudioapi:getThemeInfo]{rstudioapi::getThemeInfo()}}. Force one with
+\code{options(ggpaintr.addin_theme = "dark")}, \code{"light"}, or \code{"auto"} (the
+default).
+}
+
 \section{Keyboard shortcut}{
 
 For a highlight-then-keystroke flow, bind the addin once (RStudio reads
@@ -33,8 +41,8 @@ shortcuts only from your own keybindings, so packages cannot ship one). The
 addin must be \strong{installed} (not merely \code{load_all()}-ed) to appear in the
 shortcut dialog:
 \enumerate{
-\item \emph{Tools > Addins > Browse Addins…}, then the \emph{Keyboard Shortcuts…}
-button. (Or \emph{Tools > Modify Keyboard Shortcuts…} and type "ggpaintr"
+\item \emph{Tools > Addins > Browse Addins...}, then the \emph{Keyboard Shortcuts...}
+button. (Or \emph{Tools > Modify Keyboard Shortcuts...} and type "ggpaintr"
 in the search box.)
 \item Find the \emph{ggpaintr placeholder} row and click its \emph{Shortcut} cell.
 \item Press the recommended combination: \strong{Cmd+Shift+G} on macOS,

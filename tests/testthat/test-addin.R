@@ -64,6 +64,32 @@ test_that("the caret for a non-empty wrap lands at the end of ptr_app()", {
   expect_equal(r$caret_col, nchar("  ptr_app()") + 1L)
 })
 
+# ---- ptr_addin_dark_mode (theme resolution) ---------------------------------
+
+test_that("the addin_theme option forces the palette dark or light", {
+  withr::local_options(ggpaintr.addin_theme = "dark")
+  expect_true(ptr_addin_dark_mode())
+  withr::local_options(ggpaintr.addin_theme = "light")
+  expect_false(ptr_addin_dark_mode())
+})
+
+test_that("with no RStudio and no override, the palette defaults to dark", {
+  # outside RStudio getThemeInfo() errors -> caught -> dark fallback
+  withr::local_options(ggpaintr.addin_theme = "auto")
+  expect_true(ptr_addin_dark_mode())
+})
+
+test_that("the CSS variant differs by mode (dark chrome vs light spans)", {
+  dark <- as.character(ptr_addin_palette_css(TRUE))
+  light <- as.character(ptr_addin_palette_css(FALSE))
+  # dark themes the whole chrome; light leaves it default
+  expect_match(dark, "#1e1e1e")
+  expect_false(grepl("#1e1e1e", light))
+  # keyword colour is tuned per mode
+  expect_match(dark, "#dcdcaa")
+  expect_match(light, "#795e26")
+})
+
 # ---- ptr_addin_classify -----------------------------------------------------
 
 test_that("classify recognises string, number and symbol", {
