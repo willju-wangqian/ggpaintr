@@ -264,7 +264,8 @@ desugar_pipes_to_nested <- function(expr) {
 resugar_pipeline_stages <- function(expr) {
   stages <- list()
   cur <- expr
-  while (is.call(cur) && length(cur) >= 2L && is.call(cur[[2L]])) {
+  while (is.call(cur) && length(cur) >= 2L && is.call(cur[[2L]]) &&
+         !is_placeholder_call(cur) && !is_formula_call(cur)) {
     head <- cur[[1L]]
     rest_args <- as.list(cur[-c(1L, 2L)])
     nm_all <- names(cur) %||% rep_len("", length(cur))
@@ -284,7 +285,7 @@ resugar_pipeline_stages <- function(expr) {
   # node (via `default_arg`), not upstream data, so the call must stay
   # atomic regardless of role.
   if (is.call(cur) && length(cur) >= 2L && !is.call(cur[[2L]]) &&
-      !is_placeholder_call(cur)) {
+      !is_placeholder_call(cur) && !is_formula_call(cur)) {
     head <- cur[[1L]]
     rest_args <- as.list(cur[-c(1L, 2L)])
     nm_all <- names(cur) %||% rep_len("", length(cur))
@@ -356,6 +357,38 @@ is_placeholder_call <- function(expr) {
   TRUE
 }
 
+# True only for a SOURCE-role placeholder call (e.g. `ppUpload(penguins)`).
+# A pipeline's source slot must name data: a bare symbol or a source-role
+# placeholder. A value/consumer placeholder (`ppExpr(...)`, `ppVar(...)`) is
+# NOT data and must never be accepted as a pipeline source -- otherwise a
+# computed data argument such as `broom::augment(lm(ppExpr(y ~ x), data =
+# ppUpload(d)))` is mis-lifted into `ppExpr(...) |> lm() |> augment()`, with
+# the value placeholder standing in for the frame (it then prunes to an
+# empty `lm()`). `is_placeholder_call()` keeps the all-roles atomicity guard
+# for the descent loop; this stricter check governs source ACCEPTANCE only.
+is_data_source_placeholder_call <- function(expr) {
+  if (!is.call(expr) || length(expr) < 1L) return(FALSE)
+  head <- expr[[1L]]
+  if (!is.symbol(head)) return(FALSE)
+  entry <- tryCatch(ptr_registry_lookup(as.character(head)),
+                    error = function(e) NULL)
+  if (is.null(entry)) return(FALSE)
+  identical(entry$role, "source")
+}
+
+# True for a formula (`~`) call -- one- or two-sided. A formula is never a
+# pipeline stage nor a data source; the lift must treat it as an atomic leaf
+# (like a placeholder call) so a model call such as `lm(y ~ x, data = d)` is
+# NOT shredded into `y |> ~(x) |> lm(data = d)` (which mistakes the formula's
+# LHS for the data frame). The renderer emits the surviving 2-arg `~` call
+# infix (see `is_binary_infix_op()` in R/paintr-render.R); placeholders inside
+# the formula (`lm(ppVar(y) ~ x)`) still become widgets because
+# `translate_call()` recurses into every arg regardless of this guard.
+is_formula_call <- function(expr) {
+  is.call(expr) && length(expr) >= 1L && is.symbol(expr[[1L]]) &&
+    identical(as.character(expr[[1L]]), "~")
+}
+
 # Step 4 -- round-trip + grounding gates. Returns either
 # `list(success = TRUE, parts = ...)` when the lift may fire, or
 # `list(success = FALSE, reason = <no-stages|round-trip-mismatch|
@@ -386,10 +419,10 @@ try_lift_to_pipeline <- function(expr) {
   if (!identical(rebuilt, canonical)) {
     return(list(success = FALSE, reason = "round-trip-mismatch"))
   }
-  if (is.call(parts$source) && !is_placeholder_call(parts$source)) {
+  if (is.call(parts$source) && !is_data_source_placeholder_call(parts$source)) {
     return(list(success = FALSE, reason = "opaque-call-source"))
   }
-  if (!is.symbol(parts$source) && !is_placeholder_call(parts$source)) {
+  if (!is.symbol(parts$source) && !is_data_source_placeholder_call(parts$source)) {
     return(list(success = FALSE, reason = "non-data-source"))
   }
   list(success = TRUE, parts = parts)

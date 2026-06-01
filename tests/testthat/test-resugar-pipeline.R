@@ -149,3 +149,150 @@ test_that("build_pipeline_from_lift threads op_hint into ptr_pipeline$op", {
   expect_equal(ggpaintr:::build_pipeline_from_lift(parts, op_hint = "|>")$op, "|>")
   expect_equal(ggpaintr:::build_pipeline_from_lift(parts)$op, "|>")
 })
+
+# ---- Regression — a value placeholder (e.g. `ppExpr(y ~ x)`) is captured
+# state, never a pipeline data source. Before the fix the aggressive descent
+# walked THROUGH `ppExpr(...)` into the formula and lifted its LHS `y` as the
+# "data source", turning
+#   broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d)))
+# into `y |> ~(x) |> lm() |> augment()` -- which boots empty and evals
+# "object 'y' not found", and strips the ppExpr formula default from its
+# textarea. Two guards enforce the contract: the descent loop stops at any
+# placeholder call, and the grounding gate accepts only a symbol or a
+# SOURCE-role placeholder as the pipeline source.
+
+test_that("is_data_source_placeholder_call accepts only source-role placeholders", {
+  expect_true(ggpaintr:::is_data_source_placeholder_call(quote(ppUpload(d))))
+  expect_false(ggpaintr:::is_data_source_placeholder_call(quote(ppExpr(y ~ x))))
+  expect_false(ggpaintr:::is_data_source_placeholder_call(quote(ppVar(mpg))))
+  expect_false(ggpaintr:::is_data_source_placeholder_call(quote(head(mtcars))))
+})
+
+test_that("resugar does not descend into a value placeholder's arguments", {
+  # The formula `y ~ x` must remain whole inside `ppExpr(...)`, never bisected
+  # into a `y` source + a `~(x)` stage.
+  parts <- ggpaintr:::resugar_pipeline_stages(quote(lm(ppExpr(y ~ x), data = d)))
+  expect_identical(parts$source, quote(ppExpr(y ~ x)))
+  expect_false(identical(parts$source, quote(y)))
+})
+
+test_that("try_lift rejects a value-placeholder data source", {
+  res <- ggpaintr:::try_lift_to_pipeline(
+    quote(broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d))))
+  )
+  expect_false(isTRUE(res$success))
+  expect_equal(res$reason, "opaque-call-source")
+})
+
+test_that("translate keeps a computed formula data source as an opaque call", {
+  root <- ggpaintr:::ptr_translate(
+    paste0("broom::augment(lm(ppExpr(y ~ x), data = ppUpload(d))) |> ",
+           "ggplot(aes(.fitted, .resid)) + geom_point()")
+  )
+  data_arg <- root$layers[[1L]]$data_arg
+  expect_s3_class(data_arg, "ptr_call")
+  expect_false(inherits(data_arg, "ptr_pipeline"))
+})
+
+test_that("an ordinary source-placeholder pipeline still lifts", {
+  # Guard regression: a SOURCE-role placeholder at the pipeline head is the
+  # normal `ppUpload(d) |> filter(...)` shape and MUST still lift.
+  res <- ggpaintr:::try_lift_to_pipeline(
+    quote(dplyr::filter(ppUpload(d), cyl == 4))
+  )
+  expect_true(isTRUE(res$success))
+  expect_identical(res$parts$source, quote(ppUpload(d)))
+})
+
+# --- Regression: a bare `~` formula (no placeholder wrapper) is also atomic.
+# Before the fix, the aggressive descent tore `lm(y ~ x, data = d)` into
+# `y |> ~(x) |> lm(data = d)` (mistaking the formula LHS for the data frame),
+# and a two-sided formula in a layer arg rendered as `facet_grid(~(a, b))`
+# instead of infix. A formula is never a pipeline stage, never a data source,
+# and always renders infix.
+
+test_that("is_formula_call recognises one- and two-sided formulas", {
+  expect_true(ggpaintr:::is_formula_call(quote(y ~ x)))
+  expect_true(ggpaintr:::is_formula_call(quote(~x)))
+  expect_false(ggpaintr:::is_formula_call(quote(a + b)))
+  expect_false(ggpaintr:::is_formula_call(quote(f(x))))
+  expect_false(ggpaintr:::is_formula_call(quote(x)))
+})
+
+test_that("resugar does not tear a bare formula into pipeline stages", {
+  parts <- ggpaintr:::resugar_pipeline_stages(quote(lm(y ~ x, data = d)))
+  # The formula stays whole inside `lm(...)`; its LHS `y` is never the source.
+  expect_false(identical(parts$source, quote(y)))
+  res <- ggpaintr:::try_lift_to_pipeline(
+    quote(broom::augment(lm(y ~ x, data = mtcars)))
+  )
+  expect_false(isTRUE(res$success))
+})
+
+test_that("a bare formula in a computed data source renders intact and infix", {
+  root <- ggpaintr:::ptr_translate(
+    paste0("broom::augment(lm(mpg ~ wt, data = mtcars)) |> ",
+           "ggplot(aes(.fitted, .resid)) + geom_point()")
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_match(res$code_text, "lm(mpg ~ wt, data = mtcars)", fixed = TRUE)
+  expect_false(grepl("~(", res$code_text, fixed = TRUE))   # not the prefix form
+  expect_false(grepl("|> ~", res$code_text, fixed = TRUE)) # not torn into a pipe
+})
+
+test_that("a two-sided formula in a layer argument renders infix", {
+  root <- ggpaintr:::ptr_translate(
+    "ggplot(mtcars, aes(wt, mpg)) + geom_point() + facet_grid(gear ~ cyl)"
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_match(res$code_text, "facet_grid(gear ~ cyl)", fixed = TRUE)
+})
+
+test_that("a one-sided formula layer arg is unchanged", {
+  root <- ggpaintr:::ptr_translate(
+    "ggplot(mtcars, aes(wt, mpg)) + geom_point() + facet_wrap(~cyl)"
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_match(res$code_text, "facet_wrap(~cyl)", fixed = TRUE)
+})
+
+# --- Regression: explicit parentheses are load-bearing in model formulas
+# (`a * (b + c)` != `(a * b) + c`) and must render verbatim. The generic
+# call renderer used to emit a `(` node as `((x)` (a doubled, unbalanced
+# paren) -- valid R in the typed tree (so the plot still evaluated) but a
+# broken, unparseable code panel.
+
+test_that("explicit parentheses in a formula survive rendering verbatim", {
+  root <- ggpaintr:::ptr_translate(paste0(
+    "broom::augment(lm(mpg ~ wt * (cyl + hp), data = mtcars)) |> ",
+    "ggplot(aes(.fitted, .resid)) + geom_point()"
+  ))
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_silent(parse(text = res$code_text))            # code panel is valid R
+  expect_match(res$code_text, "mpg ~ wt * (cyl + hp)", fixed = TRUE)
+  expect_false(grepl("((cyl", res$code_text, fixed = TRUE))
+})
+
+test_that("a parenthesis node renders as `(x)`, not `((x)` (non-formula)", {
+  root <- ggpaintr:::ptr_translate(
+    "ggplot(mtcars, aes(wt, mpg)) + geom_point(size = (2 + 1) * 2)"
+  )
+  res <- ggpaintr:::ptr_complete_expr_safe(
+    root, snapshot = list(), eval_env = new.env(parent = globalenv())
+  )
+  expect_true(isTRUE(res$ok))
+  expect_silent(parse(text = res$code_text))
+  expect_match(res$code_text, "(2 + 1) * 2", fixed = TRUE)
+})

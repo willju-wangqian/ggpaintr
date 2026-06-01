@@ -268,9 +268,29 @@ render_walk.ptr_call <- function(node, indent = 0L, preserve_placeholders = FALS
       rhs <- render_binary_operand(node$args[[2]], indent, preserve_placeholders)
       return(paste0(lhs, " ", name, " ", rhs))
     }
+    # Two-sided formula `lhs ~ rhs`. `~` is R's lowest-precedence operator, so
+    # its operands never need the conservative parenthesisation applied to the
+    # other infix ops above -- render them verbatim for clean `y ~ a + b`
+    # output (otherwise the RHS `a + b` would become `(a + b)`). The one-sided
+    # form `~x` is handled by the unary branch below.
+    if (all_unnamed && length(node$args) == 2L && name == "~") {
+      lhs <- render_walk(node$args[[1]], indent, preserve_placeholders = preserve_placeholders)
+      rhs <- render_walk(node$args[[2]], indent, preserve_placeholders = preserve_placeholders)
+      return(paste0(lhs, " ~ ", rhs))
+    }
     if (all_unnamed && length(node$args) == 1L &&
         name %in% c("-", "+", "!", "~")) {
       return(paste0(name, render_binary_operand(node$args[[1]], indent, preserve_placeholders)))
+    }
+    # Parenthesis node `(x)`. Without this branch the generic call render
+    # emits `(` as a function head followed by its own arg-parens -> `((x)`
+    # (unbalanced, won't parse). Eval is unaffected (it works off the typed
+    # tree, not this text), but the displayed code panel would be broken.
+    # Explicit parens are load-bearing in model formulas (`y ~ a * (b + c)`)
+    # and arithmetic alike, so render them verbatim.
+    if (all_unnamed && length(node$args) == 1L && name == "(") {
+      return(paste0("(", render_walk(node$args[[1]], indent,
+                                     preserve_placeholders = preserve_placeholders), ")"))
     }
     # Bracket / extractor / namespace forms: render `x[i, j]`, `x[[i]]`,
     # `x$y`, `x@y`, `pkg::name` in their syntactic form rather than as
