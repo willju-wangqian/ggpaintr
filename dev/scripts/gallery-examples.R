@@ -349,17 +349,17 @@ ppPercent <- ptr_define_placeholder_value(
     as.numeric(value) / 100
   },
 
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     v <- suppressWarnings(as.numeric(value))
     if (length(v) != 1L || is.na(v) || v < 0 || v > 100) {
       rlang::abort("Percent must be a single number between 0 and 100.")
     }
-    value
+    TRUE
   },
 
-  positional_arg   = ptr_arg_numeric(),
-  named_args       = list(step = ptr_arg_numeric()),
-  runtime          = function(x, ...) as.numeric(x) / 100,
+  parse_positional_arg = ptr_arg_numeric(),
+  parse_named_args = list(step = ptr_arg_numeric()),
+  embellish_eval   = function(x, ...) as.numeric(x) / 100,
   ui_text_defaults = list(label = "Percent for {param}")
 )
 ptr_app(
