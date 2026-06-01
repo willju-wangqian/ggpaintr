@@ -2,30 +2,9 @@
   "harvested_at": "2026-05-30T21:10",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript, 16 stamps)",
   "counts": {
-    "verified": 16
+    "verified": 14
   },
   "findings": [
-    {
-      "id": "archive-rbuildignore-preexisting",
-      "claim": "`.Rbuildignore` already contained `^archive$` before this session, so moving retired vignettes into `archive/retired_vignettes/` excludes them from the built package and from R CMD check with no further config; the move used `git mv` so git records them as renames (history preserved).",
-      "detail": "",
-      "scope": "campaign",
-      "feature": "vignette-rewrite",
-      "tags": "vignette-rewrite",
-      "source": ".Rbuildignore line ^archive$ (already present before the move); archive/retired_vignettes/ holds the 3 retired .Rmd",
-      "verdict": "verified",
-      "verification": ".Rbuildignore:9 ^archive$ — NOT in commit 64f8fe9 changed-files; added 2026-04-06 (66e6818). Move done via git mv (renames in commit).",
-      "checked_refs": [
-        ".Rbuildignore:9"
-      ],
-      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
-      "status": "fresh",
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified",
-      "labels": [
-        "vignette-docs"
-      ]
-    },
     {
       "id": "percent-or-vector-default-needs-rlang",
       "claim": "ggpaintr declares `Depends: R (>= 4.0.0)` and does NOT re-export `%||%`, so a vignette/example using `%||%` must load rlang (or shiny) explicitly — base R's `%||%` only exists from 4.4.0, so `library(ggpaintr); library(ggplot2)` alone does not guarantee it.",
@@ -48,28 +27,6 @@
       "labels": [
         "vignette-docs",
         "r-language-gotchas"
-      ]
-    },
-    {
-      "id": "final-vignette-set-three",
-      "claim": "As of 2026-05-30 the intended vignette set is exactly THREE — `ggpaintr-tutorial` (new), `ggpaintr-safety` (rewritten), `ggpaintr-llm` (separate session) — with use-cases/customization/gallery retired to archive; `_pkgdown.yml` articles and all live cross-references were repointed accordingly.",
-      "detail": "",
-      "scope": "decision",
-      "feature": "",
-      "tags": "vignette-rewrite",
-      "source": "vignettes/ now holds ggpaintr-{tutorial,safety,llm}.Rmd; _pkgdown.yml articles = tutorial/safety/llm; archive/retired_vignettes/ = use-cases/customization/gallery",
-      "verdict": "verified",
-      "verification": "vignettes/ holds exactly ggpaintr-{tutorial,safety,llm}.Rmd; _pkgdown.yml:78-84 articles = tutorial/safety/llm; archive/retired_vignettes/ = use-cases/customization/gallery. Exact match to claim.",
-      "checked_refs": [
-        "vignettes/",
-        "_pkgdown.yml"
-      ],
-      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6",
-      "status": "fresh",
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
-      "origin_status": "derived-unverified",
-      "labels": [
-        "vignette-docs"
       ]
     },
     {
@@ -142,7 +99,7 @@
       "resolved_refs": [
         "R/paintr-registry.R:355-424 (ptr_define_core)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "denylist-exact-151-walker-depth-100",
@@ -329,7 +286,7 @@
         "R/paintr-build-ui.R:74-113 (build_ui_for.ptr_ph_data_source)",
         "tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "source-runtime-default-abort-guard",
@@ -357,7 +314,7 @@
         "R/paintr-registry.R:355-424 (ptr_define_core)",
         "R/paintr-embellish.R:40-42 (embellish_identity)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "tutorial-examples-eval-interactive",

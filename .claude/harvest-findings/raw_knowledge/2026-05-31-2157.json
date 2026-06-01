@@ -2,28 +2,10 @@
   "harvested_at": "2026-05-31T21:57",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript, 14 stamps)",
   "counts": {
-    "verified": 13,
+    "verified": 12,
     "contradicted": 1
   },
   "findings": [
-    {
-      "id": "test-count-N-is-landing-signal",
-      "claim": "The `as.data.frame(devtools::test())` row count `N` is a reliable signal that added test_that blocks actually landed on disk — N stayed flat (1206) when an edit went to a phantom file path, and grew by exactly the number of new tests once written to the real file.",
-      "detail": "During this session an Edit appeared to succeed against a non-existent `test-canonical-pipeline.R`; `git status` showing only the source file changed + N not growing exposed it. The real AST-engine test home is `tests/testthat/test-resugar-pipeline.R` (there is no `test-canonical-pipeline.R`).",
-      "scope": "campaign",
-      "feature": "formula-fix",
-      "source": "tests/testthat/test-resugar-pipeline.R; devtools::test() as.data.frame N column",
-      "tags": "formula-translate-render",
-      "verdict": "verified",
-      "verification": "Structural part confirmed: tests/testthat/test-resugar-pipeline.R exists; test-canonical-pipeline.R does not. The N-as-landing-signal is a sound methodological observation (historical counts not replayable, but as.data.frame(devtools::test()) N == test_that count is correct).",
-      "checked_refs": [
-        "tests/testthat/test-resugar-pipeline.R"
-      ],
-      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
-      "status": "fresh",
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
-      "origin_status": "derived-unverified"
-    },
     {
       "id": "conservative-paren-nesting-is-cosmetic",
       "claim": "`render_binary_operand` conservatively parenthesises any infix operand, so nested same-precedence terms over-parenthesise (`a + b + c` → `(a + b) + c`, and `mpg ~ wt + cyl + hp` → `mpg ~ (wt + cyl) + hp`); it is package-wide and semantically safe (formula `terms()` identical), not a formula-specific bug.",
@@ -178,7 +160,7 @@
         "R/paintr-builtins.R:310-393 (ptr_register_builtins)",
         "R/paintr-registry.R:913-933 (ptr_register_structural_keyword)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "ppexpr-renders-via-user-expr-not-translate-call",

@@ -36,7 +36,7 @@
         "dev/build-llm.R:233,293,315 (anchor)",
         "dev/githooks/pre-commit:86-93"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "checkbox-and-shared-ui-removed",
@@ -140,7 +140,7 @@
         "dev/build-llm.R:8,16,47,83,139,163,356,358,366 (anchor)",
         "tests/testthat/test-llm.R"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "llm-l2-l3-calling-patterns",
@@ -191,7 +191,7 @@
       "resolved_refs": [
         "dev/build-llm.R:233,293,315 (anchor)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "placeholder-constructor-real-args",
@@ -246,7 +246,7 @@
         "R/paintr-app.R:873-918 (ptr_ui)",
         "R/paintr-app.R:1128-1270 (ptr_server)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "registry-keywords-7-incl-structural",

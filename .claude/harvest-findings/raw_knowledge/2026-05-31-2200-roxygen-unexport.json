@@ -35,7 +35,7 @@
         "R/paintr-server.R:91-377 (ptr_init_state)",
         "R/paintr-input-spec.R:239-261 (ptr_id_table)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "ptr-capture-formula-symbol-resolution",
@@ -56,7 +56,7 @@
       "resolved_refs": [
         "R/paintr-app.R:196-296 (ptr_capture_formula)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "llm-corpus-export-gate",
@@ -81,7 +81,7 @@
         "tests/testthat/test-llm.R:19,110,127,144 (anchor)",
         "dev/githooks/pre-commit"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "build-llm-managed-blocks-and-hardcoded-desc",
@@ -110,7 +110,7 @@
         "dev/build-llm.R:139 (anchor)",
         "dev/build-llm.R:338 (anchor)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "app-variants-unexported-still-documented",
@@ -139,7 +139,7 @@
         "man/ptr_app_bslib.Rd",
         "man/ptr_app_grid.Rd"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "roxygen-bare-ggplot-runs-in-examples",
@@ -160,7 +160,7 @@
       "resolved_refs": [
         "R/paintr-app.R:873-918 (ptr_ui)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     }
   ]
 }

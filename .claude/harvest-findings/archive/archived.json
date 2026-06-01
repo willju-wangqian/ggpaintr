@@ -1,0 +1,247 @@
+{
+  "archived": [
+    {
+      "id": "ggpaintr-baseline-gate-3403-to-3420",
+      "claim": "On branch ppUpload-bug the serial full-suite authoritative gate was PASS 3403 / FAIL 0 / WARN 4 / SKIP 0 before this change and PASS 3420 after (the 17 new test-shared-host-source-reset assertions); WARN 4 is pre-existing and 0/0/0 is the gate, not the count.",
+      "detail": "Point-in-time campaign fact; PASS count drifts as tests are added.",
+      "scope": "campaign",
+      "feature": "ppupload-7-host-shared",
+      "source": "devtools::test() serial; project CLAUDE.md authoritative-gate block",
+      "verdict": "below_bar",
+      "verification": "Re-checked vs CLAUDE.md authoritative-gate block: the durable kernel is verbatim already there; the counts are transient and non-re-derivable. Fails the how/why + rediscovery-value test.",
+      "checked_refs": [
+        "CLAUDE.md::\"authoritative full-suite gate\""
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "test-gate-discipline"
+      ],
+      "status": "archived",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "CLAUDE.md:80 (anchor)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "archived_reason": "Below the finding bar: a point-in-time PASS-count delta (3403->3420) on a now-merged branch plus a principle ('0/0/0 is the gate, not the count') that is already stated in CLAUDE.md's authoritative-gate block. Pure factual / restated-doc — saves a fresh session no rediscovery, adds nothing over source + CLAUDE.md. Not contradicted (true-ish), removed for lack of orientation value.",
+      "archived_from": "2026-05-30-0048.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "ggpaintr-is-a-git-worktree",
+      "claim": "The ggpaintr working directory is a git WORKTREE of the main repo at /Users/willju/Research/ggpaintr (git-common-dir -> /Users/willju/Research/ggpaintr/.git); core.hooksPath resolves against the main repo's .git/hooks, so hook installs/checks must account for the main-repo path even when working in the worktree. (The specific worktree dir varies per campaign — currently ggpaintr-post-add-expr.)",
+      "detail": "Relevant to any hook/config operation and to memory feedback-serena-project-root-doesnt-follow-worktree.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "project-layout",
+      "source": "git config core.hooksPath value; git worktree layout",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Fails kill test (transient/point-in-time): explicitly names 'currently ggpaintr-post-add-expr', and the hook-resolution claim is superseded by CLAUDE.md lines 36-42 which state .git/hooks shims were r",
+      "checked_refs": [
+        "git rev-parse --git-common-dir",
+        "git config core.hooksPath"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ],
+      "status": "archived",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407",
+      "archived_reason": "Fails kill test (transient/point-in-time): explicitly names 'currently ggpaintr-post-add-expr', and the hook-resolution claim is superseded by CLAUDE.md lines 36-42 which state .git/hooks shims were removed 2026-05-30 and core.hooksPath points at dev/githooks directly. Git-env trivia, not anchored to product source.",
+      "archived_from": "2026-05-29-2235.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "implementable-hook-already-wired-via-chaining-shim",
+      "claim": "This repo's implementable enforcement hook is already installed via a chaining shim: `core.hooksPath` points at the MAIN repo's `.git/hooks`, whose `pre-commit` shim `exec`s `$(git rev-parse --show-toplevel)/dev/githooks/pre-commit` (the tracked enforcement hook), so it fires from the main repo AND every worktree without per-clone reinstall.",
+      "detail": "The hook hashes the staged plan blob via `printf '%s\\n' \"$(git show :f)\" | grep -v 'implementable: PASS' | sha256 | cut -c1-12`; a current PASS stamp is required to commit any dev/plans/*.html|*.md or *-plan.md. For HTML the same pipeline over the unstamped worktree file reproduces the hook's hash exactly. Confirmed by committing the new plan (commit 38c48a1) cleanly.",
+      "scope": "durable",
+      "feature": "",
+      "tags": "harness",
+      "source": ".git config core.hooksPath → /Users/willju/Research/ggpaintr/.git/hooks/pre-commit (chaining shim) → dev/githooks/pre-commit; ~/.claude/skills/implementable/hooks/pre-commit",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Restates/contradicts CLAUDE.md: describes a .git/hooks chaining shim, but CLAUDE.md lines 36-42 say those shims were removed 2026-05-30 and hooks are wired via core.hooksPath->dev/githooks. Point-in-t",
+      "checked_refs": [
+        "/Users/willju/Research/ggpaintr/.git/hooks/pre-commit",
+        "dev/githooks/pre-commit"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ],
+      "status": "archived",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407",
+      "archived_reason": "Restates/contradicts CLAUDE.md: describes a .git/hooks chaining shim, but CLAUDE.md lines 36-42 say those shims were removed 2026-05-30 and hooks are wired via core.hooksPath->dev/githooks. Point-in-time campaign mechanics superseded by authoritative docs; fresh session gains nothing over CLAUDE.md.",
+      "archived_from": "2026-05-29-2235.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "tool-output-batched-delivery-not-corruption",
+      "claim": "Tool results were sometimes delivered in delayed batches — a result for call N appeared one or more turns later, occasionally with a truncated/garbled tail — which can be mistaken for file corruption but is purely a delivery artifact; every read reconciled to clean content on the batched flush.",
+      "detail": "Mitigation: keep firing the needed reads and reconcile on flush; prefer serena symbolic reads (find_symbol include_body=true) which returned clean complete bodies. Recurred during this very harvest (a grep -c printed duplicated many times).",
+      "scope": "durable",
+      "feature": "",
+      "source": "(session-environment observation; no source ref)",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Pure session/harness delivery artifact, not anchored to any code a future session opens; not HOW/WHY of the product. Transient tooling mechanics; verdict already 'unconfirmable'. Fails criteria 2,4 an",
+      "checked_refs": [],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ],
+      "status": "archived",
+      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407",
+      "archived_reason": "Pure session/harness delivery artifact, not anchored to any code a future session opens; not HOW/WHY of the product. Transient tooling mechanics; verdict already 'unconfirmable'. Fails criteria 2,4 and kill test.",
+      "archived_from": "2026-05-30-0048.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "symbol-lines-json-autoregen",
+      "claim": "On any commit that changes R/, the pre-commit hook regenerates and auto-stages dev/agents/ggpaintr-source-expert/symbol-lines.json (it prints \"[pre-commit] R/ changed — rebuilding symbol-lines.json\"); use `git add -A` so the regenerated file is included.",
+      "detail": "",
+      "scope": "durable",
+      "feature": "",
+      "tags": "deepening-sweep-v2,harness",
+      "source": "dev/githooks/pre-commit (rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json on R/ change)",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Restates CLAUDE.md line 42 (pre-commit regenerates symbol-lines.json) plus pure task mechanics ('use git add -A'); a fresh session reading CLAUDE.md learns this with no rediscovery saved.",
+      "checked_refs": [
+        "dev/githooks/pre-commit",
+        "dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh"
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ],
+      "status": "archived",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "archived_reason": "Restates CLAUDE.md line 42 (pre-commit regenerates symbol-lines.json) plus pure task mechanics ('use git add -A'); a fresh session reading CLAUDE.md learns this with no rediscovery saved.",
+      "archived_from": "2026-05-30-1223.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "parallel-boottail-flake-shared-spec-seed-derived",
+      "claim": "Under TESTTHAT_PARALLEL=TRUE TESTTHAT_CPUS=4 the full suite showed FAIL 2 in test-shared-spec-seed-derived-column-browser.R with a blank `actual` value (the renderUI shared picker read before binding — a boot-tail race), but a SERIAL re-run of that file passed FAIL 0 / PASS 3, confirming it is a parallel-load flake and not a product failure.",
+      "detail": "Concretely validated CLAUDE.md's \"residual flake under parallel load is not a product failure — re-confirm serially\" rule; the file uses only string formulas (no expr()), so the normalize change cannot affect it. Full suite otherwise PASS 3463 / SKIP 0.",
+      "scope": "campaign",
+      "feature": "ptr-shared-expression-input",
+      "source": "tests/testthat/test-shared-spec-seed-derived-column-browser.R:41,46; CLAUDE.md authoritative-gate block",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Point-in-time incident snapshot (FAIL 2 this session, serial PASS 3, full-suite PASS 3463) that restates CLAUDE.md's documented 'residual flake under parallel load is not a product failure, re-confirm",
+      "checked_refs": [
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
+        "tests/testthat/helper-super-pressure.R::\"set_sentinel\""
+      ],
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1502-ptr-shared-expression-input.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "test-gate-discipline"
+      ],
+      "status": "archived",
+      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "resolved_refs": [
+        "tests/testthat/test-shared-spec-seed-derived-column-browser.R",
+        "tests/testthat/helper-super-pressure.R:98,122,127,131,147,185,687,729,732 (anchor)"
+      ],
+      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "archived_reason": "Point-in-time incident snapshot (FAIL 2 this session, serial PASS 3, full-suite PASS 3463) that restates CLAUDE.md's documented 'residual flake under parallel load is not a product failure, re-confirm serially' rule; the durable cluster is already captured by parallel-gate-flakes-seeding-cluster.",
+      "archived_from": "2026-05-30-1505.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "archive-rbuildignore-preexisting",
+      "claim": "`.Rbuildignore` already contained `^archive$` before this session, so moving retired vignettes into `archive/retired_vignettes/` excludes them from the built package and from R CMD check with no further config; the move used `git mv` so git records them as renames (history preserved).",
+      "detail": "",
+      "scope": "campaign",
+      "feature": "vignette-rewrite",
+      "tags": "vignette-rewrite",
+      "source": ".Rbuildignore line ^archive$ (already present before the move); archive/retired_vignettes/ holds the 3 retired .Rmd",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Restates CLAUDE.md line 61 (.Rbuildignore ^archive$ already excludes retired vignettes); the 'already contained' + git-mv-records-renames detail is bare task mechanics a fresh session re-reads from CL",
+      "checked_refs": [
+        ".Rbuildignore:9"
+      ],
+      "verified_at_commit": "64f8fe925d95997e8f6a9b5babf1583a244630c3",
+      "status": "archived",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs"
+      ],
+      "archived_reason": "Restates CLAUDE.md line 61 (.Rbuildignore ^archive$ already excludes retired vignettes); the 'already contained' + git-mv-records-renames detail is bare task mechanics a fresh session re-reads from CLAUDE.md + git.",
+      "archived_from": "2026-05-30-2110.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "final-vignette-set-three",
+      "claim": "As of 2026-05-30 the intended vignette set is exactly THREE — `ggpaintr-tutorial` (new), `ggpaintr-safety` (rewritten), `ggpaintr-llm` (separate session) — with use-cases/customization/gallery retired to archive; `_pkgdown.yml` articles and all live cross-references were repointed accordingly.",
+      "detail": "",
+      "scope": "decision",
+      "feature": "",
+      "tags": "vignette-rewrite",
+      "source": "vignettes/ now holds ggpaintr-{tutorial,safety,llm}.Rmd; _pkgdown.yml articles = tutorial/safety/llm; archive/retired_vignettes/ = use-cases/customization/gallery",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Direct restatement of CLAUDE.md line 61, which already names the exact three live vignettes, the three retired to archive, and the _pkgdown repoint. No how/why beyond the doc.",
+      "checked_refs": [
+        "vignettes/",
+        "_pkgdown.yml"
+      ],
+      "verified_at_commit": "964650277e131cfa9d6b6b7af10f4b3c8cbb7bc6",
+      "status": "archived",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "vignette-docs"
+      ],
+      "archived_reason": "Direct restatement of CLAUDE.md line 61, which already names the exact three live vignettes, the three retired to archive, and the _pkgdown repoint. No how/why beyond the doc.",
+      "archived_from": "2026-05-30-2110.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "test-count-N-is-landing-signal",
+      "claim": "The `as.data.frame(devtools::test())` row count `N` is a reliable signal that added test_that blocks actually landed on disk — N stayed flat (1206) when an edit went to a phantom file path, and grew by exactly the number of new tests once written to the real file.",
+      "detail": "During this session an Edit appeared to succeed against a non-existent `test-canonical-pipeline.R`; `git status` showing only the source file changed + N not growing exposed it. The real AST-engine test home is `tests/testthat/test-resugar-pipeline.R` (there is no `test-canonical-pipeline.R`).",
+      "scope": "campaign",
+      "feature": "formula-fix",
+      "source": "tests/testthat/test-resugar-pipeline.R; devtools::test() as.data.frame N column",
+      "tags": "formula-translate-render",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Transient task-mechanics: an Edit hitting a phantom path and the row-count delta are process trivia, not a code-orientation companion; the durable nugget reduces to a bare file-location fact (real tes",
+      "checked_refs": [
+        "tests/testthat/test-resugar-pipeline.R"
+      ],
+      "verified_at_commit": "3d009984712f9c69770b9167b178eac68ab93a08",
+      "status": "archived",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
+      "origin_status": "derived-unverified",
+      "archived_reason": "Transient task-mechanics: an Edit hitting a phantom path and the row-count delta are process trivia, not a code-orientation companion; the durable nugget reduces to a bare file-location fact (real test home is test-resugar-pipeline.R).",
+      "archived_from": "2026-05-31-2157.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    },
+    {
+      "id": "rcmd-check-preexisting-failures-resolved",
+      "claim": "As of the `addins` branch HEAD, `devtools::check(--as-cran)` is clean (0 errors / 0 warnings / 0 notes) and the test suite passes under check — the previously-recorded \"15 pre-existing check failures (registry-split + pp-toggles)\" no longer reproduce, so memory `rcmd-check-preexisting-failures` is stale.",
+      "detail": "",
+      "scope": "durable",
+      "feature": "",
+      "tags": "r-cmd-check",
+      "source": "devtools::check(--as-cran) on ggpaintr 0.10.0 @ HEAD",
+      "verdict": "below_bar",
+      "verification": "bar audit (kill test): Pure point-in-time status (check clean at branch HEAD, prior memory now stale) with empty detail; a transient snapshot that a fresh session re-derives by running check, not a HOW/WHY orientation aid.",
+      "checked_refs": [
+        "devtools::check output @ HEAD"
+      ],
+      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
+      "status": "archived",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
+      "origin_status": "derived-unverified",
+      "archived_reason": "Pure point-in-time status (check clean at branch HEAD, prior memory now stale) with empty detail; a transient snapshot that a fresh session re-derives by running check, not a HOW/WHY orientation aid.",
+      "archived_from": "2026-05-31-2200.json",
+      "archived_at_commit": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
+    }
+  ]
+}

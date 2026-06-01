@@ -2,9 +2,7 @@
   "harvested_at": "2026-05-29T22:35",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-05-29-2225-ppupload7-source-arch.md, 11 stamps)",
   "counts": {
-    "verified": 11,
-    "contradicted": 0,
-    "unconfirmable": 0
+    "verified": 9
   },
   "findings": [
     {
@@ -201,50 +199,6 @@
       "verification": "Confirmed against ~/.claude/skills/exec-plan/SKILL.md: requires <plan-dir>/index.md (merge order + parallel groups + Worked-example matrix) + per-plan NN-<slug>.html with HTML-comment frontmatter (number/slug/depends_on/parallel_group) + 'Files this plan owns:' + Worked-example section; refuses to start if a plan is PASS by neither stamp nor index table, or if the worked-example section is missing.",
       "checked_refs": [
         "~/.claude/skills/exec-plan/SKILL.md Inputs/step1-3"
-      ],
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
-      "origin_status": "derived-unverified",
-      "labels": [
-        "harness-tooling"
-      ],
-      "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
-    },
-    {
-      "id": "ggpaintr-is-a-git-worktree",
-      "claim": "The ggpaintr working directory is a git WORKTREE of the main repo at /Users/willju/Research/ggpaintr (git-common-dir -> /Users/willju/Research/ggpaintr/.git); core.hooksPath resolves against the main repo's .git/hooks, so hook installs/checks must account for the main-repo path even when working in the worktree. (The specific worktree dir varies per campaign — currently ggpaintr-post-add-expr.)",
-      "detail": "Relevant to any hook/config operation and to memory feedback-serena-project-root-doesnt-follow-worktree.",
-      "scope": "durable",
-      "feature": "",
-      "tags": "project-layout",
-      "source": "git config core.hooksPath value; git worktree layout",
-      "verdict": "verified",
-      "verification": "Re-verified the durable fact (specific path drifted): git rev-parse --git-common-dir -> /Users/willju/Research/ggpaintr/.git, core.hooksPath -> /Users/willju/Research/ggpaintr/.git/hooks, current toplevel -> ggpaintr-post-add-expr. Claim generalized off the old ppUpload-bug path.",
-      "checked_refs": [
-        "git rev-parse --git-common-dir",
-        "git config core.hooksPath"
-      ],
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
-      "origin_status": "derived-unverified",
-      "labels": [
-        "harness-tooling"
-      ],
-      "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
-    },
-    {
-      "id": "implementable-hook-already-wired-via-chaining-shim",
-      "claim": "This repo's implementable enforcement hook is already installed via a chaining shim: `core.hooksPath` points at the MAIN repo's `.git/hooks`, whose `pre-commit` shim `exec`s `$(git rev-parse --show-toplevel)/dev/githooks/pre-commit` (the tracked enforcement hook), so it fires from the main repo AND every worktree without per-clone reinstall.",
-      "detail": "The hook hashes the staged plan blob via `printf '%s\\n' \"$(git show :f)\" | grep -v 'implementable: PASS' | sha256 | cut -c1-12`; a current PASS stamp is required to commit any dev/plans/*.html|*.md or *-plan.md. For HTML the same pipeline over the unstamped worktree file reproduces the hook's hash exactly. Confirmed by committing the new plan (commit 38c48a1) cleanly.",
-      "scope": "durable",
-      "feature": "",
-      "tags": "harness",
-      "source": ".git config core.hooksPath → /Users/willju/Research/ggpaintr/.git/hooks/pre-commit (chaining shim) → dev/githooks/pre-commit; ~/.claude/skills/implementable/hooks/pre-commit",
-      "verdict": "verified",
-      "verification": "Confirmed: /Users/willju/Research/ggpaintr/.git/hooks/pre-commit is a chaining shim that resolves root=$(git rev-parse --show-toplevel) then exec's $root/dev/githooks/pre-commit — so the tracked enforcement hook fires from the main repo and every worktree without per-clone reinstall.",
-      "checked_refs": [
-        "/Users/willju/Research/ggpaintr/.git/hooks/pre-commit",
-        "dev/githooks/pre-commit"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",

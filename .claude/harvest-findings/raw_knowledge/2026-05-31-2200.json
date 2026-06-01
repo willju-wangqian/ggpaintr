@@ -2,7 +2,7 @@
   "harvested_at": "2026-05-31T22:00",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript)",
   "counts": {
-    "verified": 11
+    "verified": 10
   },
   "findings": [
     {
@@ -111,24 +111,6 @@
       "checked_refs": [
         "R/paintr-addin.R",
         "devtools::check output"
-      ],
-      "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
-      "status": "fresh",
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-rstudio-addin.md",
-      "origin_status": "derived-unverified"
-    },
-    {
-      "id": "rcmd-check-preexisting-failures-resolved",
-      "claim": "As of the `addins` branch HEAD, `devtools::check(--as-cran)` is clean (0 errors / 0 warnings / 0 notes) and the test suite passes under check — the previously-recorded \"15 pre-existing check failures (registry-split + pp-toggles)\" no longer reproduce, so memory `rcmd-check-preexisting-failures` is stale.",
-      "detail": "",
-      "scope": "durable",
-      "feature": "",
-      "tags": "r-cmd-check",
-      "source": "devtools::check(--as-cran) on ggpaintr 0.10.0 @ HEAD",
-      "verdict": "verified",
-      "verification": "devtools::check(--as-cran) ran this session at 0 errors/0 warnings/0 notes with tests OK under check; supersedes memory rcmd-check-preexisting-failures (15 failures no longer reproduce).",
-      "checked_refs": [
-        "devtools::check output @ HEAD"
       ],
       "verified_at_commit": "db5c165a2382c260b1734544f7a21133e9fd3367",
       "status": "fresh",

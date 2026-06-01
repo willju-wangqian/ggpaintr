@@ -2,8 +2,7 @@
   "harvested_at": "2026-05-30T00:48",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript, 12 stamps)",
   "counts": {
-    "verified": 10,
-    "unconfirmable": 2
+    "verified": 10
   },
   "findings": [
     {
@@ -220,48 +219,6 @@
       "labels": [
         "refactor-discipline",
         "ppupload-mechanics"
-      ],
-      "status": "fresh",
-      "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
-    },
-    {
-      "id": "ggpaintr-baseline-gate-3403-to-3420",
-      "claim": "On branch ppUpload-bug the serial full-suite authoritative gate was PASS 3403 / FAIL 0 / WARN 4 / SKIP 0 before this change and PASS 3420 after (the 17 new test-shared-host-source-reset assertions); WARN 4 is pre-existing and 0/0/0 is the gate, not the count.",
-      "detail": "Point-in-time campaign fact; PASS count drifts as tests are added.",
-      "scope": "campaign",
-      "feature": "ppupload-7-host-shared",
-      "source": "devtools::test() serial; project CLAUDE.md authoritative-gate block",
-      "verdict": "unconfirmable",
-      "verification": "Already verdict=unconfirmable and remains so. This is a point-in-time campaign observation on a now-merged branch (ppUpload-bug): exact PASS counts 3403 -> 3420 and WARN 4 cannot be re-derived from current source without re-running the full suite at that historical state, and the count is explicitly transient (the finding itself says counts drift). The durable kernel (0/0/0 is the gate, not the count; WARN/by-design NOTEs are pre-existing) matches the current CLAUDE.md authoritative-gate block, but the specific numbers are stale and unverifiable today (current full suite is ~3635, not 3403/3420). No reproducible source ref to anchor it.",
-      "checked_refs": [
-        "CLAUDE.md::\"authoritative full-suite gate\""
-      ],
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified",
-      "labels": [
-        "test-gate-discipline"
-      ],
-      "status": "fresh",
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
-      "resolved_refs": [
-        "CLAUDE.md:80 (anchor)"
-      ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
-    },
-    {
-      "id": "tool-output-batched-delivery-not-corruption",
-      "claim": "Tool results were sometimes delivered in delayed batches — a result for call N appeared one or more turns later, occasionally with a truncated/garbled tail — which can be mistaken for file corruption but is purely a delivery artifact; every read reconciled to clean content on the batched flush.",
-      "detail": "Mitigation: keep firing the needed reads and reconcile on flush; prefer serena symbolic reads (find_symbol include_body=true) which returned clean complete bodies. Recurred during this very harvest (a grep -c printed duplicated many times).",
-      "scope": "durable",
-      "feature": "",
-      "source": "(session-environment observation; no source ref)",
-      "verdict": "unconfirmable",
-      "verification": "Session-environment observation (delayed batched tool-result delivery, not file corruption) with no source ref; not re-verifiable against code. Kept live but flagged.",
-      "checked_refs": [],
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
-      "origin_status": "derived-unverified",
-      "labels": [
-        "harness-tooling"
       ],
       "status": "fresh",
       "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"

@@ -16,21 +16,31 @@ detail: <optional, may span multiple lines until the close tag>
 - **Body**: a required `claim:` line + optional `detail:`/free prose. Keep `claim` to one sentence so it reads standalone in a ledger.
 - **`scope`**: `durable` = an architecture/invariant fact worth project memory; `campaign` = working knowledge for an in-flight effort (`feature=`); `decision` = feeds a locked decision / ADR.
 
-### When to stamp (the bar)
+### What a finding is — the bar
 
-Stamp only what is **non-obvious, derived from reading the source/running the app, and reusable**: an invariant, a topology/control-flow fact, a gotcha, a "why it's built this way", a confirmed/denied hypothesis. **Do not** stamp trivia, restated docs, transient task mechanics, or anything you didn't actually ground in code/behavior.
+A finding is a **reading companion for source code**: a HOW or WHY a fresh session reads *before* the code, to orient faster. It is **never a fact that competes with source** — the source is the only source of truth and is always more factual than any restatement, so a finding earns its place only by adding orientation the code itself doesn't immediately hand over.
 
-### How it's enforced
+Save a candidate only if it clears **all four**:
 
-- **This rule** = best-effort inline habit (no hook can detect "you just understood something"; you *will* miss some — that's expected).
-- **`/stamp`** — emit one stamp on demand the moment the user (or you) spots a keeper.
-- **`/summarize-knowledge`** — invoked before `/clear`; sweep the whole session and write every finding as stamps **directly into `.claude/harvest-findings/raw_conversation/<date>-<time>-<topic>.md`**, best-effort, **unverified** (`status=derived-unverified`). Do **not** verify here — just try your best; a later pass checks.
-- **`harvest-finding`** skill = the regular pass: read the stamps in `raw_conversation/` (written directly by `/summarize-knowledge` — no `/export` step) → extract → **verify** each `source:` against current code → save the verified knowledge as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json`.
-- **`/process-finding`** = the categorize pass *after* harvest: read `raw_knowledge/*.json` → assign each finding one or more topic **labels** (written back onto the finding) → maintain the canonical vocabulary `.claude/harvest-findings/labels.json` and regenerate `.claude/harvest-findings/INDEX.md` (label → description → finding ids). A later pass promotes findings into memory/`.scratch`/ADRs by label.
+1. **Saves rediscovery** — without it, a fresh session would burn tokens reconstructing this by reading/tracing the code.
+2. **Is HOW or WHY** — how an entity works (a non-obvious control flow / topology / mechanism) or why it is shaped this way (the rationale a diff/commit doesn't show) — not merely *that* it exists.
+3. **Beats source on orientation, not on facts** — it adds the map, the relationship, the rationale, or the gotcha. A pure fact, a restated doc/CLAUDE.md line, or a transient/point-in-time number is **not** a finding.
+4. **Anchors to code you'd open** — it names the symbol/file a future session will read; the index points there, the finding pre-loads the understanding, then they read the code.
+
+**Kill test:** *if a fresh session read the cited source (plus CLAUDE.md), would this finding still have saved them real discovery effort?* If no, it is **not** a finding — drop it, even when it is perfectly true. Truth is necessary but not sufficient; **value (orientation that saves rediscovery) is the bar.** (Definition lives in the global template `~/.claude/skills/harvest-init/templates/knowledge-stamps.md`; this project adopts it.)
+
+### How it's enforced — a value gate at every stage
+
+The bar is not a one-time emit check; **every** stage re-applies it. A candidate that is *true but below the bar* is dropped, never stored "because it verified".
+
+- **This rule** = best-effort inline habit (no hook can detect "you just understood something"; you *will* miss some — that's expected). Emit `⟦FINDING⟧` only for candidates that pass the kill test.
+- **`/summarize-knowledge`** — invoked before `/clear`; sweep the session and write every *bar-passing* finding as stamps **directly into `.claude/harvest-findings/raw_conversation/<date>-<time>-<topic>.md`**, best-effort, **unverified** (`status=derived-unverified`). Don't verify here; do apply the bar (drop trivia / restated docs / transient mechanics).
+- **`harvest-finding`** skill = the verify-and-store pass, which is **also a value pass**: read the stamps in `raw_conversation/` → extract → **verify** each `source:` against current code AND apply the kill test. A candidate that verifies TRUE but fails the bar is **dropped, not stored**. Survivors are saved as a timestamped JSON under `.claude/harvest-findings/raw_knowledge/<date>-<time>.json`.
+- **`/process-finding`** = the categorize pass *after* harvest: read `raw_knowledge/*.json` → assign topic **labels** → maintain `.claude/harvest-findings/labels.json` + regenerate `.claude/harvest-findings/INDEX.md`. The index IS the "read this before the code" map, so every indexed entry must pass the kill test — flag any that don't for archival rather than labeling them.
 - **`/mark-stale-finding`** = the maintenance **detector** (pure fast script, no model): reads the git diff and flips a finding to `status=stale` when a file it cites changed since its `verified_at_commit` baseline. Freshness is *orthogonal* to verdict — a `verdict=verified` finding can be `status=stale`. Runnable as a git hook.
-- **`/maintain-finding`** = the maintenance **re-verifier** (model judgment): re-runs harvest-finding's verify contract over the `status=stale` subset only, refreshing `verdict`/`verification` and re-stamping `verified_at_commit=HEAD` + `status=fresh`.
+- **`/maintain-finding`** = the maintenance **re-verifier** (model judgment): re-runs harvest-finding's verify+value contract over the `status=stale` subset, refreshing `verdict`/`verification` and re-stamping `verified_at_commit=HEAD` + `status=fresh` — and **archives a still-true finding that no longer earns its place** (redundant with docs / decayed to a trivial fact) as `verdict=below_bar`, distinct from `contradicted` (false).
 
-Pipeline: **stamp → summarize-knowledge → harvest-finding → process-finding** (write side) ; **mark-stale-finding → maintain-finding** (maintenance loop) ; **consult INDEX.md** (read side, below).
+Pipeline: **stamp (inline) → summarize-knowledge → harvest-finding → process-finding** (write side) ; **mark-stale-finding → maintain-finding** (maintenance loop) ; **consult INDEX.md** (read side, below).
 
 ### Recall — rebuild understanding from the index
 

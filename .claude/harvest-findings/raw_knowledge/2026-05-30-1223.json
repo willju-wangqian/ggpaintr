@@ -2,7 +2,7 @@
   "harvested_at": "2026-05-30T12:23",
   "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-05-30-1223-deepening-sweep-v2.md, 16 stamps)",
   "counts": {
-    "verified": 16
+    "verified": 15
   },
   "findings": [
     {
@@ -157,7 +157,7 @@
         "tests/testthat/test-default-derived-column-stage-off-browser.R",
         "CLAUDE.md:80 (anchor)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "placeholder-output-id-single-source",
@@ -240,7 +240,7 @@
         "R/paintr-default-args.R:322-347 (ptr_arg_expression)",
         "NAMESPACE:90,91,92,93,94 (anchor)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "ptr-define-core-shared-prologue",
@@ -271,7 +271,7 @@
         "R/paintr-registry.R:720-735 (ptr_define_placeholder_consumer)",
         "R/paintr-registry.R:878-893 (ptr_define_placeholder_source)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "registry-entry-keys-vs-public-args",
@@ -300,7 +300,7 @@
         "R/paintr-registry.R:218-224 (validate_positional_arg)",
         "R/paintr-registry.R:311-337 (validate_copy_defaults)"
       ],
-      "refs_resolved_at_head": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_resolved_at_head": "9e7d3fd2f260364635284e0d0a6ec78a92bd7487"
     },
     {
       "id": "resolve-upload-source-already-shared",
@@ -376,28 +376,6 @@
       ],
       "status": "fresh",
       "verified_at_commit": "f5a367c3347c4fae3a4d08e9fddea79880861407"
-    },
-    {
-      "id": "symbol-lines-json-autoregen",
-      "claim": "On any commit that changes R/, the pre-commit hook regenerates and auto-stages dev/agents/ggpaintr-source-expert/symbol-lines.json (it prints \"[pre-commit] R/ changed — rebuilding symbol-lines.json\"); use `git add -A` so the regenerated file is included.",
-      "detail": "",
-      "scope": "durable",
-      "feature": "",
-      "tags": "deepening-sweep-v2,harness",
-      "source": "dev/githooks/pre-commit (rebuilds dev/agents/ggpaintr-source-expert/symbol-lines.json on R/ change)",
-      "verdict": "verified",
-      "verification": "Read dev/githooks/pre-commit (lines 72-79: orchestrator hook delegates to the sidecar `sh dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh || exit 1`) and the sidecar itself. The sidecar: stages-detects R/*.R via `git diff --cached --name-only --diff-filter=AM | grep -E '^R/.*\\.R$'`; on a hit prints exactly `[pre-commit] R/ changed — rebuilding symbol-lines.json...`; runs Rscript dev/agents/ggpaintr-source-expert/build-symbol-manifest.R (abort on failure); then `git add dev/agents/ggpaintr-source-expert/symbol-lines.json` to land the refreshed JSON in the same commit. core.hooksPath = dev/githooks confirmed. symbol-lines.json present (63KB). Mechanism holds verbatim.",
-      "checked_refs": [
-        "dev/githooks/pre-commit",
-        "dev/agents/ggpaintr-source-expert/pre-commit-symbol-manifest.sh"
-      ],
-      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1223-deepening-sweep-v2.md",
-      "origin_status": "derived-unverified",
-      "labels": [
-        "harness-tooling"
-      ],
-      "status": "fresh",
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
     },
     {
       "id": "verify-before-extract-dedup-overstated",
