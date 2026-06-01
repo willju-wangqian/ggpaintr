@@ -125,14 +125,33 @@ boot_super_app <- function(slug, app_file = "app.R") {
 # into a downstream assertion mismatch (project memory
 # `e2e-assertion-weakness-lens`).
 set_sentinel <- function(app, input_id, sentinel, bind_timeout_ms = 5000) {
-  page_html <- app$get_html(paste0("#", input_id))
-  if (is.null(page_html) || !nzchar(page_html)) {
-    stop(
-      "set_sentinel: input '", input_id, "' is not rendered in the DOM. ",
-      "Consumer pickers gate on upstream column scope — provide an ",
-      "upload / source resolution / Controls-subtab activation before ",
-      "driving this widget."
-    )
+  # Poll for the node to render rather than reading the DOM once. A freshly
+  # booted source/value/consumer renderUI can mount on a server flush AFTER
+  # boot_super_app()'s wait_for_idle() returns; under full-suite chromote
+  # contention that leaves the very first set_sentinel reading an empty DOM
+  # (the boot-tail race documented on boot_super_app + project memory
+  # `shinytest2-boot-tail-race-wait-for-idle`; reproduced as a parallel-only
+  # FAIL on this file 2026-05-31, green serially). Wait up to bind_timeout_ms
+  # for the node to appear, then fall through to the actionable message — so
+  # a genuinely column-scope-gated picker (that never renders) still fails
+  # loudly, while a not-yet-mounted widget is simply given time to render.
+  # bind_timeout_ms = 0 preserves the old single-shot semantics (deadline ==
+  # now → at most one read).
+  deadline <- Sys.time() + max(bind_timeout_ms, 0) / 1000
+  repeat {
+    page_html <- tryCatch(app$get_html(paste0("#", input_id)),
+                          error = function(e) NULL)
+    if (!is.null(page_html) && nzchar(page_html)) break
+    if (Sys.time() >= deadline) {
+      stop(
+        "set_sentinel: input '", input_id, "' is not rendered in the DOM ",
+        "after waiting ", bind_timeout_ms, "ms. ",
+        "Consumer pickers gate on upstream column scope — provide an ",
+        "upload / source resolution / Controls-subtab activation before ",
+        "driving this widget."
+      )
+    }
+    Sys.sleep(0.025)
   }
   # Element exists in the DOM but Shiny's input binding may not have wired
   # up yet (the renderUI-vs-bindAll race that produces shinytest2's
