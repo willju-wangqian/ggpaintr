@@ -62,7 +62,14 @@ ABSENT_ALLOWLIST <- c("ptr_build_ids")
 # function (verified absent from R/ / from the relevant formals(), 2026-05-30):
 # removed features and renamed constructor args. Flagged in `arg =` position.
 DEAD_ARGS <- c("checkbox_defaults", "shared_ui", "copy_defaults",
-               "companion_id_fn")
+               "companion_id_fn",
+               # ADR 0027 renamed the placeholder-constructor args. Old public
+               # names below are now "unused argument" errors. NOTE: `named_args`
+               # is intentionally EXCLUDED here — it is still a live INJECTED
+               # `build_ui` formal (function(node, ..., named_args = list(), ...)),
+               # so flagging it would false-positive on legitimate examples; the
+               # constructor arg is now `parse_named_args`.
+               "positional_arg", "validate_input", "runtime")
 
 USER_TOKENS <- c("ppVar", "ppText", "ppNum", "ppExpr", "ppUpload")
 # Pre-pp* bare forms that must never appear in a code example (they no longer

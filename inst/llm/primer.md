@@ -108,12 +108,12 @@ ggpaintr has **no headless / non-Shiny path** and `testServer()` is **not** a su
 ### Custom widgets (all levels)
 Three constructors, registered against a **process-global** registry. No `placeholders =` argument anywhere — register once per session before launching any app that uses the new keyword.
 
-- `ptr_define_placeholder_value(keyword, build_ui, resolve_expr, validate_input = NULL, positional_arg = NULL, named_args = list(), runtime = NULL, ui_text_defaults = ...)` — non-data-aware widgets (slider, date, colour, free text).
-- `ptr_define_placeholder_consumer(keyword, build_ui, resolve_expr, validate_input = NULL, positional_arg = NULL, named_args = list(), runtime = NULL, ui_text_defaults = ...)` — column pickers / multi-column selectors (`build_ui` receives `cols` and `data`).
-- `ptr_define_placeholder_source(keyword, build_ui, resolve_data, resolve_expr = NULL, shortcut = FALSE, positional_arg = NULL, named_args = list(), runtime = NULL, ui_text_defaults = ...)` — widgets that *produce* a data frame.
+- `ptr_define_placeholder_value(keyword, build_ui, resolve_expr, validate_session_input = NULL, parse_positional_arg = NULL, parse_named_args = list(), embellish_eval = NULL, ui_text_defaults = ...)` — non-data-aware widgets (slider, date, colour, free text).
+- `ptr_define_placeholder_consumer(keyword, build_ui, resolve_expr, validate_session_input = NULL, parse_positional_arg = NULL, parse_named_args = list(), embellish_eval = NULL, ui_text_defaults = ...)` — column pickers / multi-column selectors (`build_ui` receives `cols` and `data`).
+- `ptr_define_placeholder_source(keyword, build_ui, resolve_data, resolve_expr = NULL, shortcut = FALSE, parse_positional_arg = NULL, parse_named_args = list(), embellish_eval = NULL, ui_text_defaults = ...)` — widgets that *produce* a data frame.
 - `ptr_clear_placeholder(keyword = NULL)` — remove user-registered keywords. The five built-ins are protected.
 
-Hook signature: every hook receives a `node` list with `node$id`, `node$keyword`, `node$layer_name`, `node$param`, `node$index_path`. `resolve_expr()` returning `NULL` drops the argument from the generated code. Restrict the call shape with `positional_arg = ptr_arg_*()` (e.g. `ptr_arg_symbol_or_string()`, `ptr_arg_numeric()`).
+Hook signature: every hook receives a `node` list with `node$id`, `node$keyword`, `node$layer_name`, `node$param`, `node$index_path`. `resolve_expr()` returning `NULL` drops the argument from the generated code. Restrict the call shape with `parse_positional_arg = ptr_arg_*()` (e.g. `ptr_arg_symbol_or_string()`, `ptr_arg_numeric()`).
 
 ## Decision rule
 

@@ -101,7 +101,7 @@ All three are thin wrappers over a shared core, so they take an overlapping set 
 
 A few facts hold for all three:
 
-- The registry is **process-global**. Calling a constructor *registers* the keyword as a side effect (and returns a plain-R function, see `runtime` below); there is no `placeholders =` argument to thread anywhere. Register once near the top of your script, then use the keyword in any formula.
+- The registry is **process-global**. Calling a constructor *registers* the keyword as a side effect (and returns a plain-R function, see `embellish_eval` below); there is no `placeholders =` argument to thread anywhere. Register once near the top of your script, then use the keyword in any formula.
 - The keyword you register is the keyword you write in the formula. By convention built-ins use the `pp` prefix, but yours need not.
 
 ## 2.1 A value placeholder — every argument
@@ -182,22 +182,27 @@ Optional. `function(value, ctx)`, run before `resolve_expr`. Return the value to
 
 ### `parse_positional_arg`
 
-Declares whether the placeholder accepts a single positional default in the formula, and validates it. Pass one of the argument validators — `ptr_arg_string()`, `ptr_arg_numeric()`, `ptr_arg_numeric(vector = TRUE, length =)`, `ptr_arg_symbol_or_string()`, `ptr_arg_expression()`. Each is a factory returning a checker that inspects the default **as unevaluated code** (no `eval()`), so `ppPercent(40)` is validated to be a numeric literal at translate time. Leaving `parse_positional_arg = NULL` (the default) **rejects** any positional argument — `ppPercent(40)` would error.
+Declares whether the placeholder accepts a single positional default in the formula, and validates it. Pass one of the argument validators — `ptr_arg_string()`, `ptr_arg_numeric()`, `ptr_arg_symbol()`, `ptr_arg_symbol_or_string()`, `ptr_arg_expression()`. Each is a factory returning a checker that inspects the default **as unevaluated code** (no `eval()`), so `ppPercent(40)` is validated to be a numeric literal at translate time. The element factories also take `vector = TRUE` to accept a `c(...)` of elements instead of a scalar — `ptr_arg_numeric(vector = TRUE, length = 2)`, `ptr_arg_symbol(vector = TRUE)` (a multi-column default like `c(mpg, hp)`) — so a multi-column consumer can carry a positional default. Leaving `parse_positional_arg = NULL` (the default) **rejects** any positional argument — `ppPercent(40)` would error.
 
 ### `parse_named_args`
 
 A fully-named list mapping extra named-argument names to validators, in the same family as `parse_positional_arg`. It lets the formula write `ppPercent(40, step = 5)`. The validated values arrive in `build_ui` as the `named_args` list. The name `shared` is reserved (it is ggpaintr's cross-widget binding key — Section 3) and may not appear here.
 
-### `runtime`
+### `embellish_eval`
 
-The plain-R meaning of the keyword *outside* `ptr_app()`. Each constructor returns this function, so you can bind it under the keyword name —
+The plain-R meaning of the keyword *outside* `ptr_app()`. A placeholder-embellished formula must stay valid plain R that still renders the original plot with no app running; `embellish_eval` is the callable that supplies that meaning. Each constructor returns this function, so you can bind it under the keyword name —
 
-```{r runtime-bind, eval = FALSE}
+```{r embellish-bind, eval = FALSE}
 ppPercent <- ptr_define_placeholder_value("ppPercent", ...)
 ppPercent(40)   # => 0.4, as ordinary R
 ```
 
-— which makes a formula that uses the keyword still evaluate as ordinary ggplot code. If you omit it, value/consumer keywords default to the identity `function(x, ...) x`.
+— which makes a formula that uses the keyword still evaluate as ordinary ggplot code. The meaning is **author-controlled, never derived** — only you know what the keyword should mean as live R.
+
+If you omit `embellish_eval`, value and consumer keywords default to `embellish_identity()` (the identity `function(x, ...) x`), so the placeholder call is a transparent no-op wrapper. Two built-in helpers cover the common cases:
+
+- `embellish_identity()` — the default; returns its argument unchanged.
+- `embellish_symbol_to_string()` — captures its argument *unevaluated* and returns the referenced column names as a character vector. This is the pattern a column-selecting consumer needs to run as plain R: a tidyselect verb evaluates an unknown wrapper call in non-masked scope, where bare column symbols throw `object 'mpg' not found`; returning the names as strings lets the naked formula still select by name.
 
 ### `ui_text_defaults`
 

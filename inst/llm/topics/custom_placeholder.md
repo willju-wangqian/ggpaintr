@@ -44,8 +44,8 @@ the substitute pass strips the corresponding argument from the
 generated code, exactly like the built-in `ppVar` keyword returning
 `NULL` for an empty pick.
 
-Constrain the call shape with `positional_arg = ptr_arg_*()` — e.g.
-`ptr_arg_numeric()`, `ptr_arg_symbol_or_string()`, `ptr_arg_string()` —
+Constrain the call shape with `parse_positional_arg = ptr_arg_*()` — e.g.
+`ptr_arg_numeric()`, `ptr_arg_symbol()`, `ptr_arg_symbol_or_string()`, `ptr_arg_string()` —
 when the keyword is written with a positional argument in the formula.
 
 ## Value placeholder — date picker
@@ -119,7 +119,7 @@ ptr_define_placeholder_consumer(
 )
 ```
 
-`validate_input = function(value, upstream_cols)` is an optional
+`validate_session_input = function(value, ctx)` is an optional
 sanity-check hook: return `TRUE` / `NULL` for valid input, or an error
 message string when the input is bad (e.g. "Column `foo` is no longer
 in the upstream data").
