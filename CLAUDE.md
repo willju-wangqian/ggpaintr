@@ -19,12 +19,14 @@ fallback.** The public boundary functions that take a `formula` —
 [`rlang::enexpr()`](https://rlang.r-lib.org/reference/defusing-advanced.html),
 so the canonical form is an **unquoted ggplot expression**
 (`ptr_app(ggplot(...) + ...)`); a formula stored in a variable via
-[`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html) is
-spliced in with `!!`
-(`f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")`), and `!!` is
-*required* for a subscripted element (`ptr_server(!!plots[[1]], ...)`).
-A plain **string** (`ptr_app("ggplot(...)")`) remains fully supported as
-the fallback (handy when a formula is built or fetched as text), and
+[`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html) is passed
+by its bare symbol (`f <- rlang::expr(ggplot(...)); ptr_ui(f, "id")`) or
+spliced in with `!!` (`ptr_ui(!!f, "id")`); a subscripted/extracted
+element resolves bare too (`ptr_server(plots[[1]], ...)`, `holder$body`)
+— `!!` remains available and equivalent but is no longer required for a
+subscript (bare `[[`/`$` resolution landed 2026-06-02). A plain
+**string** (`ptr_app("ggplot(...)")`) remains fully supported as the
+fallback (handy when a formula is built or fetched as text), and
 `ptr_shared(formulas = )` likewise accepts a list of strings and/or
 quoted exprs.
 ([`ptr_app_bslib()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_bslib.md)

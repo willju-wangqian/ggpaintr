@@ -35,9 +35,11 @@ ptr_ui(
   /
   [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
   so a formula stored in a variable via
-  [`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html) is
-  spliced in with `!!`:
-  `f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")`. See
+  [`rlang::expr()`](https://rlang.r-lib.org/reference/expr.html) can be
+  passed by its bare symbol
+  (`f <- rlang::expr(ggplot(...)); ptr_ui(f, "id")`) or spliced with
+  `!!` (`ptr_ui(!!f, "id")`); a subscripted/extracted element resolves
+  bare too (`ptr_ui(plots[[1]], "id")`, `holder$body`). See
   [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
   for the full contract (symbol resolution, wrapper unwrap, native-pipe
   caveat).

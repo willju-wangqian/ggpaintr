@@ -15,7 +15,7 @@ them with the same ptr_server()."><meta property="og:image" content="https://wil
 
     <a class="navbar-brand me-2" href="../index.html">ggpaintr</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.11.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -78,10 +78,12 @@ them with the same <code><a href="ptr_server.html">ptr_server()</a></code>.</p>
 expression with <code>ggpaintr</code> placeholders, or an unquoted ggplot
 expression supplied directly (the primary form). Captured with
 <code><a href="https://rlang.r-lib.org/reference/defusing-advanced.html" class="external-link">rlang::enexpr()</a></code> exactly as <code><a href="ptr_app.html">ptr_app()</a></code> / <code><a href="ptr_server.html">ptr_server()</a></code>, so a
-formula stored in a variable via <code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">rlang::expr()</a></code> is spliced in with
-<code>!!</code>: <code>f &lt;- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")</code>. See
-<code><a href="ptr_app.html">ptr_app()</a></code> for the full contract (symbol resolution, wrapper unwrap,
-native-pipe caveat).</p></dd>
+formula stored in a variable via <code><a href="https://rlang.r-lib.org/reference/expr.html" class="external-link">rlang::expr()</a></code> can be passed by its
+bare symbol (<code>f &lt;- rlang::expr(ggplot(...)); ptr_ui(f, "id")</code>) or
+spliced with <code>!!</code> (<code>ptr_ui(!!f, "id")</code>); a subscripted/extracted
+element resolves bare too (<code>ptr_ui(plots[[1]], "id")</code>, <code>holder$body</code>).
+See <code><a href="ptr_app.html">ptr_app()</a></code> for the full contract (symbol resolution, wrapper
+unwrap, native-pipe caveat).</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>

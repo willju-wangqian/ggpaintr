@@ -15,13 +15,13 @@ Source:
 [`DESCRIPTION`](https://github.com/willju-wangqian/ggpaintr/blob/main/DESCRIPTION)
 
 Ju W, Pang J, Qiao Z (2026). *ggpaintr: Build Formula-Driven 'shiny'
-Apps for 'ggplot2'*. R package version 0.11.0,
+Apps for 'ggplot2'*. R package version 0.11.1,
 <https://willju-wangqian.github.io/ggpaintr/>.
 
     @Manual{,
       title = {ggpaintr: Build Formula-Driven 'shiny' Apps for 'ggplot2'},
       author = {Wangqian Ju and Jinji Pang and Zhili Qiao},
       year = {2026},
-      note = {R package version 0.11.0},
+      note = {R package version 0.11.1},
       url = {https://willju-wangqian.github.io/ggpaintr/},
     }
