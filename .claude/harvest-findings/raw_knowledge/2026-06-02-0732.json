@@ -1,0 +1,98 @@
+{
+  "harvested_at": "2026-06-02T07:32",
+  "corpus": ".claude/harvest-findings/raw_conversation/2026-06-02-0732-subscript-capture.md (1 transcript, this session)",
+  "counts": {
+    "verified": 2,
+    "contradicted": 1,
+    "unconfirmable": 1
+  },
+  "findings": [
+    {
+      "id": "capture-subscript-vs-string-builder-branches",
+      "claim": "In ptr_capture_formula the subscript/extraction ops (`[`, `[[`, `$`) are a SEPARATE branch from the string-builder ops (`paste`, `paste0`, `sprintf`, `c`, `vector`, \u2026) precisely because a subscript may resolve to a language object (a quoted formula picked out of a list/env) while a string-builder must resolve to a string.",
+      "detail": "Before 2026-06-02 both groups shared ONE branch that accepted only a string and aborted on anything else (\"got a language of length 3\"), which is why `ptr_ui(plots[[1]])` with `plots` holding `expr(...)` failed and required `!!plots[[1]]`. The fix split them: the `[`/`[[`/`$` branch now forces the value in `envir` and accepts a string OR a language value \u2014 the language case is assigned to `formula_captured` and falls through to the shared wrapper-unwrap + `expr_text(width=500L)` deparse, mirroring the bare-symbol path higher up. String-builders stayed string-only on purpose (a `c(...)` of exprs is not a single formula). A non-string/non-language subscript value (a number, or a single-bracket `[` yielding a sub-list) is still rejected. All four public entry points (ptr_app/ptr_server/ptr_ui/ptr_ui_controls) funnel through this one function, so the bare-subscript capability is uniform across them.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-app.R ptr_capture_formula (head_name dispatch)",
+      "verdict": "verified",
+      "verification": "On main@30fb935 the two branches are present and distinct: R/paintr-app.R:269 `else if (head_name %in% c(\"[\", \"[[\", \"$\"))` (accepts string OR language, falls through to deparse) and R/paintr-app.R:293 `else if (head_name %in% c(\"paste\", \"paste0\", ...))` (string-only). Stamp's line estimate ~L251-300 was approximate; actual L269/293.",
+      "checked_refs": [
+        "R/paintr-app.R:269",
+        "R/paintr-app.R:293"
+      ],
+      "verified_at_commit": "30fb93543b96841f0c3275a81643b82dbf76b9a2",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0732-subscript-capture.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "formula-capture"
+      ]
+    },
+    {
+      "id": "l2-shared-fixture-holds-strings-not-exprs",
+      "claim": "The l2-shared / l2-shared-partition e2e fixtures already call `ptr_ui(plots[[1]], \u2026)` bare, but their `plots` list holds STRING formulas, so that bare-subscript call always worked via the string branch \u2014 the e2e suite therefore does NOT exercise the expr-in-a-list subscript path that the 2026-06-02 fix added.",
+      "detail": "Consequence for coverage reasoning: a green l2-shared e2e proves the string-subscript path is intact, but the new language-subscript capability is grounded only by the unit/integration tests in test-ui-expression-input.R. The captured string for `plots[[1]]` (expr) is byte-identical to what `!!plots[[1]]` produces, and the `!!` path is e2e-covered, so runtime behavior is provably unchanged \u2014 but no browser test boots an expr-list directly.",
+      "scope": "durable",
+      "feature": "",
+      "source": "tests/testthat/fixtures/vignette-apps/l2-shared/app.R:36; tests/testthat/test-e2e-vignette-examples-shinytest2.R",
+      "verdict": "verified",
+      "verification": "l2-shared/app.R:36-39 `plots <- list(\"ggplot(iris, aes(x = ppMetric(shared = 'metric'), ...))\", ...)` \u2014 both elements are character strings, not exprs. grep confirms test-e2e-vignette-examples-shinytest2.R is the only test booting the l2-shared fixture. So bare ptr_ui(plots[[1]]) there hits the string return; the new language path is unexercised by e2e.",
+      "checked_refs": [
+        "tests/testthat/fixtures/vignette-apps/l2-shared/app.R:36-39",
+        "tests/testthat/test-e2e-vignette-examples-shinytest2.R"
+      ],
+      "verified_at_commit": "30fb93543b96841f0c3275a81643b82dbf76b9a2",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0732-subscript-capture.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "formula-capture",
+        "shinytest2-gotchas"
+      ]
+    },
+    {
+      "id": "shared-panel-global-state-breaks-html-equiv-tests",
+      "claim": "Byte-for-byte HTML equality between two ptr_ui builds that contain a `shared = \"...\"` placeholder is order-dependent within one R session and is an unreliable test oracle; test formula-capture equivalence by calling ptr_capture_formula directly (hand-written deparse oracle) or compare bare-vs-`!!` on a shared-free formula instead.",
+      "detail": "EMPIRICALLY OBSERVED this session: across two ptr_ui(...shared=...) calls in one process, the inline `ptr-shared-panel` block appeared in one build and not the other depending on call order, diverging the HTML independent of the formula. The actionable lesson (don't use shared-panel HTML equality as an oracle) is solid. UNVERIFIED part: the mechanism ('process-global state') was inferred, not traced, and the stamp cited a non-existent file `R/paintr-ui.R`. The shared panel is actually rendered out of R/paintr-shared-ui.R / R/paintr-region.R / R/paintr-shared-coordinator.R (grep on main@30fb935). Follow-up to upgrade to verified: trace which env/counter the inline shared section keys off and confirm it is process-global vs build-ordinal.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-shared-ui.R; R/paintr-region.R (shared-panel rendering); tests/testthat/test-ui-expression-input.R",
+      "verdict": "unconfirmable",
+      "verification": "Stamp's cited `R/paintr-ui.R` does not exist (no such file on main). Symptom (order-dependent shared-panel HTML) was reproduced live this session via Rscript probes, but the 'process-global state' mechanism was never traced to a specific symbol, so the causal claim is unconfirmed. Corrected the source to the real shared-panel files for the follow-up trace.",
+      "checked_refs": [
+        "R/paintr-shared-ui.R",
+        "R/paintr-region.R",
+        "R/paintr-shared-coordinator.R"
+      ],
+      "verified_at_commit": "30fb93543b96841f0c3275a81643b82dbf76b9a2",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0732-subscript-capture.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "shared-coordinator-partition",
+        "formula-capture"
+      ]
+    },
+    {
+      "id": "merge-into-dirty-main-surprise-commit-is-concurrent-session",
+      "claim": "CORRECTION of the original stamp: the surprise `chore(knowledge)` commit (310a8c4) that appeared as the first parent of the feature merge was NOT a git-hook auto-commit of the dirty tree \u2014 it was a CONCURRENT session's deliberate human-authored commit that advanced main's tip between the pre-merge inspection and the merge.",
+      "detail": "Original stamp claimed a `--no-ff` merge into a dirty main triggered a hook to auto-commit the uncommitted .claude/harvest-findings/* + symbol-lines.json as 310a8c4. That mechanism is FALSE: `git show -s 310a8c4` shows author==committer==willju-wangqian <wju@iastate.edu> at 2026-06-02 07:29:07 with a deliberate message; dev/githooks/pre-commit only `git add`s (symbol-lines regen), neither pre-commit nor post-merge runs `git commit`. So a concurrent Claude session (the parallel-sessions hazard) committed the harvest work itself, moving main 29571ac\u2192310a8c4, and the merge merely incorporated it as the first parent. Durable lesson (reframed): when working a feature in a worktree while another session works main, main's tip can advance under you; a surprising new commit in your merge's ancestry is likely the other session's, so inspect authorship before attributing it to tooling.",
+      "scope": "campaign",
+      "feature": "",
+      "source": "git: 310a8c4 (author/committer willju-wangqian 2026-06-02T07:29:07), merge 30fb935 parents [310a8c4, 72227f9]; dev/githooks/pre-commit, dev/githooks/post-merge",
+      "verdict": "contradicted",
+      "verification": "git show -s --format='%an %ae %ai / %cn %ce %ci' 310a8c4 \u2192 both author and committer are willju-wangqian <wju@iastate.edu> at 2026-06-02 07:29:07 (a normal human commit, not a hook). grep 'git commit' in dev/githooks/ finds none; pre-commit only stages symbol-lines.json. Hence the original 'hook auto-committed during merge' causal claim is contradicted; the real cause is a concurrent session committing main.",
+      "checked_refs": [
+        "dev/githooks/pre-commit",
+        "dev/githooks/post-merge"
+      ],
+      "verified_at_commit": "30fb93543b96841f0c3275a81643b82dbf76b9a2",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0732-subscript-capture.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "harness-tooling"
+      ]
+    }
+  ]
+}
