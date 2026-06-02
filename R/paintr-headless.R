@@ -59,7 +59,8 @@ ptr_exec_headless <- function(tree, snapshot,
 ptr_headless_upstream_cols <- function(tree, snapshot = list(),
                                        shared_bindings = list(),
                                        eval_env = parent.frame(),
-                                       expr_check = TRUE) {
+                                       expr_check = TRUE,
+                                       safe_to_remove = NULL) {
   out <- list()
   consumers <- find_nodes(tree, is_ptr_ph_data_consumer)
   for (node in consumers) {
@@ -71,6 +72,7 @@ ptr_headless_upstream_cols <- function(tree, snapshot = list(),
       eval_env = eval_env,
       cache = NULL,
       expr_check = expr_check,
+      safe_to_remove = safe_to_remove,
       stage_enabled = list()
     )
     if (!is.null(df)) out[[node$id]] <- names(df)
@@ -117,13 +119,15 @@ ptr_run_formula <- function(formula, inputs = list(), envir = parent.frame(),
   snapshot <- ptr_default_snapshot(spec, tree)
   if (length(inputs) > 0L) snapshot[names(inputs)] <- inputs
 
+  safe_to_remove <- validate_safe_to_remove(safe_to_remove)
   upstream_cols <- ptr_headless_upstream_cols(
-    tree, snapshot = snapshot, eval_env = envir, expr_check = expr_check
+    tree, snapshot = snapshot, eval_env = envir, expr_check = expr_check,
+    safe_to_remove = safe_to_remove
   )
   ptr_exec_headless(
     tree, snapshot,
     eval_env       = envir,
-    safe_to_remove = validate_safe_to_remove(safe_to_remove),
+    safe_to_remove = safe_to_remove,
     expr_check     = expr_check,
     upstream_cols  = upstream_cols
   )

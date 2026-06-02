@@ -191,3 +191,51 @@ test_that("matrix coerces to data frame", {
   expect_s3_class(result, "data.frame")
   expect_equal(names(result), c("a", "b", "c"))
 })
+
+# --- safe_to_remove must reach the upstream-resolution prune ----------------
+# Regression for the prune-policy divergence: the render prune
+# (`ptr_complete_expr_safe`) threaded `safe_to_remove`, but the upstream-data
+# prune here did not. A deselected consumer inside a non-default-set predicate
+# (`!is.na(ppVar(...))`) leaves a broken `is.na()` that errors on eval and
+# starves downstream pickers (NULL upstream). When the caller opts `is.na`
+# into `safe_to_remove`, the upstream prune must drop the whole `filter()`
+# stage just like the render prune does.
+
+test_that("safe_to_remove is honored in upstream resolution (deselected predicate)", {
+  # mtcars (32 rows) |> filter(!is.na(ppVar(cyl))) |> head(2)
+  # Deselect cyl (empty snapshot) -> ppVar(cyl) is missing. With is.na opted
+  # into safe_to_remove, is.na() prunes -> `!` propagates -> filter() drops,
+  # leaving `mtcars |> head(2)` = 2 rows.
+  tree <- ptr_translate(
+    "mtcars |> dplyr::filter(!is.na(ppVar(cyl))) |> head(2) |> ggplot()",
+    expr_check = FALSE
+  )
+  data_arg <- tree$layers[[1L]]$data_arg
+  result <- ptr_resolve_upstream(
+    data_arg,
+    snapshot = list(),                 # cyl deselected
+    eval_env = .test_env(),
+    safe_to_remove = "is.na"
+  )
+  expect_s3_class(result, "data.frame")
+  expect_equal(nrow(result), 2L)
+  expect_equal(names(result), names(mtcars))
+})
+
+test_that("without safe_to_remove the broken predicate still yields NULL upstream", {
+  # Default path (caller has NOT opted is.na in): is.na cannot be pruned by
+  # the default remove_set, so `filter(!is.na())` survives, errors on eval,
+  # and resolution returns NULL. Guards that the fix is opt-in, not a blanket
+  # behavior change.
+  tree <- ptr_translate(
+    "mtcars |> dplyr::filter(!is.na(ppVar(cyl))) |> head(2) |> ggplot()",
+    expr_check = FALSE
+  )
+  data_arg <- tree$layers[[1L]]$data_arg
+  result <- ptr_resolve_upstream(
+    data_arg,
+    snapshot = list(),
+    eval_env = .test_env()
+  )
+  expect_null(result)
+})

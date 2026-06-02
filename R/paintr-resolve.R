@@ -5,6 +5,15 @@
 # normalize reserved-word column names. Memoize by post-substitute expression
 # text when `cache` is supplied. Eval failures return NULL so the caller can
 # leave the snapshot untouched and surface an inline error elsewhere.
+#
+# `safe_to_remove` / `is_standalone` MUST mirror the render-path prune
+# (`ptr_complete_expr_safe`): the prune policy is a single invariant, so this
+# upstream-resolution prune has to apply the *same* extended remove-set and
+# standalone predicate. Omitting them here silently diverges the two prune
+# sites — e.g. a deselected consumer inside `!is.na(ppVar(...))` leaves a
+# broken `is.na()` that the render prune drops (via the caller's
+# `safe_to_remove`) but this prune kept, erroring on eval and starving every
+# downstream consumer's column scope.
 
 ptr_resolve_upstream <- function(subtree,
                                  snapshot = list(),
@@ -13,7 +22,9 @@ ptr_resolve_upstream <- function(subtree,
                                  cache = NULL,
                                  expr_check = TRUE,
                                  normalize_columns = TRUE,
-                                 stage_enabled = list()) {
+                                 stage_enabled = list(),
+                                 safe_to_remove = NULL,
+                                 is_standalone = NULL) {
   if (is.null(subtree)) return(NULL)
   if (!is_ptr_node(subtree)) {
     rlang::abort("`subtree` must be a typed AST node or NULL.")
@@ -27,7 +38,8 @@ ptr_resolve_upstream <- function(subtree,
     shared_bindings = shared_bindings,
     eval_env = eval_env
   )
-  pruned <- ptr_prune(subbed)
+  pruned <- ptr_prune(subbed, safe_to_remove = safe_to_remove,
+                      is_standalone = is_standalone)
   if (is_ptr_missing(pruned)) return(NULL)
 
   expr <- node_to_lang(pruned)

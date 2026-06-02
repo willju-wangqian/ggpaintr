@@ -2080,6 +2080,7 @@ runtime_upstream_data <- function(state, snapshot = list()) {
             eval_env = state$eval_env,
             cache = NULL,
             expr_check = state$expr_check,
+            safe_to_remove = state$safe_to_remove,
             stage_enabled = list()
           )
           if (!is.null(df)) out[[c$id]] <- list(cols = names(df), data = df)
@@ -2114,6 +2115,7 @@ runtime_upstream_data <- function(state, snapshot = list()) {
         eval_env = state$eval_env,
         cache = state$upstream_cache,
         expr_check = state$expr_check,
+        safe_to_remove = state$safe_to_remove,
         stage_enabled = stage_enabled
       ),
       ptr_partial_input = function(e) NULL
@@ -2885,6 +2887,7 @@ ptr_setup_consumer_uis <- function(state, input, output, session) {
             eval_env = state$eval_env,
             cache = state$upstream_cache,
             expr_check = state$expr_check,
+            safe_to_remove = state$safe_to_remove,
             stage_enabled = shiny::isolate(state$stage_enabled())
           ),
           ptr_partial_input = function(e) {
@@ -3253,6 +3256,7 @@ ptr_bind_shared_consumer_uis <- function(output, input, ns,
             eval_env = use_env,
             cache = NULL,
             expr_check = expr_check,
+            safe_to_remove = state$safe_to_remove,
             stage_enabled = list()
           ),
           error = function(e) NULL
