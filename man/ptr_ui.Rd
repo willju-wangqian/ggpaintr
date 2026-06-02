@@ -19,10 +19,12 @@ ptr_ui(
 expression with \code{ggpaintr} placeholders, or an unquoted ggplot
 expression supplied directly (the primary form). Captured with
 \code{\link[rlang:defusing-advanced]{rlang::enexpr()}} exactly as \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_server]{ptr_server()}}, so a
-formula stored in a variable via \code{\link[rlang:expr]{rlang::expr()}} is spliced in with
-\verb{!!}: \verb{f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")}. See
-\code{\link[=ptr_app]{ptr_app()}} for the full contract (symbol resolution, wrapper unwrap,
-native-pipe caveat).}
+formula stored in a variable via \code{\link[rlang:expr]{rlang::expr()}} can be passed by its
+bare symbol (\verb{f <- rlang::expr(ggplot(...)); ptr_ui(f, "id")}) or
+spliced with \verb{!!} (\code{ptr_ui(!!f, "id")}); a subscripted/extracted
+element resolves bare too (\code{ptr_ui(plots[[1]], "id")}, \code{holder$body}).
+See \code{\link[=ptr_app]{ptr_app()}} for the full contract (symbol resolution, wrapper
+unwrap, native-pipe caveat).}
 
 \item{id}{Optional module id; the namespace prefix for inputs and outputs.
 Defaults to \code{NULL} (identity namespace, single-instance use).}
