@@ -13,12 +13,12 @@
       "feature": "",
       "source": "R/paintr-server.R:2277 (ptr_setup_source_uis); :2639 (ptr_setup_consumer_uis); :2890 (ptr_bind_shared_consumer_uis); R/paintr-shared-ui.R:482 (ptr_setup_panel_sources)",
       "verdict": "verified",
-      "verification": "Same structural fact as two-parallel-source-handling-paths, re-confirmed: ptr_setup_source_uis + ptr_setup_consumer_uis (single-instance, real state) and ptr_setup_panel_sources + ptr_bind_shared_consumer_uis (shared coordinator) all exist as named symbols across R/paintr-server.R and R/paintr-shared-ui.R. Host scope state=NULL (ADR 0006) is reflected by the is.null(state) branching and the 'bn always \"\"' host comment at server.R:2629. Claim holds; line numbers drifted.",
+      "verification": "All four named symbols still exist: R/paintr-server.R defines ptr_setup_source_uis (2306), ptr_setup_consumer_uis (2682), ptr_bind_shared_consumer_uis (2972); R/paintr-shared-ui.R defines ptr_setup_panel_sources (513). The two parallel paths are intact: single-instance (ptr_setup_source_uis + ptr_setup_consumer_uis, real state) vs shared-coordinator (ptr_setup_panel_sources + ptr_bind_shared_consumer_uis). Host scope state=NULL (ADR 0006) is reflected by the is.null(state) branching in consumer_upstream_source_state (server.R:2639) and ptr_bind_shared_consumer_uis (3139, 3189, 3322). The additive safe_to_remove threading (server.R:3259) did not disturb the topology. Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R ptr_setup_source_uis",
-        "R/paintr-server.R ptr_setup_consumer_uis",
-        "R/paintr-server.R ptr_bind_shared_consumer_uis",
-        "R/paintr-shared-ui.R ptr_setup_panel_sources"
+        "R/paintr-server.R::ptr_setup_source_uis",
+        "R/paintr-server.R::ptr_setup_consumer_uis",
+        "R/paintr-server.R::ptr_bind_shared_consumer_uis",
+        "R/paintr-shared-ui.R::ptr_setup_panel_sources"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -27,7 +27,14 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "resolved_refs": [
+        "R/paintr-server.R:2306-2455 (ptr_setup_source_uis)",
+        "R/paintr-server.R:2682-2960 (ptr_setup_consumer_uis)",
+        "R/paintr-server.R:2972-3377 (ptr_bind_shared_consumer_uis)",
+        "R/paintr-shared-ui.R:513-727 (ptr_setup_panel_sources)"
+      ],
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "shared-host-consumer-binder-dual-mode",
@@ -37,9 +44,9 @@
       "feature": "",
       "source": "R/paintr-server.R:2890-3283 (ptr_bind_shared_consumer_uis)",
       "verdict": "verified",
-      "verification": "ptr_bind_shared_consumer_uis exists in R/paintr-server.R and runs in both modes from one body: the has_rendered latch + consumer_seed_decision are used in two parallel loops (lines 2932/2944 and 3337/3350), and the host-vs-per-instance behaviour is gated on is.null(state) (host comment at 2629, 3021). The claim that 'any change must be gated on is.null(state)' matches the present structure. The specific ab4b6dd latch commit hash is historical provenance, not a source line. Claim holds; line numbers drifted.",
+      "verification": "ptr_bind_shared_consumer_uis (R/paintr-server.R:2972) still runs both modes from one body with state=NULL as the default arg (signature line 2979). The has_rendered latch (3014) + consumer_seed_decision (3341) run in the single per-key local() loop, and the host-vs-per-instance behaviour is gated on is.null(state) at multiple points (3139, 3189, 3283, 3322). The item-#7 host-scope latch block (cleared_for_identity at 3032, last_user_supplied at 3033, and the held_clear logic at 3322-3338) is wholly wrapped in if (is.null(state)). The claim that 'any change must be gated on is.null(state)' matches the present structure. The ab4b6dd hash is historical provenance. Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R ptr_bind_shared_consumer_uis"
+        "R/paintr-server.R::ptr_bind_shared_consumer_uis"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -48,7 +55,11 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "resolved_refs": [
+        "R/paintr-server.R:2972-3377 (ptr_bind_shared_consumer_uis)"
+      ],
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "consumer-identity-bound-name-blind-at-host",
@@ -56,12 +67,12 @@
       "detail": "bn = tryCatch({ r <- state$bound_names[[sid]]; ... r() }, error=\"\"); NULL$bound_names -> NULL[[sid]] -> NULL -> bn \"\". Root cause of both the double-render revert and the env-rename iceberg.",
       "scope": "durable",
       "feature": "",
-      "source": "R/paintr-server.R:2540-2592 (consumer_upstream_source_state)",
+      "source": "R/paintr-server.R:2542-2594 (consumer_upstream_source_state)",
       "verdict": "verified",
       "verification": "Confirmed in R/paintr-server.R: the consumer identity builder reads state$bound_names[[sid]] with the sid->layer_name fallback (2604, 2618-2619) and the host-scope branch documents 'bn always \"\" -- no state$bound_names to read AND an env shortcut...' at line 2629, i.e. bound-name-blind at host scope and the identity is extended with the shortcut value (ADR 0026) precisely so an env->env rename flips it. This is the exact mechanism the claim describes. Line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R:2604",
-        "R/paintr-server.R:2618-2629"
+        "R/paintr-server.R:2606",
+        "R/paintr-server.R:2620-2631"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -70,7 +81,8 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "host-upload-double-render-reverts-consumer-clear",
@@ -80,10 +92,11 @@
       "feature": "ppupload-7-host-shared",
       "source": "R/paintr-server.R:2616-2622 (consumer_clear_for_new_source); :2481-2523 (consumer_seed_decision); dev/scratch/ppupload7-probes/README.md",
       "verdict": "verified",
-      "verification": "The host-scope cleared_for_identity/held_clear latch region and the consumer-clear-on-new-source edge logic are present in R/paintr-server.R (has_rendered closure-flag region comment at 3111; consumer-binding loop at 3337/3350; host 'bn always \"\"' stability comment at 3021). consumer_seed_decision (2508) and the seed_landed gate (2557-2563) exist. The claim that the latch re-asserts the clear on the upload's trailing render (iceberg fixed) is consistent with the present source; the runtime beat-2 behaviour was probe-observed in-session per the finding. Static path confirmed; line numbers drifted.",
+      "verification": "Confirmed in current source: the host-scope held_clear latch is live at R/paintr-server.R:3322-3338, wrapped in if (is.null(state)). held_clear re-asserts the clear on the trailing render when cleared_for_identity matches the (bound-name-blind, bn='') src_state$identity and current is still non-empty (3325-3327), then folds into clear_for_new_source (3335). consumer_clear_for_new_source (2674) supplies the base 'changed_since_last' / 'first_render_on_upload' edges, and consumer_seed_decision (2510) honours clear_for_new_source. Single-instance immunity holds because state!=NULL makes bn populate so the identity already flips across beats (the host identity-stability comment at 3023-3029 documents exactly this). The earlier 'beat-2 reverts the clear' iceberg is fixed. The dev/scratch/ppupload7-probes runtime observation is in-session provenance, not a source line. Static path confirmed; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R consumer_seed_decision",
-        "R/paintr-server.R ptr_bind_shared_consumer_uis"
+        "R/paintr-server.R::consumer_clear_for_new_source",
+        "R/paintr-server.R::consumer_seed_decision",
+        "R/paintr-server.R::ptr_bind_shared_consumer_uis"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
       "origin_status": "derived-unverified",
@@ -93,7 +106,13 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "resolved_refs": [
+        "R/paintr-server.R:2674-2680 (consumer_clear_for_new_source)",
+        "R/paintr-server.R:2510-2567 (consumer_seed_decision)",
+        "R/paintr-server.R:2972-3377 (ptr_bind_shared_consumer_uis)"
+      ],
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "host-env-rename-never-clears-iceberg",
@@ -101,11 +120,11 @@
       "detail": "The ab4b6dd latch cannot help (it only re-asserts an existing clear; base_clear never trips). Real fix = plan's optional bound_name_for= param on consumer_upstream_source_state (skipped). Confirm with a host env->env-rename e2e using a column in BOTH frames (body_mass_g) — unique columns are auto-dropped by selectInput (false green).",
       "scope": "campaign",
       "feature": "ppupload-7-host-shared",
-      "source": "R/paintr-server.R:2540-2592 (consumer_upstream_source_state); :2616-2622 (consumer_clear_for_new_source)",
+      "source": "R/paintr-server.R:2542-2594 (consumer_upstream_source_state); :2616-2622 (consumer_clear_for_new_source)",
       "verdict": "verified",
       "verification": "Confirmed directly at R/paintr-server.R:2629: the host-scope branch comment states 'bn always \"\" -- no state$bound_names to read AND an env shortcut' — the consumer identity appends the shortcut value only at host scope (is.null(state)) so an env->env rename flips identity and the changed-since-last clear fires, while single-instance keeps sid#dp#bn byte-identical because bn already flips there. This is the ADR-0026 fix the claim describes (iceberg closed). The cited test tests/testthat/test-adr26-host-env-rename-clear.R exists (confirmed in tests/testthat listing). Claim holds; line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R:2604-2629",
+        "R/paintr-server.R:2606-2631",
         "tests/testthat/test-adr26-host-env-rename-clear.R"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-0040-host-shared-source-reset.md",
@@ -116,7 +135,8 @@
         "ppupload-mechanics"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "resolve-upload-source-file-reset-arg",

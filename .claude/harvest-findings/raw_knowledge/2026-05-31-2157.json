@@ -168,20 +168,22 @@
       "source": "R/paintr-builtins.R:332-374 (ptr_register_builtins via ptr_define_placeholder_*); verified live via ptr_registry_lookup()",
       "tags": "formula-translate-render",
       "verdict": "verified",
-      "verification": "R/paintr-builtins.R ptr_register_builtins: ppText (line 332) / ppNum (342) / ppExpr (349) via ptr_define_placeholder_value -> role 'value'; ppVar (356) via ptr_define_placeholder_consumer -> role 'consumer'; ppUpload (367) via ptr_define_placeholder_source -> role 'source'; ppLayerOff/ppVerbSwitch (380-381) via ptr_register_structural_keyword, which sets entry$role='structural' (R/paintr-registry.R:927-928). A custom source via ptr_define_placeholder_source() passes role='source' into ptr_define_core (entry$role set line 410). Roles are assigned programmatically (not grep-able literals in builtins), matching the detail. Claim holds; the cited 332-374 range still covers value/consumer/source registrations.",
+      "verification": "Re-verified @ HEAD 29571ac80afa. ptr_register_builtins (R/paintr-builtins.R:310-393) wires the same keyword->role mappings the finding claims: ppText (332), ppNum (342), ppExpr (349) via ptr_define_placeholder_value; ppVar (356) via ptr_define_placeholder_consumer; ppUpload (367) via ptr_define_placeholder_source; ppLayerOff/ppVerbSwitch (380-381) via ptr_register_structural_keyword. The three public constructors fix the role positionally in their ptr_define_core() call: value (R/paintr-registry.R:617 'value'), consumer (740 'consumer'), source (899 'source'). ptr_register_structural_keyword (924) hard-sets entry$role='structural' (939). A custom source via ptr_define_placeholder_source() therefore also gets role='source'. The detail (roles set programmatically by the wrapper, not grep-able string literals at the registration sites) still holds. The ADR 0027 rename that triggered the stale flag changed only ARGUMENT names inside these calls (validate_input->validate_session_input at builtins.R:360, positional_arg->parse_positional_arg at 336/346/353/361/372, ptr_arg_string_vector->ptr_arg_string at 336) — the finding references none of those arg names; it asserts only keyword->role mappings, which are unchanged. Claim and detail both hold; kill test passes (role tokens are assigned programmatically and are not grep-able literals, so a fresh session still saves the live-registry-enumeration discovery effort).",
       "checked_refs": [
         "R/paintr-builtins.R::ptr_register_builtins",
+        "R/paintr-registry.R::ptr_define_core",
         "R/paintr-registry.R::ptr_register_structural_keyword"
       ],
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-formula-translate-render.md",
       "origin_status": "derived-unverified",
       "resolved_refs": [
         "R/paintr-builtins.R:310-393 (ptr_register_builtins)",
-        "R/paintr-registry.R:913-933 (ptr_register_structural_keyword)"
+        "R/paintr-registry.R:355-424 (ptr_define_core)",
+        "R/paintr-registry.R:924-944 (ptr_register_structural_keyword)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598",
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "labels": [
         "placeholder-keywords",
         "placeholder-registry-api"

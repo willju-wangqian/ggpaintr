@@ -1,0 +1,217 @@
+{
+  "harvested_at": "2026-06-02T07:05",
+  "corpus": ".claude/harvest-findings/raw_conversation/ (1 transcript: 2026-06-02-0705-placeholder-prune-policy.md)",
+  "counts": {
+    "verified": 9,
+    "contradicted": 0,
+    "unconfirmable": 0
+  },
+  "findings": [
+    {
+      "id": "dplyr-autoname-leaks-placeholder-call-text",
+      "claim": "In plain-R use, a placeholder's \"usable outside Shiny\" promise is VALUE-equivalence only (`ppVar(x)` is the identity, returns `x`); it does NOT cover dplyr auto-naming, which derives column names from `rlang::as_label()` of the source text at quote-time (before `ppVar` runs), so `group_by(ppVar(continent))` yields a column literally named `ppVar(continent)`.",
+      "detail": "Cannot be fixed in `ppVar`'s body (the leak is syntactic, and dplyr ignores value-level `names()`). Workarounds are call-site only: explicit `name = ppVar(col)`, or strip after with `rename_with(~ sub(\"^pp[A-Za-z]+\\\\((.*)\\\\)$\",\"\\\\1\",.x))`. A product fix would be an exported name-strip helper, not a smarter `ppVar`.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-builtins.R:397 (ppVar <- function(x=NULL,...) x); R/paintr-builtins.R:280 (value-equivalence doc)",
+      "verdict": "verified",
+      "verification": "builtins.R:397 `ppVar <- function(x=NULL,...) x` (identity); dplyr derives column names from rlang::as_label(expr) at quote-time, before ppVar runs, so the call text leaks. Confirmed rename_with strip + explicit name= are the only fixes; value-level names() ignored by dplyr.",
+      "checked_refs": [
+        "R/paintr-builtins.R:397",
+        "R/paintr-builtins.R:280"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "r-language-gotchas",
+        "placeholder-keywords"
+      ]
+    },
+    {
+      "id": "empty-call-prune-gated-on-remove-set",
+      "claim": "A 0-argument call is pruned to `ptr_missing` only when its name is in `remove_set` = `default_drop_when_empty()` \u222a user `safe_to_remove`; `default_drop_when_empty()` is library data-verbs ONLY (ggplot2/dplyr/tidyr/tibble/pillar/purrr/stringr/forcats/lubridate/hms), so base predicates like `is.na` are NOT pruned by default \u2014 you opt them in via the public `safe_to_remove` arg.",
+      "detail": "This is why \"we prune empty calls\" is true but didn't help `is.na()`: empty-call pruning is name-gated, and `is.na \u2209` the default set. `safe_to_remove = \"is.na\"` makes `is.na()` prune \u2192 `!` propagates \u2192 `filter` drops.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-prune.R:101-105; R/paintr-utils.R:211 (default_drop_when_empty)",
+      "verdict": "verified",
+      "verification": "prune.R:101-105 prunes a 0-arg call only when its name is in remove_set; utils.R:211 default_drop_when_empty is library data-verbs only. Confirmed safe_to_remove='is.na' flips is.na() to pruned.",
+      "checked_refs": [
+        "R/paintr-prune.R:101-105",
+        "R/paintr-utils.R:211"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "prune-and-trim"
+      ]
+    },
+    {
+      "id": "enexpr-consumes-injection-operators",
+      "claim": "Because the public boundary functions capture the formula with `rlang::enexpr()`, any `!!`/`!!!` injection operator on a placeholder is processed AT CAPTURE \u2014 the placeholder call is evaluated (its embellish identity returns the bareword value) and spliced to literals, so the placeholder node never reaches substitution/UI and silently gets no widget.",
+      "detail": "e.g. `between(year, !!!ppRange(c(1957,2007)))` captures as `between(year, 1957, 2007)` \u2014 `ppRange` is gone. Symptom: \"custom placeholder UI not rendered.\" Rule: never apply `!!`/`!!!` to a placeholder inside a ggpaintr formula; it must survive capture as a bare call node. (Same reason a standalone `expr()`/`enexpr()` of such a formula errors \"could not find function ppRange\" when the fn isn't defined yet.)",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-app.R:141; R/paintr-app.R:196 (ptr_capture_formula)",
+      "verdict": "verified",
+      "verification": "app.R:141 captures via rlang::enexpr(formula); enexpr runs !!/!!! at capture-time, evaluating the placeholder (identity) and splicing literals. Reproduced this session: capture of `!!!ppRange(c(1957,2007))` yields `between(year,1957,2007)` with the ppRange node gone.",
+      "checked_refs": [
+        "R/paintr-app.R:141",
+        "R/paintr-app.R:196"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "formula-capture",
+        "placeholder-keywords"
+      ]
+    },
+    {
+      "id": "positional-arg-is-seeding-channel",
+      "claim": "A placeholder's POSITIONAL argument is the widget-seeding channel \u2014 it flows `node$default` \u2192 `state$spec_seed[[id]]` \u2192 `build_ui`'s `selected` \u2014 so it cannot be repurposed to carry non-seed data (e.g. a column symbol); pass auxiliary params via NAMED args (`node$named_args`), which is never written to spec_seed.",
+      "detail": "For a CUSTOM keyword the spec_seed write hits no type-coercion branch, so a positional column symbol passes through unchanged into `selected`, and `build_ui`'s `as.numeric(selected)` errors on a symbol (suppressWarnings does NOT catch errors) \u2192 control never renders. Correct pattern for \"placeholder needs a column arg\": `parse_named_args = list(col = ptr_arg_symbol())`, read `node$named_args$col` in resolve_expr; positional stays empty so seeding has nothing to coerce.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-translate.R:964 (default <- entry$default_arg(positional[[1]])); R/paintr-server.R:630-665 (spec_seed write); R/paintr-build-ui.R:47-64 (selected from spec_seed)",
+      "verdict": "verified",
+      "verification": "translate.R:964 `default <- entry$default_arg(positional[[1L]])`; the default feeds state$spec_seed -> build_ui_for.ptr_ph_value (build-ui.R:47, seeds `selected` from spec_seed). Confirmed a positional column symbol flows into `selected` and build_ui's as.numeric(symbol) errors; named_args is the non-seed channel.",
+      "checked_refs": [
+        "R/paintr-translate.R:964",
+        "R/paintr-build-ui.R:47-64",
+        "R/paintr-server.R:630-665"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "custom-placeholder-authoring",
+        "placeholder-keywords"
+      ]
+    },
+    {
+      "id": "prune-policy-must-thread-both-sites",
+      "claim": "The prune policy (`safe_to_remove`, `is_standalone`) MUST be threaded identically into BOTH prune sites \u2014 render (`ptr_complete_expr_safe`) and upstream-data (`ptr_resolve_upstream`) \u2014 or consumer column-scoping silently diverges from the rendered plot; the render path threaded `safe_to_remove`, the upstream path did not (bug fixed 2026-06-02, commit 12d236f).",
+      "detail": "Symptom: `safe_to_remove=\"is.na\"` fixed the plot render (filter dropped) but left the upstream eval choking on `is.na()` \u2192 NULL \u2192 empty downstream pickers. `ptr_run_formula` (headless) had the same divergence (threaded to render, not to `ptr_headless_upstream_cols`). Fix is behavior-preserving on the default path (empty `safe_to_remove` \u2192 identical pruning); `is_standalone` left NULL at every caller, mirroring the render path. Two `ptr_prune()` call sites total, no `prune_walk()` bypass \u2014 the surface is fully enumerable.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-resolve.R:ptr_resolve_upstream; R/paintr-safe.R:34 (ptr_complete_expr_safe); R/paintr-server.R (4 resolve_upstream sites); R/paintr-headless.R:ptr_run_formula",
+      "verdict": "verified",
+      "verification": "Render path safe.R:36 threads safe_to_remove into ptr_prune; upstream resolve.R:41 now forwards safe_to_remove+is_standalone (fixed commit 12d236f); server.R threads state$safe_to_remove at 2083/2118/2890/3259; headless ptr_run_formula/ptr_headless_upstream_cols threaded. Full suite green (PASS 3638/FAIL 0).",
+      "checked_refs": [
+        "R/paintr-resolve.R:26",
+        "R/paintr-resolve.R:41",
+        "R/paintr-safe.R:36",
+        "R/paintr-server.R:2083",
+        "R/paintr-server.R:2118",
+        "R/paintr-server.R:2890",
+        "R/paintr-server.R:3259",
+        "R/paintr-headless.R:63-75",
+        "R/paintr-headless.R:122-130"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "prune-and-trim",
+        "source-binding-runtime"
+      ]
+    },
+    {
+      "id": "pruneable-operators-only-propagate-missing",
+      "claim": "Missingness propagates UP a call tree only through `pruneable_operator_names` (symbolic operators only: arith, comparison, `&`/`|`, `:`, `%in%`, `~`, `!`); for any NAMED function call a missing argument is instead DROPPED, and the call becomes missing only if it ends 0-arg AND its name is in `remove_set`.",
+      "detail": "So `is.na(ppVar(sex))` with ppVar missing collapses to `is.na()` (a NON-missing empty call), which keeps the enclosing `!` and `filter` alive (renders the broken `filter(!is.na())`). Trims that route the placeholder through an operator (`ppVar(sex)==\"male\"`) or make it a verb's DIRECT arg (`filter(ppNotNA(sex))`) prune cleanly; wrapping it in a non-operator predicate does not.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-prune.R:83-108 (prune_walk.ptr_call); R/paintr-utils.R:468 (pruneable_operator_names)",
+      "verdict": "verified",
+      "verification": "prune.R:89-96 operator branch returns ptr_missing if any arg missing; :97-106 else-branch drops missing args and only escalates a 0-arg call. utils.R:468 pruneable_operator_names is symbolic operators only (no named fns). Confirmed is.na(missing)->is.na() kept via prune probe.",
+      "checked_refs": [
+        "R/paintr-prune.R:83-108",
+        "R/paintr-utils.R:468-473"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "prune-and-trim"
+      ]
+    },
+    {
+      "id": "ptr-arg-symbol-returns-string",
+      "claim": "`ptr_arg_symbol()` validates that the arg is a symbol but RETURNS `rlang::as_string(el)` \u2014 a character string, not a symbol \u2014 so a `resolve_expr` that wants to splice it as a bare column reference must convert back with `rlang::sym()`, else it injects a string literal (`\"year\" >= 1957`, the wrong comparison).",
+      "detail": "",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-default-args.R:271-288 (ptr_arg_symbol)",
+      "verdict": "verified",
+      "verification": "default-args.R:274 `return(rlang::as_string(el))` inside ptr_arg_symbol's element validator \u2014 returns a string. Confirmed resolve produced `\"year\" >= 1957` until rlang::sym() was applied.",
+      "checked_refs": [
+        "R/paintr-default-args.R:271-288"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "placeholder-registry-api",
+        "custom-placeholder-authoring"
+      ]
+    },
+    {
+      "id": "ptr-resolve-upstream-feeds-consumer-column-scope",
+      "claim": "`ptr_resolve_upstream()` is the per-position path that substitutes+prunes+EVALS a data subtree to a data frame purely to populate downstream consumers' (var pickers') column choices; an eval failure returns NULL (its `tryCatch`), and a NULL upstream starves every downstream picker (renders to nothing).",
+      "detail": "Distinct from the plot-render path (`ptr_complete_expr_safe`, R/paintr-safe.R). Called at server.R 2076 (shared host resolution), 2110 (per-position consumer cols), 2881 (renderUI picker), 3249 (panel source replacement), plus headless `ptr_headless_upstream_cols`. A broken upstream stage (e.g. `filter(!is.na())`) erroring here is why deselecting a consumer can blank UNRELATED downstream pickers.",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-resolve.R:9 (ptr_resolve_upstream); R/paintr-server.R:2076,2110,2881,3249",
+      "verdict": "verified",
+      "verification": "resolve.R:9 substitutes+prunes+evals a subtree to a data frame (NULL on eval error via tryCatch); server.R per-position consumer-scope callers at 2076/2111/2883/3252.",
+      "checked_refs": [
+        "R/paintr-resolve.R:9-48",
+        "R/paintr-server.R:2076",
+        "R/paintr-server.R:2111",
+        "R/paintr-server.R:2883",
+        "R/paintr-server.R:3252"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "source-binding-runtime",
+        "prune-and-trim"
+      ]
+    },
+    {
+      "id": "substitution-one-slot-one-node",
+      "claim": "Placeholder substitution is strictly one-slot\u2192one-node: `substitute_walk.ptr_call` replaces each argument position with exactly one substituted node, and `ptr_ph_value` wraps `resolve_expr`'s return in a single `ptr_literal` \u2014 there is no splice, so a placeholder cannot fan out into multiple sibling arguments of its parent call.",
+      "detail": "Consequence: `filter(between(year, ppRange()))` can never work if ppRange is meant to fill both `left` and `right` \u2014 resolve_expr returning `c(lo,hi)` is ONE object in ONE slot \u2192 `between(year, c(lo,hi))` (right missing \u2192 error). Workarounds: make the single node resolve to the whole expression (e.g. `filter(ppRange(col))` \u2192 `col>=lo & col<=hi`), or consume the vector via a helper `in_range(year, ppRange())`. Splicing is exactly what `!!!` would do, and that's consumed at capture (see [[enexpr-consumes-injection-operators]]).",
+      "scope": "durable",
+      "feature": "",
+      "source": "R/paintr-substitute.R:60 (substitute_walk.ptr_call); R/paintr-substitute.R:90-128 (substitute_walk.ptr_ph_value)",
+      "verdict": "verified",
+      "verification": "substitute.R:59 substitute_walk.ptr_call rewrites each arg position to exactly one node; :128 wraps resolve_expr's return in a single ptr_literal. No splice path exists.",
+      "checked_refs": [
+        "R/paintr-substitute.R:59",
+        "R/paintr-substitute.R:128"
+      ],
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "status": "fresh",
+      "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-06-02-0705-placeholder-prune-policy.md",
+      "origin_status": "derived-unverified",
+      "labels": [
+        "translate-pipeline",
+        "custom-placeholder-authoring"
+      ]
+    }
+  ]
+}

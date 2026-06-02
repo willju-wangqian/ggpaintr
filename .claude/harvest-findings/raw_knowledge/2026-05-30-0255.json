@@ -12,13 +12,13 @@
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
-      "source": "R/paintr-server.R:2819-2868 (ptr_setup_consumer_uis renderUI); R/paintr-server.R:2482-2524 (consumer_seed_decision); R/paintr-server.R:2478-2480 (boot_seed_selected); R/paintr-build-ui.R:867-881 (invoke_build_ui); R/paintr-builtins.R:188 (intersect)",
+      "source": "R/paintr-server.R:2821-2870 (ptr_setup_consumer_uis renderUI); R/paintr-server.R:2484-2526 (consumer_seed_decision); R/paintr-server.R:2480-2482 (boot_seed_selected); R/paintr-build-ui.R:867-881 (invoke_build_ui); R/paintr-builtins.R:188 (intersect)",
       "verdict": "verified",
       "verification": "Read ptr_setup_consumer_uis renderUI (R/paintr-server.R 2897-2946): pipeline is exactly current=isolate(input[[ns(raw_id)]]) (2904), seed=isolate(state$spec_seed[[raw_id]]) (2910), clear_for_new_source via consumer_clear_for_new_source (2927), consumer_seed_decision(has_rendered,seed,current,node$default,cols,clear) (2932), extra$selected set ONLY if !is.null(dec$selected) (2936), invoke_build_ui (2937), has_rendered<<-TRUE iff dec$mark_rendered (2944). consumer_seed_decision (2508-2565) returns selected via boot_seed_selected and mark_rendered. ptr_builtin_var_build_ui keeps intersect(selected,cols) (R/paintr-builtins.R:188). All as claimed; per-picker latches has_rendered/last_src_identity/src_seen present (2700-2706).",
       "checked_refs": [
-        "R/paintr-server.R:2897-2946 (ptr_setup_consumer_uis renderUI)",
-        "R/paintr-server.R:2508-2565 (consumer_seed_decision)",
-        "R/paintr-server.R:2504-2506 (boot_seed_selected)",
+        "R/paintr-server.R:2900-2949 (ptr_setup_consumer_uis renderUI)",
+        "R/paintr-server.R:2510-2567 (consumer_seed_decision)",
+        "R/paintr-server.R:2506-2508 (boot_seed_selected)",
         "R/paintr-build-ui.R:816-878 (invoke_build_ui)",
         "R/paintr-builtins.R:188 (intersect)"
       ],
@@ -27,7 +27,8 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "consumer-renderui-isolate-is-load-bearing",
@@ -36,18 +37,19 @@
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
-      "source": "R/paintr-server.R:2841 (current <- shiny::isolate(input[[ns(raw_id)]])); AppDriver experiment 2026-05-30",
+      "source": "R/paintr-server.R:2843 (current <- shiny::isolate(input[[ns(raw_id)]])); AppDriver experiment 2026-05-30",
       "verdict": "verified",
       "verification": "Confirmed the structural premise in current source: R/paintr-server.R:2904 still reads `current <- shiny::isolate(input[[ns(raw_id)]])` inside the renderUI, and the renderUI rebuilds the full pickerInput each render (invoke_build_ui -> shinyWidgets::pickerInput, R/paintr-build-ui.R:875 / R/paintr-builtins.R:190). So dropping the isolate would make the renderUI take a reactive dep on its own freshly-emitted widget value -> rebuild loop, exactly as claimed. The empirical AppDriver infinite-loop result (2026-05-30) is not re-runnable here but the code invariant it rests on holds.",
       "checked_refs": [
-        "R/paintr-server.R:2904 (current <- shiny::isolate(input[[ns(raw_id)]]))"
+        "R/paintr-server.R:2907 (current <- shiny::isolate(input[[ns(raw_id)]]))"
       ],
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "consumer-seed-decision-seed-landed-gate",
@@ -56,7 +58,7 @@
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
-      "source": "R/paintr-server.R:2482-2524 (consumer_seed_decision); tests/testthat/test-spec-seed-boot-only.R Seam 1d; commit 4e6ee04",
+      "source": "R/paintr-server.R:2484-2526 (consumer_seed_decision); tests/testthat/test-spec-seed-boot-only.R Seam 1d; commit 4e6ee04",
       "verdict": "verified",
       "verification": "Read consumer_seed_decision (R/paintr-server.R:2507-2564, include_body) — fully matches. The has_rendered latch flip (mark_rendered) gates on `seed_landed || default_landed || valid_current` (NOT the old blanket !is.null(selected)). seed_landed = !is.null(seed) && (length(seed)==0L || all(as.character(seed) %in% cols)) — symmetric to default_landed, with an empty seed landing trivially. valid_current is factored out and used in mark_rendered so a never-landing/typo seed cannot trap the picker; user_pick = !has_rendered && is.null(seed) && valid_current preserves boot-only seed precedence (seed wins selected at first render). tests/testthat/test-spec-seed-boot-only.R has the Seam 1d (DERIVED-column seed) and Seam 1c (non-landing default) blocks calling ggpaintr:::consumer_seed_decision. Claim + detail hold verbatim; body is at 2507-2564 (finding cited 2508-2565 — off by one line, immaterial).",
       "checked_refs": [
@@ -68,12 +70,13 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "resolved_refs": [
-        "R/paintr-server.R:2508-2565 (consumer_seed_decision)",
+        "R/paintr-server.R:2510-2567 (consumer_seed_decision)",
         "tests/testthat/test-spec-seed-boot-only.R:178 (anchor)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "derived-column-seed-stage-toggle-race",
@@ -82,19 +85,20 @@
       "scope": "durable",
       "feature": "",
       "tags": "derived-column-seed-boot",
-      "source": "R/paintr-server.R:2726-2742 (entry_reactive deps incl state$stage_enabled()); R/paintr-server.R:683-695 (apply_spec_at_boot onFlushed dispatch of stage/checkbox); R/paintr-server.R:2841 (current isolate)",
+      "source": "R/paintr-server.R:2728-2744 (entry_reactive deps incl state$stage_enabled()); R/paintr-server.R:683-695 (apply_spec_at_boot onFlushed dispatch of stage/checkbox); R/paintr-server.R:2843 (current isolate)",
       "verdict": "verified",
       "verification": "entry_reactive deps include state$stage_enabled() (R/paintr-server.R:2795) and current is read via isolate at 2904 -- the two halves of the race. The stage-toggle-at-boot dispatch (apply_spec_at_boot onFlushed) still exists (cited area; grep shows apply_spec_at_boot present). The claim describes the diagnosed boot race; the Option-I fix (finding 4) was layered on top to make the derived column present at redraw 1, but the underlying 3-redraw race mechanism the finding documents is still accurately described by current deps. Verified as a historical/mechanistic claim that still maps to current source structure.",
       "checked_refs": [
-        "R/paintr-server.R:2793-2795 (entry_reactive stage_enabled dep)",
-        "R/paintr-server.R:2904 (current isolate)"
+        "R/paintr-server.R:2795-2797 (entry_reactive stage_enabled dep)",
+        "R/paintr-server.R:2907 (current isolate)"
       ],
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "e2e-fixture-must-pkgload-source",
@@ -149,15 +153,16 @@
       "verdict": "verified",
       "verification": "Read the entry_reactive producer loop (R/paintr-server.R:2803-2819): for each upstream producer id, val = producer_input reactive else input[[ns(pid)]]; if is.null(val) -> val <- shiny::isolate(state$spec_seed[[pid]]) %||% upstream_producer_defaults[[pid]] (2814-2817), then producer_values[[pid]] <- val. upstream_producer_defaults built per-consumer from deparsed $default (2729-2735). Fallback fires only on is.null(val) so a user-cleared \"\" is respected. Matches claim verbatim. commit 1a7644c present in git log; both cited test files referenced.",
       "checked_refs": [
-        "R/paintr-server.R:2803-2819 (entry_reactive producer fallback)",
-        "R/paintr-server.R:2729-2735 (upstream_producer_defaults)"
+        "R/paintr-server.R:2805-2821 (entry_reactive producer fallback)",
+        "R/paintr-server.R:2731-2737 (upstream_producer_defaults)"
       ],
       "origin_status": "derived-unverified",
       "labels": [
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "parallel-gate-seeded-picker-flake-fix",
@@ -211,11 +216,11 @@
       "scope": "durable",
       "feature": "",
       "tags": "",
-      "source": "R/paintr-server.R:2929-3207 (ptr_bind_shared_consumer_uis renderUI snap build)",
+      "source": "R/paintr-server.R:2932-3210 (ptr_bind_shared_consumer_uis renderUI snap build)",
       "verdict": "verified",
       "verification": "Read ptr_bind_shared_consumer_uis snap build (R/paintr-server.R:3186-3247): snap is populated only from upstream_source_shortcut_ids (3226-3236) and upstream_source_self_ids (3237-3246) plus source bound names (3180-3182) -- no loop over producer ids, so producers are never read. resolution$value comes from ptr_resolve_shared_consumers -> resolve_shared_consumer -> truncate_upstream_at_placeholder (R/paintr-shared.R:180-211), which breaks at the first placeholder-containing stage (except a first-stage data-source), discarding any producer-bearing prefix before this renderUI runs. So omission is moot/consistent, as claimed.",
       "checked_refs": [
-        "R/paintr-server.R:3186-3247 (ptr_bind_shared_consumer_uis snap build)",
+        "R/paintr-server.R:3189-3250 (ptr_bind_shared_consumer_uis snap build)",
         "R/paintr-shared.R:180-211 (truncate_upstream_at_placeholder)"
       ],
       "origin_status": "derived-unverified",
@@ -224,7 +229,8 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "shared-consumer-truncate-at-placeholder-intentional",
@@ -254,12 +260,12 @@
       "scope": "durable",
       "feature": "",
       "tags": "",
-      "source": "R/paintr-translate.R:1099 (ptr_validate_shared_roles); R/paintr-server.R:2213+ (ptr_setup_value_uis shared-value loop); R/paintr-shared.R:131-211 (truncation ignores $shared)",
+      "source": "R/paintr-translate.R:1099 (ptr_validate_shared_roles); R/paintr-server.R:2215+ (ptr_setup_value_uis shared-value loop); R/paintr-shared.R:131-211 (truncation ignores $shared)",
       "verdict": "verified",
       "verification": "ptr_validate_shared_roles (R/paintr-translate.R:1066-1086) only aborts when a single key spans >1 role (consumer/source/value); a value-role (producer) key alone is legal. Shared value widgets bind once per key in ptr_setup_value_uis via collect_shared_placeholders loop (R/paintr-server.R ~2300+, `if (!is.null(v$shared)) next` then per-key shared_entries loop) at canonical id shared_<key> (canonical_shared_id, R/paintr-shared.R:35). truncate_upstream_at_placeholder (R/paintr-shared.R:180-211) never inspects $shared, so a shared producer stage is still truncated and a downstream ppVar(shared=) doesn't see its derived column. All sub-claims hold. Cited line 1066 exact; server 2213+ region is the shared-value loop (drifted but present).",
       "checked_refs": [
         "R/paintr-translate.R:1099-1119 (ptr_validate_shared_roles)",
-        "R/paintr-server.R:2167-2330 (ptr_setup_value_uis shared-value loop)",
+        "R/paintr-server.R:2169-2332 (ptr_setup_value_uis shared-value loop)",
         "R/paintr-shared.R:180-211 (truncation ignores $shared)",
         "R/paintr-shared.R:35 (canonical_shared_id shared_<key>)"
       ],
@@ -269,8 +275,8 @@
         "placeholder-registry-api"
       ],
       "status": "fresh",
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
-      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     }
   ]
 }

@@ -14,7 +14,7 @@
       "feature": "",
       "source": "R/paintr-app.R (ptr_app / ptr_ui / ptr_ui_controls / ptr_server each capture via ptr_capture_formula(rlang::enexpr(formula), envir)); R/paintr-server.R (ptr_init_state: ptr_translate(formula), no capture); R/paintr-input-spec.R (ptr_id_table asserts is.character)",
       "verdict": "verified",
-      "verification": "Confirmed the four boundary fns each call ptr_capture_formula(rlang::enexpr(formula), envir) (ptr_app does so twice: formula_str + formula). ptr_init_state body is `tree <- ptr_translate(formula, expr_check=expr_check)` with no capture; ptr_id_table opens with an is.character(formula) assertion. So expression input is exclusive to the four boundary fns.",
+      "verification": "Confirmed against HEAD 29571ac8. grep `ptr_capture_formula(rlang::enexpr` across R/ returns exactly five hits, all in R/paintr-app.R, mapping to exactly the four boundary fns: ptr_app (lines 141 formula_str + 162 formula — the documented double capture), ptr_ui (882), ptr_ui_controls (989), ptr_server (1130). No other R/ file calls it (R/paintr-embellish.R:48 uses enexpr for an unrelated helper, not formula capture). String-only counterparts hold: ptr_init_state (R/paintr-server.R:91) does `tree <- ptr_translate(formula, expr_check = expr_check)` at line 132 with no capture; ptr_id_table (R/paintr-input-spec.R:239) asserts is.character(formula) at line 241; ptr_app_bslib (R/paintr-app-bslib.R:55) and ptr_app_grid (R/paintr-app.R:1324) have no enexpr/capture (string-first). The R/paintr-server.R change that flagged this stale (additive safe_to_remove threading) is orthogonal and did not introduce capture into ptr_init_state. Set of enexpr-capturing boundary fns is still exactly the four claimed; claim holds and earns its place as a roxygen/docs orientation map.",
       "checked_refs": [
         "R/paintr-app.R::ptr_app",
         "R/paintr-app.R::ptr_ui",
@@ -23,7 +23,7 @@
         "R/paintr-server.R::ptr_init_state",
         "R/paintr-input-spec.R::ptr_id_table"
       ],
-      "verified_at_commit": "a6755504a52f8904b7ce72b7706475d90c31f9b8",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-31-2157-roxygen-unexport-llm-corpus.md",
       "origin_status": "derived-unverified",
@@ -35,7 +35,7 @@
         "R/paintr-server.R:91-377 (ptr_init_state)",
         "R/paintr-input-spec.R:239-261 (ptr_id_table)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598",
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "labels": [
         "formula-capture"
       ]
@@ -59,7 +59,7 @@
       "resolved_refs": [
         "R/paintr-app.R:196-296 (ptr_capture_formula)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598",
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "labels": [
         "formula-capture"
       ]
@@ -87,7 +87,7 @@
         "tests/testthat/test-llm.R:19,110,127,144 (anchor)",
         "dev/githooks/pre-commit"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598",
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "labels": [
         "llm-assist",
         "harness-tooling"
@@ -120,7 +120,7 @@
         "dev/build-llm.R:139 (anchor)",
         "dev/build-llm.R:338 (anchor)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598",
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "labels": [
         "llm-assist",
         "harness-tooling"
@@ -153,7 +153,7 @@
         "man/ptr_app_bslib.Rd",
         "man/ptr_app_grid.Rd"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598",
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "labels": [
         "package-api-surface"
       ]
@@ -177,7 +177,7 @@
       "resolved_refs": [
         "R/paintr-app.R:873-918 (ptr_ui)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598",
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "labels": [
         "vignette-docs"
       ]

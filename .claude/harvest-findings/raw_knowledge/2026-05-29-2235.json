@@ -14,11 +14,10 @@
       "tags": "ppupload-architecture",
       "source": "R/paintr-server.R:2277-2426 (ptr_setup_source_uis); R/paintr-shared-ui.R:481-654 (ptr_setup_panel_sources)",
       "verdict": "verified",
-      "verification": "grep of R/paintr-server.R confirms ptr_setup_source_uis and ptr_setup_consumer_uis exist and are wired in ptr_server_internal (calls at lines 857-858). grep of R/paintr-shared-ui.R confirms ptr_setup_panel_sources exists (its body at ~654-666 builds its own bound_names env + host_state list and calls resolve_upload_source). The two source/resolution paths are distinct functions in two files, confirming the parallel-implementation claim. Line numbers in source= drifted but the named symbols are present.",
+      "verification": "Both symbols present at HEAD 29571ac: ptr_setup_source_uis (R/paintr-server.R:2306, wired in ptr_server_internal at :857) and ptr_setup_panel_sources (R/paintr-shared-ui.R:513). Each is a distinct function with its own renderUI scope and its own resolve_upload_source call (shared-ui.R:673), confirming the two-parallel-paths claim. Only line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R ptr_setup_source_uis",
-        "R/paintr-server.R ptr_setup_consumer_uis",
-        "R/paintr-shared-ui.R ptr_setup_panel_sources"
+        "R/paintr-server.R::ptr_setup_source_uis",
+        "R/paintr-shared-ui.R::ptr_setup_panel_sources"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
@@ -27,7 +26,12 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "resolved_refs": [
+        "R/paintr-server.R:2306-2455 (ptr_setup_source_uis)",
+        "R/paintr-shared-ui.R:513-727 (ptr_setup_panel_sources)"
+      ],
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "shared-consumer-binder-runs-state-null-at-host",
@@ -38,10 +42,11 @@
       "tags": "ppupload-architecture",
       "source": "R/paintr-server.R:2891-3256 (ptr_bind_shared_consumer_uis), :3095-3156 (if(!is.null(state)) block); R/paintr-shared-ui.R:386 (host call omits state=)",
       "verdict": "verified",
-      "verification": "ptr_bind_shared_consumer_uis exists in R/paintr-server.R. Confirmed in source: the consumer-binding region uses the has_rendered closure latch (lines 2907, 2932, 2944, 3011, 3337, 3350) and the host-scope branch is gated on is.null(state); the synthetic host eval-env / bound_names handling lives in R/paintr-shared-ui.R (host_state list with a new.env bound_names at ~654-666). The 'host call omits state=' and is.null(state) branch structure matches the claim; the per-picker double-render latch comment (`has_rendered` closure-flag region, line 3111) is present. Specific line numbers drifted but the named symbols and the is.null(state) gating are confirmed.",
+      "verification": "ptr_bind_shared_consumer_uis (server.R:2972) declares state=NULL as default. Host reaches it via ptr_bind_local_shared_consumers (shared-ui.R:414), which omits state= -> NULL at host scope. is.null(state) branches confirmed: synthetic host_env extending eval_env with panel df (server.R:3139-3187) and the per-picker cleared_for_identity/held_clear clear-hold latch (server.R:3030-3335); single-instance passes a real state. Behaviour diverges by call site, not code. Line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R ptr_bind_shared_consumer_uis",
-        "R/paintr-shared-ui.R ptr_setup_panel_sources"
+        "R/paintr-server.R::ptr_bind_shared_consumer_uis",
+        "R/paintr-server.R::ptr_bind_local_shared_consumers",
+        "R/paintr-shared-ui.R::ptr_setup_panel_sources"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
@@ -51,7 +56,13 @@
         "consumer-picker-seeding"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "resolved_refs": [
+        "R/paintr-server.R:2972-3377 (ptr_bind_shared_consumer_uis)",
+        "R/paintr-server.R:3390-3419 (ptr_bind_local_shared_consumers)",
+        "R/paintr-shared-ui.R:513-727 (ptr_setup_panel_sources)"
+      ],
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "consumer-identity-boundname-drives-clear-stickiness",
@@ -60,7 +71,7 @@
       "scope": "durable",
       "feature": "",
       "tags": "ppupload-7-followup",
-      "source": "R/paintr-server.R:2528-2592 (consumer_upstream_source_state), :2481-2523 (consumer_seed_decision), :2617-2623 (consumer_clear_for_new_source), :2478 (boot_seed_selected)",
+      "source": "R/paintr-server.R:2530-2594 (consumer_upstream_source_state), :2481-2523 (consumer_seed_decision), :2617-2623 (consumer_clear_for_new_source), :2478 (boot_seed_selected)",
       "verdict": "verified",
       "verification": "Confirmed in R/paintr-server.R: consumer reads state$bound_names[[sid]] (line 2604) with a sid->layer_name fallback (lines 2618-2619), and the host-scope comment 'bn always \"\" -- no state$bound_names to read' is present at line 2629, matching the claim that a NULL state forces boundName=\"\" so identity stabilises. boot_seed_selected (line 2504) and consumer_seed_decision (line 2508) exist; the seed_landed gate is at lines 2557-2563. The clear-edge identity mechanism (sid#datapath#boundName) and the host-scope latch are present in source; the runtime two-beat behaviour was probe-observed in-session (not re-run) as the finding itself notes. Static code path consistent with the claim. Line numbers drifted.",
       "checked_refs": [
@@ -74,7 +85,8 @@
         "ppupload-mechanics"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "host-source-port-is-simpler-than-single",
@@ -83,7 +95,7 @@
       "scope": "campaign",
       "feature": "ppupload-7-followup",
       "tags": "ppupload-7-followup",
-      "source": "R/paintr-shared-ui.R:503-651 (ptr_setup_panel_sources local scope); R/paintr-server.R:2277-2426, :1536,1614, :1249-1382 (resolve_upload_source)",
+      "source": "R/paintr-shared-ui.R:503-651 (ptr_setup_panel_sources local scope); R/paintr-server.R:2279-2428, :1536,1614, :1249-1382 (resolve_upload_source)",
       "verdict": "verified",
       "verification": "ptr_setup_panel_sources in R/paintr-shared-ui.R builds its own bound_names env and host_state list and calls resolve_upload_source within one local scope (~654-666), confirming the 'one local({}) scope' simplicity claim. resolve_upload_source exists in R/paintr-server.R and accepts a file_reset arg; state$source_file_reset is an env keyed by SOURCE id created/driven by ptr_setup_source_uis (state-init comment at lines 310-322). The single-instance plumbing publishing on state$source_file_reset is documented in that same init block. The referenced plan dir under dev/plans/ is a project artifact, not source. Claim's structural assertions hold; line numbers drifted.",
       "checked_refs": [
@@ -97,7 +109,8 @@
         "shared-coordinator-partition"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "single-instance-consumer-suspended-until-source-and-subtab",
@@ -108,9 +121,9 @@
       "tags": "ppupload-testing",
       "source": "R/paintr-server.R:2625-2763 (ptr_setup_consumer_uis req(bound_names)); dev/scratch/ppupload7-probes/single/discover.R",
       "verdict": "verified",
-      "verification": "ptr_setup_consumer_uis exists in R/paintr-server.R and the consumer-ready gate req(state$bound_names[[...]]()) is present (e.g. lines 2840, 3204, 3208). The req(bound_names) source-ready gate plus the renderUI-under-subtab suspension match the claim that the picker is absent until source-has-data AND the Controls subtab is opened; this is corroborated by .claude/rules/testing.md ('consumer var pickers are suspended under a renderUI subtab'). The specific runtime widget ids are probe-observed (discover.R script) as the finding notes, not re-derived. Static mechanism confirmed; line numbers drifted.",
+      "verification": "ptr_setup_consumer_uis (server.R:2682) contains the source-ready gate shiny::req(state$bound_names[[source_ready$id]]()) at :2842; renderUI-under-subtab suspension corroborated by .claude/rules/testing.md:68-71 and :533-534 ('var pickers ... suspended ... under the layer Data subtab'). Picker stays absent until source has data AND Controls subtab opened. Runtime widget-id specifics remain probe-observed per the finding's own note. Line numbers drifted.",
       "checked_refs": [
-        "R/paintr-server.R ptr_setup_consumer_uis"
+        "R/paintr-server.R::ptr_setup_consumer_uis"
       ],
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-29-2225-ppupload7-source-arch.md",
       "origin_status": "derived-unverified",
@@ -119,7 +132,11 @@
         "shinytest2-gotchas"
       ],
       "status": "fresh",
-      "verified_at_commit": "18c7ad23eae5c0e04b9b369666af28730ed6cf12"
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
+      "resolved_refs": [
+        "R/paintr-server.R:2682-2960 (ptr_setup_consumer_uis)"
+      ],
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "overlapping-column-false-green-trap",

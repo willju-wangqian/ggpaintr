@@ -77,18 +77,18 @@
     },
     {
       "id": "define-core-role-branching",
-      "claim": "The three public ptr_define_placeholder_* constructors are thin wrappers over internal ptr_define_core(role, ...), which validates hook arity at DEFINITION time: build_ui must be function(node,...) for value/source and function(node,cols,data,...) for consumer; value/consumer require resolve_expr + optional validate_session_input(value,ctx); source requires resolve_data(value,node), makes resolve_expr optional (defaulting to rlang::sym(value)), and takes a shortcut logical.",
+      "claim": "The three public ptr_define_placeholder_* constructors are thin wrappers over internal ptr_define_core(role, ...), which validates hook arity at DEFINITION time: build_ui must be function(node,...) for value/source and function(node,cols,data,...) for consumer; value/consumer require resolve_expr(value,node) + optional validate_session_input(value,ctx); source requires resolve_data(value,node), makes resolve_expr optional (defaulting to function(value,node,...) rlang::sym(value)), and takes a shortcut logical. (ADR-0027: the public validator arg is now `validate_session_input`; the internal record key stays `validate_input`.)",
       "detail": "Verified by headless run: all four example registrations (value/consumer/source/ppSize) passed validate_hook and registered. A wrong build_ui arity aborts at the constructor call, not at app launch — useful for vignette examples (they fail fast).",
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R ptr_define_core (validate_hook build_ui_args = c('node','cols','data') for consumer else 'node'); consumer/value require resolve_expr + optional validate_input(value,ctx); source requires resolve_data(value,node) + optional resolve_expr defaulting to function(value,node,...) rlang::sym(value) + shortcut logical",
       "verdict": "verified",
-      "verification": "R/paintr-registry.R ptr_define_core (def at line 355, body 360-424) confirms: build_ui_args = c('node','cols','data') for consumer else 'node' (lines 364-369); source branch (371-383) validates resolve_data c('value','node'), defaults resolve_expr to `function(value, node, ...) rlang::sym(value)` when NULL else validates it, and checks `shortcut` is a single logical; value/consumer branch (384-389) validates resolve_expr and optional validate_session_input c('value','ctx'). ADR-0027 renamed the public constructor arg `validate_input`->`validate_session_input` (formal at 357), but the role-branching + arity-at-definition mechanism the claim describes is intact (internal record key stays `validate_input`, line 413). Claim still true; the constructor-arg name in the claim's phrasing is now `validate_session_input`.",
+      "verification": "R/paintr-registry.R ptr_define_core (def line 355, body 360-424) holds verbatim against current HEAD 29571ac. Role-branching intact: build_ui_args = c('node','cols','data') for consumer else 'node' (364-369); source branch (371-383) validates resolve_data c('value','node'), defaults resolve_expr to `function(value, node, ...) rlang::sym(value)` when NULL else validates c('value','node'), and asserts shortcut is a single non-NA logical; value/consumer branch (384-389) validates resolve_expr c('value','node') and optional validate_session_input c('value','ctx'). Arity-at-DEFINITION-time mechanism confirmed (validate_hook called in the constructor, not at launch). ADR-0027 rename is fully reflected: the public constructor arg is `validate_session_input` (formal line 357), while the internal registry record key stays `validate_input` (line 413) — exactly as the header NOTE (350-354) documents. Headless re-run not needed: source is unambiguous. Earns its place: pre-loads the role->arity/hook map a fresh session would otherwise reconstruct by tracing the constructor.",
       "checked_refs": [
         "R/paintr-registry.R::ptr_define_core"
       ],
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
@@ -99,7 +99,7 @@
       "resolved_refs": [
         "R/paintr-registry.R:355-424 (ptr_define_core)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "denylist-exact-151-walker-depth-100",
@@ -221,14 +221,14 @@
       "scope": "durable",
       "feature": "",
       "tags": "vignette-rewrite,safety",
-      "source": "NAMESPACE export(ptr_signal_partial); R/paintr-registry.R:933-971",
+      "source": "NAMESPACE export(ptr_signal_partial); R/paintr-registry.R:944-982",
       "verdict": "verified",
       "verification": "NAMESPACE:119 export(ptr_signal_partial); R/paintr-registry.R:961 ptr_signal_partial<-function(message,...).",
       "checked_refs": [
         "NAMESPACE:119",
-        "R/paintr-registry.R:969"
+        "R/paintr-registry.R:980"
       ],
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
@@ -236,7 +236,7 @@
         "custom-placeholder-authoring",
         "expr-safety"
       ],
-      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "resolve-expr-check-replace-vs-floor",
@@ -269,12 +269,12 @@
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R source shortcut=TRUE; tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R build_ui returns NULL (framework-owned shortcut textInput)",
       "verdict": "verified",
-      "verification": "Framework side: R/paintr-build-ui.R build_ui_for.ptr_ph_data_source (line 74) emits the shortcut textInput as STATIC UI bound at node$shortcut_id (lines 88-105, gated on isTRUE(entry$shortcut) && !is.null(node$shortcut_id)) — framework-owned, namespaced via ns_fn (header comment lines 7,17). Author side: tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R registers ppDataset with shortcut=TRUE and its build_ui returns NULL (lines 21-26), with the in-file comment stating the shortcut textInput is now framework-owned (build_ui_for). Claim holds; the author's build_ui renders only its own node$id (or NULL for an env-name-only source).",
+      "verification": "Both sides hold at HEAD 29571ac. Framework side: R/paintr-build-ui.R build_ui_for.ptr_ph_data_source (def line 74) emits the source uiOutput, then — gated on isTRUE(entry$shortcut) && !is.null(node$shortcut_id) (line 97) — emits the shortcut textInput as STATIC UI bound at ptr_render_id(node$shortcut_id, ns_fn) (lines 100-112), framework-owned and namespaced. Author side: tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R registers ppDataset with shortcut=TRUE; its build_ui returns NULL (lines 21-26) with an in-file comment stating the shortcut textInput is now framework-owned (build_ui_for, ADR 0025 item #7). The R/paintr-registry.R change that triggered stale (ptr_define_core, ADR-0027 arg rename) does NOT touch this claim — the shortcut logical is still validated in the source branch (registry.R 378-383) and stored as entry$shortcut (line 420). Claim holds: author build_ui renders only node$id (or NULL for an env-name-only source); framework owns node$shortcut_id. Earns its place: prevents the double-bind footgun a fresh author would hit.",
       "checked_refs": [
         "R/paintr-build-ui.R::build_ui_for.ptr_ph_data_source",
-        "tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R"
+        "R/paintr-registry.R::ptr_define_core"
       ],
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
@@ -284,9 +284,9 @@
       ],
       "resolved_refs": [
         "R/paintr-build-ui.R:74-113 (build_ui_for.ptr_ph_data_source)",
-        "tests/testthat/fixtures/vignette-apps/shortcut-custom-source-env-bind/app.R"
+        "R/paintr-registry.R:355-424 (ptr_define_core)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "source-runtime-default-abort-guard",
@@ -297,12 +297,12 @@
       "tags": "vignette-rewrite",
       "source": "R/paintr-registry.R ptr_define_core runtime_default: source -> function(...) abort('only meaningful inside ptr_app()'); value/consumer -> function(x,...) x",
       "verdict": "verified",
-      "verification": "R/paintr-registry.R ptr_define_core (lines 396-406): runtime_default for role=='source' is a closure capturing the keyword that aborts `\"`<kw>()` is only meaningful inside `ptr_app()`.\"` (lines 397-402); for value/consumer it is embellish_identity() (line 404), which R/paintr-embellish.R:40-42 returns as `function(x, ...) x`. The user-supplied override arg was renamed embellish_eval (ADR-0027); `runtime_fn <- embellish_eval %||% runtime_default` (line 406) and stored under internal key `runtime` (line 415). Claim holds; the default-providing arg is now embellish_eval rather than `runtime`.",
+      "verification": "R/paintr-registry.R ptr_define_core lines 396-407 confirm at HEAD 29571ac: runtime_default for role=='source' is a closure capturing keyword `kw` that aborts `paste0('`', kw, '()` is only meaningful inside `ptr_app()`.')` (397-402); for value/consumer it is embellish_identity() (404), which R/paintr-embellish.R:40-42 returns as `function(x, ...) x` (re-read, unchanged). The user override arg is `embellish_eval` (formal 359, ADR-0027 rename of the old `runtime` arg); `runtime_fn <- embellish_eval %||% runtime_default` (406) and is stored under the internal record key `runtime` (415). Claim holds verbatim; the default-providing/override arg is `embellish_eval`, internal key `runtime` — both already named in the prior verification. Earns its place: the abort-vs-identity asymmetry by role is non-obvious and a source author needs it to know why a bare-keyword call dies outside ptr_app().",
       "checked_refs": [
         "R/paintr-registry.R::ptr_define_core",
         "R/paintr-embellish.R::embellish_identity"
       ],
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-2103-vignette-rewrite.md",
       "origin_status": "derived-unverified",
@@ -314,7 +314,7 @@
         "R/paintr-registry.R:355-424 (ptr_define_core)",
         "R/paintr-embellish.R:40-42 (embellish_identity)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "tutorial-examples-eval-interactive",

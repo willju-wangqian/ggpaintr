@@ -29,7 +29,7 @@
         "R/paintr-shared-ui.R:130-151 (normalize_shared_formulas)",
         "R/paintr-app.R:196-296 (ptr_capture_formula)"
       ],
-      "refs_resolved_at_head": "34b923bd2ea77a34681e26d18ffb919616b53598"
+      "refs_resolved_at_head": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "capture-formula-deparses-to-string",

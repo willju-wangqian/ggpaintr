@@ -81,25 +81,25 @@
       "scope": "durable",
       "feature": "",
       "tags": "shared-coordinator-partition",
-      "source": "R/paintr-server.R:3376 (ptr_bind_local_shared_consumers: keys <- setdiff(names(resolutions), host_owned_keys)); R/paintr-app.R:339, R/paintr-app.R:1200; R/paintr-shared-ui.R:416",
+      "source": "R/paintr-server.R:3380 (ptr_bind_local_shared_consumers: keys <- setdiff(names(resolutions), host_owned_keys)); R/paintr-app.R:339, R/paintr-app.R:1200; R/paintr-shared-ui.R:416",
       "verdict": "verified",
       "verification": "Read R/paintr-server.R:3386-3398: ptr_bind_local_shared_consumers(..., host_owned_keys=character(), ...) computes keys <- setdiff(names(resolutions), host_owned_keys) (L3397), confirming host_owned_keys is the COMPLEMENT set the binder must NOT bind. Doc comment (L3375-3385) states 'EXCLUDING any keys the host already owns'. The three complement derivations match: single-instance app.R:339 = new_partition_view('single') = character(0); embed instance app.R:1166 = new_partition_view('instance', panel_keys=names(dots$shared)) = panel_keys; panel host shared-ui.R:416 = panel_host = setdiff(consumer_keys, panel_keys) (per partition-view.R partition_host_owned_keys). Cited line drifted from 3376/3390 to 3386/3397 but symbol and behaviour hold.",
       "checked_refs": [
         "R/paintr-server.R ptr_bind_local_shared_consumers",
-        "R/paintr-server.R:3386-3398",
+        "R/paintr-server.R:3390-3402",
         "R/paintr-partition-view.R partition_host_owned_keys",
         "R/paintr-app.R:339",
         "R/paintr-app.R:1202",
         "R/paintr-shared-ui.R:416"
       ],
-      "verified_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656",
+      "verified_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86",
       "status": "fresh",
       "origin_transcript": ".claude/harvest-findings/raw_conversation/2026-05-30-1821-session.md",
       "origin_status": "derived-unverified",
       "labels": [
         "shared-coordinator-partition"
       ],
-      "refs_healed_at_commit": "2e163faaba2383c60332cfe56db41bb60fa82656"
+      "refs_healed_at_commit": "29571ac80afa72fd7392116b584ea16c5c8cdf86"
     },
     {
       "id": "partition-view-null-names-empty-list-coercion",
