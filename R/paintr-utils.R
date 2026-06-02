@@ -219,7 +219,8 @@ default_drop_when_empty <- function() {
     stringr_drop_names(),
     forcats_drop_names(),
     lubridate_drop_names(),
-    hms_drop_names()
+    hms_drop_names(),
+    base_drop_names()
   )
 }
 
@@ -397,6 +398,19 @@ lubridate_drop_names <- function() {
 hms_drop_names <- function() {
   c(
     "hms::ceiling_hms", "hms::floor_hms", "hms::round_hms"
+  )
+}
+
+# base — the base-R data-verbs, included for parity with their tidyverse
+# analogs (`subset` ~ dplyr::filter/select, `transform` ~ dplyr::mutate). When
+# a placeholder arg is deselected the stage collapses to `subset()`/`transform()`,
+# which has NO useful zero-arg API (it errors standalone) and is a no-op as a
+# pipeline stage (identity on the piped data) -- so dropping it is safe and
+# keeps the rendered code clean. (`within` is intentionally omitted: it takes a
+# `{ }` block, not the dropped-arg shape these two share.)
+base_drop_names <- function() {
+  c(
+    "base::subset", "base::transform"
   )
 }
 

@@ -245,3 +245,23 @@ test_that("P9.26 anonymous-head call (paren-wrapped) is preserved by prune", {
   rendered <- ptr_render(p)
   expect_true(grepl("function", rendered, fixed = TRUE))
 })
+
+test_that("P9.x base::subset / base::transform empty pipeline stages drop by default", {
+  # Base R data-verbs are the analogs of dplyr::filter / dplyr::mutate (already
+  # in the default drop set). A deselected placeholder leaves an empty
+  # subset()/transform() stage which is a no-op (identity on the piped data),
+  # so it must drop by DEFAULT (no safe_to_remove) for clean rendered code --
+  # parity with the tidyverse verbs that already drop. See default_drop_when_empty().
+  for (verb in c("subset", "transform")) {
+    r <- ptr_translate(
+      sprintf("mtcars |> %s(ppExpr) |> head(2) |> ggplot()", verb),
+      expr_check = FALSE
+    )
+    s <- ptr_substitute(r, input_snapshot = list())  # ppExpr missing
+    p <- ptr_prune(s)                                 # DEFAULT remove_set only
+    code <- ptr_render(p)
+    expect_false(grepl(paste0(verb, "\\(\\)"), code),
+                 info = paste0(verb, "() no-op stage should be dropped by default"))
+    expect_match(code, "head(2)", fixed = TRUE)       # rest of the pipeline intact
+  }
+})
