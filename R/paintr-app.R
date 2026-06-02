@@ -190,6 +190,11 @@ ptr_app_components <- function(formula,
 #                                    `f <- "..."; ptr_app(f)` pattern)
 #   - rlang::expr() / rlang::quo() / quote() / bquote() at the root
 #                                 -> unwrapped one layer
+#   - `[[` / `$` subscript        -> value forced in `envir`; a string is
+#                                    returned, a language value (a quoted
+#                                    formula picked out of a list/env, e.g.
+#                                    `plots[[1]]`) is deparsed like a symbol,
+#                                    so `!!` is no longer required for it
 #   - any other language object   -> deparsed via `rlang::expr_text()`
 # `rlang::enexpr()` is used (not base `substitute()`) per the ADR 0009
 # cross-cutting rlang preference; it also makes `!!` splicing work.
@@ -261,17 +266,40 @@ ptr_capture_formula <- function(formula_captured, envir) {
     if (head_name %in% c("expr", "quo", "quote", "bquote") &&
         length(formula_captured) >= 2L) {
       formula_captured <- formula_captured[[2L]]
+    } else if (head_name %in% c("[", "[[", "$")) {
+      # Subscript / extraction calls (`plots[[1]]`, `holder$body`) are
+      # forced to their value at the boundary, then accepted as EITHER a
+      # string OR a language object. The language case is what lets a
+      # formula picked out of a list/env of quoted exprs flow in without
+      # `!!` (`ptr_ui(plots[[1]])` == `ptr_ui(!!plots[[1]])`), mirroring
+      # the bare-symbol resolution above; it then falls through to the
+      # wrapper-unwrap + deparse below. A non-string, non-language value
+      # (e.g. `nums[[1]]` -> a number) is still rejected.
+      evaled <- tryCatch(
+        rlang::eval_bare(formula_captured, envir),
+        error = function(e) NULL
+      )
+      if (rlang::is_string(evaled)) return(evaled)
+      if (is.call(evaled) || rlang::is_symbol(evaled)) {
+        formula_captured <- evaled
+        # fall through to wrapper-unwrap + deparse below
+      } else if (!is.null(evaled)) {
+        rlang::abort(paste0(
+          "`formula` must be a single string or an unquoted ggplot ",
+          "expression; got a ", typeof(evaled), " of length ",
+          length(evaled), "."
+        ))
+      }
     } else if (head_name %in% c("paste", "paste0", "sprintf", "gettextf",
-                                "format", "formatC", "c", "vector",
-                                "[", "[[", "$")) {
-      # String-builder / vector-constructor / subscript calls are
-      # forced to their value at the boundary. This preserves the
-      # historical contract that callers build / pick formulas via
-      # `paste0("ggplot(...)")` or `plots[[1]]` and pass them as the
-      # argument (force-evaluation used to happen at R's call site).
-      # For `c(...)` / `vector(...)` this is also where multi-element
-      # character vectors are caught and rejected as
-      # not-a-single-string.
+                                "format", "formatC", "c", "vector")) {
+      # String-builder / vector-constructor calls are forced to their
+      # value at the boundary. This preserves the historical contract
+      # that callers build formulas via `paste0("ggplot(...)")` and pass
+      # them as the argument (force-evaluation used to happen at R's call
+      # site). For `c(...)` / `vector(...)` this is also where
+      # multi-element character vectors are caught and rejected as
+      # not-a-single-string. These remain STRING-ONLY: a string-builder
+      # that returns a language vector is not a valid formula.
       evaled <- tryCatch(
         rlang::eval_bare(formula_captured, envir),
         error = function(e) NULL
@@ -831,10 +859,12 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   expression with `ggpaintr` placeholders, or an unquoted ggplot
 #'   expression supplied directly (the primary form). Captured with
 #'   [rlang::enexpr()] exactly as [ptr_app()] / [ptr_server()], so a
-#'   formula stored in a variable via [rlang::expr()] is spliced in with
-#'   `!!`: `f <- rlang::expr(ggplot(...)); ptr_ui(!!f, "id")`. See
-#'   [ptr_app()] for the full contract (symbol resolution, wrapper unwrap,
-#'   native-pipe caveat).
+#'   formula stored in a variable via [rlang::expr()] can be passed by its
+#'   bare symbol (`f <- rlang::expr(ggplot(...)); ptr_ui(f, "id")`) or
+#'   spliced with `!!` (`ptr_ui(!!f, "id")`); a subscripted/extracted
+#'   element resolves bare too (`ptr_ui(plots[[1]], "id")`, `holder$body`).
+#'   See [ptr_app()] for the full contract (symbol resolution, wrapper
+#'   unwrap, native-pipe caveat).
 #' @param id Optional module id; the namespace prefix for inputs and outputs.
 #'   Defaults to `NULL` (identity namespace, single-instance use).
 #' @param envir Environment used to resolve a `formula` passed as a bare
