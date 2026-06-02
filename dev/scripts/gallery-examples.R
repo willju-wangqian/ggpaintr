@@ -78,13 +78,13 @@ ppVars <- ptr_define_placeholder_consumer(
     if (length(value) == 0L) return(NULL)
     rlang::call2("c", !!!as.list(value))   # c(col1, col2, ...) as bare symbols
   },
-  validate_input = function(value, ctx) {
+  validate_session_input = function(value, ctx) {
     bad <- setdiff(value, ctx$upstream_cols)
     if (length(bad) == 0L) TRUE
     else paste0("Not in upstream data: ", paste(bad, collapse = ", "))
   },
   ui_text_defaults = list(label = "Columns for {param}"),
-  positional_arg = ptr_arg_string_vector()
+  parse_positional_arg = ptr_arg_string(vector = TRUE)
 )
 
 do_pca <- function(d, cols) {
