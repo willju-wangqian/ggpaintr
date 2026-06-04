@@ -33,6 +33,15 @@ Logical. When \code{TRUE}, ggpaintr emits informative messages such as
 these messages are intended for debugging the formula pipeline and
 are off by default. Underlying option: \code{options(ggpaintr.verbose = ...)}.
 }
+\item{\code{gate_draw}}{
+Logical. When \code{TRUE} (the default), the rendered plot updates only
+when the user clicks the "Update plot" button — every placeholder
+change is batched until the click. When \code{FALSE}, the button is
+omitted from the UI and the plot re-renders reactively on every
+placeholder change (live mode). Read once when the app is built, so
+set it before calling \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_ui]{ptr_ui()}}. Underlying option:
+\code{options(ggpaintr.gate_draw = ...)}.
+}
 }
 }
 

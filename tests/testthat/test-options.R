@@ -1,7 +1,8 @@
 restore_options <- function(envir = parent.frame()) {
   withr::local_options(
     list(
-      ggpaintr.verbose = NULL
+      ggpaintr.verbose = NULL,
+      ggpaintr.gate_draw = NULL
     ),
     .local_envir = envir
   )
@@ -15,8 +16,38 @@ test_that("ptr_options() with no args returns current settings as named list", {
   restore_options()
   out <- ptr_options()
   expect_type(out, "list")
-  expect_setequal(names(out), c("verbose"))
+  expect_setequal(names(out), c("verbose", "gate_draw"))
   expect_false(out$verbose)
+})
+
+# ---------------------------------------------------------------------------
+# gate_draw — default + UI/runtime contract
+# ---------------------------------------------------------------------------
+
+test_that("gate_draw defaults to TRUE", {
+  restore_options()
+  expect_true(ptr_options()$gate_draw)
+  expect_true(ptr_get_setting(ptr_settings$gate_draw))
+})
+
+test_that("ptr_options(gate_draw = FALSE) sets the underlying option", {
+  restore_options()
+  ptr_options(gate_draw = FALSE)
+  expect_false(getOption("ggpaintr.gate_draw"))
+  expect_false(ptr_get_setting(ptr_settings$gate_draw))
+})
+
+test_that("the Update plot button is rendered iff gate_draw is TRUE", {
+  restore_options()
+  f <- "ggplot(mtcars, aes(x = ppVar(mpg))) + geom_histogram()"
+
+  ptr_options(gate_draw = TRUE)
+  ui_on <- as.character(ptr_ui_controls(f, id = "g"))
+  expect_match(ui_on, "g-ptr_update_plot", fixed = TRUE)
+
+  ptr_options(gate_draw = FALSE)
+  ui_off <- as.character(ptr_ui_controls(f, id = "g"))
+  expect_no_match(ui_off, "ptr_update_plot")
 })
 
 test_that("ptr_options() reflects values set via base options()", {

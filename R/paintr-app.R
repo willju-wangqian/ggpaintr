@@ -454,14 +454,20 @@ ptr_controls_panel <- function(tree, ui_text = NULL,
     shared_section_tags(tree, ui_text = ui_text, ns = ns)
   } else NULL
 
-  drop_null(list(
-    shared_section,
-    picker,
-    hidden_tabset,
+  # `gate_draw = FALSE` (ptr_options) drops the button: the plot then
+  # re-renders reactively on every placeholder change (see ptr_setup_runtime).
+  update_button <- if (ptr_get_setting(ptr_settings$gate_draw)) {
     shiny::actionButton(
       ns("ptr_update_plot"),
       label = shell_copy$update_plot_label %||% "Update plot"
     )
+  } else NULL
+
+  drop_null(list(
+    shared_section,
+    picker,
+    hidden_tabset,
+    update_button
   ))
 }
 

@@ -6,6 +6,10 @@ ptr_settings <- list(
   verbose = list(
     option  = "ggpaintr.verbose",
     default = FALSE
+  ),
+  gate_draw = list(
+    option  = "ggpaintr.gate_draw",
+    default = TRUE
   )
 )
 
@@ -26,6 +30,15 @@ ptr_settings <- list(
 #'     "Layer foo() removed (no arguments provided)." Default `FALSE` —
 #'     these messages are intended for debugging the formula pipeline and
 #'     are off by default. Underlying option: `options(ggpaintr.verbose = ...)`.
+#'   }
+#'   \item{`gate_draw`}{
+#'     Logical. When `TRUE` (the default), the rendered plot updates only
+#'     when the user clicks the "Update plot" button — every placeholder
+#'     change is batched until the click. When `FALSE`, the button is
+#'     omitted from the UI and the plot re-renders reactively on every
+#'     placeholder change (live mode). Read once when the app is built, so
+#'     set it before calling [ptr_app()] / [ptr_ui()]. Underlying option:
+#'     `options(ggpaintr.gate_draw = ...)`.
 #'   }
 #' }
 #'

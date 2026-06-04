@@ -1864,10 +1864,10 @@ ptr_setup_runtime <- function(state, input, output, session) {
     update_clicked || draw_clicked || extras_present
   }
 
-  shiny::observe({
-    if (!triggered()) return(invisible())
-
-    shiny::isolate({
+  # The render body: snapshot every placeholder input, run the headless
+  # pipeline, publish the result. Reads `input[[...]]` directly, so WHEN
+  # it runs decides its reactive dependencies -- see the two callers below.
+  run_render <- function() {
       spec <- state$input_spec
       snapshot <- list()
       if (nrow(spec) > 0L) {
@@ -1946,8 +1946,23 @@ ptr_setup_runtime <- function(state, input, output, session) {
       # picks were "set" (ADR 0009 bug-1 follow-up 2026-05-21).
       res$snapshot <- snapshot
       state$runtime(res)
+  }
+
+  # `gate_draw` (ptr_options, read once at build time):
+  #   TRUE  -> click-gated: bail until a trigger fired, then run isolated so
+  #            placeholder reads do NOT establish dependencies (batch-on-click).
+  #   FALSE -> live: run the body directly so every `input[[...]]` read becomes
+  #            a dependency; the plot re-renders on any placeholder change. No
+  #            cycle -- the body's only reactive write is `state$runtime()`,
+  #            which only terminal output sinks read.
+  if (ptr_get_setting(ptr_settings$gate_draw)) {
+    shiny::observe({
+      if (!triggered()) return(invisible())
+      shiny::isolate(run_render())
     })
-  })
+  } else {
+    shiny::observe(run_render())
+  }
   invisible(state)
 }
 
