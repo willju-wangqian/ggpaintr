@@ -348,9 +348,12 @@ ptr_shared_server <- function(obj,
     panel_keys
   )
 
+  # gate_draw = FALSE drops the auto-built "Draw all" trigger to match the
+  # omitted button; an explicit host-supplied `draw_trigger` is honored
+  # regardless (out of the option's scope -- the host owns that wiring).
   effective_draw_trigger <- if (!is.null(draw_trigger)) {
     draw_trigger
-  } else if (formula_count >= 2L) {
+  } else if (formula_count >= 2L && ptr_get_setting(ptr_settings$gate_draw)) {
     local({
       draw_id <- ns("ptr_shared_draw_all")
       shiny::reactive(input[[draw_id]])

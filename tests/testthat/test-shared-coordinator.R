@@ -39,6 +39,19 @@ test_that("SC.4 ptr_shared_panel renders panel when panel_keys is non-empty", {
   expect_match(html, "ptr-shared-panel", fixed = TRUE)
 })
 
+test_that("SC.4b Draw all button rendered iff gate_draw is TRUE", {
+  withr::local_options(ggpaintr.gate_draw = NULL)
+  obj <- ptr_shared(c(f_cross_1, f_cross_2))
+  expect_true(obj$formula_count >= 2L)
+
+  ptr_options(gate_draw = TRUE)
+  expect_match(render_html(ptr_shared_panel(obj)), "ptr_shared_draw_all",
+               fixed = TRUE)
+
+  ptr_options(gate_draw = FALSE)
+  expect_no_match(render_html(ptr_shared_panel(obj)), "ptr_shared_draw_all")
+})
+
 test_that("SC.5 ptr_shared_server constructs safely with empty panel_keys", {
   obj <- ptr_shared(c(f_local_1, f_local_2))
   expect_equal(obj$panel_keys, character(0))

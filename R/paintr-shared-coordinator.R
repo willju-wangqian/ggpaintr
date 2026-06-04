@@ -422,7 +422,10 @@ shared_panel_body_tag <- function(obj, keys) {
       shared_panel_header(shell_copy$shared_panel_title, shell_copy$shared_panel_hint)
     ),
     shared_widgets,
-    if (obj$formula_count >= 2L) {
+    # `gate_draw = FALSE` (ptr_options) drops the "Draw all" button too: each
+    # panel then re-renders live via its own runtime observer, so there is
+    # nothing for a batch-draw button to gate.
+    if (obj$formula_count >= 2L && ptr_get_setting(ptr_settings$gate_draw)) {
       list(shiny::actionButton(ns("ptr_shared_draw_all"), obj$draw_all_label))
     } else list(),
     list(shiny::uiOutput(ns("ptr_shared_errors")))
