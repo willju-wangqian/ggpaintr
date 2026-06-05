@@ -3539,12 +3539,28 @@ ptr_register_last_ok_cache <- function(output, state) {
   invisible(state)
 }
 
+# Realize a ggplot for `renderPlot` honoring the `suppress_warnings` option.
+# `suppress = FALSE` (default): return the lazy ggplot object unchanged so
+# shiny prints it -- byte-identical to the pre-option behavior. `TRUE`: draw
+# it here under `suppressWarnings()` (the build/loess fit happens at print
+# time) and return `invisible(NULL)` so shiny captures the device drawing
+# instead of re-printing it. ggpaintr's plot output uses no click/hover/brush
+# coordmap, so deferring the print loses nothing.
+ptr_render_plot_value <- function(plot, suppress) {
+  if (isTRUE(suppress)) {
+    suppressWarnings(print(plot))
+    return(invisible(NULL))
+  }
+  plot
+}
+
 ptr_register_plot <- function(output, state) {
   ptr_validate_state(state)
+  suppress <- ptr_get_setting(ptr_settings$suppress_warnings)
   output[[state$server_ns_fn("ptr_plot")]] <- shiny::renderPlot({
     res <- state$runtime()
     if (!is.null(res) && isTRUE(res$ok) && !is.null(res$plot)) {
-      return(res$plot)
+      return(ptr_render_plot_value(res$plot, suppress))
     }
     # Retain-on-error: when the current runtime is not-ok (or has no
     # plot), surface the prior successful plot so a transient
@@ -3552,7 +3568,7 @@ ptr_register_plot <- function(output, state) {
     # already shows the diagnostic; the user keeps the comparison plot.
     last <- state$last_ok_runtime()
     if (!is.null(last) && !is.null(last$plot)) {
-      return(last$plot)
+      return(ptr_render_plot_value(last$plot, suppress))
     }
     # No prior ok-result — blank the device (matches legacy
     # graphics::plot.new()).

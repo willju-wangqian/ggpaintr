@@ -42,6 +42,16 @@ placeholder change (live mode). Read once when the app is built, so
 set it before calling \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_ui]{ptr_ui()}}. Underlying option:
 \code{options(ggpaintr.gate_draw = ...)}.
 }
+\item{\code{suppress_warnings}}{
+Logical. When \code{TRUE}, R warnings emitted while the plot is drawn
+(e.g. \code{loess} fit warnings such as "all data on boundary of
+neighborhood" or "Failed to fit group N") are silenced rather than
+printed to the console. Default \code{FALSE} — warnings surface as usual.
+Only the plot-drawing step is wrapped; errors still propagate to the
+inline error pane. Read once when the app is built, so set it before
+calling \code{\link[=ptr_app]{ptr_app()}} / \code{\link[=ptr_ui]{ptr_ui()}}. Underlying option:
+\code{options(ggpaintr.suppress_warnings = ...)}.
+}
 }
 }
 

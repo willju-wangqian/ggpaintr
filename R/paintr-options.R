@@ -10,6 +10,10 @@ ptr_settings <- list(
   gate_draw = list(
     option  = "ggpaintr.gate_draw",
     default = TRUE
+  ),
+  suppress_warnings = list(
+    option  = "ggpaintr.suppress_warnings",
+    default = FALSE
   )
 )
 
@@ -39,6 +43,16 @@ ptr_settings <- list(
 #'     placeholder change (live mode). Read once when the app is built, so
 #'     set it before calling [ptr_app()] / [ptr_ui()]. Underlying option:
 #'     `options(ggpaintr.gate_draw = ...)`.
+#'   }
+#'   \item{`suppress_warnings`}{
+#'     Logical. When `TRUE`, R warnings emitted while the plot is drawn
+#'     (e.g. `loess` fit warnings such as "all data on boundary of
+#'     neighborhood" or "Failed to fit group N") are silenced rather than
+#'     printed to the console. Default `FALSE` — warnings surface as usual.
+#'     Only the plot-drawing step is wrapped; errors still propagate to the
+#'     inline error pane. Read once when the app is built, so set it before
+#'     calling [ptr_app()] / [ptr_ui()]. Underlying option:
+#'     `options(ggpaintr.suppress_warnings = ...)`.
 #'   }
 #' }
 #'

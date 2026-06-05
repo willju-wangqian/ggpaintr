@@ -2,7 +2,8 @@ restore_options <- function(envir = parent.frame()) {
   withr::local_options(
     list(
       ggpaintr.verbose = NULL,
-      ggpaintr.gate_draw = NULL
+      ggpaintr.gate_draw = NULL,
+      ggpaintr.suppress_warnings = NULL
     ),
     .local_envir = envir
   )
@@ -16,7 +17,7 @@ test_that("ptr_options() with no args returns current settings as named list", {
   restore_options()
   out <- ptr_options()
   expect_type(out, "list")
-  expect_setequal(names(out), c("verbose", "gate_draw"))
+  expect_setequal(names(out), c("verbose", "gate_draw", "suppress_warnings"))
   expect_false(out$verbose)
 })
 
@@ -35,6 +36,41 @@ test_that("ptr_options(gate_draw = FALSE) sets the underlying option", {
   ptr_options(gate_draw = FALSE)
   expect_false(getOption("ggpaintr.gate_draw"))
   expect_false(ptr_get_setting(ptr_settings$gate_draw))
+})
+
+# ---------------------------------------------------------------------------
+# suppress_warnings — default + the plot-draw suppression contract
+# ---------------------------------------------------------------------------
+
+test_that("suppress_warnings defaults to FALSE", {
+  restore_options()
+  expect_false(ptr_options()$suppress_warnings)
+  expect_false(ptr_get_setting(ptr_settings$suppress_warnings))
+})
+
+test_that("ptr_render_plot_value suppresses draw warnings only when TRUE", {
+  # A plot that genuinely warns when DRAWN: loess on 2 points per group
+  # (cyl splits into singleton-ish groups) -> the same loess warnings the
+  # user reported. The warning fires at print/build time, not construction.
+  df <- data.frame(x = c(1, 2, 1, 2), y = c(1, 2, 3, 4), g = c("a", "a", "b", "b"))
+  p <- ggplot2::ggplot(df, ggplot2::aes(x, y, colour = g)) +
+    ggplot2::geom_smooth(method = "loess", formula = y ~ x)
+
+  grDevices::pdf(NULL)
+  withr::defer(grDevices::dev.off())
+
+  # The plot really warns when drawn -- proves the test has teeth (loess
+  # emits several; capture_warnings collects all so none leak as test noise).
+  expect_true(length(testthat::capture_warnings(print(p))) > 0L)
+
+  # FALSE path: returns the object unchanged, deferring the print (and thus
+  # the warning) to shiny -- behavior is byte-identical to pre-option.
+  expect_identical(ptr_render_plot_value(p, FALSE), p)
+
+  # TRUE path: draws here under suppressWarnings -> nothing escapes, and it
+  # returns NULL so shiny uses the device drawing rather than re-printing.
+  expect_no_warning(out <- ptr_render_plot_value(p, TRUE))
+  expect_null(out)
 })
 
 test_that("the Update plot button is rendered iff gate_draw is TRUE", {
