@@ -37,12 +37,44 @@ updated settings, returned invisibly.
   messages are intended for debugging the formula pipeline and are off
   by default. Underlying option: `options(ggpaintr.verbose = ...)`.
 
+- `gate_draw`:
+
+  Logical. When `TRUE` (the default), the rendered plot updates only
+  when the user clicks the "Update plot" button — every placeholder
+  change is batched until the click. When `FALSE`, the button is omitted
+  from the UI and the plot re-renders reactively on every placeholder
+  change (live mode). Read once when the app is built, so set it before
+  calling
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md).
+  Underlying option: `options(ggpaintr.gate_draw = ...)`.
+
+- `suppress_warnings`:
+
+  Logical. When `TRUE`, R warnings emitted while the plot is drawn (e.g.
+  `loess` fit warnings such as "all data on boundary of neighborhood" or
+  "Failed to fit group N") are silenced rather than printed to the
+  console. Default `FALSE` — warnings surface as usual. Only the
+  plot-drawing step is wrapped; errors still propagate to the inline
+  error pane. Read once when the app is built, so set it before calling
+  [`ptr_app()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app.md)
+  /
+  [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md).
+  Underlying option: `options(ggpaintr.suppress_warnings = ...)`.
+
 ## Examples
 
 ``` r
 # Inspect current values
 ptr_options()
 #> $verbose
+#> [1] FALSE
+#> 
+#> $gate_draw
+#> [1] TRUE
+#> 
+#> $suppress_warnings
 #> [1] FALSE
 #> 
 

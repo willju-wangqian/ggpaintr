@@ -126,22 +126,22 @@ ptr_ui_controls(
 #> <option value="geom_point">geom_point</option></select>
 #> </div>
 #> <div class="tabbable">
-#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="6980">
+#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="7244">
 #>     <li class="active">
-#>       <a href="#tab-6980-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>       <a href="#tab-7244-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
 #>     </li>
 #>     <li>
-#>       <a href="#tab-6980-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>       <a href="#tab-7244-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
 #>     </li>
 #>   </ul>
-#>   <div class="tab-content" data-tabsetid="6980">
-#>     <div class="tab-pane active" data-value="ggplot" id="tab-6980-1">
+#>   <div class="tab-content" data-tabsetid="7244">
+#>     <div class="tab-pane active" data-value="ggplot" id="tab-7244-1">
 #>       <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
 #>         <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
 #>         <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
 #>       </div>
 #>     </div>
-#>     <div class="tab-pane" data-value="geom_point" id="tab-6980-2">
+#>     <div class="tab-pane" data-value="geom_point" id="tab-7244-2">
 #>       <div class="form-group shiny-input-container">
 #>         <div class="checkbox">
 #>           <label>
@@ -166,22 +166,22 @@ ptr_ui_controls(
 #> <option value="geom_point">geom_point</option></select>
 #> </div>
 #> <div class="tabbable">
-#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="8132">
+#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="9543">
 #>     <li class="active">
-#>       <a href="#tab-8132-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>       <a href="#tab-9543-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
 #>     </li>
 #>     <li>
-#>       <a href="#tab-8132-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>       <a href="#tab-9543-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
 #>     </li>
 #>   </ul>
-#>   <div class="tab-content" data-tabsetid="8132">
-#>     <div class="tab-pane active" data-value="ggplot" id="tab-8132-1">
+#>   <div class="tab-content" data-tabsetid="9543">
+#>     <div class="tab-pane active" data-value="ggplot" id="tab-9543-1">
 #>       <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
 #>         <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
 #>         <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
 #>       </div>
 #>     </div>
-#>     <div class="tab-pane" data-value="geom_point" id="tab-8132-2">
+#>     <div class="tab-pane" data-value="geom_point" id="tab-9543-2">
 #>       <div class="form-group shiny-input-container">
 #>         <div class="checkbox">
 #>           <label>

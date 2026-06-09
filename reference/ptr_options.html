@@ -90,6 +90,25 @@ updated settings, returned invisibly.</p>
 these messages are intended for debugging the formula pipeline and
 are off by default. Underlying option: <code>options(ggpaintr.verbose = ...)</code>.</p></dd>
 
+<dt><code>gate_draw</code></dt>
+<dd><p>Logical. When <code>TRUE</code> (the default), the rendered plot updates only
+when the user clicks the "Update plot" button — every placeholder
+change is batched until the click. When <code>FALSE</code>, the button is
+omitted from the UI and the plot re-renders reactively on every
+placeholder change (live mode). Read once when the app is built, so
+set it before calling <code><a href="ptr_app.html">ptr_app()</a></code> / <code><a href="ptr_ui.html">ptr_ui()</a></code>. Underlying option:
+<code>options(ggpaintr.gate_draw = ...)</code>.</p></dd>
+
+<dt><code>suppress_warnings</code></dt>
+<dd><p>Logical. When <code>TRUE</code>, R warnings emitted while the plot is drawn
+(e.g. <code>loess</code> fit warnings such as "all data on boundary of
+neighborhood" or "Failed to fit group N") are silenced rather than
+printed to the console. Default <code>FALSE</code> — warnings surface as usual.
+Only the plot-drawing step is wrapped; errors still propagate to the
+inline error pane. Read once when the app is built, so set it before
+calling <code><a href="ptr_app.html">ptr_app()</a></code> / <code><a href="ptr_ui.html">ptr_ui()</a></code>. Underlying option:
+<code>options(ggpaintr.suppress_warnings = ...)</code>.</p></dd>
+
 
 </dl></div>
 
@@ -98,6 +117,12 @@ are off by default. Underlying option: <code>options(ggpaintr.verbose = ...)</co
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Inspect current values</span></span></span>
 <span class="r-in"><span><span class="fu">ptr_options</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $verbose</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $gate_draw</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> </span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> $suppress_warnings</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] FALSE</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-in"><span></span></span>
