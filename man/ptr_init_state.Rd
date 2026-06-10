@@ -41,8 +41,13 @@ zero-argument calls should be dropped after substitution.}
 \item{shared}{Named list of reactives (one per shared key) supplied by an
 outer wrapper such as \code{\link[=ptr_app_grid]{ptr_app_grid()}}. Defaults to \code{list()}.}
 
-\item{draw_trigger}{Optional reactive whose invalidation forces a redraw
-(e.g. the grid app's "Draw all" button).}
+\item{draw_trigger}{Optional reactive carrying a click counter — a numeric
+scalar that is \verb{>= 1} once its button has been clicked (e.g. the grid
+app's "Draw all" \code{input$...} value). A redraw fires only when the
+carried value looks clicked; a reactive carrying any other value (a
+data frame, a timestamp) invalidates the runtime observer but never
+triggers a draw. To redraw on arbitrary reactive changes (e.g. a
+reactive pipeline head in the formula), use \code{ptr_options(gate_draw = FALSE)} live mode instead. Defaults to \code{NULL}.}
 
 \item{producer_debounce_ms}{Optional. Controls the debounce window applied
 to producer-style placeholder inputs (\code{ppText}, \code{ppNum}, \code{ppExpr}) before they

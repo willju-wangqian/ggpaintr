@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit-adr — ADR 0028 — FAIL — 2026-06-10 16:06</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<h1>audit-adr — ADR 0028 plotly-linked-selection-helpers</h1>
+<p class="meta">Target: dev/adr/0028-plotly-linked-selection-helpers.html · Verdict: <strong>FAIL</strong> · Audited: 2026-06-10 16:06 · Auditor: general-purpose/opus/high</p>
+
+<h2>Verdict</h2>
+<p><strong>FAIL — 2 findings, both contract-structural.</strong> Every code-shaped literal, structural claim, and quantitative claim in the ADR verifies exactly against source (line anchors <code>R/paintr-server.R:1860/:1868/:1970</code>, DESCRIPTION Suggests/Imports, CONTEXT.md sections, doc fixes, demo script, ADR 0006 cross-reference — all pristine; full evidence list inside the findings and manifest). The failures are: (1) the strict <em>Verified baseline</em> section's behavioral claims cite ad-hoc probes instead of regression tests, which the behavioral-claim contract requires; (2) the required worked-examples sections are absent. No factual error about the code was found.</p>
+
+<h2>Findings</h2>
+
+<div class="finding fail">
+  <h3>FINDING 01: Verified-baseline behavioral claims cite probes, not regression tests</h3>
+  <p><strong>Category:</strong> 3 (behavioral)</p>
+  <p><strong>ADR quote:</strong></p>
+  <blockquote class="adr-quote">"<strong>draw_trigger does NOT fire on data change</strong> — probe: shrinking <code>rx()</code> with <code>draw_trigger = rx</code> produced no redraw. Mechanism: the gate is <code>clicked(x) = is.numeric(x) &amp;&amp; length(x) == 1L &amp;&amp; x &gt;= 1L</code> applied to the trigger's <em>value</em> (<code>R/paintr-server.R:1860</code>, consumed at <code>:1868</code>)" · "<strong>gate_draw = FALSE closes the loop with no adapter</strong> — … shrinking <code>rx()</code> redrew the plot with no Update click (<code>R/paintr-server.R:1957-1971</code>)" · "<strong>A reactive pipeline head works today</strong>: … boots, seeds both pickers (wt/mpg), and draws."</blockquote>
+  <p><strong>Source evidence:</strong></p>
+  <pre>R/paintr-server.R:1860  clicked &lt;- function(x) is.numeric(x) &amp;&amp; length(x) == 1L &amp;&amp; x &gt;= 1L   [exact]
+R/paintr-server.R:1868  draw_clicked &lt;- !is.null(state$draw_trigger) &amp;&amp; clicked(state$draw_trigger())   [exact]
+R/paintr-server.R:1970  shiny::observe(run_render())   [exact — live branch]
+tests/testthat/          no test pins the runtime redraw behavior; test-options.R (28 PASS) covers only the
+                         gate_draw setter + Update-button-rendered-iff-TRUE, not live-mode redraw or the
+                         click-counter gate semantics. ADR itself contains zero test citations (grep -c = 0).</pre>
+  <p><strong>Two interpretations:</strong></p>
+  <ol>
+    <li><strong>If the ADR is wrong</strong> (under-cited) — proposed edit (NOT applied): land regression tests with the implementation and cite them, e.g.
+      <pre class="proposed-diff">- ... probe: shrinking rx() with draw_trigger = rx produced no redraw. Mechanism: ...
++ ... probe: shrinking rx() with draw_trigger = rx produced no redraw
++ (regression: tests/testthat/test-runtime-gate.R::"draw_trigger ignores non-counter values"). Mechanism: ...
+- ... shrinking rx() redrew the plot with no Update click. Mechanism: ...
++ ... shrinking rx() redrew the plot with no Update click
++ (regression: tests/testthat/test-runtime-gate.R::"gate_draw=FALSE redraws on reactive pipeline-head change"). Mechanism: ...
+- ... boots, seeds both pickers (wt/mpg), and draws.
++ ... boots, seeds both pickers (wt/mpg), and draws
++ (regression: tests/testthat/test-runtime-gate.R::"reactive pipeline head boots and seeds pickers").</pre>
+    </li>
+    <li><strong>If the source is wrong</strong> — verification path: re-run the probe app (host <code>reactiveVal(mtcars)</code> as pipeline head; toggle <code>ptr_options(gate_draw=)</code>) under <code>NOT_CRAN=true</code> AppDriver; if behavior diverges from the ADR, the fix is at <code>R/paintr-server.R:1958-1971</code>.</li>
+  </ol>
+  <p><strong>Heuristic hint:</strong> Interpretation 1, overwhelmingly — every line-level fact verifies and the probes were run this session; the gap is purely the missing regression-test citations the strict contract requires. Human override expected on <em>when</em>: the tests land naturally with the v1 implementation (the ADR's own testing tier 1/3), so the choices are (a) write the regression tests now and cite them, or (b) re-tense those three items as probe-evidenced observations outside the strict block and let the plan's DoD carry the tests.</p>
+</div>
+
+<div class="finding fail">
+  <h3>FINDING 02: Worked-examples sections absent</h3>
+  <p><strong>Category:</strong> WorkedExamples (hard gate)</p>
+  <p><strong>ADR quote:</strong> none — the section does not exist. The ADR's h2 set is: <em>The story, in plain language</em> / <em>Decisions</em> / <em>Verified baseline (probes …)</em> / <em>Considered and rejected</em> / <em>Consequences</em>. No <code>&lt;h2&gt;Worked examples — what becomes possible&lt;/h2&gt;</code>, no <code>&lt;h2&gt;Worked examples — what is rejected by design&lt;/h2&gt;</code>, no legacy <code>Envision</code> shape, no opt-out marker.</p>
+  <p><strong>Source evidence:</strong></p>
+  <pre>dev/adr/0028-plotly-linked-selection-helpers.html — grep -ciE 'worked example|envision|process-only' = 0</pre>
+  <p><strong>Two interpretations:</strong></p>
+  <ol>
+    <li><strong>If the ADR is wrong</strong> — proposed skeleton patch (NOT applied), insert before <code>&lt;h2&gt;Consequences&lt;/h2&gt;</code>:
+      <pre class="proposed-diff">+ &lt;h2&gt;Worked examples — what becomes possible&lt;/h2&gt;
++ &lt;h3&gt;1. Linked box-select feeding a second formula plot&lt;/h3&gt;
++ &lt;p&gt;One-line summary: a plotly-rendered formula whose brush selection drives a second ggpaintr instance with zero wiring.&lt;/p&gt;
++ &lt;pre&gt;&lt;code&gt;ptr_options(gate_draw = FALSE)
++ state1 &lt;- ptr_server(f1, "p1")
++ sel    &lt;- ptr_plotly_selection(state1, mode = "flag")
++ f2     &lt;- rlang::expr(sel() |&gt; ggplot(aes(x = ppVar(hp), y = ppVar(qsec), color = .ptr_selected)) + geom_point())
++ state2 &lt;- ptr_server(f2, "p2")&lt;/code&gt;&lt;/pre&gt;
++ &lt;h3&gt;2. Selected-rows table off mode = "rows"&lt;/h3&gt;
++ &lt;p&gt;One-line summary: the selected slice of the drawn data rendered as an ordinary table.&lt;/p&gt;
++ &lt;pre&gt;&lt;code&gt;sel &lt;- ptr_plotly_selection(state1, mode = "rows")
++ output$tbl &lt;- renderTable(sel())&lt;/code&gt;&lt;/pre&gt;
++
++ &lt;h2&gt;Worked examples — what is rejected by design&lt;/h2&gt;
++ &lt;h3&gt;1. Selecting on a stat-transformed layer&lt;/h3&gt;
++ &lt;p&gt;One-line summary: only identity-stat point-like layers carry keys; brushing a smooth yields nothing.&lt;/p&gt;
++ &lt;pre&gt;&lt;code&gt;f &lt;- rlang::expr(ggplot(mtcars, aes(ppVar(wt), ppVar(mpg))) + geom_smooth())
++ # brushing the smooth line -&gt; ptr_plotly_selection() stays empty&lt;/code&gt;&lt;/pre&gt;
++ &lt;h3&gt;2. Persisting a selection across a redraw&lt;/h3&gt;
++ &lt;p&gt;One-line summary: keys are per-draw; any new draw resets the selection to empty by design.&lt;/p&gt;
++ &lt;pre&gt;&lt;code&gt;# change a picker -&gt; live draw -&gt; new keys -&gt; sel() returns the zero-row slice&lt;/code&gt;&lt;/pre&gt;</pre>
+    </li>
+    <li><strong>If the source is wrong</strong> — n/a (structural ADR requirement, not a source claim).</li>
+  </ol>
+  <p><strong>Heuristic hint:</strong> Interpretation 1 — the section is simply absent (the ADR predates the author reading the worked-examples contract). Content maps cleanly from the existing Decisions/Rejected sections; low-risk patch.</p>
+</div>
+
+<h2>Aspirational symbols recorded</h2>
+<ul>
+<li><code>R/paintr-plotly.R</code> — Decisions #1, "New file" → aspirational (verified absent, correctly).</li>
+<li><code>ptr_ggplotly()</code>, <code>ptr_plotly_selection()</code> — Decisions #2 → aspirational (not in R/ or NAMESPACE).</li>
+<li><code>.ptr_selected</code>, <code>.ptr_row</code> (reserved names) — Decisions #3/#5 → aspirational; CONTEXT.md records them as locked vocabulary, demo mints <code>.ptr_row</code> manually.</li>
+<li><code>rlang::check_installed("plotly")</code> — Decisions #2 → aspirational. <em>Auditor note:</em> the cited "bslib precedent" (<code>R/paintr-app-bslib.R:62-65</code>) actually uses <code>requireNamespace() + rlang::abort()</code>, not <code>check_installed()</code> — minor inexactness in proposal-tense prose, not a finding; rlang is in Imports (DESCRIPTION:45).</li>
+<li><code>ptr_draw_trigger(rx)</code> — Considered-and-rejected → explicitly dropped.</li>
+<li><code>state$selection()</code> slot, <code>renderer = "plotly"</code> backend — Decisions #1 → explicitly rejected for v1.</li>
+</ul>
+
+<h2>Behavioral-claim evidence types</h2>
+<ul>
+<li>"draw_trigger does NOT fire on data change" — <strong>inconclusive</strong> (probe-only; source-read consistent at :1860/:1868; no test citation).</li>
+<li>"gate_draw = FALSE closes the loop" — <strong>source-read</strong> (un-isolated <code>observe(run_render())</code> at :1970 makes the mechanism evident); no test citation for the end-to-end redraw.</li>
+<li>"A reactive pipeline head works today" — <strong>inconclusive</strong> (probe-only; no cited test).</li>
+<li>"<code>event_data()</code> reads <code>.clientValue-plotly_selected-&lt;source&gt;</code>" — <strong>source-read</strong> against installed plotly: R-side reads <code>input[["plotly_selected-&lt;source&gt;"]]</code>; the <code>.clientValue-</code> prefix is the client→server id, stripped before the R read. The ADR already flags this as verify-before-commit (proposal-tense); implementation should use the R-side id form.</li>
+</ul>
+
+<p><strong>Worked-examples verdict:</strong> absent · manifest: empty.</p>
+
+<details>
+<summary>Audit manifest (machine-readable)</summary>
+<pre>
+manifest:
+  adr_path: dev/adr/0028-plotly-linked-selection-helpers.html
+  adr_hash: e65ee63c9b4d   # stamp-excluded pipeline; working-tree fallback (ADR untracked at audit time)
+  audited_files:
+    - path: R/paintr-server.R
+      sha256: 354624441974
+    - path: DESCRIPTION
+      sha256: 86a16b5157d5
+    - path: dev/scripts/plotly_linked_select.R
+      sha256: a6dbbbff92cc
+    - path: CONTEXT.md
+      sha256: d486c76a1d37
+    - path: .claude/rules/testing.md
+      sha256: 0c761b7cdc2a
+    - path: dev/adr/0006-single-server-entry-l3-ui-only.html
+      sha256: 097ccb0c1b4d
+    - path: R/paintr-app-bslib.R
+      sha256: e725accc8afb
+    - path: tests/testthat/test-options.R
+      sha256: 81e67795e498
+  audited_at: 2026-06-10 16:06
+  auditor:
+    agent: general-purpose
+    model: opus
+    effort: high
+</pre>
+</details>
+
+</body>
+</html>

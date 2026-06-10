@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ADR 0028 — Plotly linked-selection helpers (ptr_ggplotly / ptr_plotly_selection)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>ADR 0028 — Plotly linked-selection helpers (<code>ptr_ggplotly</code> / <code>ptr_plotly_selection</code>)</h1>
+
+<p><strong>Status:</strong> <em>Locked decision (pending implementation).</em> Routes to <code>/decision-to-plan</code> for the implementable plan; this doc records the decision + its verified baseline, it is not itself the plan.</p>
+<p><strong>Date:</strong> 2026-06-10 (grill-with-docs session). <strong>Companion artifacts:</strong> the new <em>Plotly interop — linked selection</em> and <em>Draw</em> sections of <code>CONTEXT.md</code> (same date); the runnable demo <code>dev/scripts/plotly_linked_select.R</code>. <strong>Respects:</strong> ADR 0006 (single public server entry; custom render = L3 UI-side, extracted from <code>state</code>) — this ADR adds helpers <em>on top of</em> that model and changes nothing in it.</p>
+
+<h2>The story, in plain language</h2>
+
+<p>The demo script <code>dev/scripts/plotly_linked_select.R</code> renders a ggpaintr formula through <code>plotly::ggplotly()</code>, lets the user box/lasso-select points, shows the selected rows in a table, and highlights them in a second plot. Everything in it is already possible at L3 — but three chunks of boilerplate are non-obvious and identical for every user who wants this: (1) tagging rows with a stable <code>key</code> so plotly events can name them, (2) wrapping <code>ggplotly()</code> with a source id, drag mode, and event registration, and (3) maintaining the selected-rows reactive across select/deselect/redraw. This ADR internalizes exactly those three chunks as a thin, opt-in helper layer — and makes the <em>second plot</em> expressible as a ggpaintr formula itself.</p>
+
+<h2>Decisions</h2>
+
+<ol>
+<li><strong>Scope: thin helper layer, nothing deeper.</strong> New file <code>R/paintr-plotly.R</code>; plotly stays in <code>Suggests</code> (already there) with a call-time guard, mirroring the optional-bslib pattern of <code>ptr_app_bslib()</code> (which guards via <code>requireNamespace() + rlang::abort()</code>, <code>R/paintr-app-bslib.R:62-65</code>; v1 may use <code>rlang::check_installed()</code> for the same effect — rlang is in Imports). Explicitly rejected for v1: a <code>renderer = "plotly"</code> backend on <code>ptr_app()</code>/<code>ptr_ui()</code>, and a <code>state$selection()</code> slot on <code>ptr_state</code> — both bake selection semantics into core before the helper layer proves them.</li>
+
+<li><strong>API: two state-first helpers.</strong>
+<pre><code>ptr_ggplotly(state, ..., source = NULL)            # inside renderPlotly(); returns a plain plotly object
+ptr_plotly_selection(state, mode = c("rows", "flag"), source = NULL)   # returns a reactive</code></pre>
+<code>ptr_ggplotly()</code> reads <code>state$runtime()$plot</code> internally (with the <code>req()</code> guard), mints per-draw row keys, forwards <code>...</code> to <code>ggplotly()</code>, sets <code>dragmode = "select"</code>, and registers the <code>plotly_selected</code>/<code>plotly_deselect</code> events. State-first (not plot-first) matches the ADR-0006 canon "custom render extracts from the state" and lets the two helpers share a derived source id. The return value is an ordinary plotly object, so users keep piping <code>plotly::layout()</code> after it. <code>source</code> defaults to a string derived from the instance's namespace id (no collision between instances; override only to coordinate with hand-written plotly widgets).</li>
+
+<li><strong>Selection semantics (CONTEXT.md, LOCKED).</strong> A selection refers to the <strong>drawn data</strong> — <code>state$runtime()$plot$data</code> of the draw that produced the widget — never to "the original object" (after a <code>filter()</code>/<code>mutate()</code> pipeline head or an upload swap there is no stable mapping back). Keys are minted per draw and are meaningless across draws, so the selection <strong>resets to empty on every draw</strong>. The helper returns <strong>rows, not bare indices</strong> (indices invite subsetting an object that no longer lines up). Two projections of the one selection: <code>mode = "rows"</code> (the selected slice; zero rows, same columns, when empty) and <code>mode = "flag"</code> (the full drawn data + logical <code>.ptr_selected</code> — the shape a highlight plot needs). Accepted limitation: only identity-stat, point-like layers carry keys; selecting on a <code>geom_smooth</code>/post-stat layer yields nothing.</li>
+
+<li><strong>The second plot is a ggpaintr formula — powered by <code>gate_draw = FALSE</code>, not <code>draw_trigger</code>.</strong> The headline composition:
+<pre><code>ptr_options(gate_draw = FALSE)                        # live mode
+state1 &lt;- ptr_server(f1, "p1")                        # plotly-rendered instance
+sel    &lt;- ptr_plotly_selection(state1, mode = "flag")
+f2     &lt;- rlang::expr(
+  sel() |&gt; ggplot(aes(x = ppVar(hp), y = ppVar(qsec), color = .ptr_selected)) + geom_point()
+)
+state2 &lt;- ptr_server(f2, "p2")                        # redraws per brush, zero wiring</code></pre>
+A reactive pipeline head (<code>sel()</code> — a <em>call</em>; a bare reactive piped into <code>ggplot()</code> is a closure error) already boots, seeds pickers, and draws on the current runtime with <strong>zero core changes</strong>. Auto-redraw per brush comes from live mode: under <code>gate_draw = FALSE</code> the runtime body runs un-isolated (<code>shiny::observe(run_render())</code>, <code>R/paintr-server.R:1970</code>), so the formula's <code>sel()</code> read becomes an ordinary reactive dependency.</li>
+
+<li><strong>Reserved channels (CONTEXT.md, LOCKED).</strong> The interop owns three names: the plotly <strong><code>key</code> aesthetic</strong> (a user formula's own <code>aes(key = ...)</code> is overridden with a one-time warning — selection is meaningless under foreign keys, and the L3 escape hatch of calling <code>ggplotly()</code> directly stays open), <strong><code>.ptr_row</code></strong> (key column on the widget copy only; never visible in either projection), and <strong><code>.ptr_selected</code></strong> (the flag column; user-facing by design). The two columns are documented reserved names, <strong>silently overwritten</strong> on collision — overwrite is what keeps <em>chained</em> selection-fed instances correct (instance N+1's flag must replace the stale flag riding in from instance N's drawn data), and a per-draw warning would spam under live draws.</li>
+
+<li><strong>Bookkeeping is server-side, per-session, keyed by instance id.</strong> Source string, selection state, and per-draw snapshot live in a store hung on <code>session$userData</code> — <em>never</em> a package-global environment (the placeholder registry is process-global because it is configuration; per-session reactive state in a global would leak across concurrent users). Two things <em>cannot</em> move into the store: the row key must physically travel to the browser and back inside the widget (a selection event is born client-side and carries only what the traces embed), and the flag must be a real column so it stays row-aligned through the second formula's own pipeline stages.</li>
+
+<li><strong>Docs: roxygen only for v1.</strong> Full-loop <code>@examples</code> on both helpers; <code>dev/scripts/plotly_linked_select.R</code> remains the runnable demo. A dedicated <code>ggpaintr-plotly</code> vignette (with fixture mirror + build gate, matching the locked live-three pattern) is <strong>deferred, not rejected</strong>.</li>
+
+<li><strong>Testing: three tiers.</strong> (1) Unit tests on pure cores — each helper is factored into a pure core + thin reactive shell (a design constraint, locked): key minting, key-override warning, both projections, collision overwrite, <code>check_installed</code> guard. (2) One e2e boot fixture (two instances + table; boots, widget renders, empty state, all-FALSE flags). (3) e2e selection round-trip by injecting the event at the Shiny input layer: plotly's R-side <code>event_data()</code> reads <code>input[["plotly_selected-&lt;source&gt;"]]</code> (the <code>.clientValue-</code> prefix is the client→server id, stripped before the R read — verified against the installed plotly source), settable via <code>app$set_inputs(..., allow_no_input_binding_ = TRUE)</code> with a crafted key payload — asserting table fill, flag-mode redraw, deselect-clears, redraw-resets. The exact input-id format is an internal plotly contract: verify against plotly source before committing, pin with a comment. If it proves unstable across plotly versions, downgrade tier 3 to driving the selection reactive directly — do <em>not</em> build mouse-drag or JS-emit simulation.</li>
+</ol>
+
+<h2>Verified baseline (probes run 2026-06-09/10 against <code>pkgload::load_all(".")</code>, browser via shinytest2)</h2>
+
+<ol>
+<li><strong>The demo composition is encoded in <code>dev/scripts/plotly_linked_select.R</code></strong> (structural; file verified). Its end-to-end boot, empty-state table, and key passthrough (32 unique keys, range 1–32, carried into the traces) were probe-verified at authoring time; the pinned regressions for the runtime claims are items 2–4 below, and the helper-level key contract lands with the tier-1 unit tests at implementation.</li>
+<li><strong>A reactive pipeline head works today</strong>: <code>ptr_server(rx() |&gt; ggplot(aes(x = ppVar(wt), y = ppVar(mpg))) + geom_point(), "p")</code> with <code>rx &lt;- reactiveVal(mtcars)</code> in the host server boots, seeds both pickers (wt/mpg), and draws (regression: <code>tests/testthat/test-runtime-gate.R::"reactive pipeline head boots and seeds pickers"</code>, fixture <code>fixtures/vignette-apps/adr28-gate-counter-trigger</code>).</li>
+<li><strong><code>draw_trigger</code> does NOT fire on data change</strong> — shrinking <code>rx()</code> with <code>draw_trigger = rx</code> produces no redraw (regression: <code>tests/testthat/test-runtime-gate.R::"draw_trigger ignores non-counter values"</code>). Mechanism: the gate is <code>clicked(x) = is.numeric(x) &amp;&amp; length(x) == 1L &amp;&amp; x &gt;= 1L</code> applied to the trigger's <em>value</em> (<code>R/paintr-server.R:1860</code>, consumed at <code>:1868</code>) — a click-counter contract, not "any invalidation". The roxygen that claimed otherwise was doc drift; <strong>fixed in this change</strong> (see Consequences).</li>
+<li><strong><code>gate_draw = FALSE</code> closes the loop with no adapter</strong> — <code>ptr_options(gate_draw = FALSE)</code>, no <code>draw_trigger</code>: shrinking <code>rx()</code> redraws the plot with no Update click (regression: <code>tests/testthat/test-runtime-gate.R::"gate_draw=FALSE redraws on reactive pipeline-head change"</code>, fixture <code>fixtures/vignette-apps/adr28-gate-live-reactive-head</code>; this test doubles as the positive control proving the no-redraw assertion in item 3 has teeth). Mechanism: live mode runs the body un-isolated so every reactive read is a dependency (<code>R/paintr-server.R:1957-1971</code>).</li>
+</ol>
+
+<h2>Considered and rejected</h2>
+
+<ul>
+<li><strong><code>ptr_draw_trigger(rx)</code> counter adapter</strong> — proposed mid-grill to bridge <code>draw_trigger</code>'s click-counter contract, then <strong>dropped</strong>: <code>gate_draw = FALSE</code> already exists, is the supported bypass, and the draw button is an ergonomic default rather than a core invariant (CONTEXT.md <em>Draw</em> term, amended 2026-06-10). No new trigger machinery.</li>
+<li><strong>Teaching the engine to auto-redraw on formula-data change under <code>gate_draw = TRUE</code></strong> — breaks the batch-on-click promise everywhere (an upload finishing would cascade redraws in existing apps). Live mode already provides the behavior as an explicit opt-in.</li>
+<li><strong>Plot-first signatures</strong> (<code>ptr_ggplotly(state$runtime()$plot)</code>) — forces every user to re-write the pre-draw guard and decouples the two helpers' source ids.</li>
+<li><strong><code>(curveNumber, pointNumber)</code> reverse mapping instead of the <code>key</code> channel</strong> — requires replicating ggplotly's trace-splitting logic; fragile across grouping/versions. The <code>key</code> aesthetic is plotly's documented contract.</li>
+<li><strong>Abort on user <code>aes(key=)</code> collision</strong> — louder than the failure deserves (formulas may come from templates or an LLM); warn-once + override keeps the render path alive. Respecting the user's key silently was also rejected: the selection helper would return garbage with no hint why.</li>
+<li><strong>Per-instance flag column names</strong> (<code>.ptr_selected_p1</code>) — breaks formula portability across instances; chaining is handled by overwrite instead.</li>
+<li><strong>Bare indices / persisting selection across draws / a third projection</strong> — see CONTEXT.md <em>Avoid</em> lists; all rejected during the grill.</li>
+</ul>
+
+<h2>Worked examples — what becomes possible</h2>
+
+<h3>1. Linked box-select feeding a second formula plot</h3>
+<p>A plotly-rendered formula whose brush selection drives a second ggpaintr instance — highlight expressed in the formula itself, zero trigger wiring.</p>
+<pre><code class="language-r">ptr_options(gate_draw = FALSE)                        # live mode
+
+# server:
+state1 &lt;- ptr_server(f1, "p1")                        # f1: any ggpaintr formula
+output$p1_plot &lt;- plotly::renderPlotly(ptr_ggplotly(state1))
+
+sel &lt;- ptr_plotly_selection(state1, mode = "flag")    # drawn data + .ptr_selected
+f2  &lt;- rlang::expr(
+  sel() |&gt; ggplot(aes(x = ppVar(hp), y = ppVar(qsec), color = .ptr_selected)) +
+    geom_point()
+)
+state2 &lt;- ptr_server(f2, "p2")                        # redraws per brush
+</code></pre>
+
+<h3>2. Selected-rows table off <code>mode = "rows"</code></h3>
+<p>The selected slice of the drawn data rendered as an ordinary table; the zero-row-same-columns empty state makes the render unconditional.</p>
+<pre><code class="language-r">sel_rows &lt;- ptr_plotly_selection(state1, mode = "rows")
+output$tbl &lt;- renderTable(sel_rows())   # empty selection -&gt; zero-row table, no req() dance
+</code></pre>
+
+<h3>3. Composing extra plotly layout after the helper</h3>
+<p><code>ptr_ggplotly()</code> returns a plain plotly object, so the user keeps piping plotly verbs after it.</p>
+<pre><code class="language-r">output$p1_plot &lt;- plotly::renderPlotly(
+  ptr_ggplotly(state1, tooltip = "all") |&gt;
+    plotly::layout(legend = list(orientation = "h"))
+)
+</code></pre>
+
+<h2>Worked examples — what is rejected by design</h2>
+
+<h3>1. Selecting on a stat-transformed layer</h3>
+<p>Only identity-stat, point-like layers carry row keys; brushing a smooth/post-stat layer yields nothing — by design, not a bug.</p>
+<pre><code class="language-r">f &lt;- rlang::expr(ggplot(mtcars, aes(ppVar(wt), ppVar(mpg))) + geom_smooth())
+# brushing the smooth line -&gt; ptr_plotly_selection() stays at its empty state
+</code></pre>
+
+<h3>2. Persisting a selection across a redraw</h3>
+<p>Keys are per-draw; any new draw (picker change in live mode, Update click, upload swap) resets the selection to empty — carrying it across draws would silently mis-attribute rows.</p>
+<pre><code class="language-r"># brush plot 1, then change a picker -&gt; new draw -&gt; new keys
+sel_rows()   # zero-row slice again; the old selection is NOT carried over
+</code></pre>
+
+<h3>3. Passing the selection reactive itself as <code>draw_trigger</code></h3>
+<p><code>draw_trigger</code> is a click-counter contract (numeric ≥ 1); a reactive carrying a data frame never fires it. Live mode is the supported route.</p>
+<pre><code class="language-r">state2 &lt;- ptr_server(f2, "p2", draw_trigger = sel)   # silently never redraws
+# correct: ptr_options(gate_draw = FALSE) and let sel() be a live dependency
+</code></pre>
+
+<h3>4. A bare reactive as the pipeline head</h3>
+<p>The formula head must <em>call</em> the reactive; piping the reactive object itself sends a closure into <code>ggplot()</code>.</p>
+<pre><code class="language-r">f2 &lt;- rlang::expr(sel |&gt; ggplot(aes(...)))    # error: cannot use a function as data
+f2 &lt;- rlang::expr(sel() |&gt; ggplot(aes(...)))  # correct — note the parentheses
+</code></pre>
+
+<h2>Consequences</h2>
+
+<ul>
+<li>Two doc fixes applied with this ADR: the <code>draw_trigger</code> roxygen now states the click-counter contract and points live-mode users to <code>gate_draw = FALSE</code> (<code>R/paintr-server.R</code>, <code>ptr_init_state</code> params); <code>.claude/rules/testing.md</code>'s "only re-renders on the Update/Draw click" e2e rule is now qualified by <code>gate_draw = TRUE</code>, with the live-mode exception spelled out.</li>
+<li>Pre-draw window: before instance 1's first draw, <code>sel()</code> has no drawn data and a selection-fed instance 2 shows its existing inline pre-draw state. Under live mode instance 1 boot-draws on the first flush, so the window is one flush — accepted, documented honestly in the roxygen.</li>
+<li>In live mode, any picker change on the plotly-rendered instance triggers a draw, which mints new keys and resets the selection — consistent with the per-draw key semantics, worth one sentence in the roxygen.</li>
+<li><code>gate_draw</code> is a process-global option read at build time, so live mode applies to every instance in the app; a per-instance override is future work if a mixed app ever needs it.</li>
+<li>Selection-fed formulas exercise the seeding/binding cluster (reactive head + picker seeding); per <code>.claude/rules/testing.md</code> blast-radius rules, runtime-adjacent changes during implementation widen the e2e set accordingly.</li>
+</ul>
+
+<!-- audit-adr: PASS 41e5b2386e65 dev/audit/audit-adr-0028-2026-06-10-1621.html 2026-06-10 -->
+</body>
+</html>

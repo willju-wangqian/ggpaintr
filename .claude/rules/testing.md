@@ -61,10 +61,15 @@ These cost a full debugging cycle once. Read before adding any shinytest2 test.
   ("invalid char in json text") on custom-renderer apps whose host output is
   in a pre-draw `shiny.silent.error` state. Assert with targeted
   `app$get_html("#id")` / `app$get_value(output="id")` instead.
-- **ggpaintr only re-renders on the Update/Draw click.** Setting a
-  placeholder widget never updates an output by itself, so
-  `app$set_inputs(id = value)` with the default `wait_ = TRUE` *times out*.
-  Use `wait_ = FALSE` for every placeholder set, then click the draw button.
+- **Under the default `gate_draw = TRUE`, ggpaintr only re-renders on the
+  Update/Draw click.** Setting a placeholder widget never updates an output
+  by itself, so `app$set_inputs(id = value)` with the default `wait_ = TRUE`
+  *times out*. Use `wait_ = FALSE` for every placeholder set, then click the
+  draw button. **Exception:** a fixture that sets `ptr_options(gate_draw =
+  FALSE)` runs the render body live — placeholder changes (and any reactive
+  the formula reads, e.g. a reactive pipeline head) re-render outputs
+  directly, so default-`wait_` sets are fine there and there is no button to
+  click.
 - **`var` pickers for source/consumer placeholders are suspended.** They live
   in a `renderUI` under the layer's "Data" subtab and aren't bound until that
   subtab is shown. Set the source/consumer input, then

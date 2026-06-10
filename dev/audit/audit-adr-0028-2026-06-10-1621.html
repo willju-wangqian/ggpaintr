@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>audit-adr — ADR 0028 — PASS — 2026-06-10 16:21</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+<h1>audit-adr — ADR 0028 plotly-linked-selection-helpers</h1>
+<p class="meta">Target: dev/adr/0028-plotly-linked-selection-helpers.html · Verdict: <strong>PASS</strong> · Audited: 2026-06-10 16:21 · Auditor: general-purpose/opus/high · Re-audit (prior FAIL: dev/audit/audit-adr-0028-2026-06-10-1606.html)</p>
+
+<h2>Verdict</h2>
+<p><strong>PASS — zero findings.</strong> Both prior findings are resolved: every behavioral claim in the strict <em>Verified baseline</em> section now carries an exact regression-test citation (file + scenario name verified to exist; the auditor independently ran the cited file — <code>devtools::test(filter="runtime-gate")</code> → <code>FAIL 0 | WARN 0 | SKIP 0 | PASS 14</code>, browser tests RAN), and both worked-examples sections are present and structurally complete (3 positive + 4 negative examples, each with a one-line summary and an R code block). All code-shaped literals, structural claims, quantitative claims, and cross-references verify exactly against source.</p>
+
+<h2>Verified claims</h2>
+<ul>
+<li>(Cat 1/2) Demo <code>dev/scripts/plotly_linked_select.R</code> exists, matches the described composition (key tagging, source id, dragmode, event registration, select/deselect reactive, empty-state table, highlight plot). Evidence: plotly_linked_select.R:30-118.</li>
+<li>(Cat 4) "32 unique keys, range 1–32" — mtcars 32 rows, <code>seq_len(nrow(p$data))</code>. Evidence: plotly_linked_select.R:74.</li>
+<li>(Cat 3, test-citation) Reactive pipeline head boots + seeds pickers — <code>test-runtime-gate.R::"reactive pipeline head boots and seeds pickers"</code>, fixture <code>adr28-gate-counter-trigger</code>. PASS.</li>
+<li>(Cat 3, test-citation) <code>draw_trigger</code> ignores non-counter values — <code>test-runtime-gate.R::"draw_trigger ignores non-counter values"</code>. PASS. Mechanism verified exact: <code>clicked()</code> at R/paintr-server.R:1860, consumed at :1868.</li>
+<li>(Cat 3, test-citation) <code>gate_draw = FALSE</code> live redraw on reactive head change — <code>test-runtime-gate.R::"gate_draw=FALSE redraws on reactive pipeline-head change"</code>, fixture <code>adr28-gate-live-reactive-head</code> (doubles as positive control for the no-redraw detector). PASS. Mechanism verified exact: gate branch R/paintr-server.R:1957-1971, <code>shiny::observe(run_render())</code> at :1970.</li>
+<li>(Cat 1) DESCRIPTION: rlang in Imports (L45), plotly in Suggests (L56), bslib in Suggests (L49).</li>
+<li>(Cat 2) bslib guard = <code>requireNamespace() + rlang::abort()</code> at R/paintr-app-bslib.R:62-66 (ADR cites :62-65; off-by-one on closing brace only — within tolerance).</li>
+<li>(Cat 2) CONTEXT.md carries all four named sections + the 2026-06-10 header amendment (L5, L91, L107, L111, L115).</li>
+<li>(Cat 2) ADR 0006 says what 0028 claims (single public server entry; custom render = L3 UI-side extracted from state). Evidence: 0006:L40-42.</li>
+<li>(Cat 2) <code>.claude/rules/testing.md:64-68</code> — gate_draw=TRUE-qualified e2e rule + live-mode exception present.</li>
+<li>(Cat 2) <code>draw_trigger</code> roxygen (R/paintr-server.R:39-46) states the click-counter contract and points to <code>gate_draw = FALSE</code>.</li>
+<li>(Cat 2, source-read) plotly R-side <code>event_data()</code> reads <code>input[["plotly_selected-&lt;source&gt;"]]</code>; <code>.clientValue-</code> prefix is client-side, stripped before the R read. Verified against installed plotly 4.12.0.</li>
+<li>(Cat 1) <code>state$runtime()</code> reactiveVal (R/paintr-server.R:218); <code>gate_draw</code> read at build time via <code>ptr_get_setting</code> (:1964); <code>ptr_server</code> exported (NAMESPACE:115).</li>
+</ul>
+
+<h2>Aspirational symbols recorded</h2>
+<ul>
+<li><code>R/paintr-plotly.R</code> — Decisions §1; confirmed absent, correctly aspirational.</li>
+<li><code>ptr_ggplotly()</code>, <code>ptr_plotly_selection()</code> (+ <code>mode=</code>, <code>source=</code>) — Decisions §2 / Worked examples; proposed helper API, not in source.</li>
+<li><code>.ptr_selected</code>, <code>.ptr_row</code> reserved columns, <code>key</code> override-with-warning — Decisions §3/§5; helper behavior delegated to tier-1 unit tests at implementation.</li>
+<li>Pure-core/reactive-shell split, tier-1/2/3 test plan, future selection e2e fixtures — Decisions §7/§8.</li>
+</ul>
+
+<h2>Behavioral-claim evidence types</h2>
+<ul>
+<li>Reactive head boots/seeds — <strong>test-citation</strong> — test-runtime-gate.R::"reactive pipeline head boots and seeds pickers".</li>
+<li>draw_trigger no-fire on data change — <strong>test-citation</strong> — test-runtime-gate.R::"draw_trigger ignores non-counter values".</li>
+<li>gate_draw=FALSE live redraw — <strong>test-citation</strong> — test-runtime-gate.R::"gate_draw=FALSE redraws on reactive pipeline-head change".</li>
+<li>Demo end-to-end boot / key passthrough — <strong>source-read</strong> (structural + authoring-time probe; behavioral content explicitly delegated to items 2–4 + tier-1 tests).</li>
+<li>event_data input id form — <strong>source-read</strong> (installed plotly 4.12.0).</li>
+</ul>
+
+<p><strong>Cited-test run (auditor's own):</strong> <code>Rscript -e 'devtools::test(filter="runtime-gate", reporter="progress", stop_on_failure=FALSE)'</code> → <code>[ FAIL 0 | WARN 0 | SKIP 0 | PASS 14 ]</code> (browser tests RAN — 0 SKIP). Independently confirmed by the orchestrator session before the re-audit (same command, same counts).</p>
+
+<p><strong>Worked-examples verdict:</strong> complete — 3 positive (linked box-select → second formula; rows-mode table; post-helper plotly composition) + 4 negative (stat-layer selection; cross-draw persistence; selection-as-draw_trigger; bare-reactive head), each with one-line summary + R code block.</p>
+
+<details>
+<summary>Audit manifest (machine-readable)</summary>
+<pre>
+manifest:
+  adr_path: dev/adr/0028-plotly-linked-selection-helpers.html
+  adr_hash: 41e5b2386e65   # stamp-excluded pipeline; working-tree fallback (ADR untracked at audit time)
+  audited_files:
+    - path: dev/scripts/plotly_linked_select.R
+      sha256: a6dbbbff92cc
+    - path: tests/testthat/test-runtime-gate.R
+      sha256: c97e28c955cd
+    - path: tests/testthat/fixtures/vignette-apps/adr28-gate-counter-trigger/app.R
+      sha256: d0a00a4d10de
+    - path: tests/testthat/fixtures/vignette-apps/adr28-gate-live-reactive-head/app.R
+      sha256: f7ecbc92cb71
+    - path: R/paintr-server.R
+      sha256: 354624441974
+    - path: R/paintr-app-bslib.R
+      sha256: e725accc8afb
+    - path: DESCRIPTION
+      sha256: 86a16b5157d5
+    - path: CONTEXT.md
+      sha256: d486c76a1d37
+    - path: dev/adr/0006-single-server-entry-l3-ui-only.html
+      sha256: 097ccb0c1b4d
+    - path: .claude/rules/testing.md
+      sha256: 0c761b7cdc2a
+  audited_at: 2026-06-10 16:21
+  auditor:
+    agent: general-purpose
+    model: opus
+    effort: high
+  prior_fail_report: dev/audit/audit-adr-0028-2026-06-10-1606.html
+</pre>
+</details>
+
+</body>
+</html>
