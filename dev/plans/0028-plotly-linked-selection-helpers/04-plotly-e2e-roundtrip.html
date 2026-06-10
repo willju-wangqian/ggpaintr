@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-04 — e2e selection round-trip via input-layer injection (from ADR 0028)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 04
+  slug: plotly-e2e-roundtrip
+  source_adr: dev/adr/0028-plotly-linked-selection-helpers.html
+  depends_on: [03-plotly-e2e-boot]
+  parallel_group: G4
+  status: draft
+-->
+
+<h1>PLAN-04 — e2e selection round-trip via input-layer injection</h1>
+<p class="meta">Source: ADR 0028 (Decision 8 tier 3; worked examples "becomes possible #1/#2", "rejected by design #2/#3") · Depends on: 03 (and transitively 01, 02) · Parallel group: G4 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0028 Decision 8 tier 3: <em>"e2e selection round-trip by injecting the event at the Shiny input layer: plotly's R-side <code>event_data()</code> reads <code>input[["plotly_selected-&lt;source&gt;"]]</code> (the <code>.clientValue-</code> prefix is the client→server id, stripped before the R read — verified against the installed plotly source), settable via <code>app$set_inputs(..., allow_no_input_binding_ = TRUE)</code> with a crafted key payload — asserting table fill, flag-mode redraw, deselect-clears, redraw-resets."</em> Probe re-verified 2026-06-10 against the installed plotly: <code>event_data()</code> builds <code>eventID &lt;- paste(event, source, sep = "-")</code> and reads <code>session$rootScope()$input[[eventID]]</code> — so for PLAN-03's explicit <code>source = "ptr_e2e"</code> the injected ids are <code>plotly_selected-ptr_e2e</code> / <code>plotly_deselect-ptr_e2e</code>, at the ROOT scope (no module prefix). This plan also pins worked example "rejected by design #3" (<code>draw_trigger = sel</code> silently never redraws — the click-counter contract, <code>clicked()</code> at <code>R/paintr-server.R:1860</code>, consumed at <code>:1868</code>) with a second, default-gated fixture, mirroring the discriminating-pair pattern of <code>tests/testthat/test-runtime-gate.R</code>.</p>
+
+<h2>Governing principle</h2>
+<p><strong>Selection is injected at the Shiny input layer — plotly's own R-side contract — never simulated by mouse-drag or JS emit.</strong> The input id format is an <em>internal plotly contract</em>: re-verify it against the installed plotly source before committing and pin the verification with a comment; if it proves unstable across plotly versions, the ADR's sanctioned fallback is to downgrade this tier to driving the selection reactive directly — recorded, not hidden. And <strong><code>draw_trigger</code> stays a click-counter</strong> (numeric scalar ≥ 1): the rejected <code>ptr_draw_trigger(rx)</code> adapter stays rejected; live mode (<code>gate_draw = FALSE</code>) is the one supported route to per-brush redraws. A "fix" that makes <code>draw_trigger</code> fire on a data-frame reactive to get this plan green would break the batch-on-click promise everywhere — an obvious ADR violation.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>New round-trip tests appended to <code>tests/testthat/test-plotly-e2e.R</code> against PLAN-03's <code>adr28-plotly-linked</code> fixture, injecting a crafted selection payload (points carrying <code>key</code> values, shaped per plotly's parsed-event contract — shape verified against the installed plotly source at implementation time, pinned with a comment citing <code>plotly:::event_data</code>'s <code>eventID &lt;- paste(event, source, sep = "-")</code> line) via <code>app$set_inputs(`plotly_selected-ptr_e2e` = &lt;payload&gt;, allow_no_input_binding_ = TRUE, wait_ = FALSE)</code>, asserting all four ADR observables:
+    <ul>
+      <li><strong>table fill</strong> — after injecting keys c(2, 5), the rows-mode table's HTML gains exactly 2 data rows (zero before);</li>
+      <li><strong>flag-mode redraw</strong> — instance 2's plot HTML changes from its pre-injection snapshot (the <code>poll_html()</code> changed-detector pattern, <code>tests/testthat/helper-vignette-apps.R:86</code>), i.e. the brush drove a redraw of the selection-fed formula with zero trigger wiring;</li>
+      <li><strong>deselect clears</strong> — injecting <code>plotly_deselect-ptr_e2e</code> returns the table to zero data rows;</li>
+      <li><strong>redraw resets</strong> — after re-selecting, changing an instance-1 ppVar picker (a new draw in live mode → new keys) returns the table to zero data rows: the old selection is NOT carried over.</li>
+    </ul>
+  </li>
+  <li>A second fixture <code>tests/testthat/fixtures/vignette-apps/adr28-plotly-trigger-misuse/app.R</code> under the DEFAULT <code>gate_draw = TRUE</code> wiring <code>state2 &lt;- ptr_server(f2, "p2", draw_trigger = sel)</code> (the selection reactive itself as trigger — ADR rejected-by-design #3), plus a test asserting: after instance 1 draws (Update click) and a selection payload is injected, instance 2's plot HTML is <strong>identical</strong> to its pre-injection snapshot — it silently never redraws, because <code>clicked()</code> (<code>R/paintr-server.R:1860</code>) rejects a data-frame-carrying reactive. The live-mode round-trip test above is the positive control proving this no-change assertion has teeth (same injection, HTML does change), mirroring <code>test-runtime-gate.R</code>'s discriminating pair.</li>
+  <li>Verified by <code>Rscript -e 'devtools::test(filter="plotly-e2e", reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0, tests RUN on the dev machine.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: additions to <code>tests/testthat/test-plotly-e2e.R</code> (PLAN-03's boot tests stay as merged), <code>tests/testthat/fixtures/vignette-apps/adr28-plotly-trigger-misuse/app.R</code> (new).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-plotly.R</code>, any <code>R/paintr-*.R</code> core file (in particular <code>R/paintr-server.R</code>'s <code>clicked()</code>/gate logic), PLAN-03's <code>adr28-plotly-linked/app.R</code> beyond what the round-trip genuinely requires (prefer none; if an assertion needs a fixture hook, surface it to the auditor rather than silently reshaping the fixture).</li>
+  <li><strong>If the injected-input contract proves unstable</strong> (payload shape or id format breaks across plotly versions): downgrade tier 3 to driving the selection reactive directly (ADR Decision 8's explicit fallback) and record the downgrade in the audit report. Do NOT build mouse-drag or JS-emit simulation.</li>
+  <li><strong>Handoff assumption (pinned):</strong> the redraw-resets scenario assumes PLAN-03's fixture <code>f1</code> carries at least one <code>ppVar</code> picker (as in the ADR Consequence "any picker change on the plotly-rendered instance triggers a draw" and the demo's formula <code>f</code>, <code>dev/scripts/plotly_linked_select.R:31</code>). If the merged fixture lacks one, surface to the auditor — do not reshape the fixture beyond what the round-trip genuinely requires.</li>
+  <li>e2e discipline (<code>.claude/rules/testing.md</code>): <code>skip_on_cran()</code> + <code>skip_if_not_installed()</code> guards as in PLAN-03; no <code>app$get_values()</code>; placeholder sets on the default-gated misuse fixture use <code>wait_ = FALSE</code> + explicit Update click; assert via targeted <code>get_html()</code>/<code>poll_html()</code>.</li>
+  <li>No scope creep, no incidental refactors.</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code> for the full rule.</li>
+  <li>Conventions: project CLAUDE.md + <code>.claude/rules/coding.md</code> + <code>.claude/rules/testing.md</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<p>Scenarios collectively cover every Success Criterion above and the four ADR worked examples this plan claims (§Worked-example coverage).</p>
+<pre>
+Feature: brush-select round-trip — injected at the Shiny input layer
+
+Scenario: ADR worked example (becomes possible #2, table fill) — selected rows appear in the rows-mode table
+  Given the adr28-plotly-linked fixture booted and instance 1 drawn (live mode boot-draw)
+  And the rows-mode table shows zero data rows
+  When a plotly_selected-ptr_e2e payload carrying keys c(2, 5) is injected via app$set_inputs(allow_no_input_binding_ = TRUE)
+  Then the table's HTML gains exactly 2 data rows
+
+Scenario: ADR worked example (becomes possible #1) — the brush drives a flag-mode redraw of the selection-fed instance
+  Given the same booted fixture with instance 2's plot HTML snapshotted
+  When the same selection payload is injected
+  Then instance 2's plot HTML changes from the snapshot (poll_html changed-detector)
+  And instance 2 still shows no inline error — the highlight redraw came from sel() as a live reactive dependency, with zero trigger wiring
+
+Scenario: deselect clears the selection
+  Given a selection of keys c(2, 5) is active (table shows 2 data rows)
+  When a plotly_deselect-ptr_e2e event is injected
+  Then the table returns to zero data rows
+
+Scenario: ADR worked example (rejected by design #2) — a redraw resets the selection
+  Given a selection of keys c(2, 5) is active (table shows 2 data rows)
+  When an instance-1 ppVar picker is changed (live mode -> new draw -> new keys)
+  Then the table returns to zero data rows — the old selection is NOT carried over
+
+Scenario: ADR worked example (rejected by design #3) — the selection reactive as draw_trigger silently never redraws
+  Given the adr28-plotly-trigger-misuse fixture (default gate_draw = TRUE, state2 wired with draw_trigger = sel)
+  And instance 1 drawn via its Update click and instance 2's plot HTML snapshotted
+  When a selection payload carrying keys c(2, 5) is injected
+  Then instance 2's plot HTML is identical to the snapshot (no redraw — clicked() rejects a data-frame reactive)
+  And the live-mode flag-redraw scenario above is the positive control proving this identical-HTML assertion has teeth
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                      | kind     | summary (one line)                                                            | Scenario in this plan                                                                       |
+|-------------------------------------------------|----------|--------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------|
+| Worked examples — what becomes possible #1      | positive | brush selection drives a second ggpaintr formula instance, zero trigger wiring  | ADR worked example (becomes possible #1) — the brush drives a flag-mode redraw of the selection-fed instance |
+| Worked examples — what becomes possible #2      | positive | (table-fill half) selected slice rendered as an ordinary table                  | ADR worked example (becomes possible #2, table fill) — selected rows appear in the rows-mode table |
+| Worked examples — what is rejected by design #2 | negative | keys are per-draw; any new draw resets the selection to empty                   | ADR worked example (rejected by design #2) — a redraw resets the selection                    |
+| Worked examples — what is rejected by design #3 | negative | draw_trigger is a click-counter; a data-frame reactive silently never fires it  | ADR worked example (rejected by design #3) — the selection reactive as draw_trigger silently never redraws |
+</pre>
+
+<h2>Interface Contract</h2>
+<p>N/A — this plan creates no entry points (fixture + tests only). The surfaces under test are PLAN-01/02's Interface Contracts; this plan asserts their composed round-trip observables at the user-visible boundary (table HTML, plot HTML), driven through plotly's documented R-side event input.</p>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see target repo's CLAUDE.md §"Authoritative gate" — <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> at <strong>FAIL 0 / ERROR 0 / SKIP 0</strong>. The proxy-trap list lives there and applies to every plan.</p>
+<p><strong>Plan-specific gate risks:</strong></p>
+<ul>
+  <li>The injected input id (<code>plotly_selected-ptr_e2e</code>) and payload shape are an internal plotly contract — a green run after a silent downgrade to "drive the reactive directly" without recording the downgrade is a hidden proxy; the downgrade is sanctioned but MUST be reported.</li>
+  <li>Inner-loop <code>test_dir</code> without <code>NOT_CRAN</code> SKIPs all of this plan's tests; only <code>devtools::test()</code> runs them.</li>
+  <li>The identical-HTML (no-redraw) assertion is only trustworthy alongside its positive control; if the control scenario is removed or skipped, the misuse test is vacuous — auditor must see both RUN.</li>
+</ul>
+<p>This plan adds ≥ 5 new e2e tests at <code>tests/testthat/test-plotly-e2e.R</code>. The gate must show PASS count rise accordingly with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: additions to <code>tests/testthat/test-plotly-e2e.R</code>, <code>tests/testthat/fixtures/vignette-apps/adr28-plotly-trigger-misuse/app.R</code>. Generated files are owned by an integration step (this plan should not produce any).</p>
+<p>Branch convention: this plan lives on branch <code>0028-plotly-e2e-roundtrip</code> in a worktree at <code>.claude/worktrees/0028-plotly-linked-selection-helpers/plotly-e2e-roundtrip/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>0028-plotly-linked-selection-helpers</code> at the commit where this plan's worktree was created — after PLAN-03 merged (record the SHA in the worktree's first commit message). No pre-existing suite failures recorded; new failures = any failure.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files (e.g. a selection-state bug in <code>R/paintr-plotly.R</code> exposed by the round-trip, or instability in the plotly input contract suggesting helper-side hardening) are surfaced in the audit report, never absorbed.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: 03 (injects against its fixture + explicit <code>source = "ptr_e2e"</code>; appends to its test file), and transitively 01/02 (the helpers under test). Provides for: nothing — terminal plan.</p>
+
+<!-- implementable: PASS date=2026-06-10 gate="Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'" hash=8fdecab47ef7 -->
+</body>
+</html>

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-03 — e2e boot fixture: headline two-instance composition (from ADR 0028)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 03
+  slug: plotly-e2e-boot
+  source_adr: dev/adr/0028-plotly-linked-selection-helpers.html
+  depends_on: [01-plotly-ggplotly-core, 02-plotly-selection]
+  parallel_group: G3
+  status: draft
+-->
+
+<h1>PLAN-03 — e2e boot fixture: headline two-instance composition</h1>
+<p class="meta">Source: ADR 0028 (Decisions 4, 8 tier 2; worked example "becomes possible #1/#2" setup) · Depends on: 01, 02 · Parallel group: G3 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0028 Decision 8 tier 2: <em>"One e2e boot fixture (two instances + table; boots, widget renders, empty state, all-FALSE flags)."</em> The fixture encodes the ADR's headline composition (Decision 4 / worked example "becomes possible #1"): <code>ptr_options(gate_draw = FALSE)</code> live mode; instance 1 (<code>"p1"</code>) rendered through <code>plotly::renderPlotly(ptr_ggplotly(state1))</code>; <code>sel &lt;- ptr_plotly_selection(state1, mode = "flag")</code>; instance 2 (<code>"p2"</code>) a ggpaintr formula whose pipeline head is <code>sel()</code> — <code>sel() |&gt; ggplot(aes(x = ppVar(hp), y = ppVar(qsec), color = .ptr_selected)) + geom_point()</code> — plus a <code>renderTable</code> off <code>mode = "rows"</code>. The reactive-pipeline-head boot behavior this composition rides on is already pinned (<code>tests/testthat/test-runtime-gate.R::"reactive pipeline head boots and seeds pickers"</code>; live-mode redraw at <code>::"gate_draw=FALSE redraws on reactive pipeline-head change"</code>, mechanism <code>R/paintr-server.R:1957-1971</code>); this plan pins that the <em>selection-fed</em> composition boots end-to-end. The fixture follows the established app-dir pattern (<code>tests/testthat/fixtures/vignette-apps/*/app.R</code> with the <code>pkgload::load_all(Sys.getenv("GGP_PKG"), ...)</code> first line; cf. <code>adr28-gate-live-reactive-head/app.R</code>) and the runnable demo <code>dev/scripts/plotly_linked_select.R</code>.</p>
+
+<h2>Governing principle</h2>
+<p><strong>The headline promise is compositional, with zero core changes:</strong> the second plot is an ordinary ggpaintr formula whose pipeline head happens to be the selection reactive, and it redraws per brush purely because live mode (<code>gate_draw = FALSE</code>) runs the render body un-isolated, making the formula's <code>sel()</code> read an ordinary reactive dependency. No trigger machinery, no adapter, no special-cased selection plumbing in core. The fixture must mirror that composition exactly — a fixture that hand-wires the second plot (the demo's pre-ADR shape) or adds a trigger would test something other than the ADR's promise. The pre-draw window (instance 2 shows its inline pre-draw state until instance 1's first draw, one flush under live mode) is accepted and documented, not papered over.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li>A new fixture directory <code>tests/testthat/fixtures/vignette-apps/adr28-plotly-linked/</code> whose <code>app.R</code> boots both instances under <code>ptr_options(gate_draw = FALSE)</code>, renders instance 1 via <code>plotly::renderPlotly(ptr_ggplotly(state1, source = "ptr_e2e"))</code> (explicit <code>source</code> so PLAN-04's injected event ids are deterministic), wires <code>ptr_plotly_selection</code> in both modes (flag → instance 2's formula head; rows → a <code>tableOutput</code>), and stays diffable against the ADR's worked-example code.</li>
+  <li>New e2e tests in <code>tests/testthat/test-plotly-e2e.R</code> (gated per <code>.claude/rules/testing.md</code>: <code>skip_on_cran()</code>, <code>skip_if_not_installed("shinytest2")</code> + <code>"chromote"</code> + <code>"plotly"</code>; booted via <code>boot_vignette_app("adr28-plotly-linked")</code>, <code>tests/testthat/helper-vignette-apps.R:20</code>) asserting, on boot with no interaction:
+    <ul>
+      <li><strong>widget renders</strong> — the instance-1 output container's HTML contains a rendered plotly htmlwidget (a <code>js-plotly-plot</code>/<code>plotly</code> class marker), via <code>app$get_html()</code> — never <code>app$get_values()</code> (forbidden, <code>.claude/rules/testing.md</code>);</li>
+      <li><strong>no inline errors</strong> — instance 2's host settles as a drawn ggplot with an empty error output (<code>expect_host_settled()</code>, <code>helper-vignette-apps.R:228</code>), i.e. the all-FALSE flag data drew;</li>
+      <li><strong>empty state</strong> — the rows-mode table output renders unconditionally with zero data rows (header-only / no data rows in its HTML): the zero-row-same-columns contract means no <code>req()</code> dance and no error placeholder;</li>
+      <li><strong>seeding</strong> — instance 2's ppVar pickers carry the formula defaults (<code>hp</code> / <code>qsec</code>) via <code>expect_input_eventually()</code> (<code>helper-vignette-apps.R:114</code>), pinning that a selection-fed head seeds pickers like any reactive head.</li>
+    </ul>
+  </li>
+  <li>Verified by <code>Rscript -e 'devtools::test(filter="plotly-e2e", reporter="progress", stop_on_failure=FALSE)'</code> → FAIL 0 / ERROR 0, tests RUN (not skipped) on the dev machine.</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>tests/testthat/fixtures/vignette-apps/adr28-plotly-linked/app.R</code> (new), <code>tests/testthat/test-plotly-e2e.R</code> (new — boot tests only; PLAN-04 appends the round-trip tests).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-plotly.R</code> (PLAN-01/02 — if the boot exposes a helper bug, surface it, do not patch here), any <code>R/paintr-*.R</code> core file, the existing <code>adr28-gate-*</code> fixtures, <code>tests/testthat/test-runtime-gate.R</code>.</li>
+  <li>Fixture discipline (<code>.claude/rules/testing.md</code>): app <em>directory</em> with the <code>pkgload::load_all(Sys.getenv("GGP_PKG"), quiet = TRUE, helpers = FALSE, attach_testthat = FALSE)</code> first line — never a parent-built <code>shiny.appobj</code>; <code>AppDriver$new()</code> via the shared <code>boot_vignette_app()</code> helper; no <code>app$get_values()</code>; live mode means no Update button and default-<code>wait_</code> input sets are fine.</li>
+  <li>The fixture composition must match the ADR worked example (selection-fed formula head <code>sel()</code>, <code>color = .ptr_selected</code>) — do not substitute the demo script's hand-wired second plot.</li>
+  <li>No scope creep; no extra fixtures (PLAN-04 owns the trigger-misuse fixture).</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code> for the full rule.</li>
+  <li>Conventions: project CLAUDE.md + <code>.claude/rules/coding.md</code> + <code>.claude/rules/testing.md</code>.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<p>Scenarios collectively cover every Success Criterion above and the ADR worked example half this plan claims (§Worked-example coverage): the <em>empty-state</em> observable of "becomes possible #2". The table-fill half and the per-brush redraw are PLAN-04's (they require event injection).</p>
+<pre>
+Feature: linked-selection composition boots end-to-end in a real browser
+
+Scenario: the two-instance app boots with a rendered plotly widget
+  Given the adr28-plotly-linked fixture booted via boot_vignette_app()
+  When the first flush settles with no interaction
+  Then the instance-1 plotly output's HTML contains a rendered plotly htmlwidget marker (js-plotly-plot)
+  And no inline ggpaintr error is shown for instance 1
+
+Scenario: the selection-fed instance draws its all-FALSE flag state on boot
+  Given the same booted fixture
+  When instance 1's boot draw lands and sel() supplies the flag projection
+  Then instance 2's host settles as a drawn ggplot (img present) with an empty error output
+  And instance 2's ppVar pickers eventually hold "hp" and "qsec"
+
+Scenario: ADR worked example (becomes possible #2, empty state) — the rows table renders unconditionally
+  Given the same booted fixture with nothing selected
+  When the rows-mode table output renders
+  Then the table output's HTML shows a rendered table with zero data rows (no error placeholder, no req() blank)
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                  | kind     | summary (one line)                                                                  | Scenario in this plan                                                          |
+|---------------------------------------------|----------|--------------------------------------------------------------------------------------|---------------------------------------------------------------------------------|
+| Worked examples — what becomes possible #2  | positive | (empty-state half) zero-row-same-columns empty state makes the table render unconditional | ADR worked example (becomes possible #2, empty state) — the rows table renders unconditionally |
+</pre>
+<p>The table-fill half of #2 and the whole of #1 are asserted by PLAN-04 (event injection required); the global coverage audit confirms the union.</p>
+
+<h2>Interface Contract</h2>
+<p>N/A — this plan creates no entry points (fixture + tests only). The surfaces under test are PLAN-01's <code>ptr_ggplotly()</code> and PLAN-02's <code>ptr_plotly_selection()</code> Interface Contracts; this plan's BDD scenarios assert their composed, user-visible boot observables in a real browser.</p>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see target repo's CLAUDE.md §"Authoritative gate" — <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> at <strong>FAIL 0 / ERROR 0 / SKIP 0</strong>. The proxy-trap list lives there and applies to every plan.</p>
+<p><strong>Plan-specific gate risks:</strong></p>
+<ul>
+  <li>These are browser tests: an inner-loop <code>test_dir</code> run without <code>NOT_CRAN</code> cleanly SKIPs them — that run is fine for iteration but is NOT evidence this plan's tests pass. Only <code>devtools::test()</code> (which RUNS them) grounds the claim.</li>
+  <li>The fixture needs plotly + shinytest2 + chromote + Chrome; an all-skip without that stack is acceptable per CLAUDE.md only if reported, never hidden.</li>
+  <li>Blast radius (<code>.claude/rules/testing.md</code>): this plan adds tests and a fixture only — core untouched, so the existing e2e set is not widened. If implementation reveals a needed core change, STOP: that is out-of-scope surfacing, not absorbed scope.</li>
+</ul>
+<p>This plan adds ≥ 3 new e2e tests at <code>tests/testthat/test-plotly-e2e.R</code>. The gate must show PASS count rise accordingly with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>tests/testthat/fixtures/vignette-apps/adr28-plotly-linked/app.R</code>, <code>tests/testthat/test-plotly-e2e.R</code>. Generated files (<code>NAMESPACE</code>, <code>man/</code>) are owned by an integration step (this plan should not produce any).</p>
+<p>Branch convention: this plan lives on branch <code>0028-plotly-e2e-boot</code> in a worktree at <code>.claude/worktrees/0028-plotly-linked-selection-helpers/plotly-e2e-boot/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>0028-plotly-linked-selection-helpers</code> at the commit where this plan's worktree was created — after PLAN-02 merged (record the SHA in the worktree's first commit message). No pre-existing suite failures recorded; new failures = any failure.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files (a helper bug exposed by the boot, a seeding bug in core) are surfaced in the audit report, never absorbed. Out-of-scope work becomes a follow-up plan, not a silent edit.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: 01 (<code>ptr_ggplotly()</code> renders the widget), 02 (<code>ptr_plotly_selection()</code> feeds the table and the second formula). Provides for: PLAN-04 (appends round-trip tests to this plan's test file and injects events against this plan's fixture + its explicit <code>source = "ptr_e2e"</code>).</p>
+
+<!-- implementable: PASS date=2026-06-10 gate="Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'" hash=f486921c0e00 -->
+</body>
+</html>
