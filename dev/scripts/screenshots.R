@@ -10,8 +10,10 @@ ppVars <- ptr_define_placeholder_consumer(
   keyword = "ppVars",
   build_ui = function(node, cols, data, label = NULL, selected = NULL, ...) {
     retained <- intersect(selected %||% character(0), cols)
-    selectInput(node$id, label = label %||% "Columns",
-                choices = cols, selected = retained, multiple = TRUE)
+    selectizeInput(node$id, label = label %||% "Columns",
+                   choices = union(retained, cols), selected = retained, multiple = TRUE,
+                   options = list(plugins = list("drag_drop")))
+
   },
   resolve_expr = function(value, node, ...) {
     if (length(value) == 0L) return(NULL)
