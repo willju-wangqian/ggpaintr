@@ -632,15 +632,40 @@ extract_fn_names <- function(fn) {
 #'
 #' @param expr A parsed R expression.
 #' @param expr_check A logical or list with `deny_list` / `allow_list`.
+#' @param context Where the screened code came from. `"formula"` (default) =
+#'   the author's formula, where relaxing `expr_check` is a real remedy;
+#'   `"input"` = code synthesized from runtime input (e.g. text typed into a
+#'   `ppExpr` box), which is always re-screened against the curated denylist
+#'   regardless of `expr_check` (Spec L98), so the abort message must not
+#'   recommend an `expr_check` remedy that cannot work there.
 #'
 #' @return Invisible `TRUE` if valid; aborts otherwise.
 #' @noRd
 validate_expr_safety <- function(expr, expr_check = TRUE,
-                                 placeholder_names = character()) {
+                                 placeholder_names = character(),
+                                 context = c("formula", "input")) {
+  context <- match.arg(context)
   resolved <- resolve_expr_check(expr_check)
 
   if (resolved$mode == "off") {
     return(invisible(TRUE))
+  }
+
+  denied_advice <- function(name) {
+    if (context == "input") {
+      paste0(
+        "The built-in safety screen always applies to `expr` input supplied ",
+        "at runtime and cannot be relaxed via `expr_check`. ",
+        "Use a different function. See `?ptr_app`."
+      )
+    } else {
+      paste0(
+        "Use a different function, or -- only if you trust the formula -- ",
+        "relax it via `expr_check`: an `allow_list` naming every call head ",
+        "the formula uses (including `", name, "`), or `expr_check = FALSE`. ",
+        "See `?ptr_app`."
+      )
+    }
   }
 
   # A bare name is forbidden iff it is in the active check list (denylist
@@ -657,9 +682,7 @@ validate_expr_safety <- function(expr, expr_check = TRUE,
     if (isTRUE(deny_hit(name))) {
       rlang::abort(paste0(
         "`", name, "` is not allowed in an `expr` input (", where, "). ",
-        "Use a different function, or -- only if you trust the input -- ",
-        "relax it via `expr_check`, e.g. ",
-        "`expr_check = list(allow_list = \"", name, "\")`. See `?ptr_app`."
+        denied_advice(name)
       ))
     }
   }
@@ -715,10 +738,7 @@ validate_expr_safety <- function(expr, expr_check = TRUE,
         if (length(blocked) > 0) {
           rlang::abort(paste0(
             "`", blocked[[1]], "` is not allowed in an `expr` input. ",
-            "Use a different function, or -- only if you trust the input -- ",
-            "relax it via `expr_check`, e.g. ",
-            "`expr_check = list(allow_list = \"", blocked[[1]], "\")`. ",
-            "See `?ptr_app`."
+            denied_advice(blocked[[1]])
           ))
         }
       } else {

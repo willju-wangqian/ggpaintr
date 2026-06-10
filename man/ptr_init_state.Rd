@@ -30,10 +30,12 @@ ptr_init_state(
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
 
-\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
-applies the built-in denylist + AST walker; \code{FALSE} disables all
-validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
-the policy. See \code{vignette("ggpaintr-safety")}.}
+\item{expr_check}{Controls formula-level \code{ppExpr} validation: \code{TRUE}
+(default) applies the built-in denylist + AST walker; \code{FALSE} disables
+formula-level validation; a \code{list} with \code{deny_list}/\code{allow_list} entries
+customises the formula-level policy. Runtime-typed \code{ppExpr} input is
+always screened against the built-in denylist regardless. See
+\code{vignette("ggpaintr-safety")}.}
 
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after substitution.}

@@ -74,11 +74,17 @@ test_that("P5.11 allowlist mode rejects unlisted call", {
   )
 })
 
-test_that("P5.12 custom deny_list adds entries", {
+test_that("P5.12 custom deny_list replaces the curated list", {
   expect_error(
     ptr_translate("ggplot(mtcars) + my_dangerous_fn()",
                   expr_check = list(deny_list = c("my_dangerous_fn"))),
     "my_dangerous_fn"
+  )
+  # Replacement semantics (resolve_expr_check): curated entries absent from
+  # the custom list are no longer blocked at translate time.
+  expect_silent(
+    ptr_translate("ggplot(mtcars) + geom_point(data = system('id'))",
+                  expr_check = list(deny_list = c("my_dangerous_fn")))
   )
 })
 

@@ -25,10 +25,12 @@
 #' @param ui_text Optional named list of copy overrides for UI labels, helper
 #'   text, and placeholders. The app title is read from
 #'   `ui_text$shell$title$label`; defaults to `"ggpaintr"`.
-#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
-#'   applies the built-in denylist + AST walker; `FALSE` disables all
-#'   validation; a `list` with `deny_list`/`allow_list` entries customises
-#'   the policy. See `vignette("ggpaintr-safety")`.
+#' @param expr_check Controls formula-level `ppExpr` validation: `TRUE`
+#'   (default) applies the built-in denylist + AST walker; `FALSE` disables
+#'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
+#'   customises the formula-level policy. Runtime-typed `ppExpr` input is
+#'   always screened against the built-in denylist regardless. See
+#'   `vignette("ggpaintr-safety")`.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`.

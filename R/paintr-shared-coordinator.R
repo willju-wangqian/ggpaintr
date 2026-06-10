@@ -219,7 +219,8 @@ shared_assert_panel_consumer_sources <- function(trees, panel_keys, formulas) {
 #' @param ui_text Optional copy overrides forwarded to the auto-built
 #'   widgets (see [`ptr_app()`]'s `ui_text` argument).
 #' @param expr_check Whether to validate `ppExpr` placeholders during formula
-#'   translation. Default `TRUE`.
+#'   translation. Default `TRUE`. Runtime-typed `ppExpr` input is always
+#'   screened against the built-in denylist regardless.
 #' @param draw_all_label Label for the "Draw all" button rendered in the
 #'   panel when two or more formulas are supplied.
 #'

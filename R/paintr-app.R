@@ -14,11 +14,13 @@
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param expr_check Controls `ppExpr` placeholder validation. Three modes:
+#' @param expr_check Controls formula-level `ppExpr` validation. Three modes:
 #'   `TRUE` (default) applies the built-in denylist + AST walker;
-#'   `FALSE` disables all validation (for local prototyping with trusted
-#'   input only); a `list` with `deny_list` and/or `allow_list` entries
-#'   (character vectors) customises the policy without disabling it. See
+#'   `FALSE` disables formula-level validation (for local prototyping with
+#'   trusted formulas only); a `list` with `deny_list` and/or `allow_list`
+#'   entries (character vectors) customises the formula-level policy without
+#'   disabling it. Code typed into a `ppExpr` box at runtime is always
+#'   screened against the built-in denylist, regardless of this setting. See
 #'   `vignette("ggpaintr-safety")` for the walker model.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
@@ -877,10 +879,12 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   symbol and any local data objects. Defaults to the calling frame.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
-#'   applies the built-in denylist + AST walker; `FALSE` disables all
-#'   validation; a `list` with `deny_list`/`allow_list` entries customises
-#'   the policy. See `vignette("ggpaintr-safety")`.
+#' @param expr_check Controls formula-level `ppExpr` validation: `TRUE`
+#'   (default) applies the built-in denylist + AST walker; `FALSE` disables
+#'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
+#'   customises the formula-level policy. Runtime-typed `ppExpr` input is
+#'   always screened against the built-in denylist regardless. See
+#'   `vignette("ggpaintr-safety")`.
 #' @param css Optional character vector of paths to additional CSS files;
 #'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
@@ -987,10 +991,12 @@ ptr_ui <- function(formula, id = NULL, envir = parent.frame(),
 #'   symbol and any local data objects. Defaults to the calling frame.
 #' @param ui_text Optional named list of copy overrides; see
 #'   [ptr_ui_text()] for the full schema and current defaults.
-#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
-#'   applies the built-in denylist + AST walker; `FALSE` disables all
-#'   validation; a `list` with `deny_list`/`allow_list` entries customises
-#'   the policy. See `vignette("ggpaintr-safety")`.
+#' @param expr_check Controls formula-level `ppExpr` validation: `TRUE`
+#'   (default) applies the built-in denylist + AST walker; `FALSE` disables
+#'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
+#'   customises the formula-level policy. Runtime-typed `ppExpr` input is
+#'   always screened against the built-in denylist regardless. See
+#'   `vignette("ggpaintr-safety")`.
 #' @param shared Optional coordinator object from [ptr_shared()] for the
 #'   multi-instance embedding. When `NULL` (the single-instance default)
 #'   the inline "Shared controls" section renders **every** `shared =
@@ -1330,10 +1336,12 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'   reads `ui_text$shell$title$label`; defaults to `"ggpaintr grid"`. See
 #'   [ptr_ui_text()] for the full schema.
 #' @param draw_all_label Label for the draw-all action button.
-#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
-#'   applies the built-in denylist + AST walker; `FALSE` disables all
-#'   validation; a `list` with `deny_list`/`allow_list` entries customises
-#'   the policy. See `vignette("ggpaintr-safety")`.
+#' @param expr_check Controls formula-level `ppExpr` validation: `TRUE`
+#'   (default) applies the built-in denylist + AST walker; `FALSE` disables
+#'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
+#'   customises the formula-level policy. Runtime-typed `ppExpr` input is
+#'   always screened against the built-in denylist regardless. See
+#'   `vignette("ggpaintr-safety")`.
 #' @param css Optional character vector of paths to additional CSS files,
 #'   linked once at the page level after `ggpaintr`'s bundled stylesheet so
 #'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.

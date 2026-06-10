@@ -35,11 +35,13 @@ shows the desugared nested-call form. Stay in string mode (or use
 \item{ui_text}{Optional named list of copy overrides; see \code{\link[=ptr_ui_text]{ptr_ui_text()}}
 for the full schema and current defaults.}
 
-\item{expr_check}{Controls \code{ppExpr} placeholder validation. Three modes:
+\item{expr_check}{Controls formula-level \code{ppExpr} validation. Three modes:
 \code{TRUE} (default) applies the built-in denylist + AST walker;
-\code{FALSE} disables all validation (for local prototyping with trusted
-input only); a \code{list} with \code{deny_list} and/or \code{allow_list} entries
-(character vectors) customises the policy without disabling it. See
+\code{FALSE} disables formula-level validation (for local prototyping with
+trusted formulas only); a \code{list} with \code{deny_list} and/or \code{allow_list}
+entries (character vectors) customises the formula-level policy without
+disabling it. Code typed into a \code{ppExpr} box at runtime is always
+screened against the built-in denylist, regardless of this setting. See
 \code{vignette("ggpaintr-safety")} for the walker model.}
 
 \item{safe_to_remove}{Character vector of additional function names whose

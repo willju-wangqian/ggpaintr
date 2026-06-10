@@ -27,10 +27,12 @@ reads \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr grid"}. See
 
 \item{draw_all_label}{Label for the draw-all action button.}
 
-\item{expr_check}{Controls \code{ppExpr} placeholder validation: \code{TRUE} (default)
-applies the built-in denylist + AST walker; \code{FALSE} disables all
-validation; a \code{list} with \code{deny_list}/\code{allow_list} entries customises
-the policy. See \code{vignette("ggpaintr-safety")}.}
+\item{expr_check}{Controls formula-level \code{ppExpr} validation: \code{TRUE}
+(default) applies the built-in denylist + AST walker; \code{FALSE} disables
+formula-level validation; a \code{list} with \code{deny_list}/\code{allow_list} entries
+customises the formula-level policy. Runtime-typed \code{ppExpr} input is
+always screened against the built-in denylist regardless. See
+\code{vignette("ggpaintr-safety")}.}
 
 \item{css}{Optional character vector of paths to additional CSS files,
 linked once at the page level after \code{ggpaintr}'s bundled stylesheet so

@@ -85,6 +85,61 @@ test_that("ptr_run_formula catches a disallowed `expr` value at the complete sta
   expect_match(ok$code_text, 'ggtitle\\(label = "My title"\\)')
 })
 
+test_that("ppExpr input rejection does not recommend `allow_list` (no escape hatch exists)", {
+  # The substitution-time re-screen is hardcoded `expr_check = TRUE`
+  # (validate_resolve_expr_return), so no `expr_check` setting can unblock a
+  # curated-denylist name typed into a ppExpr box. The error must say so
+  # instead of recommending the `allow_list` remedy that cannot work.
+  fml <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + ggtitle(label = ppExpr())"
+  res <- ptr_run_formula(
+    fml,
+    inputs = list(ggtitle_1_ppExpr_NA = 'exists("x")'),
+    envir = .headless_env()
+  )
+  expect_false(isTRUE(res$ok))
+  expect_match(res$error, "not allowed in an `expr` input", fixed = TRUE)
+  expect_no_match(res$error, "allow_list", fixed = TRUE)
+  expect_match(res$error, "always applies", fixed = TRUE)
+})
+
+test_that("typed ppExpr input is screened even with expr_check = FALSE (fail-closed)", {
+  fml <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + ggtitle(label = ppExpr())"
+  res <- ptr_run_formula(
+    fml,
+    inputs = list(ggtitle_1_ppExpr_NA = 'exists("x")'),
+    envir = .headless_env(),
+    expr_check = FALSE
+  )
+  expect_false(isTRUE(res$ok))
+  expect_match(res$error, "not allowed in an `expr` input", fixed = TRUE)
+  expect_no_match(res$error, "allow_list", fixed = TRUE)
+})
+
+test_that("call-head denylist hit in typed ppExpr input also drops the `allow_list` advice", {
+  fml <- "ggplot(mtcars, aes(x = mpg, y = hp)) + geom_point() + ggtitle(label = ppExpr())"
+  res <- ptr_run_formula(
+    fml,
+    inputs = list(ggtitle_1_ppExpr_NA = 'read.csv("x.csv")'),
+    envir = .headless_env(),
+    expr_check = list(allow_list = c(
+      "ggplot", "aes", "geom_point", "ggtitle", "read.csv", "+"
+    ))
+  )
+  expect_false(isTRUE(res$ok))
+  expect_match(res$error, "not allowed in an `expr` input", fixed = TRUE)
+  expect_no_match(res$error, "allow_list = ", fixed = TRUE)
+  expect_match(res$error, "always applies", fixed = TRUE)
+})
+
+test_that("author-formula denylist hit still offers `expr_check` relaxation advice", {
+  # Formula-context rejections keep actionable advice: the author controls
+  # `expr_check` there and relaxing it does work at translate time.
+  expect_error(
+    ptr_translate("ggplot(mtcars) + geom_point(data = read.csv('x.csv'))"),
+    "expr_check"
+  )
+})
+
 test_that("ptr_default_snapshot defaults checkboxes/stage toggles on, others NULL", {
   tree <- ptr_translate("ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()")
   spec <- ptr_runtime_input_spec(tree)

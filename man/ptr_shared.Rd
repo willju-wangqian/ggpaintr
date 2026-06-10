@@ -41,7 +41,8 @@ do not change.}
 widgets (see \code{\link[=ptr_app]{ptr_app()}}'s \code{ui_text} argument).}
 
 \item{expr_check}{Whether to validate \code{ppExpr} placeholders during formula
-translation. Default \code{TRUE}.}
+translation. Default \code{TRUE}. Runtime-typed \code{ppExpr} input is always
+screened against the built-in denylist regardless.}
 
 \item{draw_all_label}{Label for the "Draw all" button rendered in the
 panel when two or more formulas are supplied.}

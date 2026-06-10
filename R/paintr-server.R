@@ -28,10 +28,12 @@
 #' @param envir Environment used to resolve local data objects.
 #' @param ui_text Optional named list of copy overrides; see [ptr_ui_text()]
 #'   for the full schema and current defaults.
-#' @param expr_check Controls `ppExpr` placeholder validation: `TRUE` (default)
-#'   applies the built-in denylist + AST walker; `FALSE` disables all
-#'   validation; a `list` with `deny_list`/`allow_list` entries customises
-#'   the policy. See `vignette("ggpaintr-safety")`.
+#' @param expr_check Controls formula-level `ppExpr` validation: `TRUE`
+#'   (default) applies the built-in denylist + AST walker; `FALSE` disables
+#'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
+#'   customises the formula-level policy. Runtime-typed `ppExpr` input is
+#'   always screened against the built-in denylist regardless. See
+#'   `vignette("ggpaintr-safety")`.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after substitution.
 #' @param shared Named list of reactives (one per shared key) supplied by an

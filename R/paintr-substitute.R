@@ -303,11 +303,13 @@ validate_resolve_expr_return <- function(x, keyword) {
     if (is.expression(x)) {
       for (e in x) {
         validate_expr_safety(e, expr_check = TRUE,
-                             placeholder_names = placeholder_names)
+                             placeholder_names = placeholder_names,
+                             context = "input")
       }
     } else {
       validate_expr_safety(x, expr_check = TRUE,
-                           placeholder_names = placeholder_names)
+                           placeholder_names = placeholder_names,
+                           context = "input")
     }
   }
 }
