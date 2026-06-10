@@ -97,11 +97,13 @@ for the full schema and current defaults.</p></dd>
 
 
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
-<dd><p>Controls <code>ppExpr</code> placeholder validation. Three modes:
+<dd><p>Controls formula-level <code>ppExpr</code> validation. Three modes:
 <code>TRUE</code> (default) applies the built-in denylist + AST walker;
-<code>FALSE</code> disables all validation (for local prototyping with trusted
-input only); a <code>list</code> with <code>deny_list</code> and/or <code>allow_list</code> entries
-(character vectors) customises the policy without disabling it. See
+<code>FALSE</code> disables formula-level validation (for local prototyping with
+trusted formulas only); a <code>list</code> with <code>deny_list</code> and/or <code>allow_list</code>
+entries (character vectors) customises the formula-level policy without
+disabling it. Code typed into a <code>ppExpr</code> box at runtime is always
+screened against the built-in denylist, regardless of this setting. See
 <code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code> for the walker model.</p></dd>
 
 

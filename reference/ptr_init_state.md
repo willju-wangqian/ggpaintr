@@ -53,10 +53,11 @@ ptr_init_state(
 
 - expr_check:
 
-  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
-  built-in denylist + AST walker; `FALSE` disables all validation; a
-  `list` with `deny_list`/`allow_list` entries customises the policy.
-  See
+  Controls formula-level `ppExpr` validation: `TRUE` (default) applies
+  the built-in denylist + AST walker; `FALSE` disables formula-level
+  validation; a `list` with `deny_list`/`allow_list` entries customises
+  the formula-level policy. Runtime-typed `ppExpr` input is always
+  screened against the built-in denylist regardless. See
   [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md).
 
 - safe_to_remove:
@@ -73,8 +74,14 @@ ptr_init_state(
 
 - draw_trigger:
 
-  Optional reactive whose invalidation forces a redraw (e.g. the grid
-  app's "Draw all" button).
+  Optional reactive carrying a click counter — a numeric scalar that is
+  `>= 1` once its button has been clicked (e.g. the grid app's "Draw
+  all" `input$...` value). A redraw fires only when the carried value
+  looks clicked; a reactive carrying any other value (a data frame, a
+  timestamp) invalidates the runtime observer but never triggers a draw.
+  To redraw on arbitrary reactive changes (e.g. a reactive pipeline head
+  in the formula), use `ptr_options(gate_draw = FALSE)` live mode
+  instead. Defaults to `NULL`.
 
 - producer_debounce_ms:
 

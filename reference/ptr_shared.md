@@ -64,7 +64,8 @@ ptr_shared(
 - expr_check:
 
   Whether to validate `ppExpr` placeholders during formula translation.
-  Default `TRUE`.
+  Default `TRUE`. Runtime-typed `ppExpr` input is always screened
+  against the built-in denylist regardless.
 
 - draw_all_label:
 

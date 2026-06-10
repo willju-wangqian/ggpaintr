@@ -61,10 +61,11 @@ ptr_ui_controls(
 
 - expr_check:
 
-  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
-  built-in denylist + AST walker; `FALSE` disables all validation; a
-  `list` with `deny_list`/`allow_list` entries customises the policy.
-  See
+  Controls formula-level `ppExpr` validation: `TRUE` (default) applies
+  the built-in denylist + AST walker; `FALSE` disables formula-level
+  validation; a `list` with `deny_list`/`allow_list` entries customises
+  the formula-level policy. Runtime-typed `ppExpr` input is always
+  screened against the built-in denylist regardless. See
   [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md).
 
 - shared:
@@ -126,22 +127,22 @@ ptr_ui_controls(
 #> <option value="geom_point">geom_point</option></select>
 #> </div>
 #> <div class="tabbable">
-#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="7244">
+#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="4865">
 #>     <li class="active">
-#>       <a href="#tab-7244-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>       <a href="#tab-4865-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
 #>     </li>
 #>     <li>
-#>       <a href="#tab-7244-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>       <a href="#tab-4865-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
 #>     </li>
 #>   </ul>
-#>   <div class="tab-content" data-tabsetid="7244">
-#>     <div class="tab-pane active" data-value="ggplot" id="tab-7244-1">
+#>   <div class="tab-content" data-tabsetid="4865">
+#>     <div class="tab-pane active" data-value="ggplot" id="tab-4865-1">
 #>       <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
 #>         <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
 #>         <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
 #>       </div>
 #>     </div>
-#>     <div class="tab-pane" data-value="geom_point" id="tab-7244-2">
+#>     <div class="tab-pane" data-value="geom_point" id="tab-4865-2">
 #>       <div class="form-group shiny-input-container">
 #>         <div class="checkbox">
 #>           <label>
@@ -166,22 +167,22 @@ ptr_ui_controls(
 #> <option value="geom_point">geom_point</option></select>
 #> </div>
 #> <div class="tabbable">
-#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="9543">
+#>   <ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="3600">
 #>     <li class="active">
-#>       <a href="#tab-9543-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
+#>       <a href="#tab-3600-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot">ggplot</a>
 #>     </li>
 #>     <li>
-#>       <a href="#tab-9543-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
+#>       <a href="#tab-3600-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point">geom_point</a>
 #>     </li>
 #>   </ul>
-#>   <div class="tab-content" data-tabsetid="9543">
-#>     <div class="tab-pane active" data-value="ggplot" id="tab-9543-1">
+#>   <div class="tab-content" data-tabsetid="3600">
+#>     <div class="tab-pane active" data-value="ggplot" id="tab-3600-1">
 #>       <div id="p-ptr_layer_content_ggplot" class="ptr-layer-content">
 #>         <div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"></div>
 #>         <div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"></div>
 #>       </div>
 #>     </div>
-#>     <div class="tab-pane" data-value="geom_point" id="tab-9543-2">
+#>     <div class="tab-pane" data-value="geom_point" id="tab-3600-2">
 #>       <div class="form-group shiny-input-container">
 #>         <div class="checkbox">
 #>           <label>

@@ -83,8 +83,9 @@ into an <code>ppExpr</code> box, may come from anywhere. Three
 boundaries sit between those two trust levels:</p>
 <ol style="list-style-type: decimal">
 <li>
-<strong><code>expr_check</code></strong> — controls validation of
-user-typed <code>ppExpr</code> code.</li>
+<strong><code>expr_check</code></strong> — controls formula-level
+validation of <code>ppExpr</code> code; a second, always-on screen
+covers what users type at runtime.</li>
 <li>
 <strong>The denylist + AST walker</strong> — what that validation
 actually does.</li>
@@ -103,15 +104,22 @@ Connect roles, container limits), not to ggpaintr’s surface.</p>
 <p><code>ppExpr</code> is the only keyword that accepts arbitrary R
 code. The other four — <code>ppVar</code>, <code>ppText</code>,
 <code>ppNum</code>, <code>ppUpload</code> — take atomic values or files,
-and nothing runs what the user typed as R. <code>expr_check</code>
-decides what happens to whatever lands in an <code>ppExpr</code> box
-before it reaches the evaluator.</p>
+and nothing runs what the user typed as R. Validation happens at two
+checkpoints: a <strong>formula-level screen</strong> over the author’s
+formula (at translation time and again over each layer expression just
+before evaluation), and a <strong>substitution-time screen</strong> over
+whatever lands in a <code>ppExpr</code> box at runtime.
+<code>expr_check</code> configures only the first. The second is
+hardcoded to the curated denylist — no <code>expr_check</code> setting
+(not <code>FALSE</code>, not an <code>allow_list</code>) relaxes it, so
+there is currently no supported way to permit a curated-denylist name
+typed into a <code>ppExpr</code> box.</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span>               <span class="co"># default — full denylist + walker</span></span>
-<span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>              <span class="co"># off — anything goes</span></span>
-<span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>               <span class="co"># custom</span></span>
-<span>  allow_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"read.csv"</span><span class="op">)</span>,</span>
-<span>  deny_list  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"get"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="cn">FALSE</span><span class="op">)</span>              <span class="co"># formula screen off — typed ppExpr input is STILL screened</span></span>
+<span><span class="fu"><a href="../reference/ptr_app.html">ptr_app</a></span><span class="op">(</span><span class="va">formula</span>, expr_check <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>               <span class="co"># custom formula-level policy; an allow_list must name</span></span>
+<span>  allow_list <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"ggplot"</span>, <span class="st">"aes"</span>,                 <span class="co"># EVERY call head in the formula or the app aborts at</span></span>
+<span>                 <span class="st">"geom_point"</span>, <span class="st">"read.csv"</span><span class="op">)</span>        <span class="co"># launch</span></span>
 <span><span class="op">)</span><span class="op">)</span></span></code></pre></div>
 <p><code>expr_check</code> is accepted on every public entry point that
 builds the AST — <code><a href="../reference/ptr_app.html">ptr_app()</a></code>, <code><a href="../reference/ptr_ui.html">ptr_ui()</a></code>,
@@ -143,8 +151,10 @@ or string literal mentioning a denied name aborts.</td>
 </tr>
 <tr class="even">
 <td><code>FALSE</code></td>
-<td>off</td>
-<td>No validation. Whatever the user typed reaches the evaluator.</td>
+<td>off (formula level)</td>
+<td>The formula-level screen is skipped. Typed <code>ppExpr</code> input
+is <em>still</em> screened against the curated denylist at substitution
+time.</td>
 </tr>
 <tr class="odd">
 <td><code>list(deny_list = …)</code></td>
@@ -157,10 +167,12 @@ no “add to the curated list” form.</td>
 <tr class="even">
 <td><code>list(allow_list = …)</code></td>
 <td>allowlist</td>
-<td>Only listed names may appear as call heads. The curated
-always-dangerous names (e.g. <code>system</code>) stay blocked as bare
-symbols or strings regardless. With both lists, the effective allow set
-is <code>allow_list</code> minus <code>deny_list</code>.</td>
+<td>Only listed names may appear as call heads — across the <em>whole
+formula</em>, so every head (<code>ggplot</code>, <code>aes</code>, each
+<code>geom_*</code>, …) must be listed or the app aborts at launch. The
+curated always-dangerous names (e.g. <code>system</code>) stay blocked
+as bare symbols or strings regardless. With both lists, the effective
+allow set is <code>allow_list</code> minus <code>deny_list</code>.</td>
 </tr>
 </tbody>
 </table>
@@ -168,8 +180,11 @@ is <code>allow_list</code> minus <code>deny_list</code>.</td>
 <code>deny_list</code> <em>narrows</em> protection (it discards the
 other 150 curated names), while <code>allow_list</code> <em>keeps</em>
 the curated floor and only widens which call heads are permitted. To
-permit one extra name without losing the curated protection, use
-<code>allow_list</code>, not <code>deny_list</code>.</p>
+permit one extra <em>formula</em> name without losing the curated
+protection, use <code>allow_list</code> (naming every other head the
+formula uses), not <code>deny_list</code>. Neither list widens what may
+be typed into a <code>ppExpr</code> box — the substitution-time screen
+always applies there.</p>
 </div>
 <div class="section level3">
 <h3 id="when-never-to-turn-it-off">When (never) to turn it off<a class="anchor" aria-label="anchor" href="#when-never-to-turn-it-off"></a>
@@ -177,12 +192,18 @@ permit one extra name without losing the curated protection, use
 <p><code>expr_check = FALSE</code> is for local prototyping with trusted
 input — you, at the R prompt, on a private dataset. It is never right
 for any app another person can reach; co-workers on a shared dev server
-count.</p>
-<p>If a name you trust is blocked (e.g. <code>read.csv</code>, because
-the denylist is conservative), the fix is
-<code>expr_check = list(allow_list = "read.csv")</code>, which keeps the
-walker active for everything else — not
-<code>expr_check = FALSE</code>.</p>
+count. And note it is not a full off switch: typed <code>ppExpr</code>
+input is screened against the curated denylist even under
+<code>FALSE</code>.</p>
+<p>If a name you trust is blocked in a <em>formula you wrote</em>
+(e.g. <code>read.csv</code>, because the denylist is conservative), the
+fix is an <code>allow_list</code> naming that function plus every other
+call head the formula uses — which keeps the curated floor active — not
+<code>expr_check = FALSE</code>. If the name is blocked in a <em>typed
+<code>ppExpr</code> box</em>, there is no override: the
+substitution-time screen cannot be relaxed. Use a different function, or
+move the trusted call into the formula itself where your
+<code>expr_check</code> policy governs it.</p>
 </div>
 </div>
 <div class="section level2">
@@ -306,7 +327,8 @@ one-entry denylist.</p>
 <code>paintr-utils.R</code>) is the recursive descent that turns the
 denylist from a list of names into a check with teeth. Every
 <code>ppExpr</code> input passes through it before the formula is
-evaluated. At each AST node:</p>
+evaluated — always with the curated denylist, regardless of
+<code>expr_check</code>. At each AST node:</p>
 <ul>
 <li>
 <strong>Bare symbol</strong> → checked by name (catches

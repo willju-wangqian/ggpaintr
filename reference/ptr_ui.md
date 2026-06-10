@@ -62,10 +62,11 @@ ptr_ui(
 
 - expr_check:
 
-  Controls `ppExpr` placeholder validation: `TRUE` (default) applies the
-  built-in denylist + AST walker; `FALSE` disables all validation; a
-  `list` with `deny_list`/`allow_list` entries customises the policy.
-  See
+  Controls formula-level `ppExpr` validation: `TRUE` (default) applies
+  the built-in denylist + AST walker; `FALSE` disables formula-level
+  validation; a `list` with `deny_list`/`allow_list` entries customises
+  the formula-level policy. Runtime-typed `ppExpr` input is always
+  screened against the built-in denylist regardless. See
   [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md).
 
 - css:

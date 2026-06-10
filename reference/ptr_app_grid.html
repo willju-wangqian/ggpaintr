@@ -91,10 +91,12 @@ reads <code>ui_text$shell$title$label</code>; defaults to <code>"ggpaintr grid"<
 
 
 <dt id="arg-expr-check">expr_check<a class="anchor" aria-label="anchor" href="#arg-expr-check"></a></dt>
-<dd><p>Controls <code>ppExpr</code> placeholder validation: <code>TRUE</code> (default)
-applies the built-in denylist + AST walker; <code>FALSE</code> disables all
-validation; a <code>list</code> with <code>deny_list</code>/<code>allow_list</code> entries customises
-the policy. See <code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code>.</p></dd>
+<dd><p>Controls formula-level <code>ppExpr</code> validation: <code>TRUE</code>
+(default) applies the built-in denylist + AST walker; <code>FALSE</code> disables
+formula-level validation; a <code>list</code> with <code>deny_list</code>/<code>allow_list</code> entries
+customises the formula-level policy. Runtime-typed <code>ppExpr</code> input is
+always screened against the built-in denylist regardless. See
+<code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code>.</p></dd>
 
 
 <dt id="arg-css">css<a class="anchor" aria-label="anchor" href="#arg-css"></a></dt>

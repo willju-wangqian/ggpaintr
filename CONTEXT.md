@@ -56,8 +56,15 @@ public API correctly.
 > /
 > [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md);
 > the signature is unchanged and existing all-string calls are
-> byte-for-byte unaffected. Every section header marked *LOCKED* is
-> decided.
+> byte-for-byte unaffected. Amended **2026-06-10** (grill-with-docs):
+> new **Plotly interop — linked selection** section (drawn data / row
+> key / linked selection / selection projections / reserved channels)
+> and the **Draw** term — the Update button is demoted from core
+> invariant to default trigger (`ptr_options(gate_draw = FALSE)` runs
+> the same render body live, which is what makes selection-fed formulas
+> redraw per brush); `draw_trigger`’s implemented contract is a
+> click-counter reactive, not a general invalidation hook. Every section
+> header marked *LOCKED* is decided.
 
 ## Language
 
@@ -320,6 +327,81 @@ placeholder **OR** it carries `has_user_control = TRUE` (stamped by
 `ppVerbSwitch`). Single gate, two triggers — the post-translate stamping
 pass `stamp_default_stage_enabled_ids` that Plan 01 introduced as a
 workaround is removed; the gate does the work in one place.
+
+### Plotly interop — linked selection — **semantics LOCKED 2026-06-10 (grill in progress)**
+
+The opt-in helper layer (plotly in `Suggests`) for rendering a formula’s
+plot via `ggplotly()` and reading point selections back. It is plain
+**L3 custom render** under ADR 0006 — no second server entry, no new
+embedding level; helpers only remove the key-tagging/event boilerplate.
+
+**Drawn data**: The plot’s evaluated data frame at draw time
+(`state$runtime()$plot$data` of the draw that produced the widget) — the
+*only* referent for selection. *Avoid*: “the original data”, “the source
+object” — after a pipeline head (`filter`/`mutate`/`summarise`) or an
+`ppUpload` swap there is no stable mapping back.
+
+**Row key**: A per-draw identifier minted on the drawn data at render
+time and carried through plotly’s `key` aesthetic; meaningless across
+draws. *Avoid*: treating keys as stable row ids of any persistent
+dataset.
+
+**Linked selection**: The set of drawn-data rows currently
+brush/lasso-selected on the plotly rendering — surfaced as a **slice of
+the drawn data** (rows, not bare indices) and **reset to empty on every
+draw** (a draw may change filters, columns, or the uploaded data, so
+carrying a selection across draws is silently wrong). *Avoid*: returning
+bare indices (invites subsetting an object that no longer lines up);
+persisting selection across redraws.
+
+**Selection projections** — **LOCKED 2026-06-10**: The one linked
+selection is consumed in two shapes: **rows** (the selected slice of the
+drawn data — for tables and detail views; zero rows, same columns, when
+nothing is selected) and **flag** (the *full* drawn data plus a logical
+`.ptr_selected` column — for highlight plots, where the formula maps
+`color = .ptr_selected`). Flag is the shape that makes a **selection-fed
+formula** work: a second
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
+instance whose pipeline head is the selection reactive
+(`sel() |> ggplot(...)`), redrawing per brush under `gate_draw = FALSE`
+with no extra wiring. *Avoid*: inventing a third projection before a use
+case demands it; “highlight mode” (it’s a projection of the same
+selection, not a different selection).
+
+**Reserved channels** — **LOCKED 2026-06-10**: The plotly interop owns
+exactly three names: the plotly **`key` aesthetic** (minted per draw
+inside the widget copy; a user formula’s own `aes(key = ...)` is
+overridden with a one-time warning — selection is meaningless under
+foreign keys), **`.ptr_row`** (the key column on the widget copy only;
+never visible in either selection projection), and **`.ptr_selected`**
+(the flag projection’s column — user-facing by design; formulas map it).
+The two columns are documented reserved names and **silently
+overwritten** on collision — overwrite is what keeps *chained*
+selection-fed instances correct (instance N+1’s flag replaces the stale
+flag riding in from instance N’s drawn data). All other per-instance
+bookkeeping (source string, selection state, draw snapshot) stays
+server-side, keyed by instance id — never in the data. *Avoid*: per-draw
+collision warnings (warning spam under live draws); per-id flag column
+names like `.ptr_selected_p1` (breaks formula portability across
+instances).
+
+**Draw** — **amended 2026-06-10**: One run of the runtime’s render body
+(snapshot placeholders → eval → publish to `state$runtime()`). The
+Update/Draw-all button is the *default* trigger (`gate_draw = TRUE`,
+batch-on-click), **not part of the draw’s definition**: under
+`ptr_options(gate_draw = FALSE)` the same body runs live, re-drawing on
+any dependency change — including a **reactive pipeline head**
+(`sel() |> ggplot(...)`), which makes a selection-fed formula redraw per
+brush with no extra wiring. The draw button is an ergonomic default, not
+a core invariant. *Avoid*: “ggpaintr only re-renders on the Update
+click” as an unconditional claim (true only under the default
+`gate_draw = TRUE`); treating `draw_trigger` as a general invalidation
+hook (its implemented contract is a click-counter reactive — numeric ≥
+1).
+
+Accepted limitation: only identity-stat, point-like layers carry row
+keys — selections on stat-transformed layers (`geom_smooth`, post-stat
+bars) yield nothing.
 
 ### Naming convention — **LOCKED 2026-05-16**
 

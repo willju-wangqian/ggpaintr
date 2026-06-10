@@ -191,8 +191,8 @@ ptr_define_placeholder_source(
 )
 #> function (...) 
 #> rlang::abort(paste0("`", kw, "()` is only meaningful inside `ptr_app()`."))
-#> <bytecode: 0x560ee2220310>
-#> <environment: 0x560ee2e53e28>
+#> <bytecode: 0x555b02b6de90>
+#> <environment: 0x555b02e8f5d8>
 ptr_clear_placeholder("dataset")
 #> ✔ Cleared placeholder: "dataset".
 ```

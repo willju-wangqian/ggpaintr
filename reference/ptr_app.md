@@ -56,11 +56,14 @@ ptr_app(
 
 - expr_check:
 
-  Controls `ppExpr` placeholder validation. Three modes: `TRUE`
+  Controls formula-level `ppExpr` validation. Three modes: `TRUE`
   (default) applies the built-in denylist + AST walker; `FALSE` disables
-  all validation (for local prototyping with trusted input only); a
-  `list` with `deny_list` and/or `allow_list` entries (character
-  vectors) customises the policy without disabling it. See
+  formula-level validation (for local prototyping with trusted formulas
+  only); a `list` with `deny_list` and/or `allow_list` entries
+  (character vectors) customises the formula-level policy without
+  disabling it. Code typed into a `ppExpr` box at runtime is always
+  screened against the built-in denylist, regardless of this setting.
+  See
   [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)
   for the walker model.
 
