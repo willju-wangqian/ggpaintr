@@ -63,9 +63,9 @@ ptr_app(
   (character vectors) customises the formula-level policy without
   disabling it. Code typed into a `ppExpr` box at runtime is always
   screened against the built-in denylist, regardless of this setting.
-  See
-  [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)
-  for the walker model.
+  For the walker model see the safety chapter of the ggpaintr book
+  (development-version docs):
+  <https://willju-wangqian.github.io/ggpaintr-book/safety.html>.
 
 - safe_to_remove:
 
@@ -121,9 +121,10 @@ back into the expression at render time.
 - `ppExpr`:
 
   Code editor, validated by `expr_check`. The only keyword that accepts
-  arbitrary R code; see
-  [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)
-  for the model. Example: `facet_wrap(ppExpr)`.
+  arbitrary R code; for the safety model see the ggpaintr book's safety
+  chapter (development-version docs,
+  <https://willju-wangqian.github.io/ggpaintr-book/safety.html>).
+  Example: `facet_wrap(ppExpr)`.
 
 - `ppUpload`:
 

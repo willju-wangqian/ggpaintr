@@ -456,7 +456,7 @@ had no validator gain the option to declare one.
   — ellmer-facing helpers that expose the bundled `inst/llm/` primer and
   topic files as plain strings or as registered ellmer tools, so coding
   assistants can fetch just-in-time ggpaintr guidance. See
-  [`vignette("ggpaintr-llm")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md).
+  `vignette("ggpaintr-llm")`.
 - `upload` placeholder now accepts `.tsv`, `.xlsx`, `.xls`, and `.json`
   in addition to `.csv` and `.rds`. JSON uploads must be an array of
   records; nested objects are flattened, nested arrays error out. Excel

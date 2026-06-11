@@ -33,8 +33,6 @@ ptr_server().'><meta property="og:image" content="https://willju-wangqian.github
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
     <li><a class="dropdown-item" href="../articles/ggpaintr-tutorial.html">Tutorial</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="../articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="../news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -106,8 +104,9 @@ symbol and any local data objects. Defaults to the calling frame.</p></dd>
 (default) applies the built-in denylist + AST walker; <code>FALSE</code> disables
 formula-level validation; a <code>list</code> with <code>deny_list</code>/<code>allow_list</code> entries
 customises the formula-level policy. Runtime-typed <code>ppExpr</code> input is
-always screened against the built-in denylist regardless. See
-<code><a href="../articles/ggpaintr-safety.html">vignette("ggpaintr-safety")</a></code>.</p></dd>
+always screened against the built-in denylist regardless. See the
+safety chapter of the ggpaintr book (development-version docs):
+<a href="https://willju-wangqian.github.io/ggpaintr-book/safety.html">https://willju-wangqian.github.io/ggpaintr-book/safety.html</a>.</p></dd>
 
 
 <dt id="arg-shared">shared<a class="anchor" aria-label="anchor" href="#arg-shared"></a></dt>
@@ -156,22 +155,22 @@ type; see <code><a href="ptr_define_placeholder_value.html">ptr_define_placehold
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;option value="geom_point"&gt;geom_point&lt;/option&gt;&lt;/select&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;div class="tabbable"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="4865"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="4323"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;li class="active"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-4865-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot"&gt;ggplot&lt;/a&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-4323-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot"&gt;ggplot&lt;/a&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/li&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;li&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-4865-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point"&gt;geom_point&lt;/a&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-4323-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point"&gt;geom_point&lt;/a&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/li&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;/ul&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;div class="tab-content" data-tabsetid="4865"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane active" data-value="ggplot" id="tab-4865-1"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;div class="tab-content" data-tabsetid="4323"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane active" data-value="ggplot" id="tab-4323-1"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;div id="p-ptr_layer_content_ggplot" class="ptr-layer-content"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/div&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane" data-value="geom_point" id="tab-4865-2"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane" data-value="geom_point" id="tab-4323-2"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;div class="form-group shiny-input-container"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div class="checkbox"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           &lt;label&gt;</span>
@@ -196,22 +195,22 @@ type; see <code><a href="ptr_define_placeholder_value.html">ptr_define_placehold
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;option value="geom_point"&gt;geom_point&lt;/option&gt;&lt;/select&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> &lt;div class="tabbable"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="3600"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;ul class="nav nav-hidden shiny-tab-input" id="p-ptr_layer_tabset" data-tabsetid="1242"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;li class="active"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-3600-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot"&gt;ggplot&lt;/a&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-1242-1" data-toggle="tab" data-bs-toggle="tab" data-value="ggplot"&gt;ggplot&lt;/a&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/li&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;li&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-3600-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point"&gt;geom_point&lt;/a&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;a href="#tab-1242-2" data-toggle="tab" data-bs-toggle="tab" data-value="geom_point"&gt;geom_point&lt;/a&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/li&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;/ul&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;div class="tab-content" data-tabsetid="3600"&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane active" data-value="ggplot" id="tab-3600-1"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>   &lt;div class="tab-content" data-tabsetid="1242"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane active" data-value="ggplot" id="tab-1242-1"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;div id="p-ptr_layer_content_ggplot" class="ptr-layer-content"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_1_ppVar_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div id="p-ggplot_1_2_ppVar_NA_ui" class="shiny-html-output"&gt;&lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;/div&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;/div&gt;</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane" data-value="geom_point" id="tab-3600-2"&gt;</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>     &lt;div class="tab-pane" data-value="geom_point" id="tab-1242-2"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>       &lt;div class="form-group shiny-input-container"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>         &lt;div class="checkbox"&gt;</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>           &lt;label&gt;</span>

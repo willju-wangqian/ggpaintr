@@ -178,16 +178,19 @@ keyboard shortcut (the addin must be **installed**, not just
   [`ptr_shared_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_server.md).
   Opens with a tour of the five built-in placeholder keywords.
 
-- **[`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md)
-  — *Safety*.** What `expr_check` does and when (never) to turn it off,
-  the denylist + AST-walker safety model, and the upload trust boundary.
+- **[Safety](https://willju-wangqian.github.io/ggpaintr-book/safety.html)
+  — chapter of the ggpaintr book (development-version docs).** What
+  `expr_check` does and when (never) to turn it off, the denylist +
+  AST-walker safety model, and the upload trust boundary.
 
-- **[`vignette("ggpaintr-llm")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-llm.md)
-  — *Using ggpaintr from an LLM with ellmer*.** Wire ggpaintr up as an
-  LLM-callable tool with ellmer: register the primer and the
-  topic-lookup tool, inspect what the model sees, swap providers/models,
-  and test without spending tokens.
+- **[Using ggpaintr from an LLM with
+  ellmer](https://willju-wangqian.github.io/ggpaintr-book/llm.html) —
+  chapter of the ggpaintr book (development-version docs).** Wire
+  ggpaintr up as an LLM-callable tool with ellmer: register the primer
+  and the topic-lookup tool, inspect what the model sees, swap
+  providers/models, and test without spending tokens.
 
 The [pkgdown reference](https://willju-wangqian.github.io/ggpaintr/)
-lists every exported function. A longer, book-length introduction to
-ggpaintr is planned.
+lists every exported function. The [ggpaintr
+book](https://willju-wangqian.github.io/ggpaintr-book/) is the longer,
+book-length introduction (documents the development version).

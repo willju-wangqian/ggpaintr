@@ -1,4 +1,4 @@
-# Fetch a ggpaintr LLM topic by name
+# Fetch a ggpaintr LLM topic
 
 Returns the runnable example + commentary for one topic as a single
 character string. Designed to back an LLM tool such as
@@ -9,12 +9,12 @@ example instead of the entire manual.
 ## Usage
 
 ``` r
-ptr_llm_topic(name)
+ptr_llm_topic(topic)
 ```
 
 ## Arguments
 
-- name:
+- topic:
 
   Topic name. Must be one of
   [`ptr_llm_topics()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_topics.md).

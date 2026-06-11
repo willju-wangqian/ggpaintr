@@ -48,8 +48,9 @@ ptr_app_bslib(
   the built-in denylist + AST walker; `FALSE` disables formula-level
   validation; a `list` with `deny_list`/`allow_list` entries customises
   the formula-level policy. Runtime-typed `ppExpr` input is always
-  screened against the built-in denylist regardless. See
-  [`vignette("ggpaintr-safety")`](https://willju-wangqian.github.io/ggpaintr/articles/ggpaintr-safety.md).
+  screened against the built-in denylist regardless. See the safety
+  chapter of the ggpaintr book (development-version docs):
+  <https://willju-wangqian.github.io/ggpaintr-book/safety.html>.
 
 - safe_to_remove:
 

@@ -211,7 +211,7 @@ assistants.
 - [`ptr_llm_primer()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_primer.md)
   : Get the ggpaintr LLM system-prompt primer
 - [`ptr_llm_topic()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_topic.md)
-  : Fetch a ggpaintr LLM topic by name
+  : Fetch a ggpaintr LLM topic
 - [`ptr_llm_topics()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_topics.md)
   : List available ggpaintr LLM topic names
 - [`ptr_llm_register()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_llm_register.md)

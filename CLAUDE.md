@@ -137,13 +137,15 @@ worktree edit-leak pitfall: `.claude/rules/serena-tools.md`.
   feature/coverage status from the R source + `NAMESPACE` +
   `CONTEXT.md` + `dev/adr/` + the test suite.
 - `vignettes/*.Rmd` were **rewritten 2026-05-30 to the current API** —
-  the live set is exactly `ggpaintr-tutorial`, `ggpaintr-safety`,
-  `ggpaintr-llm` (the stale `ggpaintr-use-cases` /
-  `ggpaintr-customization` / `ggpaintr-gallery` were retired to
-  `archive/retired_vignettes/`, excluded from the build via
-  `.Rbuildignore ^archive$`). The live three are kept honest against the
-  `tests/testthat/fixtures/vignette-apps/*/app.R` mirrors
-  (e2e-exercised) and a build-time gate, so treat them as current; for a
+  the live set is exactly `ggpaintr-tutorial` (the stale
+  `ggpaintr-use-cases` / `ggpaintr-customization` / `ggpaintr-gallery`
+  were retired to `archive/retired_vignettes/`, excluded from the build
+  via `.Rbuildignore ^archive$`; `ggpaintr-safety` / `ggpaintr-llm` were
+  **migrated to the ggpaintr book 2026-06-10** — maintained home is
+  <https://willju-wangqian.github.io/ggpaintr-book/>, chapters
+  `safety.html` / `llm.html`). The live vignette is kept honest against
+  the `tests/testthat/fixtures/vignette-apps/*/app.R` mirrors
+  (e2e-exercised) and a build-time gate, so treat it as current; for a
   precise code-shaped claim still cross-check the R source +
   `NAMESPACE` + `CONTEXT.md` + `dev/adr/`.
 - Generated HTML files (audits, notes, plans, ADRs, any agent-emitted

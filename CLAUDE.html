@@ -21,8 +21,6 @@
   <ul class="dropdown-menu" aria-labelledby="dropdown-articles"><li><hr class="dropdown-divider"></li>
     <li><h6 class="dropdown-header" data-toc-skip>ggpaintr</h6></li>
     <li><a class="dropdown-item" href="articles/ggpaintr-tutorial.html">Tutorial</a></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-safety.html">Safety</a></li>
-    <li><a class="dropdown-item" href="articles/ggpaintr-llm.html">Using ggpaintr from an LLM with ellmer</a></li>
   </ul></li>
 <li class="nav-item"><a class="nav-link" href="news/index.html">Changelog</a></li>
       </ul><ul class="navbar-nav"><li class="nav-item"><form class="form-inline" role="search">
@@ -94,7 +92,7 @@
 <li>
 <code>dev/feature_bank/</code> is <strong>deprecated — NOT a source of truth</strong> (demoted 2026-05-28; its substring-match coverage went stale). Do not cite, regenerate, or treat its rows as authoritative. Derive feature/coverage status from the R source + <code>NAMESPACE</code> + <code>CONTEXT.md</code> + <code>dev/adr/</code> + the test suite.</li>
 <li>
-<code>vignettes/*.Rmd</code> were <strong>rewritten 2026-05-30 to the current API</strong> — the live set is exactly <code>ggpaintr-tutorial</code>, <code>ggpaintr-safety</code>, <code>ggpaintr-llm</code> (the stale <code>ggpaintr-use-cases</code> / <code>ggpaintr-customization</code> / <code>ggpaintr-gallery</code> were retired to <code>archive/retired_vignettes/</code>, excluded from the build via <code>.Rbuildignore ^archive$</code>). The live three are kept honest against the <code>tests/testthat/fixtures/vignette-apps/*/app.R</code> mirrors (e2e-exercised) and a build-time gate, so treat them as current; for a precise code-shaped claim still cross-check the R source + <code>NAMESPACE</code> + <code>CONTEXT.md</code> + <code>dev/adr/</code>.</li>
+<code>vignettes/*.Rmd</code> were <strong>rewritten 2026-05-30 to the current API</strong> — the live set is exactly <code>ggpaintr-tutorial</code> (the stale <code>ggpaintr-use-cases</code> / <code>ggpaintr-customization</code> / <code>ggpaintr-gallery</code> were retired to <code>archive/retired_vignettes/</code>, excluded from the build via <code>.Rbuildignore ^archive$</code>; <code>ggpaintr-safety</code> / <code>ggpaintr-llm</code> were <strong>migrated to the ggpaintr book 2026-06-10</strong> — maintained home is <a href="https://willju-wangqian.github.io/ggpaintr-book/" class="uri">https://willju-wangqian.github.io/ggpaintr-book/</a>, chapters <code>safety.html</code> / <code>llm.html</code>). The live vignette is kept honest against the <code>tests/testthat/fixtures/vignette-apps/*/app.R</code> mirrors (e2e-exercised) and a build-time gate, so treat it as current; for a precise code-shaped claim still cross-check the R source + <code>NAMESPACE</code> + <code>CONTEXT.md</code> + <code>dev/adr/</code>.</li>
 <li>Generated HTML files (audits, notes, plans, ADRs, any agent-emitted artifact under <code>dev/</code>) MUST link the shared stylesheet via <code>&lt;link rel="stylesheet" href="/path/to/dev/assets/doc.css"&gt;</code> (use the correct relative path from the file’s location, e.g. <code>../assets/doc.css</code> from <code>dev/audit/</code>, <code>../../assets/doc.css</code> from <code>dev/plans/&lt;slug&gt;/</code>). Do NOT inline <code>&lt;style&gt;</code> blocks or duplicate rules already in <code>doc.css</code> — this saves output tokens and keeps doc styling consistent. If a class you need is missing from <code>doc.css</code>, add it there once rather than inlining locally.</li>
 </ul></div>
 <div class="section level2">
