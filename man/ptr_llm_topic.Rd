@@ -2,12 +2,12 @@
 % Please edit documentation in R/paintr-llm.R
 \name{ptr_llm_topic}
 \alias{ptr_llm_topic}
-\title{Fetch a ggpaintr LLM topic by name}
+\title{Fetch a ggpaintr LLM topic}
 \usage{
-ptr_llm_topic(name)
+ptr_llm_topic(topic)
 }
 \arguments{
-\item{name}{Topic name. Must be one of \code{\link[=ptr_llm_topics]{ptr_llm_topics()}}.}
+\item{topic}{Topic name. Must be one of \code{\link[=ptr_llm_topics]{ptr_llm_topics()}}.}
 }
 \value{
 A single character string.

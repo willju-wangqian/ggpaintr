@@ -51,7 +51,7 @@ ptr_llm_topics <- function() {
   sort(sub("\\.md$", "", files))
 }
 
-#' Fetch a ggpaintr LLM topic by name
+#' Fetch a ggpaintr LLM topic
 #'
 #' Returns the runnable example + commentary for one topic as a single
 #' character string. Designed to back an LLM tool such as
@@ -63,24 +63,24 @@ ptr_llm_topics <- function() {
 #' `README.Rmd` or the tutorial vignette
 #' (`ggpaintr-tutorial`).
 #'
-#' @param name Topic name. Must be one of [ptr_llm_topics()].
+#' @param topic Topic name. Must be one of [ptr_llm_topics()].
 #' @return A single character string.
 #' @seealso [ptr_llm_topics()], [ptr_llm_primer()]
 #' @export
 #' @examples
 #' cat(ptr_llm_topic("level1_ptr_app"))
-ptr_llm_topic <- function(name) {
+ptr_llm_topic <- function(topic) {
   assertthat::assert_that(
-    is.character(name),
-    length(name) == 1L,
-    nzchar(name)
+    is.character(topic),
+    length(topic) == 1L,
+    nzchar(topic)
   )
 
   available <- ptr_llm_topics()
-  if (!name %in% available) {
+  if (!topic %in% available) {
     rlang::abort(
       c(
-        sprintf("Unknown ggpaintr LLM topic: %s", name),
+        sprintf("Unknown ggpaintr LLM topic: %s", topic),
         i = paste0("Available topics: ",
                    paste(available, collapse = ", "))
       ),
@@ -88,7 +88,7 @@ ptr_llm_topic <- function(name) {
     )
   }
 
-  path <- system.file("llm", "topics", paste0(name, ".md"),
+  path <- system.file("llm", "topics", paste0(topic, ".md"),
                       package = "ggpaintr")
   paste(readLines(path, warn = FALSE), collapse = "\n")
 }
@@ -161,7 +161,7 @@ ptr_llm_register <- function(chat, tool_name = "ggpaintr_docs") {
       "runnable R snippet."
     ),
     arguments = list(
-      name = ellmer::type_enum(
+      topic = ellmer::type_enum(
         topic_names,
         paste0(
           "Which ggpaintr topic to fetch. Pick based on the user's ",

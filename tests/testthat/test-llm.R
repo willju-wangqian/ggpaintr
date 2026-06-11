@@ -97,6 +97,17 @@ test_that("ptr_llm_register honours a custom tool_name", {
   expect_identical(captured@name, "my_docs")
 })
 
+test_that("ptr_llm_register's tool schema argument is named `topic`", {
+  # Contract: inst/llm/primer.md instructs the model to call
+  # `ggpaintr_docs(topic)`, so the registered schema must accept `topic`.
+  skip_if_not_installed("ellmer")
+  captured <- NULL
+  fake_chat <- new.env()
+  fake_chat$register_tool <- function(tool) captured <<- tool
+  ptr_llm_register(fake_chat)
+  expect_identical(names(captured@arguments@properties), "topic")
+})
+
 test_that("ptr_llm_register rejects a non-chat object", {
   skip_if_not_installed("ellmer")
   expect_error(ptr_llm_register(42), class = "ggpaintr_llm_bad_chat")
