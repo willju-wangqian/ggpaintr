@@ -293,8 +293,8 @@ had no validator gain the option to declare one.
   slots through `...`.
 
 - The custom-renderer pattern (reading `state$runtime()` for your own
-  `renderPlotly()` / `renderGirafe()`) is now documented as an L2
-  capability — both
+  [`renderPlotly()`](https://rdrr.io/pkg/plotly/man/plotly-shiny.html) /
+  `renderGirafe()`) is now documented as an L2 capability — both
   [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
   and `ptr_module_server()` return the `ptr_state`, so it needs nothing
   beyond embedding.

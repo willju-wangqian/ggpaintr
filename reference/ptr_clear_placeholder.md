@@ -6,7 +6,8 @@ Unregisters placeholders added with
 or
 [`ptr_define_placeholder_source()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_source.md).
 The five built-in placeholders (`ppVar`, `ppText`, `ppNum`, `ppExpr`,
-`ppUpload`) are never removed.
+`ppUpload`) and the two structural keywords (`ppLayerOff`,
+`ppVerbSwitch`) are never removed.
 
 ## Usage
 
@@ -36,8 +37,8 @@ ptr_define_placeholder_value(
 )
 #> function (x, ...) 
 #> x
-#> <bytecode: 0x55a584a53b68>
-#> <environment: 0x55a582218590>
+#> <bytecode: 0x55b9622aa750>
+#> <environment: 0x55b964270fc0>
 ptr_clear_placeholder("demo_kw")
 #> ✔ Cleared placeholder: "demo_kw".
 ```

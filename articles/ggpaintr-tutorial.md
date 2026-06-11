@@ -453,7 +453,8 @@ one level to
 [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md)
 /
 [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
-and own the `shinyApp()` shell yourself.
+and own the [`shinyApp()`](https://rdrr.io/pkg/shiny/man/shinyApp.html)
+shell yourself.
 
 ### One plot inside your own app
 
@@ -462,7 +463,7 @@ You write the `fluidPage` and the server function. Put
 and `ptr_server(formula, id)` in the server with a **matching `id`**.
 [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
 namespaces itself — call it **bare**, never wrapped in your own
-`moduleServer()`:
+[`moduleServer()`](https://rdrr.io/pkg/shiny/man/moduleServer.html):
 
 [`ptr_ui()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui.md)
 and

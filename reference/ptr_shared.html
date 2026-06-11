@@ -95,7 +95,7 @@ Shiny session without colliding on shared <code>input</code> slots. When
 non-<code>NULL</code>, every id (<code>shared_&lt;key&gt;</code>, <code>shared_&lt;key&gt;_stage_enabled</code>,
 <code>ptr_shared_draw_all</code>, <code>ptr_shared_errors</code>, the stage-block DOM id,
 and each consumer <code>renderUI</code> container) is prefixed <code>&lt;id&gt;-</code> using
-Shiny <code>NS()</code>'s separator. The default <code>NULL</code> preserves today's flat
+Shiny <code><a href="https://rdrr.io/pkg/shiny/man/NS.html" class="external-link">NS()</a></code>'s separator. The default <code>NULL</code> preserves today's flat
 ids byte-for-byte – single-panel apps need no change. Must be <code>NULL</code>
 or a non-empty string matching <code>^[A-Za-z][A-Za-z0-9_]*$</code>;
 <code><a href="ptr_shared_panel.html">ptr_shared_panel()</a></code>, <code><a href="ptr_ui_shared_panel.html">ptr_ui_shared_panel()</a></code>, and

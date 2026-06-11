@@ -333,6 +333,27 @@ See
 
   Bundled CSS / JS Assets Piece for `ggpaintr`
 
+## Linked selection (plotly)
+
+L3 custom-render helpers that turn a drawn ggpaintr plot into an
+interactive plotly widget and read its brushed selection back as data.
+See
+[`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md),
+section “Custom render (L3)”.
+
+- [`ptr_ggplotly()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ggplotly.md)
+  :
+
+  Build a plotly Widget From a `ggpaintr` Instance, Wired for Linked
+  Selection
+
+- [`ptr_plotly_selection()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_plotly_selection.md)
+  :
+
+  Read a
+  [`ptr_ggplotly()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ggplotly.md)
+  Linked Selection As Rows or a Flag Column
+
 ## Advanced embedders
 
 Drive the typed tree programmatically or read runtime outputs off the

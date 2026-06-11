@@ -563,7 +563,7 @@ a <code>build_ui</code> that renders the picker at
 whole Shiny app for you. When you want to place a ggpaintr plot inside
 your <em>own</em> app — alongside other UI, several plots at once,
 controls of your own — you drop down one level to <code><a href="../reference/ptr_ui.html">ptr_ui()</a></code>
-/ <code><a href="../reference/ptr_server.html">ptr_server()</a></code> and own the <code>shinyApp()</code> shell
+/ <code><a href="../reference/ptr_server.html">ptr_server()</a></code> and own the <code><a href="https://rdrr.io/pkg/shiny/man/shinyApp.html" class="external-link">shinyApp()</a></code> shell
 yourself.</p>
 <div class="section level3">
 <h3 id="one-plot-inside-your-own-app">One plot inside your own app<a class="anchor" aria-label="anchor" href="#one-plot-inside-your-own-app"></a>
@@ -573,7 +573,7 @@ yourself.</p>
 should go, and <code>ptr_server(formula, id)</code> in the server with a
 <strong>matching <code>id</code></strong>. <code><a href="../reference/ptr_server.html">ptr_server()</a></code>
 namespaces itself — call it <strong>bare</strong>, never wrapped in your
-own <code>moduleServer()</code>:</p>
+own <code><a href="https://rdrr.io/pkg/shiny/man/moduleServer.html" class="external-link">moduleServer()</a></code>:</p>
 <p><code><a href="../reference/ptr_ui.html">ptr_ui()</a></code> and <code><a href="../reference/ptr_server.html">ptr_server()</a></code> take the formula
 the same way <code><a href="../reference/ptr_app.html">ptr_app()</a></code> does: pass the <code><a href="https://ggplot2.tidyverse.org/reference/ggplot.html" class="external-link">ggplot()</a></code>
 call directly, or — to write it once and hand the <em>same</em> formula

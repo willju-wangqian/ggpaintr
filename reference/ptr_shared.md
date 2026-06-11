@@ -45,10 +45,11 @@ ptr_shared(
   without colliding on shared `input` slots. When non-`NULL`, every id
   (`shared_<key>`, `shared_<key>_stage_enabled`, `ptr_shared_draw_all`,
   `ptr_shared_errors`, the stage-block DOM id, and each consumer
-  `renderUI` container) is prefixed `<id>-` using Shiny `NS()`'s
-  separator. The default `NULL` preserves today's flat ids byte-for-byte
-  – single-panel apps need no change. Must be `NULL` or a non-empty
-  string matching `^[A-Za-z][A-Za-z0-9_]*$`;
+  `renderUI` container) is prefixed `<id>-` using Shiny
+  [`NS()`](https://rdrr.io/pkg/shiny/man/NS.html)'s separator. The
+  default `NULL` preserves today's flat ids byte-for-byte – single-panel
+  apps need no change. Must be `NULL` or a non-empty string matching
+  `^[A-Za-z][A-Za-z0-9_]*$`;
   [`ptr_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_shared_panel.md),
   [`ptr_ui_shared_panel()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_ui_shared_panel.md),
   and
