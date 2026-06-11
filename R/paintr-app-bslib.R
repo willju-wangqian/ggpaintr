@@ -29,8 +29,9 @@
 #'   (default) applies the built-in denylist + AST walker; `FALSE` disables
 #'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
 #'   customises the formula-level policy. Runtime-typed `ppExpr` input is
-#'   always screened against the built-in denylist regardless. See
-#'   `vignette("ggpaintr-safety")`.
+#'   always screened against the built-in denylist regardless. See the
+#'   safety chapter of the ggpaintr book (development-version docs):
+#'   <https://willju-wangqian.github.io/ggpaintr-book/safety.html>.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`.

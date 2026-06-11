@@ -20,8 +20,10 @@
 #'   trusted formulas only); a `list` with `deny_list` and/or `allow_list`
 #'   entries (character vectors) customises the formula-level policy without
 #'   disabling it. Code typed into a `ppExpr` box at runtime is always
-#'   screened against the built-in denylist, regardless of this setting. See
-#'   `vignette("ggpaintr-safety")` for the walker model.
+#'   screened against the built-in denylist, regardless of this setting. For
+#'   the walker model see the safety chapter of the ggpaintr book
+#'   (development-version docs):
+#'   <https://willju-wangqian.github.io/ggpaintr-book/safety.html>.
 #' @param safe_to_remove Character vector of additional function names whose
 #'   zero-argument calls should be dropped after placeholder substitution
 #'   leaves them empty. Defaults to `character()`. See **Empty-call cleanup**
@@ -51,8 +53,10 @@
 #'   \item{`ppNum`}{Numeric input. Renders as a `numericInput`. Example:
 #'   `geom_point(size = ppNum)`.}
 #'   \item{`ppExpr`}{Code editor, validated by `expr_check`. The only keyword
-#'   that accepts arbitrary R code; see `vignette("ggpaintr-safety")` for
-#'   the model. Example: `facet_wrap(ppExpr)`.}
+#'   that accepts arbitrary R code; for the safety model see the ggpaintr
+#'   book's safety chapter (development-version docs,
+#'   <https://willju-wangqian.github.io/ggpaintr-book/safety.html>).
+#'   Example: `facet_wrap(ppExpr)`.}
 #'   \item{`ppUpload`}{File picker, returns a data frame. Renders as a
 #'   `fileInput` plus an optional dataset-name textbox. Accepted formats:
 #'   `.csv`, `.tsv`, `.rds`, `.xlsx`, `.xls`, `.json`. Uploaded data is
@@ -883,8 +887,9 @@ ptr_ui_header <- function(title = "ggpaintr") {
 #'   (default) applies the built-in denylist + AST walker; `FALSE` disables
 #'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
 #'   customises the formula-level policy. Runtime-typed `ppExpr` input is
-#'   always screened against the built-in denylist regardless. See
-#'   `vignette("ggpaintr-safety")`.
+#'   always screened against the built-in denylist regardless. See the
+#'   safety chapter of the ggpaintr book (development-version docs):
+#'   <https://willju-wangqian.github.io/ggpaintr-book/safety.html>.
 #' @param css Optional character vector of paths to additional CSS files;
 #'   linked after `ggpaintr`'s bundled stylesheet so its rules win. See
 #'   [ptr_app()] for the full semantics. Defaults to `NULL`.
@@ -995,8 +1000,9 @@ ptr_ui <- function(formula, id = NULL, envir = parent.frame(),
 #'   (default) applies the built-in denylist + AST walker; `FALSE` disables
 #'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
 #'   customises the formula-level policy. Runtime-typed `ppExpr` input is
-#'   always screened against the built-in denylist regardless. See
-#'   `vignette("ggpaintr-safety")`.
+#'   always screened against the built-in denylist regardless. See the
+#'   safety chapter of the ggpaintr book (development-version docs):
+#'   <https://willju-wangqian.github.io/ggpaintr-book/safety.html>.
 #' @param shared Optional coordinator object from [ptr_shared()] for the
 #'   multi-instance embedding. When `NULL` (the single-instance default)
 #'   the inline "Shared controls" section renders **every** `shared =
@@ -1340,8 +1346,9 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'   (default) applies the built-in denylist + AST walker; `FALSE` disables
 #'   formula-level validation; a `list` with `deny_list`/`allow_list` entries
 #'   customises the formula-level policy. Runtime-typed `ppExpr` input is
-#'   always screened against the built-in denylist regardless. See
-#'   `vignette("ggpaintr-safety")`.
+#'   always screened against the built-in denylist regardless. See the
+#'   safety chapter of the ggpaintr book (development-version docs):
+#'   <https://willju-wangqian.github.io/ggpaintr-book/safety.html>.
 #' @param css Optional character vector of paths to additional CSS files,
 #'   linked once at the page level after `ggpaintr`'s bundled stylesheet so
 #'   its rules win. See [ptr_app()] for the full semantics. Defaults to `NULL`.

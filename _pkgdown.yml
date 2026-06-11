@@ -80,5 +80,3 @@ articles:
     navbar: ggpaintr
     contents:
       - ggpaintr-tutorial
-      - ggpaintr-safety
-      - ggpaintr-llm

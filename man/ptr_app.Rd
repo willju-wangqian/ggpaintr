@@ -41,8 +41,10 @@ for the full schema and current defaults.}
 trusted formulas only); a \code{list} with \code{deny_list} and/or \code{allow_list}
 entries (character vectors) customises the formula-level policy without
 disabling it. Code typed into a \code{ppExpr} box at runtime is always
-screened against the built-in denylist, regardless of this setting. See
-\code{vignette("ggpaintr-safety")} for the walker model.}
+screened against the built-in denylist, regardless of this setting. For
+the walker model see the safety chapter of the ggpaintr book
+(development-version docs):
+\url{https://willju-wangqian.github.io/ggpaintr-book/safety.html}.}
 
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
@@ -86,8 +88,10 @@ populated with the upstream data's column-name vector. Example:
 \item{\code{ppNum}}{Numeric input. Renders as a \code{numericInput}. Example:
 \code{geom_point(size = ppNum)}.}
 \item{\code{ppExpr}}{Code editor, validated by \code{expr_check}. The only keyword
-that accepts arbitrary R code; see \code{vignette("ggpaintr-safety")} for
-the model. Example: \code{facet_wrap(ppExpr)}.}
+that accepts arbitrary R code; for the safety model see the ggpaintr
+book's safety chapter (development-version docs,
+\url{https://willju-wangqian.github.io/ggpaintr-book/safety.html}).
+Example: \code{facet_wrap(ppExpr)}.}
 \item{\code{ppUpload}}{File picker, returns a data frame. Renders as a
 \code{fileInput} plus an optional dataset-name textbox. Accepted formats:
 \code{.csv}, \code{.tsv}, \code{.rds}, \code{.xlsx}, \code{.xls}, \code{.json}. Uploaded data is

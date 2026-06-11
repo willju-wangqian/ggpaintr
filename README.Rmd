@@ -108,8 +108,8 @@ Run it from the **Addins** menu ▸ *ggpaintr placeholder*. To bind a keyboard s
 
 - **`vignette("ggpaintr-tutorial")` — _Tutorial_.** A guided walk from a one-line `ptr_app()` formula, through defining your own placeholders (every argument of the three constructors `ptr_define_placeholder_value()` / `_consumer()` / `_source()`), to embedding several plots in your own Shiny app with `ptr_ui()` / `ptr_server()` and sharing one control across them via `ptr_shared()` / `ptr_shared_panel()` / `ptr_shared_server()`. Opens with a tour of the five built-in placeholder keywords.
 
-- **`vignette("ggpaintr-safety")` — _Safety_.** What `expr_check` does and when (never) to turn it off, the denylist + AST-walker safety model, and the upload trust boundary.
+- **[Safety](https://willju-wangqian.github.io/ggpaintr-book/safety.html) — chapter of the ggpaintr book (development-version docs).** What `expr_check` does and when (never) to turn it off, the denylist + AST-walker safety model, and the upload trust boundary.
 
-- **`vignette("ggpaintr-llm")` — _Using ggpaintr from an LLM with ellmer_.** Wire ggpaintr up as an LLM-callable tool with ellmer: register the primer and the topic-lookup tool, inspect what the model sees, swap providers/models, and test without spending tokens.
+- **[Using ggpaintr from an LLM with ellmer](https://willju-wangqian.github.io/ggpaintr-book/llm.html) — chapter of the ggpaintr book (development-version docs).** Wire ggpaintr up as an LLM-callable tool with ellmer: register the primer and the topic-lookup tool, inspect what the model sees, swap providers/models, and test without spending tokens.
 
-The [pkgdown reference](https://willju-wangqian.github.io/ggpaintr/) lists every exported function. A longer, book-length introduction to ggpaintr is planned.
+The [pkgdown reference](https://willju-wangqian.github.io/ggpaintr/) lists every exported function. The [ggpaintr book](https://willju-wangqian.github.io/ggpaintr-book/) is the longer, book-length introduction (documents the development version).

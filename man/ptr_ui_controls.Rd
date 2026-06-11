@@ -33,8 +33,9 @@ symbol and any local data objects. Defaults to the calling frame.}
 (default) applies the built-in denylist + AST walker; \code{FALSE} disables
 formula-level validation; a \code{list} with \code{deny_list}/\code{allow_list} entries
 customises the formula-level policy. Runtime-typed \code{ppExpr} input is
-always screened against the built-in denylist regardless. See
-\code{vignette("ggpaintr-safety")}.}
+always screened against the built-in denylist regardless. See the
+safety chapter of the ggpaintr book (development-version docs):
+\url{https://willju-wangqian.github.io/ggpaintr-book/safety.html}.}
 
 \item{shared}{Optional coordinator object from \code{\link[=ptr_shared]{ptr_shared()}} for the
 multi-instance embedding. When \code{NULL} (the single-instance default)

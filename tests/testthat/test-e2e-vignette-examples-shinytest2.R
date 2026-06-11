@@ -116,7 +116,8 @@
 #         -> all L1 ptr_app() formula recipes; represented by app-basic plus
 #            the custom-placeholder COVERED tests (value-range / consumer-colvars
 #            / source-dataset) which exercise the same recipe machinery.
-#   * ggpaintr-safety.Rmd / ggpaintr-llm.Rmd — no interactive app to boot
+#   * ggpaintr-safety / ggpaintr-llm (migrated to the ggpaintr book 2026-06-10,
+#     chapters safety.html / llm.html) — no interactive app to boot
 #     (safety = prose + denylist; llm = ellmer wiring, not a Shiny app).
 # =============================================================================
 

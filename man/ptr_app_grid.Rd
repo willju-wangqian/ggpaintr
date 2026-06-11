@@ -31,8 +31,9 @@ reads \code{ui_text$shell$title$label}; defaults to \code{"ggpaintr grid"}. See
 (default) applies the built-in denylist + AST walker; \code{FALSE} disables
 formula-level validation; a \code{list} with \code{deny_list}/\code{allow_list} entries
 customises the formula-level policy. Runtime-typed \code{ppExpr} input is
-always screened against the built-in denylist regardless. See
-\code{vignette("ggpaintr-safety")}.}
+always screened against the built-in denylist regardless. See the
+safety chapter of the ggpaintr book (development-version docs):
+\url{https://willju-wangqian.github.io/ggpaintr-book/safety.html}.}
 
 \item{css}{Optional character vector of paths to additional CSS files,
 linked once at the page level after \code{ggpaintr}'s bundled stylesheet so

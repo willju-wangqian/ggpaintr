@@ -28,8 +28,9 @@ text, and placeholders. The app title is read from
 (default) applies the built-in denylist + AST walker; \code{FALSE} disables
 formula-level validation; a \code{list} with \code{deny_list}/\code{allow_list} entries
 customises the formula-level policy. Runtime-typed \code{ppExpr} input is
-always screened against the built-in denylist regardless. See
-\code{vignette("ggpaintr-safety")}.}
+always screened against the built-in denylist regardless. See the
+safety chapter of the ggpaintr book (development-version docs):
+\url{https://willju-wangqian.github.io/ggpaintr-book/safety.html}.}
 
 \item{safe_to_remove}{Character vector of additional function names whose
 zero-argument calls should be dropped after placeholder substitution
