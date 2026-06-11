@@ -1,0 +1,1343 @@
+ℹ Testing ggpaintr
+
+Attaching package: ‘rlang’
+
+The following object is masked from ‘package:assertthat’:
+
+    has_name
+
+✔ | F W  S  OK | Context
+
+⠏ |          0 | plotly-e2e                                                     
+⠋ | 1        0 | plotly-e2e                                                     
+⠙ | 2        0 | plotly-e2e                                                     
+⠹ | 3        0 | plotly-e2e                                                     
+⠸ | 4        0 | plotly-e2e                                                     
+⠼ | 5        0 | plotly-e2e                                                     
+⠴ | 6        0 | plotly-e2e                                                     
+⠦ | 7        0 | plotly-e2e                                                     
+⠧ | 8        0 | plotly-e2e                                                     
+✖ | 8        0 | plotly-e2e [3.5s]
+────────────────────────────────────────────────────────────────────────────────
+Error ('test-plotly-e2e.R:90:3'): the two-instance app boots with a rendered plotly widget
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.22 Start AppDriver initialization
+{shinytest2} R info 18:19:18.22 Starting Shiny app
+{shinytest2} R info 18:19:18.23 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:101:3'): the selection-fed instance draws its all-FALSE flag state on boot
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.43 Start AppDriver initialization
+{shinytest2} R info 18:19:18.43 Starting Shiny app
+{shinytest2} R info 18:19:18.44 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:112:3'): the rows table renders unconditionally with zero data rows
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.71 Start AppDriver initialization
+{shinytest2} R info 18:19:18.71 Starting Shiny app
+{shinytest2} R info 18:19:18.72 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:128:3'): selected rows appear in the rows-mode table
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.93 Start AppDriver initialization
+{shinytest2} R info 18:19:18.93 Starting Shiny app
+{shinytest2} R info 18:19:18.93 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:139:3'): the brush drives a flag-mode redraw of the selection-fed instance
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.21 Start AppDriver initialization
+{shinytest2} R info 18:19:19.21 Starting Shiny app
+{shinytest2} R info 18:19:19.22 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:154:3'): deselect clears the selection
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.40 Start AppDriver initialization
+{shinytest2} R info 18:19:19.40 Starting Shiny app
+{shinytest2} R info 18:19:19.40 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:165:3'): a redraw resets the selection (ADR rejected-by-design #2)
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.59 Start AppDriver initialization
+{shinytest2} R info 18:19:19.59 Starting Shiny app
+{shinytest2} R info 18:19:19.60 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:181:3'): the selection reactive as draw_trigger silently never redraws (ADR rejected-by-design #3)
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-trigger-misuse"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.75 Start AppDriver initialization
+{shinytest2} R info 18:19:19.75 Starting Shiny app
+{shinytest2} R info 18:19:19.76 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-trigger-misuse"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-trigger-misuse"
+────────────────────────────────────────────────────────────────────────────────
+
+⠏ |          0 | plotly-helpers                                                 
+⠧ | 6        2 | plotly-helpers                                                 
+⠋ | 8        3 | plotly-helpers                                                 
+⠹ | 10        3 | plotly-helpers                                                
+⠸ | 11        3 | plotly-helpers                                                
+⠼ | 12        3 | plotly-helpers                                                
+✖ | 12        3 | plotly-helpers [1.3s]
+────────────────────────────────────────────────────────────────────────────────
+Error ('test-plotly-helpers.R:44:3'): plotly_mint_keys mints per-draw keys on the widget copy only
+Error in `eval(code, test_env)`: object 'plotly_mint_keys' not found
+
+Error ('test-plotly-helpers.R:55:3'): plotly_mint_keys overrides a user aes(key=) with a warn-once contract
+Error in `eval_bare(quo_get_expr(.quo), quo_get_env(.quo))`: object 'plotly_mint_keys' not found
+Backtrace:
+    ▆
+ 1. └─testthat::expect_warning(...) at test-plotly-helpers.R:55:3
+ 2.   └─testthat:::expect_condition_matching_(...)
+ 3.     └─testthat:::quasi_capture(...)
+ 4.       ├─testthat (local) .capture(...)
+ 5.       │ └─base::withCallingHandlers(...)
+ 6.       └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+
+Error ('test-plotly-helpers.R:71:3'): plotly_mint_keys silently overwrites a stale .ptr_row column
+Error in `eval_bare(quo_get_expr(.quo), quo_get_env(.quo))`: object 'plotly_mint_keys' not found
+Backtrace:
+    ▆
+ 1. └─testthat::expect_no_warning(r <- ggpaintr:::plotly_mint_keys(p)) at test-plotly-helpers.R:71:3
+ 2.   └─testthat:::expect_no_(...)
+ 3.     └─testthat:::quasi_capture(enquo(object), NULL, capture)
+ 4.       ├─testthat (local) .capture(...)
+ 5.       │ ├─base::withRestarts(...)
+ 6.       │ │ └─base (local) withOneRestart(expr, restarts[[1L]])
+ 7.       │ │   └─base (local) doWithOneRestart(return(expr), restart)
+ 8.       │ └─base::withCallingHandlers(...)
+ 9.       └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+
+Failure ('test-plotly-helpers.R:83:3'): plotly_mint_keys rejects a non-ggplot
+Expected `conditionMessage(err)` not to match regexp "not found|could not find".
+Actual text:
+x | object 'plotly_mint_keys' not found
+
+Error ('test-plotly-helpers.R:91:3'): non-identity-stat layers carry no minted keys
+Error in `eval(code, test_env)`: object 'plotly_mint_keys' not found
+
+Error ('test-plotly-helpers.R:106:3'): ptr_ggplotly aborts when plotly is not installed
+Error in `testthat::local_mocked_bindings(plotly_installed = function(...) FALSE, .package = "ggpaintr")`: Can't find binding for `plotly_installed`
+Backtrace:
+    ▆
+ 1. └─testthat::local_mocked_bindings(plotly_installed = function(...) FALSE, .package = "ggpaintr") at test-plotly-helpers.R:106:3
+ 2.   └─cli::cli_abort("Can't find binding for {.arg {missing}}")
+ 3.     └─rlang::abort(...)
+
+Failure ('test-plotly-helpers.R:126:5'): ptr_ggplotly rejects a non-ptr_state with a hard error, not a silent condition
+Expected `conditionMessage(err)` not to match regexp "not found|could not find".
+Actual text:
+x | could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:121:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─testthat::expect_no_match(conditionMessage(err), "not found|could not find") at test-plotly-helpers.R:126:5
+
+Error ('test-plotly-helpers.R:138:5'): ptr_ggplotly pre-draw raises the silent req() condition
+Error in `ptr_ggplotly(state1)`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:136:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. ├─testthat::expect_error(ptr_ggplotly(state1), class = "shiny.silent.error") at test-plotly-helpers.R:138:5
+ 29. │ └─testthat:::expect_condition_matching_(...)
+ 30. │   └─testthat:::quasi_capture(...)
+ 31. │     ├─testthat (local) .capture(...)
+ 32. │     │ └─base::withCallingHandlers(...)
+ 33. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 34. └─base::.handleSimpleError(...)
+ 35.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:152:5'): derived source ids are distinct per instance and recorded server-side
+Error in `rlang::eval_tidy(quosure, mask, rlang::caller_env())`: object 'plotly_source_id' not found
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:148:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─base::.handleSimpleError(...) at test-plotly-helpers.R:152:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:187:5'): ptr_ggplotly returns a plain plotly widget configured for selection
+Error in `ptr_ggplotly(state1, tooltip = "all")`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:183:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─base::.handleSimpleError(...) at test-plotly-helpers.R:187:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:211:5'): ptr_ggplotly forwards ... to plotly::ggplotly
+Error in `ptr_ggplotly(state1, tooltip = "all")`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:208:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. ├─plotly::plotly_build(ptr_ggplotly(state1, tooltip = "all")) at test-plotly-helpers.R:211:5
+ 29. └─base::.handleSimpleError(...)
+ 30.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:226:5'): ptr_ggplotly never mutates the state's drawn data
+Error in `ptr_ggplotly(state1)`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:223:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─base::.handleSimpleError(...) at test-plotly-helpers.R:226:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+────────────────────────────────────────────────────────────────────────────────
+
+⠏ |          0 | plotly-selection                                               
+⠴ | 11        5 | plotly-selection                                              
+✖ | 14        5 | plotly-selection
+────────────────────────────────────────────────────────────────────────────────
+Error ('test-plotly-selection.R:42:3'): rows projection returns the selected slice
+Error in `eval(code, test_env)`: object 'plotly_project_rows' not found
+
+Error ('test-plotly-selection.R:53:3'): empty selection is zero rows, same columns
+Error in `eval(code, test_env)`: object 'plotly_project_rows' not found
+
+Error ('test-plotly-selection.R:62:3'): flag projection is the full drawn data plus a logical .ptr_selected
+Error in `eval(code, test_env)`: object 'plotly_project_flag' not found
+
+Error ('test-plotly-selection.R:78:3'): a stale .ptr_selected column is silently overwritten
+Error in `eval_bare(quo_get_expr(.quo), quo_get_env(.quo))`: object 'plotly_project_flag' not found
+Backtrace:
+    ▆
+ 1. └─testthat::expect_no_warning(...) at test-plotly-selection.R:78:3
+ 2.   └─testthat:::expect_no_(...)
+ 3.     └─testthat:::quasi_capture(enquo(object), NULL, capture)
+ 4.       ├─testthat (local) .capture(...)
+ 5.       │ ├─base::withRestarts(...)
+ 6.       │ │ └─base (local) withOneRestart(expr, restarts[[1L]])
+ 7.       │ │   └─base (local) doWithOneRestart(return(expr), restart)
+ 8.       │ └─base::withCallingHandlers(...)
+ 9.       └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+
+Error ('test-plotly-selection.R:88:3'): stale out-of-range keys are dropped, never select wrong rows
+Error in `eval(code, test_env)`: object 'plotly_project_rows' not found
+
+Error ('test-plotly-selection.R:101:3'): .ptr_row never appears in either projection, even riding in on the snapshot
+Error in `".ptr_row" %in% names(ggpaintr:::plotly_project_rows(snap, 2L))`: object 'plotly_project_rows' not found
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_false(...) at test-plotly-selection.R:101:3
+ 2. │ └─testthat::quasi_label(enquo(object), label)
+ 3. │   └─rlang::eval_bare(expr, quo_get_env(quo))
+ 4. └─".ptr_row" %in% ...
+
+Failure ('test-plotly-selection.R:116:3'): projection cores reject a non-data-frame snapshot
+Expected `conditionMessage(err_rows)` not to match regexp "not found|could not find".
+Actual text:
+x | object 'plotly_project_rows' not found
+
+Failure ('test-plotly-selection.R:122:3'): projection cores reject a non-data-frame snapshot
+Expected `conditionMessage(err_flag)` not to match regexp "not found|could not find".
+Actual text:
+x | object 'plotly_project_flag' not found
+
+Failure ('test-plotly-selection.R:146:5'): unknown mode aborts naming the allowed modes
+Expected `conditionMessage(err)` to match regexp "rows".
+Actual text:
+x | could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:139:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─testthat::expect_match(conditionMessage(err), "rows") at test-plotly-selection.R:146:5
+
+Failure ('test-plotly-selection.R:147:5'): unknown mode aborts naming the allowed modes
+Expected `conditionMessage(err)` to match regexp "flag".
+Actual text:
+x | could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:139:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─testthat::expect_match(conditionMessage(err), "flag") at test-plotly-selection.R:147:5
+
+Error ('test-plotly-selection.R:195:3'): a selection lands, then a new draw resets it to empty
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:195:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:185:3
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-selection.R:225:3'): plotly_deselect clears the selection
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:225:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:185:3
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-selection.R:255:5'): a keyless event leaves the selection at its empty state (ADR rejected-by-design #1)
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:258:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:255:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-selection.R:282:3'): pre-draw, the selection reactive req()s the first draw
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:282:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:185:3
+ 29.   └─shiny (local) h(simpleError(msg, call))
+────────────────────────────────────────────────────────────────────────────────
+
+══ Results ═════════════════════════════════════════════════════════════════════
+Duration: 5.3 s
+
+── Failed tests ────────────────────────────────────────────────────────────────
+Error ('test-plotly-e2e.R:90:3'): the two-instance app boots with a rendered plotly widget
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.22 Start AppDriver initialization
+{shinytest2} R info 18:19:18.22 Starting Shiny app
+{shinytest2} R info 18:19:18.23 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:101:3'): the selection-fed instance draws its all-FALSE flag state on boot
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.43 Start AppDriver initialization
+{shinytest2} R info 18:19:18.43 Starting Shiny app
+{shinytest2} R info 18:19:18.44 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:112:3'): the rows table renders unconditionally with zero data rows
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.71 Start AppDriver initialization
+{shinytest2} R info 18:19:18.71 Starting Shiny app
+{shinytest2} R info 18:19:18.72 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:128:3'): selected rows appear in the rows-mode table
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:18.93 Start AppDriver initialization
+{shinytest2} R info 18:19:18.93 Starting Shiny app
+{shinytest2} R info 18:19:18.93 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:139:3'): the brush drives a flag-mode redraw of the selection-fed instance
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.21 Start AppDriver initialization
+{shinytest2} R info 18:19:19.21 Starting Shiny app
+{shinytest2} R info 18:19:19.22 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:154:3'): deselect clears the selection
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.40 Start AppDriver initialization
+{shinytest2} R info 18:19:19.40 Starting Shiny app
+{shinytest2} R info 18:19:19.40 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:165:3'): a redraw resets the selection (ADR rejected-by-design #2)
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.59 Start AppDriver initialization
+{shinytest2} R info 18:19:19.59 Starting Shiny app
+{shinytest2} R info 18:19:19.60 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-linked"
+
+Error ('test-plotly-e2e.R:181:3'): the selection reactive as draw_trigger silently never redraws (ADR rejected-by-design #3)
+Error in `app_initialize(self, private, app_dir = app_dir, ..., load_timeout = load_timeout, timeout = timeout, wait = wait, expect_values_screenshot_args = expect_values_screenshot_args, screenshot_args = screenshot_args, check_names = check_names, name = name, variant = variant, view = view, height = height, width = width, seed = seed, clean_logs = clean_logs, shiny_args = shiny_args, render_args = render_args, options = options)`: `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-trigger-misuse"
+
+
+i You can inspect the failed AppDriver object via `rlang::last_error()$app`
+i AppDriver logs:
+{shinytest2} R info 18:19:19.75 Start AppDriver initialization
+{shinytest2} R info 18:19:19.75 Starting Shiny app
+{shinytest2} R info 18:19:19.76 Error while initializing AppDriver:
+                                `app_dir` must be an existing directory
+                                i Received: "fixtures/vignette-apps/adr28-plotly-trigger-misuse"
+
+
+Caused by error in `app_set_dir()`:
+! `app_dir` must be an existing directory
+i Received: "fixtures/vignette-apps/adr28-plotly-trigger-misuse"
+
+Error ('test-plotly-helpers.R:44:3'): plotly_mint_keys mints per-draw keys on the widget copy only
+Error in `eval(code, test_env)`: object 'plotly_mint_keys' not found
+
+Error ('test-plotly-helpers.R:55:3'): plotly_mint_keys overrides a user aes(key=) with a warn-once contract
+Error in `eval_bare(quo_get_expr(.quo), quo_get_env(.quo))`: object 'plotly_mint_keys' not found
+Backtrace:
+    ▆
+ 1. └─testthat::expect_warning(...) at test-plotly-helpers.R:55:3
+ 2.   └─testthat:::expect_condition_matching_(...)
+ 3.     └─testthat:::quasi_capture(...)
+ 4.       ├─testthat (local) .capture(...)
+ 5.       │ └─base::withCallingHandlers(...)
+ 6.       └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+
+Error ('test-plotly-helpers.R:71:3'): plotly_mint_keys silently overwrites a stale .ptr_row column
+Error in `eval_bare(quo_get_expr(.quo), quo_get_env(.quo))`: object 'plotly_mint_keys' not found
+Backtrace:
+    ▆
+ 1. └─testthat::expect_no_warning(r <- ggpaintr:::plotly_mint_keys(p)) at test-plotly-helpers.R:71:3
+ 2.   └─testthat:::expect_no_(...)
+ 3.     └─testthat:::quasi_capture(enquo(object), NULL, capture)
+ 4.       ├─testthat (local) .capture(...)
+ 5.       │ ├─base::withRestarts(...)
+ 6.       │ │ └─base (local) withOneRestart(expr, restarts[[1L]])
+ 7.       │ │   └─base (local) doWithOneRestart(return(expr), restart)
+ 8.       │ └─base::withCallingHandlers(...)
+ 9.       └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+
+Failure ('test-plotly-helpers.R:83:3'): plotly_mint_keys rejects a non-ggplot
+Expected `conditionMessage(err)` not to match regexp "not found|could not find".
+Actual text:
+x | object 'plotly_mint_keys' not found
+
+Error ('test-plotly-helpers.R:91:3'): non-identity-stat layers carry no minted keys
+Error in `eval(code, test_env)`: object 'plotly_mint_keys' not found
+
+Error ('test-plotly-helpers.R:106:3'): ptr_ggplotly aborts when plotly is not installed
+Error in `testthat::local_mocked_bindings(plotly_installed = function(...) FALSE, .package = "ggpaintr")`: Can't find binding for `plotly_installed`
+Backtrace:
+    ▆
+ 1. └─testthat::local_mocked_bindings(plotly_installed = function(...) FALSE, .package = "ggpaintr") at test-plotly-helpers.R:106:3
+ 2.   └─cli::cli_abort("Can't find binding for {.arg {missing}}")
+ 3.     └─rlang::abort(...)
+
+Failure ('test-plotly-helpers.R:126:5'): ptr_ggplotly rejects a non-ptr_state with a hard error, not a silent condition
+Expected `conditionMessage(err)` not to match regexp "not found|could not find".
+Actual text:
+x | could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:121:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─testthat::expect_no_match(conditionMessage(err), "not found|could not find") at test-plotly-helpers.R:126:5
+
+Error ('test-plotly-helpers.R:138:5'): ptr_ggplotly pre-draw raises the silent req() condition
+Error in `ptr_ggplotly(state1)`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:136:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. ├─testthat::expect_error(ptr_ggplotly(state1), class = "shiny.silent.error") at test-plotly-helpers.R:138:5
+ 29. │ └─testthat:::expect_condition_matching_(...)
+ 30. │   └─testthat:::quasi_capture(...)
+ 31. │     ├─testthat (local) .capture(...)
+ 32. │     │ └─base::withCallingHandlers(...)
+ 33. │     └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+ 34. └─base::.handleSimpleError(...)
+ 35.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:152:5'): derived source ids are distinct per instance and recorded server-side
+Error in `rlang::eval_tidy(quosure, mask, rlang::caller_env())`: object 'plotly_source_id' not found
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:148:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─base::.handleSimpleError(...) at test-plotly-helpers.R:152:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:187:5'): ptr_ggplotly returns a plain plotly widget configured for selection
+Error in `ptr_ggplotly(state1, tooltip = "all")`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:183:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─base::.handleSimpleError(...) at test-plotly-helpers.R:187:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:211:5'): ptr_ggplotly forwards ... to plotly::ggplotly
+Error in `ptr_ggplotly(state1, tooltip = "all")`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:208:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. ├─plotly::plotly_build(ptr_ggplotly(state1, tooltip = "all")) at test-plotly-helpers.R:211:5
+ 29. └─base::.handleSimpleError(...)
+ 30.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-helpers.R:226:5'): ptr_ggplotly never mutates the state's drawn data
+Error in `ptr_ggplotly(state1)`: could not find function "ptr_ggplotly"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-helpers.R:223:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─base::.handleSimpleError(...) at test-plotly-helpers.R:226:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-selection.R:42:3'): rows projection returns the selected slice
+Error in `eval(code, test_env)`: object 'plotly_project_rows' not found
+
+Error ('test-plotly-selection.R:53:3'): empty selection is zero rows, same columns
+Error in `eval(code, test_env)`: object 'plotly_project_rows' not found
+
+Error ('test-plotly-selection.R:62:3'): flag projection is the full drawn data plus a logical .ptr_selected
+Error in `eval(code, test_env)`: object 'plotly_project_flag' not found
+
+Error ('test-plotly-selection.R:78:3'): a stale .ptr_selected column is silently overwritten
+Error in `eval_bare(quo_get_expr(.quo), quo_get_env(.quo))`: object 'plotly_project_flag' not found
+Backtrace:
+    ▆
+ 1. └─testthat::expect_no_warning(...) at test-plotly-selection.R:78:3
+ 2.   └─testthat:::expect_no_(...)
+ 3.     └─testthat:::quasi_capture(enquo(object), NULL, capture)
+ 4.       ├─testthat (local) .capture(...)
+ 5.       │ ├─base::withRestarts(...)
+ 6.       │ │ └─base (local) withOneRestart(expr, restarts[[1L]])
+ 7.       │ │   └─base (local) doWithOneRestart(return(expr), restart)
+ 8.       │ └─base::withCallingHandlers(...)
+ 9.       └─rlang::eval_bare(quo_get_expr(.quo), quo_get_env(.quo))
+
+Error ('test-plotly-selection.R:88:3'): stale out-of-range keys are dropped, never select wrong rows
+Error in `eval(code, test_env)`: object 'plotly_project_rows' not found
+
+Error ('test-plotly-selection.R:101:3'): .ptr_row never appears in either projection, even riding in on the snapshot
+Error in `".ptr_row" %in% names(ggpaintr:::plotly_project_rows(snap, 2L))`: object 'plotly_project_rows' not found
+Backtrace:
+    ▆
+ 1. ├─testthat::expect_false(...) at test-plotly-selection.R:101:3
+ 2. │ └─testthat::quasi_label(enquo(object), label)
+ 3. │   └─rlang::eval_bare(expr, quo_get_env(quo))
+ 4. └─".ptr_row" %in% ...
+
+Failure ('test-plotly-selection.R:116:3'): projection cores reject a non-data-frame snapshot
+Expected `conditionMessage(err_rows)` not to match regexp "not found|could not find".
+Actual text:
+x | object 'plotly_project_rows' not found
+
+Failure ('test-plotly-selection.R:122:3'): projection cores reject a non-data-frame snapshot
+Expected `conditionMessage(err_flag)` not to match regexp "not found|could not find".
+Actual text:
+x | object 'plotly_project_flag' not found
+
+Failure ('test-plotly-selection.R:146:5'): unknown mode aborts naming the allowed modes
+Expected `conditionMessage(err)` to match regexp "rows".
+Actual text:
+x | could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:139:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─testthat::expect_match(conditionMessage(err), "rows") at test-plotly-selection.R:146:5
+
+Failure ('test-plotly-selection.R:147:5'): unknown mode aborts naming the allowed modes
+Expected `conditionMessage(err)` to match regexp "flag".
+Actual text:
+x | could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:139:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─rlang::eval_tidy(quosure, mask, rlang::caller_env())
+ 28. └─testthat::expect_match(conditionMessage(err), "flag") at test-plotly-selection.R:147:5
+
+Error ('test-plotly-selection.R:195:3'): a selection lands, then a new draw resets it to empty
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:195:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:185:3
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-selection.R:225:3'): plotly_deselect clears the selection
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:225:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:185:3
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-selection.R:255:5'): a keyless event leaves the selection at its empty state (ADR rejected-by-design #1)
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:258:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:255:5
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+Error ('test-plotly-selection.R:282:3'): pre-draw, the selection reactive req()s the first draw
+Error in `ptr_plotly_selection(st, mode = "rows", source = "ut1")`: could not find function "ptr_plotly_selection"
+Backtrace:
+     ▆
+  1. ├─shiny::testServer(...) at test-plotly-selection.R:282:3
+  2. │ ├─shiny:::withMockContext(...)
+  3. │ │ ├─shiny::isolate(...)
+  4. │ │ │ ├─shiny::..stacktraceoff..(...)
+  5. │ │ │ └─ctx$run(...)
+  6. │ │ │   ├─promises::with_promise_domain(...)
+  7. │ │ │   │ └─domain$wrapSync(expr)
+  8. │ │ │   ├─shiny::withReactiveDomain(...)
+  9. │ │ │   │ └─promises::with_promise_domain(...)
+ 10. │ │ │   │   └─domain$wrapSync(expr)
+ 11. │ │ │   │     └─base::force(expr)
+ 12. │ │ │   ├─shiny:::with_otel_span_context(...)
+ 13. │ │ │   │ └─base::force(expr)
+ 14. │ │ │   ├─shiny::captureStackTraces(...)
+ 15. │ │ │   │ └─promises::with_promise_domain(...)
+ 16. │ │ │   │   └─domain$wrapSync(expr)
+ 17. │ │ │   │     └─base::withCallingHandlers(expr, error = doCaptureStack)
+ 18. │ │ │   └─env$runWith(self, func)
+ 19. │ │ │     └─shiny (local) contextFunc()
+ 20. │ │ │       └─shiny::..stacktraceon..(expr)
+ 21. │ │ ├─shiny::withReactiveDomain(...)
+ 22. │ │ │ └─promises::with_promise_domain(...)
+ 23. │ │ │   └─domain$wrapSync(expr)
+ 24. │ │ │     └─base::force(expr)
+ 25. │ │ └─withr::with_options(...)
+ 26. │ │   └─base::force(code)
+ 27. │ └─ggpaintr (local) server(input = session$input, output = session$output, session = session)
+ 28. └─base::.handleSimpleError(...) at test-plotly-selection.R:185:3
+ 29.   └─shiny (local) h(simpleError(msg, call))
+
+[ FAIL 34 | WARN 0 | SKIP 0 | PASS 8 ]

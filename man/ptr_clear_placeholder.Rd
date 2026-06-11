@@ -17,8 +17,9 @@ The character vector of keywords that were removed, invisibly.
 \description{
 Unregisters placeholders added with \code{\link[=ptr_define_placeholder_value]{ptr_define_placeholder_value()}},
 \code{\link[=ptr_define_placeholder_consumer]{ptr_define_placeholder_consumer()}}, or \code{\link[=ptr_define_placeholder_source]{ptr_define_placeholder_source()}}.
-The five built-in placeholders (\code{ppVar}, \code{ppText}, \code{ppNum}, \code{ppExpr}, \code{ppUpload}) are
-never removed.
+The five built-in placeholders (\code{ppVar}, \code{ppText}, \code{ppNum}, \code{ppExpr},
+\code{ppUpload}) and the two structural keywords (\code{ppLayerOff}, \code{ppVerbSwitch})
+are never removed.
 }
 \examples{
 ptr_define_placeholder_value(

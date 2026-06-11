@@ -49,8 +49,9 @@ ptr_registry_clear <- function() {
 #'
 #' Unregisters placeholders added with [ptr_define_placeholder_value()],
 #' [ptr_define_placeholder_consumer()], or [ptr_define_placeholder_source()].
-#' The five built-in placeholders (`ppVar`, `ppText`, `ppNum`, `ppExpr`, `ppUpload`) are
-#' never removed.
+#' The five built-in placeholders (`ppVar`, `ppText`, `ppNum`, `ppExpr`,
+#' `ppUpload`) and the two structural keywords (`ppLayerOff`, `ppVerbSwitch`)
+#' are never removed.
 #'
 #' @param keyword Optional single string. When supplied, only that placeholder
 #'   is removed. When omitted (the default), every user-registered placeholder

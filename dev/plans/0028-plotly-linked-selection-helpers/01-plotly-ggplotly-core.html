@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PLAN-01 — R/paintr-plotly.R cores + ptr_ggplotly() (from ADR 0028)</title>
+<link rel="stylesheet" href="../../assets/doc.css">
+</head>
+<body>
+<!--
+plan:
+  number: 01
+  slug: plotly-ggplotly-core
+  source_adr: dev/adr/0028-plotly-linked-selection-helpers.html
+  depends_on: []
+  parallel_group: G1
+  status: draft
+-->
+
+<h1>PLAN-01 — R/paintr-plotly.R cores + ptr_ggplotly()</h1>
+<p class="meta">Source: ADR 0028 (Decisions 1, 2, 5, 6, 7; testing tier 1) · Depends on: none · Parallel group: G1 · Status: draft</p>
+
+<h2>Context</h2>
+<p>ADR 0028 Decision 1: <em>"Scope: thin helper layer, nothing deeper. New file <code>R/paintr-plotly.R</code>; plotly stays in <code>Suggests</code> (already there — <code>DESCRIPTION:56</code>) with a call-time guard, mirroring the optional-bslib pattern of <code>ptr_app_bslib()</code>"</em> (which guards via <code>requireNamespace() + rlang::abort()</code>, <code>R/paintr-app-bslib.R:62-66</code>; v1 may use <code>rlang::check_installed()</code> — rlang is in Imports). This plan ships the first of the two helpers, <code>ptr_ggplotly(state, ..., source = NULL)</code> (Decision 2), the key-channel ownership rules it enforces (Decision 5: plotly <code>key</code> aesthetic + <code>.ptr_row</code>), and the per-session <code>session$userData</code> store both helpers share (Decision 6). The selection helper itself is PLAN-02. The runnable reference for the boilerplate being internalized is <code>dev/scripts/plotly_linked_select.R</code> (the <code>renderPlotly</code> block: key tagging, <code>ggplotly(source=)</code>, <code>dragmode = "select"</code>, <code>event_register("plotly_selected"/"plotly_deselect")</code>).</p>
+
+<h2>Governing principle</h2>
+<p>The plotly interop is a <strong>thin, opt-in helper layer on top of the locked L3 model (ADR 0006)</strong>: custom render extracts from <code>state</code>; core learns nothing about plotly or selection. That is why the signature is state-first — <code>ptr_ggplotly()</code> owns the <code>req()</code> pre-draw guard and derives the source id from the instance's namespace, so the two helpers coordinate without the user wiring anything — and why the return value is a <em>plain plotly object</em>, keeping the user's plotly verbs composable after it. Row keys are minted <strong>per draw, on the widget copy only</strong>: the key must physically travel inside the widget to the browser and back; the user's drawn data is never mutated. Do not add a <code>renderer = "plotly"</code> backend, do not touch core runtime files, do not make keys persistent across draws.</p>
+
+<h2>Success Criteria</h2>
+<ul>
+  <li><code>ptr_ggplotly(state, ..., source = NULL)</code> is a new exported function in <code>R/paintr-plotly.R</code> with roxygen <code>@export</code> and full-loop <code>@examples</code> (ADR Decision 7). Called inside <code>plotly::renderPlotly()</code> on a drawn instance, it returns an object inheriting class <code>"plotly"</code> (not a ggpaintr-wrapped class), verified by <code>devtools::test(filter = "plotly-helpers")</code>.</li>
+  <li>Each helper piece is factored as a <strong>pure core + thin reactive shell</strong> (ADR Decision 8, a locked design constraint): the key-minting/widget-build logic is callable on a plain ggplot object with no Shiny session, and the tier-1 unit tests in <code>tests/testthat/test-plotly-helpers.R</code> exercise the cores directly (via <code>ggpaintr:::</code>), guarded by <code>skip_if_not_installed("plotly")</code>.</li>
+  <li>Key minting: for a drawn plot over a 32-row data frame with an identity-stat point layer, the widget copy's data gains a <code>.ptr_row</code> column equal to <code>seq_len(32)</code> and the plot maps the plotly <code>key</code> aesthetic to it; the data frame held by the state's runtime is NOT mutated (no <code>.ptr_row</code> on <code>state$runtime()$plot$data</code> after the widget builds).</li>
+  <li>Key-channel ownership: a formula plot that already maps <code>aes(key = gear)</code> has its key mapping replaced by the minted <code>.ptr_row</code>, with a <code>cli</code> warning emitted on the first build for the instance and NOT on the second build (warn-once contract, ADR Decision 5); verified by <code>expect_warning()</code> + a second call wrapped in <code>expect_no_warning()</code> (or <code>expect_silent()</code>).</li>
+  <li>Collision overwrite: a drawn data frame that already contains a <code>.ptr_row</code> column (reserved name, e.g. riding in from a chained instance) is silently overwritten — no warning, no error, and the minted keys are <code>seq_len(nrow)</code> regardless of the stale values.</li>
+  <li>Stat-layer limitation (ADR Decision 3, accepted): for a plot whose only layer is <code>geom_smooth()</code> (non-identity stat), the built widget carries no minted keys on that layer's traces — brushing it can never produce keyed events.</li>
+  <li>Guard: with plotly unavailable (forced via <code>testthat::local_mocked_bindings()</code> on the installed-check), calling <code>ptr_ggplotly()</code> aborts with a message naming <code>plotly</code>, matching the optional-dependency pattern of <code>ptr_app_bslib()</code> (<code>R/paintr-app-bslib.R:62-66</code>) or <code>rlang::check_installed()</code>.</li>
+  <li>Source id + store: with <code>source = NULL</code> the source string is derived from the instance's namespace (via the state handle's <code>server_ns_fn</code> field, <code>R/paintr-server.R:297</code>), so two instances (<code>"p1"</code>, <code>"p2"</code>) derive distinct strings; the derived source string and the per-draw snapshot of the drawn data are recorded in a per-session store hung on <code>session$userData</code>, keyed by instance id (ADR Decision 6) — never in a package-global environment.</li>
+  <li>Widget configuration matches the demo's boilerplate: the returned widget has <code>dragmode = "select"</code> set and the <code>plotly_selected</code> + <code>plotly_deselect</code> events registered; <code>...</code> is forwarded to <code>plotly::ggplotly()</code> (e.g. <code>tooltip = "all"</code> reaches it).</li>
+</ul>
+
+<h2>Constraints</h2>
+<ul>
+  <li>Files this plan owns: <code>R/paintr-plotly.R</code> (new), <code>tests/testthat/test-plotly-helpers.R</code> (new).</li>
+  <li>Files this plan must NOT touch: <code>R/paintr-server.R</code>, <code>R/paintr-runtime.R</code>, <code>R/paintr-app*.R</code>, <code>DESCRIPTION</code> (plotly is already in Suggests), <code>NAMESPACE</code>/<code>man/</code> (integration regen), any <code>tests/testthat/fixtures/</code> (PLAN-03/04).</li>
+  <li><code>ptr_plotly_selection()</code> is PLAN-02 — do not stub it, export it, or reserve dead code paths for it beyond the shared store/source-id pieces named above.</li>
+  <li>The ADR locks the <em>factoring</em> (pure core + thin reactive shell); this plan additionally fixes the four unit-test seam names in §Interface Contract (<code>plotly_mint_keys</code>, <code>plotly_source_id</code>, <code>plotly_store</code>, <code>plotly_installed</code>) so implementation-blind tests can be written against them. Other unexported helpers are the implementer's choice (no <code>ptr_</code> prefix required for internals).</li>
+  <li>Explicitly rejected by the ADR (do not implement): <code>renderer = "plotly"</code> backend on <code>ptr_app()</code>/<code>ptr_ui()</code>; a <code>state$selection()</code> slot on <code>ptr_state</code>; plot-first signatures; <code>(curveNumber, pointNumber)</code> reverse mapping; abort-on-collision for the user's <code>aes(key=)</code>.</li>
+  <li>No scope creep, no incidental refactors, no shims for "future plans".</li>
+  <li>SCOPE NARROWING FORBIDDEN — see the implementer/auditor prompts in <code>/exec-plan</code> for the full rule. Plans do not re-litigate it.</li>
+  <li>Conventions: project CLAUDE.md + <code>.claude/rules/coding.md</code> — <code>ptr_</code> prefix on the export, snake_case, 2-space indent, <code>rlang::abort()</code> / <code>cli::cli_warn()</code>, roxygen on the new export.</li>
+</ul>
+
+<h2>BDD scenarios</h2>
+<p>Scenarios collectively cover every Success Criterion above and the one ADR worked example this plan claims (§Worked-example coverage). A <code>Then</code> asserting only an enabling internal mechanism does not cover an ADR example promising a user-visible observable.</p>
+<pre>
+Feature: ptr_ggplotly — state-first plotly widget builder with per-draw row keys
+
+Scenario: keys are minted per draw on the widget copy only
+  Given a drawn ggplot over mtcars (32 rows) with a single geom_point() layer
+  When the widget-build core runs on it
+  Then the widget copy's data has a .ptr_row column identical to seq_len(32)
+  And the plot's key aesthetic maps .ptr_row
+  And the original drawn data frame still has no .ptr_row column
+
+Scenario: a user formula's own aes(key=) is overridden with a one-time warning
+  Given a drawn ggplot mapping aes(key = gear)
+  When the widget builds twice for the same instance
+  Then the first build emits a cli warning mentioning "key" and the key mapping is replaced by .ptr_row
+  And the second build emits no warning and the key mapping is again .ptr_row
+
+Scenario: a stale .ptr_row column is silently overwritten
+  Given a drawn data frame already containing a .ptr_row column with values rev(seq_len(32))
+  When the widget-build core runs
+  Then no warning and no error is raised
+  And the widget copy's .ptr_row column is identical to seq_len(32)
+
+Scenario: non-identity-stat layers carry no keys
+  Given a drawn ggplot whose only layer is geom_smooth()
+  When the widget builds
+  Then no trace of the built widget carries minted .ptr_row key values
+
+Scenario: call-time guard when plotly is not installed
+  Given the internal seam plotly_installed is mocked to return FALSE via testthat::local_mocked_bindings(plotly_installed = function(...) FALSE)
+  When ptr_ggplotly() is called
+  Then it aborts with an error message containing "plotly"
+
+Scenario: derived source ids are distinct per instance and recorded server-side
+  Given two ptr_server instances with ids "p1" and "p2" in one session
+  When each builds its widget with source = NULL
+  Then the two derived source strings are non-equal character scalars
+  And each instance's entry in the session$userData store records its source string and a per-draw snapshot of its drawn data
+
+Scenario: ADR worked example (becomes possible #3) — composing extra plotly layout after the helper
+  Given a drawn instance whose widget is built by ptr_ggplotly(state1, tooltip = "all")
+  When the result is piped into plotly::layout(legend = list(orientation = "h"))
+  Then the helper's return value inherits class "plotly"
+  And the plotly::layout() call succeeds, returning an object that still inherits class "plotly"
+</pre>
+
+<h2>Worked-example coverage</h2>
+<pre>
+| ADR anchor                                  | kind     | summary (one line)                                                      | Scenario in this plan                                                        |
+|---------------------------------------------|----------|-------------------------------------------------------------------------|------------------------------------------------------------------------------|
+| Worked examples — what becomes possible #3  | positive | ptr_ggplotly() returns a plain plotly object; user keeps piping plotly verbs | ADR worked example (becomes possible #3) — composing extra plotly layout after the helper |
+</pre>
+
+<h2>Interface Contract</h2>
+
+<h3><code>ptr_ggplotly(state, ..., source = NULL)</code> (exported)</h3>
+<ul>
+  <li><strong>Signature:</strong> <code>ptr_ggplotly(state, ..., source = NULL)</code> — <code>state</code>: a ptr_state handle as returned by <code>ptr_server()</code> (required); <code>...</code>: forwarded verbatim to <code>plotly::ggplotly()</code> (e.g. <code>tooltip = "all"</code>); <code>source</code>: character scalar or <code>NULL</code> (default — derive from the instance namespace). Returns a plotly htmlwidget object.</li>
+  <li><strong>Input domain:</strong> inside the circle — a ptr_state whose <code>state$runtime()$plot</code> is a drawn ggplot (call from inside <code>plotly::renderPlotly()</code>); <code>source</code> a non-empty character scalar or NULL. Outside — a pre-draw state (runtime NULL / not ok): the internal <code>req()</code> guard raises Shiny's silent pre-draw condition, exactly like the demo's <code>req(p)</code>; plotly not installed: hard abort (below).</li>
+  <li><strong>Output spec:</strong> an object inheriting class <code>"plotly"</code> (plain — no ggpaintr subclass), with <code>dragmode = "select"</code> set, <code>plotly_selected</code> + <code>plotly_deselect</code> events registered, and every identity-stat point trace carrying the minted <code>.ptr_row</code> keys (<code>1..nrow(drawn data)</code>).</li>
+  <li><strong>Error modes:</strong> plotly missing → <code>rlang</code> abort naming <code>plotly</code> (the <code>ptr_app_bslib()</code> guard pattern / <code>rlang::check_installed()</code>); non-ptr_state <code>state</code> → abort; pre-draw → silent <code>req()</code> condition (not an error).</li>
+  <li><strong>Side effects:</strong> records the instance's source string and a per-draw snapshot of the drawn data in the per-session store on <code>session$userData</code> (keyed by instance id); emits the one-time key-override warning when the formula mapped its own <code>aes(key=)</code>. Never mutates <code>state$runtime()$plot$data</code>.</li>
+  <li><strong>Worked example:</strong> with <code>state1</code> drawn over <code>mtcars</code>, <code>w &lt;- ptr_ggplotly(state1, tooltip = "all")</code> → <code>inherits(w, "plotly")</code> is TRUE and <code>plotly::layout(w, legend = list(orientation = "h"))</code> succeeds, still inheriting <code>"plotly"</code> (ADR worked example "becomes possible #3").</li>
+</ul>
+
+<h3><code>plotly_mint_keys(plot, key_warned = FALSE)</code> (internal pure core — the tier-1 unit-test seam)</h3>
+<ul>
+  <li><strong>Signature:</strong> <code>plotly_mint_keys(plot, key_warned = FALSE)</code> — <code>plot</code>: a built ggplot object; <code>key_warned</code>: logical scalar, whether this instance has already warned. Returns <code>list(plot = &lt;widget-ready copy&gt;, key_overridden = &lt;logical&gt;)</code>.</li>
+  <li><strong>Input domain:</strong> inside — any ggplot whose data is a data frame (including one already carrying a stale <code>.ptr_row</code> column, and one mapping its own <code>aes(key=)</code>). Outside — a non-ggplot: abort.</li>
+  <li><strong>Output spec:</strong> the returned plot's data is a copy with <code>.ptr_row = seq_len(nrow(data))</code> (silently overwriting any existing <code>.ptr_row</code>) and the plotly <code>key</code> aesthetic mapped to it; the INPUT plot's data is unchanged. <code>key_overridden</code> is TRUE iff the incoming plot mapped a foreign <code>key</code> aesthetic.</li>
+  <li><strong>Error modes:</strong> none beyond the non-ggplot abort; collisions are silent by contract (ADR Decision 5).</li>
+  <li><strong>Side effects:</strong> a <code>cli</code> warning mentioning <code>key</code> iff (foreign key mapped) AND (<code>key_warned</code> is FALSE) — the shell passes the stored per-instance flag to get warn-once.</li>
+  <li><strong>Worked example:</strong> <code>r &lt;- plotly_mint_keys(ggplot(mtcars, aes(wt, mpg, key = gear)) + geom_point())</code> → warns once, <code>r$key_overridden</code> is TRUE, <code>r$plot$data$.ptr_row</code> is <code>1:32</code>; re-run with <code>key_warned = TRUE</code> → no warning, same data.</li>
+</ul>
+
+<h3><code>plotly_installed()</code> (internal — the guard's mock target)</h3>
+<ul>
+  <li><strong>Signature/spec:</strong> <code>plotly_installed()</code> → logical scalar; a trivial wrapper around the installed-check (<code>requireNamespace("plotly", quietly = TRUE)</code>) existing so the not-installed branch is interceptable via <code>testthat::local_mocked_bindings(plotly_installed = function(...) FALSE)</code> on the ggpaintr namespace — a namespaced <code>rlang::check_installed()</code> call alone is not mockable that way. The guard in <code>ptr_ggplotly()</code> consults it and aborts (message naming <code>plotly</code>) when FALSE.</li>
+  <li><strong>Side effects:</strong> none (pure read of library state).</li>
+  <li><strong>Worked example:</strong> with the mock active, <code>ptr_ggplotly(state)</code> → abort whose message contains <code>"plotly"</code>; unmocked on the dev machine, <code>plotly_installed()</code> → TRUE.</li>
+</ul>
+
+<h3><code>plotly_source_id(state)</code> + <code>plotly_store(session)</code> (internal)</h3>
+<ul>
+  <li><strong>Signature/spec:</strong> <code>plotly_source_id(state)</code> → deterministic non-empty character scalar derived from the state's namespace function (<code>server_ns_fn</code> field, <code>R/paintr-server.R:297</code>); distinct for instances <code>"p1"</code> vs <code>"p2"</code>. <code>plotly_store(session)</code> → an environment hung on <code>session$userData</code> (created on first call, reused after), whose per-instance entries hold the source string, the per-draw snapshot, and (from PLAN-02) the selection state.</li>
+  <li><strong>Error modes / side effects:</strong> <code>plotly_store()</code> creates the store on first access (idempotent); nothing is ever written to a package-global environment (ADR Decision 6).</li>
+  <li><strong>Worked example:</strong> two states built with <code>ns = shiny::NS("p1")</code> / <code>NS("p2")</code> → <code>plotly_source_id()</code> values are non-equal character scalars.</li>
+</ul>
+
+<h2>Definition of Done</h2>
+<p>Authoritative gate: see target repo's CLAUDE.md §"Authoritative gate" — <code>Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'</code> at <strong>FAIL 0 / ERROR 0 / SKIP 0</strong>. The implementer and auditor in <code>/exec-plan</code> run that command and observe its expected output; the proxy-trap list lives there and applies to every plan. Do not substitute a raw <code>test_dir()</code> run.</p>
+<p><strong>Plan-specific gate risks:</strong></p>
+<ul>
+  <li>The new unit tests guard with <code>skip_if_not_installed("plotly")</code>. plotly IS installed in the dev environment (DESCRIPTION Suggests + verified install), so on the gate machine these tests must RUN — a SKIP count contributed by <code>test-plotly-helpers.R</code> means the environment lost plotly and must be reported, not read as green.</li>
+</ul>
+<p>This plan adds ≥ 7 new tests at <code>tests/testthat/test-plotly-helpers.R</code>. The gate must show PASS count rise by ≥ 7 with FAIL/ERROR still 0 and SKIP unchanged from the pre-plan baseline.</p>
+
+<h2>Scope guard / ownership</h2>
+<p>This plan owns: <code>R/paintr-plotly.R</code>, <code>tests/testthat/test-plotly-helpers.R</code>. R's generated files (<code>NAMESPACE</code>, <code>man/</code>) are owned by an integration step, not this plan — write the roxygen here, surface NAMESPACE drift in the post-impl audit, do not hand-edit.</p>
+<p>Branch convention: this plan lives on branch <code>0028-plotly-ggplotly-core</code> in a worktree at <code>.claude/worktrees/0028-plotly-linked-selection-helpers/plotly-ggplotly-core/</code>. Merge into the orchestrator branch via <code>--no-ff</code>.</p>
+
+<h2>Independence clause</h2>
+<p>The implementer's "done" report is a claim, not proof. The auditor (and the post-merge auditor) re-runs the Definition-of-Done command and verifies expected output before any merge.</p>
+
+<h2>Baseline / drift reference</h2>
+<p>Known-good baseline: orchestrator branch <code>0028-plotly-linked-selection-helpers</code> at the commit where this plan's worktree was created (record the SHA in the worktree's first commit message). No pre-existing suite failures are recorded for this branch (gate green at <code>7360fb7</code>); new failures = any failure.</p>
+
+<h2>Out-of-scope handling</h2>
+<p>Findings outside this plan's owned files are surfaced (recorded in the audit report), never absorbed. Out-of-scope work becomes a follow-up plan, not a silent edit.</p>
+
+<h2>Dependencies / ordering</h2>
+<p>Depends on: none (first plan; the file is new and core is untouched). Provides for: PLAN-02 (same file, shared <code>session$userData</code> store + source-id derivation + per-draw snapshot), PLAN-03/04 (the widget the e2e fixtures render).</p>
+
+<!-- implementable: PASS date=2026-06-10 gate="Rscript -e 'devtools::test(reporter="progress", stop_on_failure=FALSE)'" hash=f377f5ca23d3 -->
+</body>
+</html>
