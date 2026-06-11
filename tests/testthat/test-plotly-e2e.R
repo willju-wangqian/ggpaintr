@@ -50,7 +50,17 @@ inject_event <- function(app, event_id, payload) {
     app$set_inputs,
     c(args, list(allow_no_input_binding_ = TRUE, wait_ = FALSE))
   )
-  app$wait_for_idle(timeout = 15 * 1000)
+  # Deliberately NO app$wait_for_idle() here. Injecting a selection makes the
+  # live-mode instance 2 re-render; under full-suite CPU contention that render
+  # flush can transit a momentary shiny.silent.error (a sub-frame window where
+  # ggplot reads NULL x/y before the seeded picker snapshot is re-read), which
+  # wait_for_idle treats as "not stable" and ABORTS on — a boot-tail/flush
+  # race, not a final-state error (project memory
+  # shinytest2-boot-tail-race-wait-for-idle). Every caller re-asserts the
+  # SETTLED observable via its own bounded poll_* / poll_html predicate, which
+  # round-trips to the browser (pumping the event loop so the injected input
+  # flushes), both waiting for the event to land AND tolerating the transient.
+  invisible(app)
 }
 
 # Count data rows in a rendered table's HTML: <tr> blocks that contain <td>
@@ -73,11 +83,40 @@ poll_table_rows <- function(app, n, timeout_ms = 15000) {
 boot_linked <- function() {
   testthat::skip_if_not_installed("plotly")
   app <- boot_vignette_app("adr28-plotly-linked")
+  # boot_vignette_app() registers `withr::defer(app$stop(), parent.frame())`,
+  # and parent.frame() there is THIS wrapper's frame — so the app would be
+  # stopped the instant boot_linked() returns, leaving the test body to read a
+  # dead session (empty get_html() -> NA tables, dead input bindings). The
+  # PLAN-03 boot tests don't hit this because they call boot_vignette_app()
+  # directly (its parent.frame() is the test body). Re-scope the cleanup to
+  # boot_linked()'s caller (the test body) so the app survives the wrapper
+  # return: drop the wrapper-frame defer, re-register on the caller.
+  withr::deferred_clear(environment())
+  withr::defer(app$stop(), envir = parent.frame())
   # Start every scenario from the settled boot state: instance 1's widget
   # rendered (plotly.js "plot-container" marker) with no inline error, and
   # instance 2 drawn off the all-FALSE flag projection.
   expect_host_settled(app, "main_plotly", "plotly", "p1-ptr_error")
   expect_host_settled(app, "p2-ptr_plot", "ggplot", "p2-ptr_error")
+  # Boot-tail race guard (project memory shinytest2-boot-tail-race-wait-for-
+  # idle): the round-trip injects a selection that makes instance 2 re-render
+  # LIVE. If injection lands before instance 2's renderUI ppVar pickers have
+  # re-bound and seeded, the live render reads NULL x/y and ggplot raises
+  # "geom_point() requires the following missing aesthetics: x and y".
+  # Awaiting the seeded picker values here closes that race by construction.
+  expect_input_eventually(app, "p2-ggplot_1_1_ppVar_NA", "hp")
+  expect_input_eventually(app, "p2-ggplot_1_2_ppVar_NA", "qsec")
+  # Also wait for the rows-mode table to render its (header-only, zero-data-
+  # row) boot state before any scenario reads it. renderTable(sel_rows())
+  # depends on instance 1's per-draw snapshot being recorded inside
+  # ptr_ggplotly; under contention that lands a flush or two after the plotly
+  # widget's plot-container marker appears, so expect_host_settled on
+  # main_plotly is not by itself a guarantee the table is wired. Polling the
+  # rendered <table> here makes the zero-row precondition deterministic.
+  poll_html(
+    app, "#sel_table",
+    function(h) !is.null(h) && nzchar(h) && grepl("<table", h, fixed = TRUE)
+  )
   app
 }
 
@@ -165,8 +204,11 @@ test_that("a redraw resets the selection (ADR rejected-by-design #2)", {
   app <- boot_linked()
   inject_event(app, "plotly_selected-ptr_e2e", sel_payload_25)
   poll_table_rows(app, 2L)
+  # A live-mode picker change is a new draw -> the per-draw reset observer
+  # (state$runtime() in ptr_plotly_selection) clears the keys. Don't gate on
+  # wait_for_idle (the redraw flush can transit a transient render error under
+  # contention); poll_table_rows below both waits for and asserts the reset.
   set_input(app, "p1-ggplot_1_1_ppVar_NA", "disp")
-  app$wait_for_idle(timeout = 15 * 1000)
   poll_table_rows(app, 0L)
 })
 
