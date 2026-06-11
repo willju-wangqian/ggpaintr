@@ -206,3 +206,203 @@ ptr_ggplotly <- function(state, ..., source = NULL) {
     plotly::event_register("plotly_selected") |>
     plotly::event_register("plotly_deselect")
 }
+
+# ---- internal: projection cores (pure, the tier-1 unit-test seam) -----------
+
+# Strip the reserved key column off a per-draw snapshot before projecting. The
+# `.ptr_row` key travels inside the widget only and must never surface in a
+# projection (ADR Decision 5). Returns the snapshot minus `.ptr_row`.
+plotly_strip_key <- function(snapshot) {
+  snapshot[setdiff(names(snapshot), ".ptr_row")]
+}
+
+# Keep only keys that index real rows of the current snapshot. Keys are minted
+# per draw, so a key surviving from an older draw can point past the new
+# snapshot's rows; such stale keys are dropped rather than allowed to select
+# the wrong rows (ADR Decision 3, per-draw reset).
+plotly_valid_keys <- function(snapshot, keys) {
+  keys <- as.integer(keys)
+  keys <- keys[!is.na(keys)]
+  keys[keys >= 1L & keys <= nrow(snapshot)]
+}
+
+# rows projection: the selected slice of the drawn data. Empty keys yield a
+# zero-row data frame with the snapshot's columns (so a renderTable() consumer
+# needs no req() dance). Never contains `.ptr_row`.
+plotly_project_rows <- function(snapshot, keys) {
+  if (!is.data.frame(snapshot)) {
+    rlang::abort("`snapshot` must be a data frame (the per-draw drawn data).")
+  }
+  snapshot <- plotly_strip_key(snapshot)
+  keys <- plotly_valid_keys(snapshot, keys)
+  out <- snapshot[keys, , drop = FALSE]
+  rownames(out) <- NULL
+  out
+}
+
+# flag projection: the full drawn data plus a logical `.ptr_selected`, TRUE
+# exactly at the selected rows (all FALSE when empty). Any pre-existing
+# `.ptr_selected` (a stale flag riding in from a chained selection-fed
+# instance) is silently replaced — no warning — because that collision happens
+# on every live draw of a chained instance (ADR Decision 5). Never contains
+# `.ptr_row`.
+plotly_project_flag <- function(snapshot, keys) {
+  if (!is.data.frame(snapshot)) {
+    rlang::abort("`snapshot` must be a data frame (the per-draw drawn data).")
+  }
+  snapshot <- plotly_strip_key(snapshot)
+  # Drop any stale flag so the appended one is the only `.ptr_selected`.
+  base <- snapshot[setdiff(names(snapshot), ".ptr_selected")]
+  keys <- plotly_valid_keys(base, keys)
+  base$.ptr_selected <- seq_len(nrow(base)) %in% keys
+  base
+}
+
+# ---- exported: state-first selection reader ---------------------------------
+
+#' Read a `ptr_ggplotly()` Linked Selection As Rows or a Flag Column
+#'
+#' `ptr_plotly_selection()` is the companion reader for [ptr_ggplotly()]: it
+#' returns a Shiny reactive carrying the current brush/lasso selection of the
+#' plotly widget, projected one of two ways. Call it once in your server (not
+#' inside a render) on the live instance returned by [ptr_server()] and feed
+#' the returned reactive to a table, a second formula, or any downstream
+#' consumer.
+#'
+#' A selection names rows of the **drawn data** — `state$runtime()$plot$data`
+#' of the draw that produced the widget — never "the original object". Keys are
+#' minted per draw and are meaningless across draws, so the selection
+#' **resets to empty on every draw** (a redraw after a `filter()`/`mutate()`
+#' pipeline-head change or an upload swap starts the selection over). A
+#' `plotly_deselect` event clears it likewise. Two projections of the one
+#' selection:
+#'
+#' * `mode = "rows"` — the selected slice; a **zero-row data frame with the
+#'   drawn data's columns** when nothing is selected (so a [shiny::renderTable()]
+#'   consumer needs no `req()` dance).
+#' * `mode = "flag"` — the **full** drawn data plus a logical `.ptr_selected`
+#'   column, `TRUE` exactly at the selected rows (all `FALSE` when empty).
+#'
+#' `.ptr_selected` is a reserved name: a pre-existing `.ptr_selected` on the
+#' drawn data is silently overwritten (the overwrite keeps chained
+#' selection-fed instances correct). The internal `.ptr_row` key never appears
+#' in either projection.
+#'
+#' **Pre-draw window:** before the first draw there is no snapshot yet, so the
+#' returned reactive raises Shiny's silent pre-draw condition (via
+#' [shiny::req()]); under live mode a selection-fed instance shows its inline
+#' pre-draw state for one flush. **Live-mode key reset:** changing a placeholder
+#' widget re-draws the source plot, which re-mints the keys, so the selection
+#' resets to empty on that picker change.
+#'
+#' plotly is an optional dependency (in `Suggests`); this reader is only
+#' meaningful alongside [ptr_ggplotly()], which guards on plotly being
+#' installed.
+#'
+#' @param state A `ptr_state` handle as returned by [ptr_server()].
+#' @param mode `"rows"` (default) or `"flag"` — which projection of the one
+#'   selection to return. Any other value aborts (the bare-indices projection
+#'   is rejected by design).
+#' @param source Character scalar for plotly's `source =` channel, or `NULL`
+#'   (default) to derive the same distinct string [ptr_ggplotly()] derives from
+#'   the instance namespace.
+#'
+#' @return A Shiny reactive. Its value is the rows projection (a data frame, the
+#'   selected slice; zero rows, same columns, when empty) or the flag projection
+#'   (the full drawn data plus a logical `.ptr_selected`), per `mode`.
+#'
+#' @seealso [ptr_ggplotly()] for the widget side; [ptr_server()] for the L3
+#'   custom-render contract.
+#'
+#' @examples
+#' \dontrun{
+#' library(shiny)
+#' library(plotly)
+#' f <- rlang::expr(
+#'   ggplot(mtcars, aes(x = ppVar(wt), y = ppVar(mpg))) + geom_point()
+#' )
+#' ui <- ptr_ui_page(
+#'   ptr_ui_controls(formula = f, id = "p"),
+#'   plotly::plotlyOutput("plt"),
+#'   tableOutput("sel")
+#' )
+#' server <- function(input, output, session) {
+#'   state <- ptr_server(f, "p")
+#'   output$plt <- plotly::renderPlotly({
+#'     ptr_ggplotly(state, tooltip = "all")
+#'   })
+#'   # Full loop: brush the plot -> the selected rows appear in the table.
+#'   sel <- ptr_plotly_selection(state, mode = "rows")
+#'   output$sel <- renderTable(sel())
+#' }
+#' shinyApp(ui, server)
+#' }
+#'
+#' @export
+ptr_plotly_selection <- function(state, mode = c("rows", "flag"), source = NULL) {
+  # match.arg first: an unknown mode (e.g. "indices") aborts before any
+  # reactive wiring, naming the allowed modes (ADR: bare-indices projection
+  # rejected by design).
+  mode <- match.arg(mode)
+  ptr_validate_state(state)
+
+  src <- source %||% plotly_source_id(state)
+
+  session <- shiny::getDefaultReactiveDomain()
+  store <- plotly_store(session)
+  entry <- plotly_store_entry(store, plotly_instance_id(state))
+
+  # Selection keys held in a reactiveVal so events invalidate the projection
+  # (the demo pattern, `dev/scripts/plotly_linked_select.R`).
+  sel_keys <- shiny::reactiveVal(integer(0))
+
+  # plotly_selected -> the brushed keys. A payload carrying no `key` field
+  # (brushing a non-identity-stat trace, e.g. geom_smooth()) yields no keys and
+  # leaves the selection empty (ADR rejected-by-design #1).
+  shiny::observeEvent(
+    plotly::event_data("plotly_selected", source = src),
+    {
+      sel <- plotly::event_data("plotly_selected", source = src)
+      keys <- if (is.null(sel$key)) {
+        integer(0)
+      } else {
+        suppressWarnings(as.integer(unlist(sel$key)))
+      }
+      keys <- keys[!is.na(keys)]
+      sel_keys(sort(unique(keys)))
+    },
+    ignoreInit = TRUE
+  )
+
+  # plotly_deselect -> clear the selection back to the empty state.
+  shiny::observeEvent(
+    plotly::event_data("plotly_deselect", source = src),
+    sel_keys(integer(0)),
+    ignoreInit = TRUE
+  )
+
+  # Per-draw reset: a new draw re-mints the keys, so any carried-over selection
+  # is meaningless. `state$runtime()` updates on every (re)draw; clear the
+  # selection when it does (ADR Decision 3, per-draw reset).
+  shiny::observeEvent(
+    state$runtime(),
+    sel_keys(integer(0)),
+    ignoreNULL = FALSE,
+    ignoreInit = TRUE
+  )
+
+  shiny::reactive({
+    # Depend on the draw so the projection recomputes per draw.
+    rt <- state$runtime()
+    # Pre-draw window: no snapshot yet -> silent Shiny condition, never an
+    # error (mirrors ptr_ggplotly's req(plot)).
+    snapshot <- entry$snapshot
+    shiny::req(snapshot)
+    keys <- sel_keys()
+    if (identical(mode, "rows")) {
+      plotly_project_rows(snapshot, keys)
+    } else {
+      plotly_project_flag(snapshot, keys)
+    }
+  })
+}
