@@ -197,8 +197,15 @@ test_that("a selection lands, then a new draw resets it to empty", {
     sel_rows <- session$userData$sel_rows
     sel_flag <- session$userData$sel_flag
 
+    # Seed the ppVar pickers (their renderUI is unrealized under testServer, so
+    # the seed default never lands on its own; inject the contract defaults so
+    # the source plot draws). Mirrors the browser realizing the picker at "wt".
+    session$setInputs(
+      `p1-ggplot_1_1_ppVar_NA` = "wt",
+      `p1-ggplot_1_2_ppVar_NA` = "mpg"
+    )
     session$flushReact()
-    invisible(ptr_ggplotly(state1, source = "ut1"))  # draw N snapshot lands
+    invisible(suppressWarnings(ptr_ggplotly(state1, source = "ut1")))  # draw N snapshot lands
 
     set_root_input(session, "plotly_selected-ut1", sel_payload_25)
     expect_equal(nrow(sel_rows()), 2L)
@@ -206,7 +213,7 @@ test_that("a selection lands, then a new draw resets it to empty", {
     # Draw N+1: new pipeline-head data, live-mode redraw, new snapshot.
     session$userData$rx(mtcars[1:20, ])
     session$flushReact()
-    invisible(ptr_ggplotly(state1, source = "ut1"))
+    invisible(suppressWarnings(ptr_ggplotly(state1, source = "ut1")))
 
     out <- sel_rows()
     expect_equal(nrow(out), 0L)
@@ -226,8 +233,12 @@ test_that("plotly_deselect clears the selection", {
     state1 <- session$userData$state1
     sel_rows <- session$userData$sel_rows
 
+    session$setInputs(
+      `p1-ggplot_1_1_ppVar_NA` = "wt",
+      `p1-ggplot_1_2_ppVar_NA` = "mpg"
+    )
     session$flushReact()
-    invisible(ptr_ggplotly(state1, source = "ut1"))
+    invisible(suppressWarnings(ptr_ggplotly(state1, source = "ut1")))
 
     set_root_input(session, "plotly_selected-ut1", sel_payload_25)
     expect_equal(nrow(sel_rows()), 2L)
@@ -260,8 +271,12 @@ test_that("a keyless event leaves the selection at its empty state (ADR rejected
     sel_rows <- session$userData$sel_rows
     sel_flag <- session$userData$sel_flag
 
+    session$setInputs(
+      `p1-ggplot_1_1_ppVar_NA` = "wt",
+      `p1-ggplot_1_2_ppVar_NA` = "mpg"
+    )
     session$flushReact()
-    invisible(ptr_ggplotly(state1, source = "ut1"))
+    invisible(suppressWarnings(ptr_ggplotly(state1, source = "ut1")))
 
     set_root_input(session, "plotly_selected-ut1", keyless_payload)
     out <- sel_rows()
