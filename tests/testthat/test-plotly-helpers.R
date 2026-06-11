@@ -25,6 +25,24 @@ f_p2 <- rlang::expr(
   ggplot(mtcars, aes(x = ppVar(hp), y = ppVar(qsec))) + geom_point()
 )
 
+# Seed an instance's ppVar pickers so its formula plot actually draws (the
+# BDD "Given a drawn ggplot over mtcars" precondition). The pickers are
+# renderUI-bound under the module namespace, so the inputs must be set with
+# the instance-namespaced ids (state$ui_ns_fn) — a bare flushReact leaves
+# x/y unmapped and the runtime plot unbuildable. Values come from the
+# formula's own first/second ppVar columns (wt/mpg for p1, hp/qsec for p2),
+# derived from input_spec, not pasted from the implementation.
+seed_var_pickers <- function(session, state, values) {
+  spec <- state$input_spec
+  picker_ids <- spec$input_id[spec$keyword %in% "ppVar"]
+  stopifnot(length(picker_ids) == length(values))
+  ns_inputs <- stats::setNames(
+    as.list(values),
+    vapply(picker_ids, state$ui_ns_fn, character(1))
+  )
+  do.call(session$setInputs, ns_inputs)
+}
+
 # Outer server hosting one ptr_server instance; state on session$userData.
 one_instance_server <- function(input, output, session) {
   session$userData$state1 <- ptr_server(f_p1, "p1", envir = globalenv())
@@ -162,13 +180,33 @@ test_that("derived source ids are distinct per instance and recorded server-side
 
     # Live-mode boot draw, then each instance builds its widget (source =
     # NULL => derived id). Entries land in the store keyed by instance id.
+    seed_var_pickers(session, state1, c("wt", "mpg"))
+    seed_var_pickers(session, state2, c("hp", "qsec"))
     session$flushReact()
     w1 <- ptr_ggplotly(state1)
     w2 <- ptr_ggplotly(state2)
     expect_true(all(c("p1", "p2") %in% ls(st)))
-    # NOTE: entry *field names* (source string / snapshot slots) are not
-    # frozen by the contract — existence-only assertion here; recorded as a
-    # contract gap in the plan-to-test report.
+
+    # BDD Then: "each instance's entry ... records its source string and a
+    # per-draw snapshot of its drawn data". Assert the entries actually hold
+    # both, not merely that the keys exist. Expectations are rederived from
+    # the contract, never read off the implementation: the recorded source
+    # equals the derived id (source = NULL), and the snapshot is a per-draw
+    # snapshot of the drawn data — a data frame with one .ptr_row per drawn
+    # row (32 mtcars rows), distinct per instance.
+    e1 <- st[["p1"]]
+    e2 <- st[["p2"]]
+    expect_identical(e1$source, s1)
+    expect_identical(e2$source, s2)
+    expect_s3_class(e1$snapshot, "data.frame")
+    expect_s3_class(e2$snapshot, "data.frame")
+    expect_equal(e1$snapshot$.ptr_row, seq_len(32))
+    expect_equal(e2$snapshot$.ptr_row, seq_len(32))
+    # The snapshot is the per-draw *drawn* data — the widget copy that
+    # carries the keys — not a mutation of the runtime's data: the recorded
+    # snapshot has .ptr_row while the live runtime data does not.
+    expect_false(".ptr_row" %in% names(state1$runtime()$plot$data))
+    expect_true(".ptr_row" %in% names(e1$snapshot))
   })
 })
 
@@ -182,6 +220,7 @@ test_that("ptr_ggplotly returns a plain plotly widget configured for selection",
   withr::local_options(ggpaintr.gate_draw = FALSE)
   shiny::testServer(one_instance_server, {
     state1 <- session$userData$state1
+    seed_var_pickers(session, state1, c("wt", "mpg"))
     session$flushReact()
 
     w <- ptr_ggplotly(state1, tooltip = "all")
@@ -207,6 +246,7 @@ test_that("ptr_ggplotly forwards ... to plotly::ggplotly", {
   withr::local_options(ggpaintr.gate_draw = FALSE)
   shiny::testServer(one_instance_server, {
     state1 <- session$userData$state1
+    seed_var_pickers(session, state1, c("wt", "mpg"))
     session$flushReact()
     t_all <- plotly::plotly_build(ptr_ggplotly(state1, tooltip = "all"))$x$data[[1]]$text
     t_y <- plotly::plotly_build(ptr_ggplotly(state1, tooltip = "y"))$x$data[[1]]$text
@@ -222,6 +262,7 @@ test_that("ptr_ggplotly never mutates the state's drawn data", {
   withr::local_options(ggpaintr.gate_draw = FALSE)
   shiny::testServer(one_instance_server, {
     state1 <- session$userData$state1
+    seed_var_pickers(session, state1, c("wt", "mpg"))
     session$flushReact()
     w <- ptr_ggplotly(state1)
     expect_false(".ptr_row" %in% names(state1$runtime()$plot$data))
