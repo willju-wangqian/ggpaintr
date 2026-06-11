@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>plan-to-test — ADR 0028 plotly linked-selection helpers (traceability report)</title>
+<link rel="stylesheet" href="../assets/doc.css">
+</head>
+<body>
+
+<h1>plan-to-test — ADR 0028 plan set (red-first traceability report)</h1>
+<p class="meta">Date: 2026-06-10 · Plans: <code>dev/plans/0028-plotly-linked-selection-helpers/</code> (all four /implementable PASS, stamped 2026-06-10) · Branch: <code>0028-plotly-linked-selection-helpers</code> at <code>0143983</code></p>
+
+<h2>Summary</h2>
+<p>Three implementation-blind test files were landed BEFORE any implementation exists, derived solely from the four plans' frozen Interface Contracts + BDD scenarios (plus probe-verified third-party plotly/ggplot2 observables). Red-first proof captured: <strong>29 tests, 28 red for the right reason, 1 green by design</strong> (a dependency pin — see below). Suite tally for the three files under the gate harness (<code>devtools::test(filter="plotly")</code>, NOT_CRAN set, e2e RUN not skipped): <strong>FAIL 34 / WARN 0 / SKIP 0 / PASS 8</strong>.</p>
+<table>
+<tr><th>File</th><th>Plan</th><th>Tests</th><th>Red state</th></tr>
+<tr><td><code>tests/testthat/test-plotly-helpers.R</code></td><td>PLAN-01 (≥7 required)</td><td>12</td><td>12/12 red — "object 'plotly_mint_keys' not found" / "could not find function ptr_ggplotly" / mock-seam absent / contract-assertion Failures on the rejection tests</td></tr>
+<tr><td><code>tests/testthat/test-plotly-selection.R</code></td><td>PLAN-02 (≥9 required)</td><td>14</td><td>13/14 red — projection cores + shell absent; 1 green by design (ggplot2 pin, below)</td></tr>
+<tr><td><code>tests/testthat/test-plotly-e2e.R</code></td><td>PLAN-03 (≥3) + PLAN-04 (≥5)</td><td>3 + 5</td><td>8/8 red — "<code>app_dir</code> must be an existing directory" (fixtures are PLAN-03/04 implementation)</td></tr>
+</table>
+
+<h2>Red evidence</h2>
+<p>Captured failure log: <code>dev/audit/red-first-plan-to-test-0028-20260610-1819.log</code> (sha256 prefix <code>eabf8ef13774</code>). Run: <code>Rscript -e 'testthat::set_max_fails(Inf); devtools::test(filter="plotly", reporter="progress", stop_on_failure=FALSE)'</code> — devtools::test sets NOT_CRAN, so the e2e tests RUN and error (not the silent-skip proxy); all 29 tests are collected (SKIP 0 within the filter run).</p>
+<p><strong>Green-at-red audit (every green chased):</strong></p>
+<ul>
+<li><strong>Green by design (1 test):</strong> "a bare reactive as the pipeline head is an error" (PLAN-02, ADR rejected-by-design #4) pins ggplot2's literal <code>`data` cannot be a function</code> — a <em>dependency</em> contract no ggpaintr implementation can alter, probe-verified against the installed ggplot2 on 2026-06-10. It can never be red without breaking ggplot2 itself; documented in-file.</li>
+<li><strong>Wrong-reason greens found and rewritten (4 spots):</strong> the rejection tests (non-ggplot, non-ptr_state, non-data-frame ×2) initially green-passed because <code>expect_error()</code> swallowed "object not found" / "could not find function" — the exact tautology trap. Rewritten to capture the condition and <code>expect_no_match(conditionMessage, "not found|could not find")</code>, which now FAILS red until the entry points exist and asserts a real rejection afterward. (First fix used <code>"not found"</code> only, which missed "could <em>not find</em> function" → caught on the second green audit and widened.)</li>
+<li>Remaining PASS-8 are sub-assertions inside red tests (e.g. <code>expect_s3_class(err, "error")</code> preceding the failing not-found exclusion) — every <em>test</em> except the dependency pin is red.</li>
+</ul>
+
+<h2>Blindness attestation</h2>
+<p><code>R/paintr-plotly.R</code> does not exist (verified by <code>ls</code>); no implementation source of any entry point under test was read or stubbed. Files read, all for contract/harness/style only:</p>
+<ul>
+<li>The four plan HTMLs + index (the contract source).</li>
+<li>Harness/style: <code>tests/testthat/helper-vignette-apps.R</code>, <code>tests/testthat/test-runtime-gate.R</code>, <code>test-module-server-shared.R</code> + <code>test-rewrite-pipeline-data-source.R</code> (testServer + ptr_server + flushReact patterns; grep excerpts), <code>test-options.R</code> grep (the <code>ggpaintr.gate_draw</code> option name), <code>helper-fixtures.R</code> head (suite-wide library attaches), fixture <code>adr28-gate-live-reactive-head/app.R</code> (fixture shape + picker-id convention), <code>dev/scripts/plotly_linked_select.R</code> lines 1–60 (UI/id naming conventions only — the plan names it as the fixture reference; its selection-wiring body was not read).</li>
+<li>Third-party probes (sanctioned by the plans, which demand verification "against the installed plotly source"): <code>plotly::event_data</code> / <code>event_register</code> / <code>register_plot_events</code> deparse (plotly 4.12.0), widget-structure build probes (dragmode, shinyEvents, per-trace key, smooth-trace keylessness, tooltip text), the ggplot2 closure-error literal.</li>
+</ul>
+<p><strong>Stubs deliberately NOT added:</strong> the skill prefers stub signatures so assertions (not collection) go red, but <code>R/paintr-plotly.R</code> is owned by PLAN-01's worktree — stubbing it on the orchestrator branch would seed the implementation and collide with the plan's file ownership. Entry-point-absent red accepted as first red instead.</p>
+
+<h2>Forward map (test → clause)</h2>
+<p>Every test carries its clause in a leading comment (grep <code>PLAN-0</code> in the three files). Condensed:</p>
+<table>
+<tr><th>Test</th><th>Contract clause / BDD scenario</th></tr>
+<tr><td>helpers: mints per-draw keys on the widget copy only</td><td>P01 SC "Key minting" / BDD 1</td></tr>
+<tr><td>helpers: overrides a user aes(key=) warn-once</td><td>P01 SC "Key-channel ownership" / BDD 2 + mint_keys worked example</td></tr>
+<tr><td>helpers: silently overwrites stale .ptr_row</td><td>P01 SC "Collision overwrite" / BDD 3</td></tr>
+<tr><td>helpers: rejects a non-ggplot</td><td>P01 mint_keys input domain (outside)</td></tr>
+<tr><td>helpers: non-identity-stat layers carry no keys</td><td>P01 SC "Stat-layer limitation" / BDD 4 (ADR Decision 3)</td></tr>
+<tr><td>helpers: aborts when plotly not installed</td><td>P01 SC "Guard" / BDD 5 (plotly_installed mock seam)</td></tr>
+<tr><td>helpers: rejects non-ptr_state (hard, not silent)</td><td>P01 ptr_ggplotly error modes</td></tr>
+<tr><td>helpers: pre-draw raises silent req() condition</td><td>P01 ptr_ggplotly input domain (outside)</td></tr>
+<tr><td>helpers: derived source ids distinct + recorded</td><td>P01 SC "Source id + store" / BDD 6 (plotly_source_id, plotly_store seams)</td></tr>
+<tr><td>helpers: plain plotly widget configured for selection (+ layout pipe)</td><td>P01 SC 1 + "Widget configuration" + output spec + <strong>ADR worked example "becomes possible #3"</strong> / BDD 7</td></tr>
+<tr><td>helpers: forwards ... to ggplotly</td><td>P01 SC "Widget configuration" (tooltip forwarding)</td></tr>
+<tr><td>helpers: never mutates the state's drawn data</td><td>P01 SC "Key minting" (2nd half) + side effects</td></tr>
+<tr><td>selection: rows projection selected slice / empty zero-row / flag projection / stale .ptr_selected overwrite / out-of-range keys dropped / .ptr_row never appears / non-df rejection</td><td>P02 projection-core contract + BDD 1–4 + input/output spec clauses</td></tr>
+<tr><td>selection: unknown mode aborts naming rows+flag</td><td>P02 SC "mode validated" / BDD 9</td></tr>
+<tr><td>selection: bare reactive pipeline head errors</td><td>P02 BDD 8 / <strong>ADR rejected-by-design #4</strong> (green-by-design pin)</td></tr>
+<tr><td>selection: selection lands then new draw resets / deselect clears / keyless event stays empty / pre-draw req()s</td><td>P02 SC "Reset on draw" + "Keyless events" + output-spec pre-draw window / BDD 5–7; keyless = <strong>ADR rejected-by-design #1</strong>; reset = unit-tier pin of <strong>rejected-by-design #2</strong></td></tr>
+<tr><td>e2e: boots with rendered plotly widget / selection-fed instance draws all-FALSE / rows table renders unconditionally</td><td>P03 BDD 1–3; table test = <strong>ADR "becomes possible #2" (empty-state half)</strong></td></tr>
+<tr><td>e2e: table fill / flag-mode redraw / deselect clears / redraw resets / trigger-misuse never redraws</td><td>P04 BDD 1–5 = <strong>ADR "becomes possible #2 (table fill)", "#1", rejected-by-design #2 and #3</strong>; flag-redraw is the named positive control for the identical-HTML misuse assertion</td></tr>
+</table>
+
+<h2>Backward map (clause → test) and gaps</h2>
+<p>All 7 PLAN-01 BDD scenarios, all 9 PLAN-02 scenarios, all 3 PLAN-03 scenarios and all 5 PLAN-04 scenarios map to ≥1 test; all 7 ADR worked examples in the index's coverage table are covered at the tier the index assigns. Clauses with <strong>zero or weakened</strong> coverage (thin-contract gaps to send back to /implementable, not papered over):</p>
+<ul>
+<li><strong>P01 store entry fields:</strong> the contract says entries "hold the source string, the per-draw snapshot" but freezes no field names — asserted existence + idempotency + instance-id keying only. To assert content, /implementable should freeze the entry shape.</li>
+<li><strong>Rejection message texts:</strong> non-ggplot / non-ptr_state / non-data-frame aborts carry no frozen message — asserted error-presence + not-found exclusion (+ not-silent for ptr_state) only.</li>
+<li><strong>Roxygen clauses</strong> (P01/P02 SC: <code>@export</code>, full-loop <code>@examples</code>, the two documented sentences on pre-draw window and live-mode key reset): not unit-testable — they are post-implementation audit checks for /exec-plan's auditor, listed here so they aren't lost.</li>
+<li><strong>P02 "registers observers for plotly_selected/plotly_deselect via plotly::event_data"</strong>: asserted behaviorally (events drive the projections), not structurally — intentional (structure would be implementation-testing).</li>
+</ul>
+<p><strong>Over-reach declared (coordination pins, not plan-invented behavior):</strong> the e2e file's header pins the fixture interface — slugs <code>adr28-plotly-linked</code> / <code>adr28-plotly-trigger-misuse</code> (plan-named), instance ids p1/p2 + source "ptr_e2e" + hp/qsec pickers (plan-named), and output/widget ids <code>#main_plotly</code>, <code>#sel_table</code>, <code>#p1-ptr_error</code>, <code>#p2-ptr_plot</code>, <code>#p1-ptr_update_plot</code>, picker ids <code>p?-ggplot_1_[12]_ppVar_NA</code> (NOT in the plans — chosen from the demo script + sibling-fixture conventions). The PLAN-03/04 fixtures must conform to the header, or the implementer adjusts test + header together and reports it.</li></p>
+
+<h2>Harness assumptions for the implementer (recorded, not hidden)</h2>
+<ul>
+<li>Shell-level unit tests run the live-mode boot draw under <code>shiny::testServer</code> (<code>withr::local_options(ggpaintr.gate_draw = FALSE)</code> + <code>session$flushReact()</code>, per the test-rewrite-pipeline-data-source.R precedent) and call <code>ptr_ggplotly()</code> from the test body as the stand-in for <code>renderPlotly</code> re-execution. If the mock session can't drive <code>plotly::event_data</code>, PLAN-02's sanctioned fallback (drive the PLAN-01 store directly) applies and <strong>must be recorded in the audit report</strong> — same for PLAN-04's input-layer injection (downgrade = drive the reactive, reported, never mouse-drag/JS-emit).</li>
+<li>Injected payloads carry <em>string</em> keys (<code>'[{"key":"2"},...]'</code>) because built trace keys serialize as character (probe-verified) — the helper must coerce key types when matching rows.</li>
+</ul>
+
+<h2>Baseline note for /exec-plan (important drift from the plans' wording)</h2>
+<p>Each plan's "Baseline / drift reference" says "no pre-existing suite failures". With red tests landed first, that becomes: <strong>the expected-red baseline is exactly this file set</strong> — PLAN-01's worktree starts with test-plotly-helpers.R red (and turns it green), PLAN-02 likewise for test-plotly-selection.R, PLAN-03/04 for their test-plotly-e2e.R slices. Inner-loop note: the two unit files FAIL in any non-e2e run until PLAN-01/02 land; the e2e file cleanly SKIPs without NOT_CRAN. Any <em>other</em> failure remains "new failure = any failure". The full-suite Definition-of-Done (FAIL 0 / ERROR 0 / SKIP 0) is reached only when all four plans have merged — per the intended /implementable → /plan-to-test → implement → green sequence.</p>
+
+</body>
+</html>
