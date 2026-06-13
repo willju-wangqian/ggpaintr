@@ -13,6 +13,10 @@
 "_PACKAGE"
 
 # `:=` is used unqualified for dynamic argument names in desugar_pipe_to_call()
-# (`rlang::call2(rhs, !!nm := lhs)`, R/paintr-eval.R). Register it so R CMD check's
-# codetools does not flag it as an undefined global (no behaviour change).
-utils::globalVariables(":=")
+# (`rlang::call2(rhs, !!nm := lhs)`, R/paintr-eval.R). `.ptr_row` is the bare
+# per-row key symbol injected by `aes(key = .ptr_row)` in mint_plotly_key()
+# (R/paintr-plotly.R) — written unqualified on purpose (the frozen plotly
+# contract observable), so it resolves against the plot's own data at runtime.
+# Register both so R CMD check's codetools does not flag them as undefined
+# globals (no behaviour change).
+utils::globalVariables(c(":=", ".ptr_row"))
