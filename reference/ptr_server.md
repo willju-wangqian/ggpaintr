@@ -68,8 +68,7 @@ ptr_server(
 - spec:
 
   An optional named list of fully-qualified Shiny input id -\> value,
-  used to override widget defaults at session boot. See [ADR
-  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
+  used to override widget defaults at session boot.
 
 ## Value
 

@@ -75,8 +75,7 @@ ptr_app_grid(
   An optional named list of fully-qualified Shiny input id -\> value,
   used to override widget defaults at session boot. The same flat spec
   is passed to every per-plot engine; each instance filters by its own
-  namespace prefix. See [ADR
-  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
+  namespace prefix.
 
 ## Value
 

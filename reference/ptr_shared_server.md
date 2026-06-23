@@ -61,8 +61,7 @@ ptr_shared_server(
   [`ptr_server()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_server.md)
   AND to this host-scope server; per-plot servers prefix-filter by their
   own module namespace and drop un-namespaced ids, leaving this host
-  apply path to claim them. See [ADR
-  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
+  apply path to claim them.
 
 ## Value
 

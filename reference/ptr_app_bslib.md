@@ -72,8 +72,7 @@ ptr_app_bslib(
 - spec:
 
   An optional named list of fully-qualified Shiny input id -\> value,
-  used to override widget defaults at session boot. See [ADR
-  0012](https://willju-wangqian.github.io/ggpaintr/reference/dev/adr/0012-role-based-tree-and-ptr-spec.md).
+  used to override widget defaults at session boot.
 
   For the formula grammar (placeholder keywords, shared annotation,
   empty-call cleanup), see
