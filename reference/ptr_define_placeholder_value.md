@@ -227,8 +227,8 @@ ptr_define_placeholder_value(
 )
 #> function (x, ...) 
 #> x
-#> <bytecode: 0x558a0417ddb0>
-#> <environment: 0x558a0773c878>
+#> <bytecode: 0x562a2213ca30>
+#> <environment: 0x562a25af6210>
 ptr_clear_placeholder("pct")
 #> ✔ Cleared placeholder: "pct".
 ```
