@@ -1,3 +1,20 @@
+# ggpaintr 0.11.1
+
+## New features
+
+- **Linked plotly selection helpers (ADR 0028).** Two new exports turn the state returned by `ptr_server()` into an interactive, brushable plot. `ptr_ggplotly()` converts the state's current ggplot into a `plotly` htmlwidget — minting the per-row selection keys and wiring the crosstalk `source` internally, so the call is state-first (`ptr_ggplotly(state)`). `ptr_plotly_selection()` returns a reactive of the rows the user brushed or clicked on that plot (`mode = "rows"` and other projections), reset on each draw. Together they support a full brush-to-table loop. See `?ptr_ggplotly` and `?ptr_plotly_selection`.
+- **`ptr_options(gate_draw = )`** toggles the "Update plot" button. When `TRUE` (the default) the plot re-renders only on the button click, batching placeholder changes; when `FALSE` the button is omitted and the plot re-renders reactively on every placeholder change (live mode). It also governs the grid host's "Draw all" button. Read once when the app is built, so set it before `ptr_app()` / `ptr_ui()`.
+- **`ptr_options(suppress_warnings = )`** silences R warnings emitted while the plot is drawn (e.g. `loess` "all data on boundary of neighborhood" / "Failed to fit group N"). Default `FALSE`. Only the plot-drawing step is wrapped; errors still propagate to the inline error pane.
+
+## Bug fixes
+
+- **Runtime `ppExpr` safety messages are now truthful** — when a runtime `ppExpr` input is rejected, the abort reports the actual reason the expression was blocked rather than a generic message.
+- **The LLM docs tool argument was renamed `name` → `topic`.** The shipped primer instructs models to call `ggpaintr_docs(topic)`, but the registered `ellmer` tool schema (and `ptr_llm_topic()`'s parameter) named the argument `name`, so a model following the primer emitted a key the schema rejected. The schema argument and `ptr_llm_topic()` now agree on `topic`.
+
+## Documentation
+
+- The **safety** and **LLM** vignettes were migrated to the ggpaintr book (https://willju-wangqian.github.io/ggpaintr-book/); the package ships the `ggpaintr-tutorial` vignette as its single built vignette.
+
 # ggpaintr 0.11.0
 
 ## Breaking changes (ADR 0027)

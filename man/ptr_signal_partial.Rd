@@ -35,12 +35,12 @@ Use ordinary \code{\link[rlang:abort]{rlang::abort()}} for failures that are NOT
 artifacts (security violations, real argument-shape errors, etc.).
 }
 \examples{
-\dontrun{
+# A resolve hook that treats an unfinished expression as a transient,
+# silently-cancelled partial input rather than a hard error:
 my_expr_resolve <- function(value, node, ...) {
   tryCatch(
     rlang::parse_expr(value),
     error = function(e) ptr_signal_partial(conditionMessage(e))
   )
-}
 }
 }

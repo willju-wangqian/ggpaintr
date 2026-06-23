@@ -970,13 +970,13 @@ ptr_register_structural_keyword <- function(keyword, runtime = NULL) {
 #' @return Never returns -- always signals.
 #' @export
 #' @examples
-#' \dontrun{
+#' # A resolve hook that treats an unfinished expression as a transient,
+#' # silently-cancelled partial input rather than a hard error:
 #' my_expr_resolve <- function(value, node, ...) {
 #'   tryCatch(
 #'     rlang::parse_expr(value),
 #'     error = function(e) ptr_signal_partial(conditionMessage(e))
 #'   )
-#' }
 #' }
 ptr_signal_partial <- function(message, ...) {
   rlang::abort(message, class = "ptr_partial_input", ...)

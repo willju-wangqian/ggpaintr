@@ -141,7 +141,7 @@ plotly_instance_id <- function(state) {
 #'   [plotly::ggplotly()].
 #'
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' library(shiny)
 #' library(plotly)
 #' f <- rlang::expr(
@@ -315,7 +315,7 @@ plotly_project_flag <- function(snapshot, keys) {
 #'   custom-render contract.
 #'
 #' @examples
-#' \dontrun{
+#' if (interactive()) {
 #' library(shiny)
 #' library(plotly)
 #' f <- rlang::expr(

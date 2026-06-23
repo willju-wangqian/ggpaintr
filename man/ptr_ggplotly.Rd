@@ -42,7 +42,7 @@ plotly is an optional dependency (in \code{Suggests}). When it is not installed,
 this function aborts, mirroring \code{\link[=ptr_app_bslib]{ptr_app_bslib()}}'s bslib guard.
 }
 \examples{
-\dontrun{
+if (interactive()) {
 library(shiny)
 library(plotly)
 f <- rlang::expr(

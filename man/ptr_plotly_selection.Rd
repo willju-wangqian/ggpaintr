@@ -63,7 +63,7 @@ meaningful alongside \code{\link[=ptr_ggplotly]{ptr_ggplotly()}}, which guards o
 installed.
 }
 \examples{
-\dontrun{
+if (interactive()) {
 library(shiny)
 library(plotly)
 f <- rlang::expr(
