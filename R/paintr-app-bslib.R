@@ -41,8 +41,7 @@
 #'   wrapper demonstrates — wrappers are free to expose downstream-library
 #'   args like this in addition to whatever ggpaintr primitives they compose.
 #' @param spec An optional named list of fully-qualified Shiny input id ->
-#'   value, used to override widget defaults at session boot. See
-#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
+#'   value, used to override widget defaults at session boot.
 #'
 #' For the formula grammar (placeholder keywords, shared annotation,
 #' empty-call cleanup), see [ptr_app()].

@@ -788,8 +788,7 @@ apply_spec_entry <- function(session, row) {
 #'   page-level [ptr_shared_panel()] panel to a single embedded plot — the
 #'   same bundle [ptr_server()] accepts. Defaults to `NULL`.
 #' @param spec An optional named list of fully-qualified Shiny input id ->
-#'   value, used to override widget defaults at session boot. See
-#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
+#'   value, used to override widget defaults at session boot.
 #'
 #' @return The `ptr_state` list.
 #' @seealso [ptr_shared_server()], [ptr_server()]

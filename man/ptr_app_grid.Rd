@@ -46,8 +46,7 @@ its rules win. See \code{\link[=ptr_app]{ptr_app()}} for the full semantics. Def
 \item{spec}{An optional named list of fully-qualified Shiny input id ->
 value, used to override widget defaults at session boot. The same flat
 spec is passed to every per-plot engine; each instance filters by its
-own namespace prefix. See
-\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
+own namespace prefix.}
 }
 \value{
 A \code{shiny.appobj}.

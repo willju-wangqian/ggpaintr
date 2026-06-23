@@ -124,8 +124,7 @@
 #'   shows the desugared nested-call form. Stay in string mode (or use
 #'   `%>%`) if you need `|>` preserved.
 #' @param spec An optional named list of fully-qualified Shiny input id ->
-#'   value, used to override widget defaults at session boot. See
-#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
+#'   value, used to override widget defaults at session boot.
 #' @examples
 #' if (interactive()) {
 #'   # Expression mode (primary): pass the unquoted ggplot expression.
@@ -1140,8 +1139,7 @@ ptr_ui_page <- function(..., page = shiny::fluidPage, css = NULL) {
 #'   cross-formula [ptr_shared_panel()] and the equivalent `...` arguments
 #'   are not supplied directly.
 #' @param spec An optional named list of fully-qualified Shiny input id ->
-#'   value, used to override widget defaults at session boot. See
-#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
+#'   value, used to override widget defaults at session boot.
 #'
 #' @return The `ptr_state` list from [ptr_init_state()]. This is the
 #'   **supported L3 custom-render handle**: `state$runtime()$plot` /
@@ -1357,8 +1355,7 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #' @param spec An optional named list of fully-qualified Shiny input id ->
 #'   value, used to override widget defaults at session boot. The same flat
 #'   spec is passed to every per-plot engine; each instance filters by its
-#'   own namespace prefix. See
-#'   [ADR 0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
+#'   own namespace prefix.
 #'
 #' @return A `shiny.appobj`.
 #' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.

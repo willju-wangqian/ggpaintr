@@ -39,7 +39,7 @@ textInputs). Multi-instance entrypoints like \code{\link[=ptr_app_grid]{ptr_app_
 forward the same flat spec to every per-plot \code{\link[=ptr_server]{ptr_server()}} AND
 to this host-scope server; per-plot servers prefix-filter by their
 own module namespace and drop un-namespaced ids, leaving this host
-apply path to claim them. See \href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
+apply path to claim them.}
 }
 \value{
 A \code{ptr_shared_state} S3 object with public fields \code{shared},

@@ -36,8 +36,7 @@ cross-formula \code{\link[=ptr_shared_panel]{ptr_shared_panel()}} and the equiva
 are not supplied directly.}
 
 \item{spec}{An optional named list of fully-qualified Shiny input id ->
-value, used to override widget defaults at session boot. See
-\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
+value, used to override widget defaults at session boot.}
 }
 \value{
 The \code{ptr_state} list from \code{\link[=ptr_init_state]{ptr_init_state()}}. This is the

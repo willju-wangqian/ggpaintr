@@ -60,8 +60,7 @@ stylesheet, so its rules override the default \verb{.ptr-*} styling. Relative
 directory. Defaults to \code{NULL} (no extra stylesheet).}
 
 \item{spec}{An optional named list of fully-qualified Shiny input id ->
-value, used to override widget defaults at session boot. See
-\href{dev/adr/0012-role-based-tree-and-ptr-spec.html}{ADR 0012}.}
+value, used to override widget defaults at session boot.}
 }
 \value{
 A \code{shiny.appobj}.

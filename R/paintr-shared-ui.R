@@ -234,8 +234,7 @@ shared_consumer_representatives <- function(trees) {
 #'   forward the same flat spec to every per-plot [`ptr_server()`] AND
 #'   to this host-scope server; per-plot servers prefix-filter by their
 #'   own module namespace and drop un-namespaced ids, leaving this host
-#'   apply path to claim them. See [ADR
-#'   0012](dev/adr/0012-role-based-tree-and-ptr-spec.html).
+#'   apply path to claim them.
 #'
 #' @return A `ptr_shared_state` S3 object with public fields `shared`,
 #'   `draw_trigger`, `shared_resolutions`, and `shared_stage_enabled`
