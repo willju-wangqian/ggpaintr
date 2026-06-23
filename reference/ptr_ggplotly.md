@@ -68,7 +68,7 @@ for the L3 custom-render contract;
 ## Examples
 
 ``` r
-if (FALSE) { # \dontrun{
+if (interactive()) {
 library(shiny)
 library(plotly)
 f <- rlang::expr(
@@ -87,5 +87,5 @@ server <- function(input, output, session) {
   })
 }
 shinyApp(ui, server)
-} # }
+}
 ```

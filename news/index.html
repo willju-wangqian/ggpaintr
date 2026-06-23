@@ -38,6 +38,29 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.11.1" id="ggpaintr-0111">ggpaintr 0.11.1<a class="anchor" aria-label="anchor" href="#ggpaintr-0111"></a></h2>
+<div class="section level3">
+<h3 id="new-features-0-11-1">New features<a class="anchor" aria-label="anchor" href="#new-features-0-11-1"></a></h3>
+<ul><li>
+<strong>Linked plotly selection helpers (ADR 0028).</strong> Two new exports turn the state returned by <code><a href="../reference/ptr_server.html">ptr_server()</a></code> into an interactive, brushable plot. <code><a href="../reference/ptr_ggplotly.html">ptr_ggplotly()</a></code> converts the state’s current ggplot into a <code>plotly</code> htmlwidget — minting the per-row selection keys and wiring the crosstalk <code>source</code> internally, so the call is state-first (<code>ptr_ggplotly(state)</code>). <code><a href="../reference/ptr_plotly_selection.html">ptr_plotly_selection()</a></code> returns a reactive of the rows the user brushed or clicked on that plot (<code>mode = "rows"</code> and other projections), reset on each draw. Together they support a full brush-to-table loop. See <code><a href="../reference/ptr_ggplotly.html">?ptr_ggplotly</a></code> and <code><a href="../reference/ptr_plotly_selection.html">?ptr_plotly_selection</a></code>.</li>
+<li>
+<strong><code>ptr_options(gate_draw = )</code></strong> toggles the “Update plot” button. When <code>TRUE</code> (the default) the plot re-renders only on the button click, batching placeholder changes; when <code>FALSE</code> the button is omitted and the plot re-renders reactively on every placeholder change (live mode). It also governs the grid host’s “Draw all” button. Read once when the app is built, so set it before <code><a href="../reference/ptr_app.html">ptr_app()</a></code> / <code><a href="../reference/ptr_ui.html">ptr_ui()</a></code>.</li>
+<li>
+<strong><code>ptr_options(suppress_warnings = )</code></strong> silences R warnings emitted while the plot is drawn (e.g. <code>loess</code> “all data on boundary of neighborhood” / “Failed to fit group N”). Default <code>FALSE</code>. Only the plot-drawing step is wrapped; errors still propagate to the inline error pane.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="bug-fixes-0-11-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-11-1"></a></h3>
+<ul><li>
+<strong>Runtime <code>ppExpr</code> safety messages are now truthful</strong> — when a runtime <code>ppExpr</code> input is rejected, the abort reports the actual reason the expression was blocked rather than a generic message.</li>
+<li>
+<strong>The LLM docs tool argument was renamed <code>name</code> → <code>topic</code>.</strong> The shipped primer instructs models to call <code>ggpaintr_docs(topic)</code>, but the registered <code>ellmer</code> tool schema (and <code><a href="../reference/ptr_llm_topic.html">ptr_llm_topic()</a></code>’s parameter) named the argument <code>name</code>, so a model following the primer emitted a key the schema rejected. The schema argument and <code><a href="../reference/ptr_llm_topic.html">ptr_llm_topic()</a></code> now agree on <code>topic</code>.</li>
+</ul></div>
+<div class="section level3">
+<h3 id="documentation-0-11-1">Documentation<a class="anchor" aria-label="anchor" href="#documentation-0-11-1"></a></h3>
+<ul><li>The <strong>safety</strong> and <strong>LLM</strong> vignettes were migrated to the ggpaintr book (<a href="https://willju-wangqian.github.io/ggpaintr-book/" class="uri">https://willju-wangqian.github.io/ggpaintr-book/</a>); the package ships the <code>ggpaintr-tutorial</code> vignette as its single built vignette.</li>
+</ul></div>
+</div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.11.0" id="ggpaintr-0110">ggpaintr 0.11.0<a class="anchor" aria-label="anchor" href="#ggpaintr-0110"></a></h2>
 <div class="section level3">
 <h3 id="breaking-changes-adr-0-11-0">Breaking changes (ADR 0027)<a class="anchor" aria-label="anchor" href="#breaking-changes-adr-0-11-0"></a></h3>
