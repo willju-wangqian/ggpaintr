@@ -16,7 +16,7 @@ reference:
   - title: Formula placeholders
     desc: The `pp*` tokens you write inside a formula — the value/consumer/source controls plus the structural toggles.
     contents:
-      - pp_placeholders
+      - ppVar
       - ppLayerOff
       - ppVerbSwitch
   - title: Session configuration

@@ -29,8 +29,8 @@ Description: Turns a single 'ggplot2'-style formula string into a small
     'shiny' application. Placeholder tokens in the formula become input
     widgets automatically; the package completes the expression with the
     current input values, renders the plot, shows the generated code, and
-    supports uploaded datasets in '.csv', '.tsv', '.rds', '.xlsx', '.xls',
-    and '.json' formats.
+    supports uploaded datasets in .csv, .tsv, .rds, .xlsx, .xls,
+    and .json formats.
 License: GPL-3
 URL: https://willju-wangqian.github.io/ggpaintr/,
     https://github.com/willju-wangqian/ggpaintr

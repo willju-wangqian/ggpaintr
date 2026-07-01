@@ -303,8 +303,11 @@ ptr_builtin_keywords <- function() {
 #' # p1 and p2 produce the same plot.
 #'
 #' # Inside ptr_app() / ptr_server(), the same call binds to a column picker:
-#' # ptr_app(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar)) + geom_point())
-#' @name pp_placeholders
+#' if (interactive()) {
+#'   ptr_app(ggplot(mtcars, aes(x = ppVar(mpg), y = ppVar(wt))) + geom_point())
+#' }
+#' @name ppVar
+#' @aliases pp_placeholders
 NULL
 
 ptr_register_builtins <- function() {
@@ -392,23 +395,23 @@ ptr_register_builtins <- function() {
   ))
 }
 
-#' @rdname pp_placeholders
+#' @rdname ppVar
 #' @export
 ppVar <- function(x = NULL, ...) x
 
-#' @rdname pp_placeholders
+#' @rdname ppVar
 #' @export
 ppNum <- function(x = NULL, ...) x
 
-#' @rdname pp_placeholders
+#' @rdname ppVar
 #' @export
 ppText <- function(x = NULL, ...) x
 
-#' @rdname pp_placeholders
+#' @rdname ppVar
 #' @export
 ppExpr <- function(x = NULL, ...) x
 
-#' @rdname pp_placeholders
+#' @rdname ppVar
 #' @export
 ppUpload <- function(x, ...) {
   if (missing(x)) {
@@ -455,7 +458,9 @@ ppUpload <- function(x, ...) {
 #'
 #' # Inside ptr_app(), the wrapper becomes a node-level default and a
 #' # boot-state-off checkbox:
-#' # ptr_app(ggplot() + ppLayerOff(geom_point(aes(x = mpg, y = wt)), TRUE))
+#' if (interactive()) {
+#'   ptr_app(ggplot() + ppLayerOff(geom_point(aes(x = mpg, y = wt)), TRUE))
+#' }
 #' @export
 ppLayerOff <- function(layer_expr, hide = TRUE) {
   assertthat::assert_that(
@@ -508,19 +513,26 @@ ppLayerOff <- function(layer_expr, hide = TRUE) {
 #'   `.data`.
 #'
 #' @examples
-#' # Naked-R semantics: switch_on = FALSE leaves the data unchanged.
-#' identical(
-#'   ppVerbSwitch(mtcars, dplyr::mutate(mpg = mpg + 100), FALSE),
-#'   mtcars
-#' )
+#' if (requireNamespace("dplyr", quietly = TRUE)) {
+#'   # Naked-R semantics: switch_on = FALSE leaves the data unchanged.
+#'   identical(
+#'     ppVerbSwitch(mtcars, dplyr::mutate(mpg = mpg + 100), FALSE),
+#'     mtcars
+#'   )
 #'
-#' # switch_on = TRUE routes .data through the verb.
-#' result <- ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), TRUE)
-#' nrow(result)  # 14
+#'   # switch_on = TRUE routes .data through the verb.
+#'   result <- ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), TRUE)
+#'   nrow(result)  # 14
+#' }
 #'
 #' # Inside ptr_app(), the wrapper becomes a node-level default + a
-#' # labelled boot-state-on checkbox (plans 03-05 wire the UI):
-#' # ptr_app("mtcars |> ppVerbSwitch(filter(mpg > 20), TRUE, label = 'Filter')")
+#' # labelled boot-state-on checkbox:
+#' if (interactive()) {
+#'   ptr_app(
+#'     "mtcars |> ppVerbSwitch(dplyr::filter(mpg > 20), TRUE, label = 'Filter') |>
+#'      ggplot(aes(x = mpg, y = wt)) + geom_point()"
+#'   )
+#' }
 #'
 #' @export
 ppVerbSwitch <- function(.data, verb_expr, switch_on = TRUE, label = NULL) {

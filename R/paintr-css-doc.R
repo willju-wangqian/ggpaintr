@@ -35,14 +35,6 @@
 #' To override these, match or exceed that specificity in your stylesheet
 #' (either with the same selector, or with `!important`).
 #'
-#' @examples
-#' if (interactive()) {
-#'   # accent.css:
-#'   #   .ptr-app { --ptr-accent: #2563eb; --ptr-accent-strong: #1e40af; }
-#'   ptr_app(ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point(),
-#'           css = "accent.css")
-#' }
-#'
 #' @name ptr_css
 #' @keywords internal
 NULL

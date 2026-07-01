@@ -72,11 +72,4 @@ internal helper that is not part of the public API today. Use \code{\link[=ptr_a
 for that case, or \code{\link[=ptr_app_grid]{ptr_app_grid()}} for multi-formula shared coordination
 (the shared widgets auto-render from each placeholder's own \code{build_ui}).
 }
-\examples{
-if (interactive()) {
-ptr_app_bslib(
-  "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
-)
-}
-}
 \keyword{internal}

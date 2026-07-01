@@ -70,16 +70,6 @@ custom placeholder with the \code{build_ui} you want
 auto-renders from that \code{build_ui}.
 }
 
-\examples{
-if (interactive()) {
-  ptr_app_grid(
-    plots = list(
-      "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-      "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
-    )
-  )
-}
-}
 \seealso{
 \code{\link[=ptr_css]{ptr_css()}} for the \verb{css =} argument and themable CSS custom properties.
 }

@@ -47,12 +47,6 @@
 #' empty-call cleanup), see [ptr_app()].
 #'
 #' @return A `shiny.appobj`.
-#' @examples
-#' if (interactive()) {
-#' ptr_app_bslib(
-#'   "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
-#' )
-#' }
 #' @keywords internal
 ptr_app_bslib <- function(formula,
                           envir = parent.frame(),

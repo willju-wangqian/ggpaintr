@@ -1359,15 +1359,6 @@ ptr_server <- function(formula, id = NULL, envir = parent.frame(), ...,
 #'
 #' @return A `shiny.appobj`.
 #' @seealso [ptr_css()] for the `css =` argument and themable CSS custom properties.
-#' @examples
-#' if (interactive()) {
-#'   ptr_app_grid(
-#'     plots = list(
-#'       "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-#'       "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
-#'     )
-#'   )
-#' }
 #' @keywords internal
 ptr_app_grid <- function(plots,
                             envir = parent.frame(),
