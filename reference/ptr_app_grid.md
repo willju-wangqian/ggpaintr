@@ -100,16 +100,3 @@ widget auto-renders from that `build_ui`.
 
 [`ptr_css()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_css.md)
 for the `css =` argument and themable CSS custom properties.
-
-## Examples
-
-``` r
-if (interactive()) {
-  ptr_app_grid(
-    plots = list(
-      "ggplot(mtcars, aes(x = ppVar, y = ppVar)) + geom_point()",
-      "ggplot(mtcars, aes(x = ppVar)) + geom_histogram()"
-    )
-  )
-}
-```

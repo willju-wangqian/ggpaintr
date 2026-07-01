@@ -100,13 +100,3 @@ for that case, or
 [`ptr_app_grid()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_app_grid.md)
 for multi-formula shared coordination (the shared widgets auto-render
 from each placeholder's own `build_ui`).
-
-## Examples
-
-``` r
-if (interactive()) {
-ptr_app_bslib(
-  "ggplot(data = mtcars, aes(x = ppVar, y = ppVar)) + geom_point()"
-)
-}
-```

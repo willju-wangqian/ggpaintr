@@ -5,7 +5,7 @@ Interactive RStudio addin. Highlight a token in your ggplot expression
 from a command-palette gadget; the selection is rewritten to
 `ppVar(mpg)`. With nothing highlighted the same palette opens and
 inserts
-[`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+[`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
 with the caret between the parens. The placeholder list is read live
 from the registry, so custom placeholders registered this session (via
 [`ptr_define_placeholder_value()`](https://willju-wangqian.github.io/ggpaintr/reference/ptr_define_placeholder_value.md)

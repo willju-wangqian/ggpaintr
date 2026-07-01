@@ -24,11 +24,11 @@ palette.
 The `pp*` tokens you write inside a formula — the value/consumer/source
 controls plus the structural toggles.
 
-- [`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
-  [`ppNum()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
-  [`ppText()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
-  [`ppExpr()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
-  [`ppUpload()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+- [`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
+  [`ppNum()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
+  [`ppText()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
+  [`ppExpr()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
+  [`ppUpload()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
   : Placeholder Identity Helpers
 - [`ppLayerOff()`](https://willju-wangqian.github.io/ggpaintr/reference/ppLayerOff.md)
   : Off-by-default layer wrapper

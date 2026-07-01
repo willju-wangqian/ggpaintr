@@ -76,19 +76,25 @@ instead).
 ## Examples
 
 ``` r
-# Naked-R semantics: switch_on = FALSE leaves the data unchanged.
-identical(
-  ppVerbSwitch(mtcars, dplyr::mutate(mpg = mpg + 100), FALSE),
-  mtcars
-)
-#> [1] TRUE
+if (requireNamespace("dplyr", quietly = TRUE)) {
+  # Naked-R semantics: switch_on = FALSE leaves the data unchanged.
+  identical(
+    ppVerbSwitch(mtcars, dplyr::mutate(mpg = mpg + 100), FALSE),
+    mtcars
+  )
 
-# switch_on = TRUE routes .data through the verb.
-result <- ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), TRUE)
-nrow(result)  # 14
+  # switch_on = TRUE routes .data through the verb.
+  result <- ppVerbSwitch(mtcars, dplyr::filter(mpg > 20), TRUE)
+  nrow(result)  # 14
+}
 #> [1] 14
 
 # Inside ptr_app(), the wrapper becomes a node-level default + a
-# labelled boot-state-on checkbox (plans 03-05 wire the UI):
-# ptr_app("mtcars |> ppVerbSwitch(filter(mpg > 20), TRUE, label = 'Filter')")
+# labelled boot-state-on checkbox:
+if (interactive()) {
+  ptr_app(
+    "mtcars |> ppVerbSwitch(dplyr::filter(mpg > 20), TRUE, label = 'Filter') |>
+     ggplot(aes(x = mpg, y = wt)) + geom_point()"
+  )
+}
 ```

@@ -122,21 +122,27 @@ wrapper instead).</p>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="co"># Naked-R semantics: switch_on = FALSE leaves the data unchanged.</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span></span></span>
-<span class="r-in"><span>  <span class="fu">ppVerbSwitch</span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>mpg <span class="op">=</span> <span class="va">mpg</span> <span class="op">+</span> <span class="fl">100</span><span class="op">)</span>, <span class="cn">FALSE</span><span class="op">)</span>,</span></span>
-<span class="r-in"><span>  <span class="va">mtcars</span></span></span>
-<span class="r-in"><span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] TRUE</span>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/ns-load.html" class="external-link">requireNamespace</a></span><span class="op">(</span><span class="st">"dplyr"</span>, quietly <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="co"># Naked-R semantics: switch_on = FALSE leaves the data unchanged.</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="fu">ppVerbSwitch</span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/mutate.html" class="external-link">mutate</a></span><span class="op">(</span>mpg <span class="op">=</span> <span class="va">mpg</span> <span class="op">+</span> <span class="fl">100</span><span class="op">)</span>, <span class="cn">FALSE</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>    <span class="va">mtcars</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span></span></span>
-<span class="r-in"><span><span class="co"># switch_on = TRUE routes .data through the verb.</span></span></span>
-<span class="r-in"><span><span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">ppVerbSwitch</span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">mpg</span> <span class="op">&gt;</span> <span class="fl">20</span><span class="op">)</span>, <span class="cn">TRUE</span><span class="op">)</span></span></span>
-<span class="r-in"><span><span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span>  <span class="co"># 14</span></span></span>
+<span class="r-in"><span>  <span class="co"># switch_on = TRUE routes .data through the verb.</span></span></span>
+<span class="r-in"><span>  <span class="va">result</span> <span class="op">&lt;-</span> <span class="fu">ppVerbSwitch</span><span class="op">(</span><span class="va">mtcars</span>, <span class="fu">dplyr</span><span class="fu">::</span><span class="fu"><a href="https://dplyr.tidyverse.org/reference/filter.html" class="external-link">filter</a></span><span class="op">(</span><span class="va">mpg</span> <span class="op">&gt;</span> <span class="fl">20</span><span class="op">)</span>, <span class="cn">TRUE</span><span class="op">)</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/nrow.html" class="external-link">nrow</a></span><span class="op">(</span><span class="va">result</span><span class="op">)</span>  <span class="co"># 14</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 14</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Inside ptr_app(), the wrapper becomes a node-level default + a</span></span></span>
-<span class="r-in"><span><span class="co"># labelled boot-state-on checkbox (plans 03-05 wire the UI):</span></span></span>
-<span class="r-in"><span><span class="co"># ptr_app("mtcars |&gt; ppVerbSwitch(filter(mpg &gt; 20), TRUE, label = 'Filter')")</span></span></span>
+<span class="r-in"><span><span class="co"># labelled boot-state-on checkbox:</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/interactive.html" class="external-link">interactive</a></span><span class="op">(</span><span class="op">)</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="ptr_app.html">ptr_app</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    <span class="st">"mtcars |&gt; ppVerbSwitch(dplyr::filter(mpg &gt; 20), TRUE, label = 'Filter') |&gt;</span></span></span>
+<span class="r-in"><span><span class="st">     ggplot(aes(x = mpg, y = wt)) + geom_point()"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>
     </div>

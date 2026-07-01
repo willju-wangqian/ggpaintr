@@ -32,7 +32,7 @@ ptr_shared_server(
 - envir:
 
   Environment used to resolve symbols in the shared
-  [`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+  [`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
   upstream chains. Default
   [`parent.frame()`](https://rdrr.io/r/base/sys.parent.html) picks up
   the embedder's caller scope so `mtcars` etc. resolve naturally.

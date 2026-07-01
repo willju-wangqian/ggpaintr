@@ -130,7 +130,7 @@ into a placeholder formula without typing the `pp*` tokens by hand.
 Highlight a piece of your code, run the addin, and pick a placeholder
 from a command palette — the selection is rewritten in place (`mpg` →
 `ppVar(mpg)`; nothing highlighted inserts
-[`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/pp_placeholders.md)
+[`ppVar()`](https://willju-wangqian.github.io/ggpaintr/reference/ppVar.md)
 with the cursor between the parens). The list is ordered by what you
 highlighted — a bare name surfaces the column pickers (`ppVar`), a
 number `ppNum`, a string `ppText`, a call the layer/verb toggles
