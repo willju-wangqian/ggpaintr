@@ -4,8 +4,10 @@ Resubmission (new submission, version unchanged at 0.11.1). This
 resubmission addresses all three remarks from the CRAN review of the
 first submission:
 
-- Removed the single quotes around the file formats in the Description
-  field (now: .csv, .tsv, .rds, .xlsx, .xls, and .json).
+- Removed the quoted file-format list from the Description field
+  entirely: the sentence now reads "supports uploaded datasets in
+  different formats" (dropping the list also avoids the spell-check
+  NOTE that the unquoted extension names would trigger).
 - Removed the examples from the help pages of unexported functions
   (`ptr_app_bslib`, `ptr_app_grid`, and the documentation-only `ptr_css`
   page). The placeholder help topic formerly named `pp_placeholders` (a
