@@ -19,10 +19,7 @@ can ship an interactive version of it.
 
 ``` r
 
-# Install the released version from CRAN:
-install.packages("ggpaintr")
-
-# Or the development version from GitHub:
+# Install the development version from GitHub:
 # install.packages("pak")
 pak::pkg_install("willju-wangqian/ggpaintr")
 ```

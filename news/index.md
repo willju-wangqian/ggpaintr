@@ -1,7 +1,5 @@
 # Changelog
 
-## ggpaintr (development version)
-
 ## ggpaintr 0.11.1
 
 CRAN release: 2026-07-07
