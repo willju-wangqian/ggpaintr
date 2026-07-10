@@ -37,8 +37,8 @@ ptr_define_placeholder_value(
 )
 #> function (x, ...) 
 #> x
-#> <bytecode: 0x5558f1b3ec88>
-#> <environment: 0x5558f20ec5e8>
+#> <bytecode: 0x55c682123fe8>
+#> <environment: 0x55c684791ea0>
 ptr_clear_placeholder("demo_kw")
 #> ✔ Cleared placeholder: "demo_kw".
 ```
