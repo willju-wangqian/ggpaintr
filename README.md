@@ -3,8 +3,13 @@
 
 <!-- badges: start -->
 
+[![CRAN
+status](https://www.r-pkg.org/badges/version/ggpaintr)](https://CRAN.R-project.org/package=ggpaintr)
+[![CRAN
+downloads](https://cranlogs.r-pkg.org/badges/ggpaintr)](https://CRAN.R-project.org/package=ggpaintr)
+[![R-CMD-check](https://github.com/willju-wangqian/ggpaintr/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/willju-wangqian/ggpaintr/actions/workflows/R-CMD-check.yaml)
 [![Lifecycle:
-experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html)
+stable](https://img.shields.io/badge/lifecycle-stable-brightgreen.svg)](https://lifecycle.r-lib.org/articles/stages.html#stable)
 <!-- badges: end -->
 
 ## Overview
@@ -23,7 +28,10 @@ can ship an interactive version of it.
 ## Installation
 
 ``` r
-# Install the development version from GitHub:
+# Install the released version from CRAN:
+install.packages("ggpaintr")
+
+# Or the development version from GitHub:
 # install.packages("pak")
 pak::pkg_install("willju-wangqian/ggpaintr")
 ```
